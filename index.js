@@ -49,7 +49,7 @@ async function fetchMovie(title, year) {
 app.post(`/bot${TOKEN}`, async (req, res) => {
   const msg = req.body.message;
 
-  if (msg?.document) {
+  if (msg.document || msg.video) {
     const fileName = msg.document.file_name;
     const fileId = msg.document.file_id;
 
