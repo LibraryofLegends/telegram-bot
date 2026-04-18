@@ -74,11 +74,23 @@ ${movie.overview?.slice(0,100) || ""}...`,
 
 // ===== TMDB =====
 async function fetchMovie(title, year) {
-  const res = await fetch(
+  let res = await fetch(
     `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${title}&year=${year}&language=de-DE`
   );
-  const data = await res.json();
-  return data.results[0];
+  let data = await res.json();
+
+  let movie = data.results[0];
+
+  // 🔁 Fallback auf Englisch wenn leer
+  if (!movie || !movie.overview) {
+    res = await fetch(
+      `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${title}&year=${year}&language=en-US`
+    );
+    data = await res.json();
+    movie = data.results[0];
+  }
+
+  return movie;
 }
 
 // ===== WEBHOOK =====
