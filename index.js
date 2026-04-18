@@ -36,6 +36,19 @@ function parseFileName(fileName) {
   return { title, year };
 }
 
+async function sendMessage(chatId, text) {
+  await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: text
+    })
+  });
+}
+
 // ===== TMDB =====
 async function fetchMovie(title, year) {
   const res = await fetch(
