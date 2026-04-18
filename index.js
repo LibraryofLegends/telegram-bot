@@ -10,6 +10,20 @@ const TMDB_KEY = process.env.TMDB_KEY;
 
 const DB_FILE = "films.json";
 
+// ===== GENRES DEUTSCH =====
+const GENRE_MAP = {
+  28: "Action",
+  35: "Komödie",
+  27: "Horror",
+  53: "Thriller",
+  18: "Drama",
+  878: "Sci-Fi",
+  12: "Abenteuer",
+  16: "Animation",
+  80: "Krimi",
+  10749: "Romantik"
+};
+
 // ===== DB =====
 function loadDB() {
   if (!fs.existsSync(DB_FILE)) return [];
@@ -36,16 +50,28 @@ function parseFileName(fileName) {
   return { title, year };
 }
 
-// ===== TELEGRAM =====
+// ===== TELEGRAM TEXT =====
 async function sendMessage(chatId, text) {
   await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text })
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: text
+    })
   });
 }
 
+// ===== GENRES FORMAT =====
+function getGenres(ids = []) {
+  return ids.map(id => GENRE_MAP[id]).filter(Boolean).join(", ");
+}
+
+// ===== MOVIE CARD =====
 async function sendMovieCard(chatId, movie, fileId) {
+  const genres = getGenres(movie.genre_ids);
+  const rating = movie.vote_average ? movie.vote_average.toFixed(1) : "–";
+
   await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -53,16 +79,20 @@ async function sendMovieCard(chatId, movie, fileId) {
       chat_id: chatId,
       photo: movie.poster_path
         ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-        : "https://via.placeholder.com/300x450?text=No+Image",
-      caption: `🎬 ${movie.title} (${movie.release_date?.slice(0,4)})
-⭐ Bewertung: ${movie.vote_average}
+        : "https://via.placeholder.com/300x450?text=Kein+Bild",
+      caption:
+`🎬 *${movie.title}* (${movie.release_date?.slice(0,4) || "–"})
 
-📝 ${movie.overview?.slice(0,120) || "Keine Beschreibung verfügbar"}...`,
+⭐ Bewertung: ${rating}
+🎭 Genre: ${genres || "–"}
+
+📝 ${movie.overview?.slice(0,140) || "Keine Beschreibung verfügbar"}...`,
+      parse_mode: "Markdown",
       reply_markup: {
         inline_keyboard: [
           [
             {
-              text: "▶️ Abspielen",
+              text: "▶️ Jetzt ansehen",
               url: `https://t.me/LIBRARY_OF_LEGENDS_Bot?start=${fileId}`
             }
           ]
@@ -72,7 +102,7 @@ async function sendMovieCard(chatId, movie, fileId) {
   });
 }
 
-// ===== TMDB =====
+// ===== TMDB (DEUTSCH + FALLBACK) =====
 async function fetchMovie(title, year) {
   let res = await fetch(
     `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${title}&year=${year}&language=de-DE`
@@ -81,7 +111,7 @@ async function fetchMovie(title, year) {
 
   let movie = data.results[0];
 
-  // 🔁 Fallback auf Englisch wenn leer
+  // Fallback auf Englisch
   if (!movie || !movie.overview) {
     res = await fetch(
       `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${title}&year=${year}&language=en-US`
@@ -100,6 +130,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     if (!msg) return res.sendStatus(200);
 
+    // 🎬 Datei oder Video
     if (msg.document || msg.video) {
 
       const file = msg.document || msg.video;
@@ -110,7 +141,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       const movie = await fetchMovie(title, year);
 
       if (!movie) {
-        await sendMessage(msg.chat.id, "❌ Film nicht gefunden");
+        await sendMessage(msg.chat.id, "❌ Film nicht gefunden oder falscher Dateiname");
         return res.sendStatus(200);
       }
 
