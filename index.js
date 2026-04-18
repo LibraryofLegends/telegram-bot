@@ -36,6 +36,7 @@ function parseFileName(fileName) {
   return { title, year };
 }
 
+// ===== TELEGRAM SEND =====
 async function sendMessage(chatId, text) {
   await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
     method: "POST",
@@ -63,14 +64,12 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     const msg = req.body.message;
 
-    // 🛑 Keine Message → ignorieren
     if (!msg) return res.sendStatus(200);
 
-    // 🎬 Unterstützt Dokument UND Video
+    // 🎬 FILE DETECT (Dokument + Video)
     if (msg.document || msg.video) {
 
       const file = msg.document || msg.video;
-
       const fileName = file.file_name || "video";
       const fileId = file.file_id;
 
@@ -78,8 +77,10 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       const movie = await fetchMovie(title, year);
 
-      // 🛑 Wenn nichts gefunden → trotzdem sauber beenden
-      if (!movie) return res.sendStatus(200);
+      if (!movie) {
+        await sendMessage(msg.chat.id, "❌ Film nicht gefunden");
+        return res.sendStatus(200);
+      }
 
       const db = loadDB();
 
@@ -98,9 +99,14 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       saveDB(db);
 
       console.log("✅ Film gespeichert:", movie.title);
+
+      // 🎉 BOT ANTWORT
+      await sendMessage(
+        msg.chat.id,
+        `🎬 Film hinzugefügt:\n${movie.title} (${movie.release_date?.slice(0,4)})`
+      );
     }
 
-    // 👉 Alles andere ignorieren
     res.sendStatus(200);
 
   } catch (err) {
