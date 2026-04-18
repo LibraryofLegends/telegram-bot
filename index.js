@@ -36,38 +36,34 @@ function parseFileName(fileName) {
   return { title, year };
 }
 
-// ===== TELEGRAM SEND =====
+// ===== TELEGRAM =====
 async function sendMessage(chatId, text) {
   await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: text
-    })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text })
   });
 }
 
 async function sendMovieCard(chatId, movie, fileId) {
   await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: chatId,
-      photo: movie.poster_path 
+      photo: movie.poster_path
         ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
         : "https://via.placeholder.com/300x450?text=No+Image",
-      caption: `🎬 ${movie.title} (${movie.release_date?.slice(0,4)})\n⭐ ${movie.vote_average}`,
+      caption: `🎬 ${movie.title} (${movie.release_date?.slice(0,4)})
+⭐ ${movie.vote_average}
+
+${movie.overview?.slice(0,100) || ""}...`,
       reply_markup: {
         inline_keyboard: [
           [
             {
               text: "▶️ Abspielen",
-              url: `https://t.me/DEIN_BOT?start=${fileId}`
+              url: `https://t.me/LIBRARY_OF_LEGENDS_Bot?start=${fileId}`
             }
           ]
         ]
@@ -92,7 +88,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     if (!msg) return res.sendStatus(200);
 
-    // 🎬 FILE DETECT (Dokument + Video)
     if (msg.document || msg.video) {
 
       const file = msg.document || msg.video;
@@ -100,7 +95,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       const fileId = file.file_id;
 
       const { title, year } = parseFileName(fileName);
-
       const movie = await fetchMovie(title, year);
 
       if (!movie) {
@@ -126,8 +120,8 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       console.log("✅ Film gespeichert:", movie.title);
 
-      // 🎉 BOT ANTWORT
       await sendMovieCard(msg.chat.id, movie, fileId);
+    }
 
     res.sendStatus(200);
 
