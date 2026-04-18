@@ -55,9 +55,9 @@ async function sendMovieCard(chatId, movie, fileId) {
         ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
         : "https://via.placeholder.com/300x450?text=No+Image",
       caption: `🎬 ${movie.title} (${movie.release_date?.slice(0,4)})
-⭐ ${movie.vote_average}
+⭐ Bewertung: ${movie.vote_average}
 
-${movie.overview?.slice(0,100) || ""}...`,
+📝 ${movie.overview?.slice(0,120) || "Keine Beschreibung verfügbar"}...`,
       reply_markup: {
         inline_keyboard: [
           [
