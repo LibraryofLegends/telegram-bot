@@ -47,35 +47,53 @@ async function fetchMovie(title, year) {
 
 // ===== WEBHOOK =====
 app.post(`/bot${TOKEN}`, async (req, res) => {
-  const msg = req.body.message;
+  try {
+    const msg = req.body.message;
 
-  if (msg.document || msg.video) {
-    const fileName = msg.document.file_name;
-    const fileId = msg.document.file_id;
+    // 🛑 Keine Message → ignorieren
+    if (!msg) return res.sendStatus(200);
 
-    const { title, year } = parseFileName(fileName);
-    const movie = await fetchMovie(title, year);
+    // 🎬 Unterstützt Dokument UND Video
+    if (msg.document || msg.video) {
 
-    if (!movie) return res.sendStatus(200);
+      const file = msg.document || msg.video;
 
-    const db = loadDB();
+      const fileName = file.file_name || "video";
+      const fileId = file.file_id;
 
-    db.unshift({
-      title: movie.title,
-      year: movie.release_date?.slice(0, 4),
-      rating: movie.vote_average,
-      cover: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
-      overview: movie.overview,
-      genre_ids: movie.genre_ids,
-      file_id: fileId,
-      type: "movie",
-      added: Date.now()
-    });
+      const { title, year } = parseFileName(fileName);
 
-    saveDB(db);
+      const movie = await fetchMovie(title, year);
+
+      // 🛑 Wenn nichts gefunden → trotzdem sauber beenden
+      if (!movie) return res.sendStatus(200);
+
+      const db = loadDB();
+
+      db.unshift({
+        title: movie.title,
+        year: movie.release_date?.slice(0, 4),
+        rating: movie.vote_average,
+        cover: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+        overview: movie.overview,
+        genre_ids: movie.genre_ids,
+        file_id: fileId,
+        type: "movie",
+        added: Date.now()
+      });
+
+      saveDB(db);
+
+      console.log("✅ Film gespeichert:", movie.title);
+    }
+
+    // 👉 Alles andere ignorieren
+    res.sendStatus(200);
+
+  } catch (err) {
+    console.error("❌ Fehler:", err);
+    res.sendStatus(200);
   }
-
-  res.sendStatus(200);
 });
 
 // ===== API =====
