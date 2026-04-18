@@ -75,7 +75,7 @@ ${movie.overview?.slice(0,100) || ""}...`,
 // ===== TMDB =====
 async function fetchMovie(title, year) {
   const res = await fetch(
-    `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${title}&year=${year}`
+    `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${title}&year=${year}&language=de-DE`
   );
   const data = await res.json();
   return data.results[0];
