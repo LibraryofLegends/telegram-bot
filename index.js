@@ -50,6 +50,32 @@ async function sendMessage(chatId, text) {
   });
 }
 
+async function sendMovieCard(chatId, movie, fileId) {
+  await fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      photo: movie.poster_path 
+        ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+        : "https://via.placeholder.com/300x450?text=No+Image",
+      caption: `🎬 ${movie.title} (${movie.release_date?.slice(0,4)})\n⭐ ${movie.vote_average}`,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "▶️ Abspielen",
+              url: `https://t.me/DEIN_BOT?start=${fileId}`
+            }
+          ]
+        ]
+      }
+    })
+  });
+}
+
 // ===== TMDB =====
 async function fetchMovie(title, year) {
   const res = await fetch(
