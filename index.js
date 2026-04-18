@@ -127,11 +127,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       console.log("✅ Film gespeichert:", movie.title);
 
       // 🎉 BOT ANTWORT
-      await sendMessage(
-        msg.chat.id,
-        `🎬 Film hinzugefügt:\n${movie.title} (${movie.release_date?.slice(0,4)})`
-      );
-    }
+      await sendMovieCard(msg.chat.id, movie, fileId);
 
     res.sendStatus(200);
 
