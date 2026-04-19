@@ -304,5 +304,6 @@ app.get("/api/films", (req, res) => {
 
 // ===== START =====
 app.listen(process.env.PORT || 3000, () => {
+  console.log("🔎 Suche nach:", parsed.title);
   console.log("🔥 Server läuft sauber");
 });
