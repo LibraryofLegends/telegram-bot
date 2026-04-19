@@ -43,6 +43,8 @@ function cleanName(name) {
 }
 
 // ===== PARSER =====
+console.log("📥 Datei:", fileName);
+console.log("🧠 Parsed:", parsed.title);
 function parseFileName(name) {
   name = cleanName(name);
 
