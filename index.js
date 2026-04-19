@@ -40,7 +40,8 @@ function cleanName(name) {
     .replace(/\.(mp4|mkv|avi)$/i, "")
     .replace(/@\w+/g, "")
     .replace(/[._\-]+/g, " ")
-    .replace(/\b(1080p|720p|x264|x265|bluray|web|dl|german)\b/gi, "")
+    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german|aac|hdrip|hdtv)\b/gi, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
