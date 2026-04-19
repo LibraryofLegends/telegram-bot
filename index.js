@@ -129,32 +129,57 @@ async function fetchEpisode(tvId, season, episode) {
 
 // ===== CARD =====
 async function sendCard(chatId, data, fileId, extra = {}) {
-  const title = data.title || data.name;
-  const year = (data.release_date || data.first_air_date || "").slice(0, 4);
+  try {
+    const title = data.title || data.name;
+    const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
-  const text =
+    const text =
 `🎬 ${title} (${year})
 
 ${getRating(data.vote_average)}
 ${getGenres(data.genre_ids)}
 
-${(extra.overview || data.overview || "").slice(0, 100)}...`;
+${(extra.overview || data.overview || "").slice(0,100)}...`;
 
-  await tg("sendPhoto", {
-    chat_id: chatId,
-    photo: data.poster_path
+    const image = data.poster_path
       ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
-      : "https://via.placeholder.com/300x450",
-    caption: text,
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: "▶️ Abspielen", callback_data: `play_${fileId}` },
-          { text: "ℹ️ Details", callback_data: `info_${fileId}` }
-        ]
-      ]
+      : null;
+
+    // 👉 Wenn Bild da → sendPhoto
+    if (image) {
+      await tg("sendPhoto", {
+        chat_id: chatId,
+        photo: image,
+        caption: text,
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "▶️ Abspielen", callback_data: `play_${fileId}` },
+            { text: "ℹ️ Details", callback_data: `info_${fileId}` }
+          ]]
+        }
+      });
+    } else {
+      // 👉 Fallback → sendMessage
+      await tg("sendMessage", {
+        chat_id: chatId,
+        text: text,
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "▶️ Abspielen", callback_data: `play_${fileId}` },
+            { text: "ℹ️ Details", callback_data: `info_${fileId}` }
+          ]]
+        }
+      });
     }
-  });
+
+    console.log("📤 Card gesendet");
+
+  } catch (err) {
+    console.error("❌ sendCard Fehler:", err);
+
+    // 👉 HARTE FALLBACK ANTWORT
+    await sendMessage(chatId, "❌ Fehler beim Anzeigen des Films");
+  }
 }
 
 // ===== DETAILS =====
