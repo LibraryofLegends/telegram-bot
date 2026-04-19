@@ -74,8 +74,8 @@ async function tg(method, body) {
   return data;
 }
 
-async function sendMessage(chatId, text, extra = {}) {
-  return tg("sendMessage", { chat_id: chatId, text, ...extra });
+async function sendMessage(chatId, text) {
+  return tg("sendMessage", { chat_id: chatId, text });
 }
 
 async function playMovie(chatId, fileId) {
@@ -115,6 +115,7 @@ async function searchMulti(title, type) {
   const res = await fetch(
     `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
   );
+
   const data = await res.json();
   return data.results || [];
 }
@@ -125,6 +126,7 @@ async function fetchDetails(id, type) {
   const res = await fetch(
     `https://api.themoviedb.org/3/${url}/${id}?api_key=${TMDB_KEY}&language=de-DE`
   );
+
   return res.json();
 }
 
@@ -132,6 +134,7 @@ async function fetchEpisode(tvId, season, episode) {
   const res = await fetch(
     `https://api.themoviedb.org/3/tv/${tvId}/season/${season}/episode/${episode}?api_key=${TMDB_KEY}&language=de-DE`
   );
+
   return res.json();
 }
 
@@ -153,7 +156,6 @@ ${(extra.overview || data.overview || "").slice(0,100)}...`;
       ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
       : null;
 
-    // 👉 Wenn Bild da → sendPhoto
     if (image) {
       await tg("sendPhoto", {
         chat_id: chatId,
@@ -167,25 +169,13 @@ ${(extra.overview || data.overview || "").slice(0,100)}...`;
         }
       });
     } else {
-      // 👉 Fallback → sendMessage
-      await tg("sendMessage", {
-        chat_id: chatId,
-        text: text,
-        reply_markup: {
-          inline_keyboard: [[
-            { text: "▶️ Abspielen", callback_data: `play_${fileId}` },
-            { text: "ℹ️ Details", callback_data: `info_${fileId}` }
-          ]]
-        }
-      });
+      await sendMessage(chatId, text);
     }
 
     console.log("📤 Card gesendet");
 
   } catch (err) {
     console.error("❌ sendCard Fehler:", err);
-
-    // 👉 HARTE FALLBACK ANTWORT
     await sendMessage(chatId, "❌ Fehler beim Anzeigen des Films");
   }
 }
@@ -200,86 +190,23 @@ async function sendDetails(chatId, item) {
 ${item.season ? `📺 S${item.season}E${item.episode}` : ""}
 📝 ${item.overview || "Keine Beschreibung"}`;
 
-  await tg("sendMessage", {
-    chat_id: chatId,
-    text,
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "▶️ Abspielen", callback_data: `play_${item.file_id}` }]
-      ]
-    }
-  });
+  await sendMessage(chatId, text);
 }
 
-// ===== SERIES NAV =====
-async function sendSeriesMenu(chatId) {
-  const db = loadDB();
-  const groups = [...new Set(db.map(x => x.group).filter(Boolean))];
-
-  const buttons = groups.map(g => [{
-    text: `📺 ${g}`,
-    callback_data: `open_${g}`
-  }]);
-
-  await tg("sendMessage", {
-    chat_id: chatId,
-    text: "📺 Serien",
-    reply_markup: { inline_keyboard: buttons }
-  });
-}
-
-async function sendSeasonMenu(chatId, group) {
-  const db = loadDB();
-  const seasons = [...new Set(db.filter(x => x.group === group).map(x => x.season))];
-
-  const buttons = seasons.map(s => [{
-    text: `📦 Staffel ${s}`,
-    callback_data: `season_${group}_${s}`
-  }]);
-
-  await tg("sendMessage", {
-    chat_id: chatId,
-    text: `📺 ${group}`,
-    reply_markup: { inline_keyboard: buttons }
-  });
-}
-
-async function sendEpisodeMenu(chatId, group, season) {
-  const db = loadDB();
-  const eps = db.filter(x => x.group === group && x.season == season);
-
-  const buttons = eps.map(ep => [{
-    text: `▶️ Folge ${ep.episode}`,
-    callback_data: `play_${ep.file_id}`
-  }]);
-
-  await tg("sendMessage", {
-    chat_id: chatId,
-    text: `📦 Staffel ${season}`,
-    reply_markup: { inline_keyboard: buttons }
-  });
-}
-
-// ===== MENU =====
-async function sendMenu(chatId) {
-  await tg("sendMessage", {
-    chat_id: chatId,
-    text: "🎬 Library of Legends",
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "🎬 Filme", callback_data: "movies" }],
-        [{ text: "📺 Serien", callback_data: "series" }]
-      ]
-    }
-  });
-}
+// ===== API ROUTE (WICHTIG) =====
+app.get("/api/films", (req, res) => {
+  try {
+    res.json(loadDB());
+  } catch (err) {
+    res.status(500).json({ error: "Server Fehler" });
+  }
+});
 
 // ===== WEBHOOK =====
 app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     const body = req.body;
 
-    // CALLBACKS
     if (body.callback_query) {
       const data = body.callback_query.data;
       const chatId = body.callback_query.message.chat.id;
@@ -294,100 +221,70 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
         if (item) await sendDetails(chatId, item);
       }
 
-      if (data === "series") await sendSeriesMenu(chatId);
-
-      if (data.startsWith("open_")) {
-        await sendSeasonMenu(chatId, data.replace("open_", ""));
-      }
-
-      if (data.startsWith("season_")) {
-        const [, group, season] = data.split("_");
-        await sendEpisodeMenu(chatId, group, season);
-      }
-
       return res.sendStatus(200);
     }
 
     const msg = body.message || body.channel_post;
     if (!msg) return res.sendStatus(200);
 
-    // START
-    if (msg.text?.startsWith("/start")) {
-      await sendMenu(msg.chat.id);
+    if (msg.document || msg.video) {
+      const file = msg.document || msg.video;
+
+      const fileId = file.file_id;
+      const fileName = file.file_name || msg.caption || "video";
+
+      console.log("📥 Datei:", fileName);
+
+      const parsed = parseFileName(fileName);
+
+      if (!parsed.title || parsed.title.length < 2) {
+        await sendMessage(msg.chat.id, "❌ Dateiname nicht erkannt");
+        return res.sendStatus(200);
+      }
+
+      const results = await searchMulti(parsed.title, parsed.type);
+
+      if (!results.length) {
+        await sendMessage(msg.chat.id, `❌ Nichts gefunden: ${parsed.title}`);
+        return res.sendStatus(200);
+      }
+
+      const best = results[0];
+      const details = await fetchDetails(best.id, parsed.type);
+
+      let save = {
+        title: details.title || details.name,
+        rating: details.vote_average,
+        overview: details.overview,
+        cover: `https://image.tmdb.org/t/p/w500${details.poster_path}`,
+        genre_ids: details.genre_ids,
+        year: (details.release_date || details.first_air_date || "").slice(0,4),
+        file_id: fileId,
+        type: parsed.type
+      };
+
+      if (parsed.type === "series") {
+        const ep = await fetchEpisode(details.id, parsed.season, parsed.episode);
+
+        save = {
+          ...save,
+          group: parsed.group,
+          season: parsed.season,
+          episode: parsed.episode,
+          overview: ep.overview || details.overview
+        };
+      }
+
+      const db = loadDB();
+      db.unshift(save);
+      saveDB(db);
+
+      console.log("💾 Gespeichert:", save.title);
+
+      await sendCard(msg.chat.id, details, fileId, save);
+
       return res.sendStatus(200);
     }
-
-    // FILE INPUT
-    if (msg.document || msg.video) {
-
-  const file = msg.document || msg.video;
-
-  const fileId = file.file_id;
-  const fileName = file.file_name || msg.caption || "video";
-
-  console.log("📥 Datei:", fileName);
-
-  const parsed = parseFileName(fileName);
-
-  console.log("🧠 Parsed:", parsed);
-
-  // ❗ WICHTIG: Wenn kein Titel erkannt → abbrechen
-  if (!parsed.title || parsed.title.length < 2) {
-    console.log("❌ Kein gültiger Titel erkannt");
-    await sendMessage(msg.chat.id, "❌ Dateiname nicht erkannt");
-    return res.sendStatus(200);
-  }
-
-  const results = await searchMulti(parsed.title, parsed.type);
-
-  console.log("🎬 TMDB Results:", results?.length);
-
-  if (!results || results.length === 0) {
-    console.log("❌ TMDB nichts gefunden:", parsed.title);
-    await sendMessage(msg.chat.id, `❌ Nichts gefunden: ${parsed.title}`);
-    return res.sendStatus(200);
-  }
-
-  const best = results[0];
-
-  console.log("✅ Bester Treffer:", best.title || best.name);
-
-  const details = await fetchDetails(best.id, parsed.type);
-
-  let save = {
-    title: details.title || details.name,
-    rating: details.vote_average,
-    overview: details.overview,
-    file_id: fileId,
-    type: parsed.type
-  };
-
-  if (parsed.type === "series") {
-    const ep = await fetchEpisode(
-      details.id,
-      parsed.season,
-      parsed.episode
-    );
-
-    save = {
-      ...save,
-      group: parsed.group,
-      season: parsed.season,
-      episode: parsed.episode,
-      overview: ep.overview || details.overview
-    };
-  }
-
-  const db = loadDB();
-  db.unshift(save);
-  saveDB(db);
-
-  console.log("💾 Gespeichert:", save.title);
-
-  await sendCard(msg.chat.id, details, fileId, save);
-
-  return res.sendStatus(200);
-}
 
     res.sendStatus(200);
 
