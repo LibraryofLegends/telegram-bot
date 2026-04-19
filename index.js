@@ -53,6 +53,22 @@ function normalizeSearchTitle(title) {
     .trim();
 }
 
+// ===== 🤖 AUTO TITLE AI =====
+function generateTitleVariants(title) {
+  const clean = normalizeSearchTitle(title);
+
+  const words = clean.split(" ");
+
+  const variants = new Set();
+
+  variants.add(clean);
+  variants.add(words.slice(0,2).join(" "));
+  variants.add(words.slice(0,3).join(" "));
+  variants.add(words.slice(0,4).join(" "));
+
+  return [...variants].filter(x => x.length > 2);
+}
+
 // ===== PARSER =====
 function parseFileName(name) {
   name = cleanName(name);
@@ -133,19 +149,19 @@ ${(data.overview || "").slice(0,100)}...`;
   });
 }
 
-// ===== TMDB SEARCH =====
-async function searchMulti(title, type) {
+// ===== SEARCH =====
+async function searchTMDB(title, type, lang="de-DE") {
   const url = type === "series" ? "tv" : "movie";
 
   const res = await fetch(
-    `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}`
+    `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=${lang}`
   );
 
   const data = await res.json();
   return data.results || [];
 }
 
-// ===== ULTRA SEARCH =====
+// ===== 🤖 ULTRA SEARCH + AI =====
 async function ultraSearch(title, type) {
   const learn = loadLearning();
   const key = normalizeKey(title);
@@ -154,26 +170,21 @@ async function ultraSearch(title, type) {
     return [{ id: learn[key].id }];
   }
 
-  const url = type === "series" ? "tv" : "movie";
+  const variants = generateTitleVariants(title);
 
-  let res = await fetch(
-    `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
-  );
-  let data = await res.json();
+  for (const v of variants) {
+    console.log("🔎 Versuch:", v);
 
-  if (data.results?.length) {
-    saveLearningResult(title, data.results[0]);
-    return data.results;
-  }
+    let results = await searchTMDB(v, type, "de-DE");
 
-  res = await fetch(
-    `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=en-US`
-  );
-  data = await res.json();
+    if (!results.length) {
+      results = await searchTMDB(v, type, "en-US");
+    }
 
-  if (data.results?.length) {
-    saveLearningResult(title, data.results[0]);
-    return data.results;
+    if (results.length) {
+      saveLearningResult(title, results[0]);
+      return results;
+    }
   }
 
   return [];
@@ -203,7 +214,7 @@ async function sendSuggestions(chatId, results) {
   });
 }
 
-// ===== FETCH DETAILS =====
+// ===== DETAILS =====
 async function fetchDetails(id, type) {
   const url = type === "series" ? "tv" : "movie";
 
@@ -219,7 +230,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     const body = req.body;
 
-    // CALLBACKS
     if (body.callback_query) {
       const data = body.callback_query.data;
       const chatId = body.callback_query.message.chat.id;
@@ -248,10 +258,13 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       const parsed = parseFileName(fileName);
 
+      console.log("📥 Datei:", fileName);
+      console.log("🧠 Parsed:", parsed);
+
       const results = await ultraSearch(parsed.title, parsed.type);
 
       if (!results.length) {
-        const fallback = await searchMulti(parsed.title, parsed.type);
+        const fallback = await searchTMDB(parsed.title, parsed.type);
 
         if (fallback.length) {
           await sendSuggestions(msg.chat.id, fallback);
@@ -304,6 +317,5 @@ app.get("/api/films", (req, res) => {
 
 // ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔎 Suche nach:", parsed.title);
   console.log("🔥 Server läuft sauber");
 });
