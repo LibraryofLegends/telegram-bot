@@ -8,7 +8,6 @@ const TOKEN = process.env.TOKEN;
 const TMDB_KEY = process.env.TMDB_KEY;
 
 const DB_FILE = "films.json";
-const LEARN_FILE = "learning.json";
 
 // ===== DB =====
 function loadDB() {
@@ -17,18 +16,6 @@ function loadDB() {
 }
 function saveDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-}
-
-// ===== LEARNING =====
-function loadLearning() {
-  if (!fs.existsSync(LEARN_FILE)) return {};
-  return JSON.parse(fs.readFileSync(LEARN_FILE));
-}
-function saveLearning(data) {
-  fs.writeFileSync(LEARN_FILE, JSON.stringify(data, null, 2));
-}
-function normalizeKey(title) {
-  return title.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 // ===== CLEAN =====
@@ -43,8 +30,6 @@ function cleanName(name) {
 }
 
 // ===== PARSER =====
-console.log("📥 Datei:", fileName);
-console.log("🧠 Parsed:", parsed.title);
 function parseFileName(name) {
   name = cleanName(name);
 
@@ -54,7 +39,6 @@ function parseFileName(name) {
 
   if (seriesMatch) {
     const cleanTitle = name.replace(seriesMatch[0], "").trim();
-
     return {
       type: "series",
       title: cleanTitle,
@@ -73,8 +57,8 @@ function parseFileName(name) {
   };
 }
 
+// ===== 🤖 AI MATCHING PRO =====
 function generateTitleVariants(title) {
-
   const clean = title
     .toLowerCase()
     .replace(/\b(der|die|das|und|the|a|german|dl|1080p|720p)\b/g, "")
@@ -83,20 +67,15 @@ function generateTitleVariants(title) {
 
   const words = clean.split(" ").filter(w => w.length > 2);
 
-  const variants = [];
+  const variants = new Set();
 
-  // original clean
-  variants.push(clean);
+  variants.add(clean);
+  variants.add(words.slice(0, 2).join(" "));
+  variants.add(words.slice(0, 3).join(" "));
+  variants.add(words.slice(0, 4).join(" "));
+  variants.add(words[0]);
 
-  // erste 2-4 Wörter
-  variants.push(words.slice(0,2).join(" "));
-  variants.push(words.slice(0,3).join(" "));
-  variants.push(words.slice(0,4).join(" "));
-
-  // nur erstes Wort
-  variants.push(words[0]);
-
-  return [...new Set(variants)].filter(v => v && v.length > 1);
+  return [...variants].filter(v => v && v.length > 1);
 }
 
 // ===== TELEGRAM =====
@@ -130,10 +109,10 @@ function getRating(r) {
   return "⭐".repeat(stars) + "☆".repeat(5 - stars) + ` (${r?.toFixed(1) || "-"})`;
 }
 
-// ===== 🎴 ULTRA CARD =====
+// ===== 🎴 CARD =====
 async function sendCard(chatId, data, fileId, extra = {}) {
   const title = data.title || data.name;
-  const year = (data.release_date || data.first_air_date || "").slice(0,4);
+  const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
   const episodeInfo = extra.type === "series"
     ? `\n📦 Staffel ${extra.season} • Folge ${extra.episode}`
@@ -156,97 +135,84 @@ ${episodeInfo}
       : "https://via.placeholder.com/300x450",
     caption: text,
     reply_markup: {
-      inline_keyboard: [
-        [
-          { text: "▶️ Abspielen", callback_data: `play_${fileId}` }
-        ]
-      ]
+      inline_keyboard: [[
+        { text: "▶️ Abspielen", callback_data: `play_${fileId}` }
+      ]]
     }
   });
 }
 
-// ===== SERIES MENU =====
+// ===== SERIES MENUS =====
 async function sendSeriesMenu(chatId) {
   const db = loadDB();
-  const groups = [...new Set(db.filter(x=>x.group).map(x=>x.group))];
-
-  const buttons = groups.map(g => [{
-    text: `📺 ${g}`,
-    callback_data: `open_${g}`
-  }]);
+  const groups = [...new Set(db.filter(x => x.group).map(x => x.group))];
 
   await sendMessage(chatId, "📺 Serien auswählen:", {
-    reply_markup: { inline_keyboard: buttons }
+    reply_markup: {
+      inline_keyboard: groups.map(g => [{
+        text: `📺 ${g}`,
+        callback_data: `open_${g}`
+      }])
+    }
   });
 }
 
-// ===== SEASON MENU =====
 async function sendSeasonMenu(chatId, group) {
   const db = loadDB();
-  const seasons = [...new Set(db.filter(x=>x.group===group).map(x=>x.season))];
-
-  const buttons = seasons.map(s => [{
-    text: `📦 Staffel ${s}`,
-    callback_data: `season_${group}_${s}`
-  }]);
+  const seasons = [...new Set(db.filter(x => x.group === group).map(x => x.season))];
 
   await sendMessage(chatId, `📺 ${group}`, {
-    reply_markup: { inline_keyboard: buttons }
+    reply_markup: {
+      inline_keyboard: seasons.map(s => [{
+        text: `📦 Staffel ${s}`,
+        callback_data: `season_${group}_${s}`
+      }])
+    }
   });
 }
 
-// ===== EPISODES =====
 async function sendEpisodeMenu(chatId, group, season) {
   const db = loadDB();
-  const eps = db.filter(x => x.group===group && x.season==season);
-
-  const buttons = eps.map(e => [{
-    text: `▶️ Folge ${e.episode}`,
-    callback_data: `play_${e.file_id}`
-  }]);
+  const eps = db.filter(x => x.group === group && x.season == season);
 
   await sendMessage(chatId, `📦 Staffel ${season}`, {
-    reply_markup: { inline_keyboard: buttons }
+    reply_markup: {
+      inline_keyboard: eps.map(e => [{
+        text: `▶️ Folge ${e.episode}`,
+        callback_data: `play_${e.file_id}`
+      }])
+    }
   });
 }
 
-// ===== SEARCH =====
+// ===== 🔍 AI SEARCH =====
 async function ultraSearch(title, type) {
-
   const variants = generateTitleVariants(title);
 
   console.log("🧠 Varianten:", variants);
 
   for (const v of variants) {
-
     if (!v || v.length < 2) continue;
 
     console.log("🔎 Suche:", v);
 
-    // 🇩🇪
+    // DE
     let res = await fetch(
       `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(v)}&language=de-DE`
     );
     let data = await res.json();
 
-    if (data.results?.length) {
-      console.log("✅ Treffer DE:", data.results[0].title || data.results[0].name);
-      return data.results;
-    }
+    if (data.results?.length) return data.results;
 
-    // 🇺🇸
+    // EN
     res = await fetch(
       `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(v)}&language=en-US`
     );
     data = await res.json();
 
-    if (data.results?.length) {
-      console.log("✅ Treffer EN:", data.results[0].title || data.results[0].name);
-      return data.results;
-    }
+    if (data.results?.length) return data.results;
   }
 
-  console.log("❌ GAR NICHTS GEFUNDEN");
   return [];
 }
 
@@ -255,6 +221,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     const body = req.body;
 
+    // CALLBACKS
     if (body.callback_query) {
       const data = body.callback_query.data;
       const chatId = body.callback_query.message.chat.id;
@@ -291,13 +258,24 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       return res.sendStatus(200);
     }
 
+    // FILE INPUT
     if (msg.document || msg.video) {
       const file = msg.document || msg.video;
-
       const fileId = file.file_id;
-      const parsed = parseFileName(file.file_name || "");
+      const fileName = file.file_name || msg.caption || "video";
 
-      const results = await searchTMDB(parsed.title, parsed.type);
+      console.log("📥 Datei:", fileName);
+
+      const parsed = parseFileName(fileName);
+
+      console.log("🧠 Parsed:", parsed.title);
+
+      if (!parsed.title || parsed.title.length < 2) {
+        await sendMessage(msg.chat.id, "❌ Titel nicht erkannt");
+        return res.sendStatus(200);
+      }
+
+      const results = await ultraSearch(parsed.title, parsed.type);
 
       if (!results.length) {
         await sendMessage(msg.chat.id, "❌ Nichts gefunden");
@@ -331,11 +309,12 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     res.sendStatus(200);
 
   } catch (err) {
-    console.error(err);
+    console.error("❌ Fehler:", err);
     res.sendStatus(200);
   }
 });
 
+// ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 Ultra UI läuft");
+  console.log("🔥 AI Matching Pro läuft sauber");
 });
