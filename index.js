@@ -9,6 +9,7 @@ const TOKEN = process.env.TOKEN;
 const TMDB_KEY = process.env.TMDB_KEY;
 
 const DB_FILE = "films.json";
+const LEARN_FILE = "learning.json";
 
 // ===== DB =====
 function loadDB() {
@@ -17,6 +18,18 @@ function loadDB() {
 }
 function saveDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+}
+
+// ===== LEARNING =====
+function loadLearning() {
+  if (!fs.existsSync(LEARN_FILE)) return {};
+  return JSON.parse(fs.readFileSync(LEARN_FILE));
+}
+function saveLearning(data) {
+  fs.writeFileSync(LEARN_FILE, JSON.stringify(data, null, 2));
+}
+function normalizeKey(title) {
+  return title.toLowerCase().replace(/\s+/g, "").trim();
 }
 
 // ===== CLEAN =====
@@ -136,22 +149,10 @@ async function sendSelection(chatId, results, type, fileId, parsed) {
     })
   }]);
 
-  return sendMessage(chatId, "❓ Meintest du:", {
-    reply_markup: { inline_keyboard: buttons }
-  });
-}
-
-async function sendMenu(chatId) {
   return tg("sendMessage", {
     chat_id: chatId,
-    text: "🎬 Library of Legends",
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "🔥 Neu", callback_data: "new" }],
-        [{ text: "🎬 Filme", callback_data: "movies" }],
-        [{ text: "📺 Serien", callback_data: "series" }]
-      ]
-    }
+    text: "❓ Meintest du:",
+    reply_markup: { inline_keyboard: buttons }
   });
 }
 
@@ -160,13 +161,23 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     const body = req.body;
 
-    // CALLBACK
+    // ===== CALLBACK =====
     if (body.callback_query) {
       const cb = body.callback_query;
       const data = JSON.parse(cb.data);
       const chatId = cb.message.chat.id;
 
       if (data.action === "select") {
+
+        const learning = loadLearning();
+        const key = normalizeKey(data.parsed.title);
+
+        learning[key] = {
+          id: data.id,
+          type: data.type
+        };
+        saveLearning(learning);
+
         const details = await fetchDetails(data.id, data.type);
 
         let save = {
@@ -207,24 +218,36 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     const msg = body.message;
     if (!msg) return res.sendStatus(200);
 
-    // START / PLAY
+    // ===== START / PLAY =====
     if (msg.text?.startsWith("/start")) {
       const fileId = msg.text.split(" ")[1];
 
       if (fileId) {
         await playMovie(msg.chat.id, fileId);
       } else {
-        await sendMenu(msg.chat.id);
+        await sendMessage(msg.chat.id, "🎬 Willkommen bei deiner Library");
       }
 
       return res.sendStatus(200);
     }
 
-    // FILE UPLOAD
+    // ===== FILE =====
     if (msg.document || msg.video) {
       const file = msg.document || msg.video;
       const parsed = parseFileName(file.file_name || "");
       const fileId = file.file_id;
+
+      const learning = loadLearning();
+      const key = normalizeKey(parsed.title);
+
+      // 🧠 LEARNING HIT
+      if (learning[key]) {
+        const learned = learning[key];
+        const details = await fetchDetails(learned.id, learned.type);
+
+        await sendMovieCard(msg.chat.id, details, fileId);
+        return res.sendStatus(200);
+      }
 
       const results = await searchMulti(parsed.title, parsed.type);
 
@@ -233,7 +256,17 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
         return res.sendStatus(200);
       }
 
-      await sendSelection(msg.chat.id, results, parsed.type, fileId, parsed);
+      // 🧠 AUTO PICK
+      const best = results[0];
+
+      if (best && best.vote_average > 5) {
+        const details = await fetchDetails(best.id, parsed.type);
+
+        await sendMovieCard(msg.chat.id, details, fileId);
+      } else {
+        await sendSelection(msg.chat.id, results, parsed.type, fileId, parsed);
+      }
+
       return res.sendStatus(200);
     }
 
