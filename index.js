@@ -41,7 +41,15 @@ function parseFileName(name) {
   if (seriesMatch) {
     return {
       type: "series",
-      title: name.replace(seriesMatch[0], "").trim(),
+      const cleanTitle = name.replace(seriesMatch[0], "").trim();
+
+return {
+  type: "series",
+  title: cleanTitle,
+  group: cleanTitle,
+  season: parseInt(seriesMatch[1]),
+  episode: parseInt(seriesMatch[2])
+};
       group: name.replace(seriesMatch[0], "").trim(),
       season: parseInt(seriesMatch[1]),
       episode: parseInt(seriesMatch[2])
