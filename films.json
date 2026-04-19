@@ -3,41 +3,24 @@
     "title": "Havoc",
     "year": "2025",
     "rating": 6.4,
-    "cover": "https://image.tmdb.org/t/p/w500/xyz.jpg",
-    "overview": "Ein desillusionierter Detektiv muss tief in die Unterwelt vordringen...",
-    "genre_ids": [28, 80, 53, 18],
-    "file_id": "BAACAgQAAxkBAAIB123EXAMPLEFILEID",
+    "cover": "https://image.tmdb.org/t/p/w500/9OjrNiZ4Ki4EZtb9sIBAxolxyQQ.jpg",
+    "overview": "Ein desillusionierter Detektiv...",
+    "genre_ids": [28,80,53,18],
+    "file_id": "BAACAgIAAxkBAAIFEGnjOJ62okAQzDpfPswE0jJnV1nIAAKVdQACGPBASVmhPiXmNGXsOwQ",
     "type": "movie",
     "added": 1710000000000
   },
-
   {
-    "title": "Breaking Bad S01E01",
+    "title": "Breaking Bad",
     "year": "2008",
     "rating": 9.5,
     "cover": "https://image.tmdb.org/t/p/w500/abc.jpg",
-    "overview": "Ein Chemielehrer wird zum Drogenkoch...",
-    "genre_ids": [18, 80],
-    "file_id": "BAACAgQAAxkBAAIB456EXAMPLEFILEID",
+    "overview": "Ein Chemielehrer wird...",
+    "genre_ids": [18,80],
+    "file_id": "BAACAgQAAxkBAAIB123",
     "type": "series",
     "group": "Breaking Bad",
     "season": 1,
-    "episode": 1,
-    "added": 1710000000001
-  },
-
-  {
-    "title": "Breaking Bad S01E02",
-    "year": "2008",
-    "rating": 9.0,
-    "cover": "https://image.tmdb.org/t/p/w500/abc.jpg",
-    "overview": "Die Geschichte geht weiter...",
-    "genre_ids": [18, 80],
-    "file_id": "BAACAgQAAxkBAAIB789EXAMPLEFILEID",
-    "type": "series",
-    "group": "Breaking Bad",
-    "season": 1,
-    "episode": 2,
-    "added": 1710000000002
+    "episode": 1
   }
 ]
