@@ -292,10 +292,11 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       const fileName = file.file_name || file.caption || "video";
 
       const results = await searchMulti(parsed.title, parsed.type);
-      if (!results.length) {
-        await sendMessage(msg.chat.id, "❌ Nichts gefunden");
-        return res.sendStatus(200);
-      }
+      if (!results || results.length === 0) {
+  console.log("❌ TMDB nichts gefunden:", parsed.title);
+  await sendMessage(msg.chat.id, `❌ Nichts gefunden: ${parsed.title}`);
+  return res.sendStatus(200);
+}
 
       const best = results[0];
       const details = await fetchDetails(best.id, parsed.type);
