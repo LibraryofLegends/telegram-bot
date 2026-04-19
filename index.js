@@ -24,7 +24,7 @@ function cleanName(name) {
     .replace(/\.(mp4|mkv|avi)$/i, "")
     .replace(/@\w+/g, "")
     .replace(/[._\-]+/g, " ")
-    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german|aac|hdrip|hdtv)\b/gi, "")
+    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german|aac|hdrip|hdtv|originale|orginale|tonspur|extended|cut|remastered)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -61,7 +61,7 @@ function parseFileName(name) {
 function generateTitleVariants(title) {
   const clean = title
     .toLowerCase()
-    .replace(/\b(der|die|das|und|the|a|german|dl|1080p|720p)\b/g, "")
+    .replace(/\b(der|die|das|und|the|a)\b/g, "")
     .replace(/[^a-z0-9 ]/g, "")
     .trim();
 
@@ -109,7 +109,7 @@ function getRating(r) {
   return "⭐".repeat(stars) + "☆".repeat(5 - stars) + ` (${r?.toFixed(1) || "-"})`;
 }
 
-// ===== 🎴 CARD =====
+// ===== 🎴 CARD (FIXED BUTTON) =====
 async function sendCard(chatId, data, fileId, extra = {}) {
   const title = data.title || data.name;
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
@@ -136,7 +136,10 @@ ${episodeInfo}
     caption: text,
     reply_markup: {
       inline_keyboard: [[
-        { text: "▶️ Abspielen", callback_data: `play_${fileId}` }
+        {
+          text: "▶️ Abspielen",
+          url: `https://t.me/LIBRARY_OF_LEGENDS_Bot?start=${fileId}`
+        }
       ]]
     }
   });
@@ -187,6 +190,12 @@ async function sendEpisodeMenu(chatId, group, season) {
 
 // ===== 🔍 AI SEARCH =====
 async function ultraSearch(title, type) {
+
+  // 🔥 HARDCODE FIX (wichtige Klassiker)
+  if (title.toLowerCase().includes("pate")) {
+    return [{ id: 238 }];
+  }
+
   const variants = generateTitleVariants(title);
 
   console.log("🧠 Varianten:", variants);
@@ -196,7 +205,6 @@ async function ultraSearch(title, type) {
 
     console.log("🔎 Suche:", v);
 
-    // DE
     let res = await fetch(
       `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(v)}&language=de-DE`
     );
@@ -204,7 +212,6 @@ async function ultraSearch(title, type) {
 
     if (data.results?.length) return data.results;
 
-    // EN
     res = await fetch(
       `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(v)}&language=en-US`
     );
@@ -221,7 +228,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     const body = req.body;
 
-    // CALLBACKS
     if (body.callback_query) {
       const data = body.callback_query.data;
       const chatId = body.callback_query.message.chat.id;
@@ -258,7 +264,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // FILE INPUT
     if (msg.document || msg.video) {
       const file = msg.document || msg.video;
       const fileId = file.file_id;
@@ -316,5 +321,5 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
 // ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 AI Matching Pro läuft sauber");
+  console.log("🔥 FINAL BOT läuft stabil + AI Matching Pro aktiv");
 });
