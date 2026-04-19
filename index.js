@@ -235,6 +235,19 @@ function saveLearnResult(input, result) {
   saveLearning(learn);
 }
 
+async function sendSuggestions(chatId, results) {
+  const buttons = results.slice(0,5).map(r => [{
+    text: r.title || r.name,
+    callback_data: `select_${r.id}`
+  }]);
+
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text: "❓ Meintest du:",
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
 // ===== WEBHOOK =====
 app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
