@@ -45,6 +45,14 @@ function cleanName(name) {
     .trim();
 }
 
+function normalizeSearchTitle(title) {
+  return title
+    .toLowerCase()
+    .replace(/\b(der|die|das|und|the|a)\b/g, "")
+    .replace(/[^a-z0-9 ]/g, "")
+    .trim();
+}
+
 // ===== PARSER =====
 function parseFileName(name) {
   name = cleanName(name);
