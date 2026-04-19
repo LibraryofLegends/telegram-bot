@@ -1,4 +1,3 @@
-
 const express = require("express");
 const fs = require("fs");
 
@@ -9,9 +8,9 @@ const TOKEN = process.env.TOKEN;
 const TMDB_KEY = process.env.TMDB_KEY;
 
 const DB_FILE = "films.json";
-
 const LEARN_FILE = "learning.json";
 
+// ===== LEARNING =====
 function loadLearning() {
   if (!fs.existsSync(LEARN_FILE)) return {};
   return JSON.parse(fs.readFileSync(LEARN_FILE));
@@ -83,10 +82,7 @@ async function tg(method, body) {
   });
 
   const data = await res.json();
-
-  if (!data.ok) {
-    console.error("❌ Telegram Fehler:", data);
-  }
+  if (!data.ok) console.error("❌ Telegram Fehler:", data);
 
   return data;
 }
@@ -128,103 +124,53 @@ ${(data.overview || "").slice(0,100)}...`;
   });
 }
 
-// ===== GENRES =====
-function groupByGenre(db) {
-  const groups = {};
+// ===== TMDB SEARCH =====
+async function searchMulti(title, type) {
+  const url = type === "series" ? "tv" : "movie";
 
-  db.forEach(m => {
-    if (!m.genre_ids) return;
+  const res = await fetch(
+    `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}`
+  );
 
-    m.genre_ids.forEach(id => {
-      if (!groups[id]) groups[id] = [];
-      groups[id].push(m);
-    });
-  });
-
-  return groups;
+  const data = await res.json();
+  return data.results || [];
 }
 
-// ===== NETFLIX FEED =====
-async function sendNetflixFeed(chatId) {
-  const db = loadDB();
-
-  if (!db.length) {
-    return sendMessage(chatId, "📭 Keine Filme vorhanden");
-  }
-
-  const newest = [...db].sort((a,b)=>(b.added||0)-(a.added||0)).slice(0,5);
-  const top = [...db].sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,5);
-  const random = [...db].sort(()=>0.5 - Math.random()).slice(0,5);
-
-  let text = `🎬 Library of Legends\n\n`;
-
-  text += `🔥 Neu:\n`;
-  newest.forEach(m => text += `• ${m.title}\n`);
-
-  text += `\n⭐ Top:\n`;
-  top.forEach(m => text += `• ${m.title}\n`);
-
-  text += `\n🎲 Entdecken:\n`;
-  random.forEach(m => text += `• ${m.title}\n`);
-
-  await sendMessage(chatId, text, {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: "🔥 Neu", callback_data: "feed_new" },
-          { text: "⭐ Top", callback_data: "feed_top" }
-        ],
-        [
-          { text: "🎬 Filme", callback_data: "feed_movies" },
-          { text: "📺 Serien", callback_data: "feed_series" }
-        ],
-        [
-          { text: "🎭 Genres", callback_data: "feed_genres" }
-        ]
-      ]
-    }
-  });
-}
-
-// ===== TMDB =====
+// ===== ULTRA SEARCH =====
 async function ultraSearch(title, type) {
   const learn = loadLearning();
   const key = normalizeKey(title);
 
-  // 🔁 1. Learning Treffer
   if (learn[key]) {
-    console.log("🧠 Learning Treffer:", learn[key].title);
-    return [learn[key]];
+    return [{ id: learn[key].id }];
   }
 
   const url = type === "series" ? "tv" : "movie";
 
-  // 🇩🇪 DE Suche
   let res = await fetch(
     `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
   );
   let data = await res.json();
 
   if (data.results?.length) {
-    saveLearnResult(title, data.results[0]);
+    saveLearningResult(title, data.results[0]);
     return data.results;
   }
 
-  // 🇺🇸 EN Fallback
   res = await fetch(
     `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=en-US`
   );
   data = await res.json();
 
   if (data.results?.length) {
-    saveLearnResult(title, data.results[0]);
+    saveLearningResult(title, data.results[0]);
     return data.results;
   }
 
   return [];
 }
 
-function saveLearnResult(input, result) {
+function saveLearningResult(input, result) {
   const learn = loadLearning();
   const key = normalizeKey(input);
 
@@ -236,17 +182,27 @@ function saveLearnResult(input, result) {
   saveLearning(learn);
 }
 
+// ===== SUGGESTIONS =====
 async function sendSuggestions(chatId, results) {
   const buttons = results.slice(0,5).map(r => [{
     text: r.title || r.name,
     callback_data: `select_${r.id}`
   }]);
 
-  await tg("sendMessage", {
-    chat_id: chatId,
-    text: "❓ Meintest du:",
+  await sendMessage(chatId, "❓ Meintest du:", {
     reply_markup: { inline_keyboard: buttons }
   });
+}
+
+// ===== FETCH DETAILS =====
+async function fetchDetails(id, type) {
+  const url = type === "series" ? "tv" : "movie";
+
+  const res = await fetch(
+    `https://api.themoviedb.org/3/${url}/${id}?api_key=${TMDB_KEY}&language=de-DE`
+  );
+
+  return res.json();
 }
 
 // ===== WEBHOOK =====
@@ -259,74 +215,14 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       const data = body.callback_query.data;
       const chatId = body.callback_query.message.chat.id;
 
-      const db = loadDB();
-
       if (data.startsWith("play_")) {
         await playMovie(chatId, data.replace("play_", ""));
       }
-      
+
       if (data.startsWith("select_")) {
-  const id = data.replace("select_", "");
-
-  const details = await fetchDetails(id, "movie");
-
-  await sendCard(chatId, details, "manual");
-}
-
-      if (data === "feed_new") {
-        db.slice(0,10).forEach(x => sendCard(chatId, x, x.file_id));
-      }
-
-      if (data === "feed_top") {
-        [...db].sort((a,b)=>b.rating-a.rating)
-          .slice(0,10)
-          .forEach(x => sendCard(chatId, x, x.file_id));
-      }
-
-      if (data === "feed_movies") {
-        db.filter(x=>x.type==="movie")
-          .slice(0,10)
-          .forEach(x => sendCard(chatId, x, x.file_id));
-      }
-
-      if (data === "feed_series") {
-        const groups = [...new Set(db.map(x=>x.group).filter(Boolean))];
-
-        await sendMessage(chatId, "📺 Serien", {
-          reply_markup: {
-            inline_keyboard: groups.map(g => [{
-              text: g,
-              callback_data: `open_${g}`
-            }])
-          }
-        });
-      }
-
-      if (data.startsWith("open_")) {
-        const group = data.replace("open_", "");
-        const eps = db.filter(x => x.group === group);
-
-        eps.forEach(x => sendCard(chatId, x, x.file_id));
-      }
-
-      if (data === "feed_genres") {
-        const genres = groupByGenre(db);
-
-        const buttons = Object.keys(genres).map(g => [{
-          text: `🎭 ${g}`,
-          callback_data: `genre_${g}`
-        }]);
-
-        await sendMessage(chatId, "🎭 Genres", {
-          reply_markup: { inline_keyboard: buttons }
-        });
-      }
-
-      if (data.startsWith("genre_")) {
-        const id = data.replace("genre_", "");
-        const list = groupByGenre(db)[id] || [];
-
-        list.slice(0,10).forEach(x => sendCard(chatId, x, x.file_id));
+        const id = data.replace("select_", "");
+        const details = await fetchDetails(id, "movie");
+        await sendCard(chatId, details, "manual");
       }
 
       return res.sendStatus(200);
@@ -335,13 +231,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     const msg = body.message || body.channel_post;
     if (!msg) return res.sendStatus(200);
 
-    // START → Netflix Feed
-    if (msg.text?.startsWith("/start")) {
-      await sendNetflixFeed(msg.chat.id);
-      return res.sendStatus(200);
-    }
-
-    // FILE
     if (msg.document || msg.video) {
       const file = msg.document || msg.video;
 
@@ -351,18 +240,18 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       const parsed = parseFileName(fileName);
 
       const results = await ultraSearch(parsed.title, parsed.type);
+
       if (!results.length) {
-        if (!results.length) {
-  const fallback = await searchMulti(parsed.title, parsed.type);
+        const fallback = await searchMulti(parsed.title, parsed.type);
 
-  if (fallback.length) {
-    await sendSuggestions(msg.chat.id, fallback);
-  } else {
-    await sendMessage(msg.chat.id, "❌ Nichts gefunden");
-  }
+        if (fallback.length) {
+          await sendSuggestions(msg.chat.id, fallback);
+        } else {
+          await sendMessage(msg.chat.id, "❌ Nichts gefunden");
+        }
 
-  return res.sendStatus(200);
-}
+        return res.sendStatus(200);
+      }
 
       const best = results[0];
       const details = await fetchDetails(best.id, parsed.type);
