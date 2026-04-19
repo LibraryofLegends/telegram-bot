@@ -350,7 +350,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       const parsed = parseFileName(fileName);
 
-      const results = await searchMulti(parsed.title, parsed.type);
+      const results = await ultraSearch(parsed.title, parsed.type);
       if (!results.length) {
         await sendMessage(msg.chat.id, "❌ Nichts gefunden");
         return res.sendStatus(200);
