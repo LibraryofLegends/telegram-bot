@@ -57,25 +57,76 @@ function parseFileName(name) {
   };
 }
 
-// ===== AI MATCHING =====
-function generateTitleVariants(title) {
-  const clean = title
-    .toLowerCase()
-    .replace(/\b(der|die|das|und|the|a)\b/g, "")
-    .replace(/[^a-z0-9 ]/g, "")
-    .trim();
+// ===== AUDIO DETECTION =====
+function detectAudio(name) {
+  name = name.toLowerCase();
+  if (name.includes("german")) return "DE";
+  if (name.includes("english")) return "EN";
+  return "DE/EN";
+}
 
-  const words = clean.split(" ").filter(w => w.length > 2);
+// ===== GENRE EMOJIS =====
+function genreEmoji(name) {
+  const map = {
+    Action: "🔥",
+    Horror: "👻",
+    Comedy: "😂",
+    Drama: "🎭",
+    Thriller: "🔪",
+    Adventure: "🗺",
+    "Science Fiction": "🚀"
+  };
+  return map[name] || "🎬";
+}
 
-  const variants = new Set([
-    clean,
-    words.slice(0,2).join(" "),
-    words.slice(0,3).join(" "),
-    words.slice(0,4).join(" "),
-    words[0]
-  ]);
+// ===== COLLECTION =====
+function detectCollection(title) {
+  if (!title) return null;
 
-  return [...variants].filter(v => v && v.length > 1);
+  if (title.includes("Fast")) return "Fast & Furious Collection";
+  if (title.includes("Avengers")) return "Marvel Collection";
+  if (title.includes("Expendables")) return "Expendables Collection";
+
+  return null;
+}
+
+// ===== STARS =====
+function getStars(r) {
+  const stars = Math.round((r || 0) / 2);
+  return "⭐".repeat(stars) + "☆".repeat(5 - stars) + ` (${r?.toFixed(1) || "-"})`;
+}
+
+// ===== SEARCH =====
+async function ultraSearch(title, type) {
+
+  if (title.toLowerCase().includes("pate")) {
+    const res = await fetch(
+      `https://api.themoviedb.org/3/movie/238?api_key=${TMDB_KEY}&language=de-DE`
+    );
+    return [await res.json()];
+  }
+
+  const queries = [
+    title,
+    title.split(" ")[0],
+    title.split(" ").slice(0,2).join(" ")
+  ];
+
+  for (const q of queries) {
+    let res = await fetch(
+      `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=de-DE`
+    );
+    let data = await res.json();
+    if (data.results?.length) return data.results;
+
+    res = await fetch(
+      `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=en-US`
+    );
+    data = await res.json();
+    if (data.results?.length) return data.results;
+  }
+
+  return [];
 }
 
 // ===== TELEGRAM =====
@@ -87,63 +138,54 @@ async function tg(method, body) {
   });
 
   const data = await res.json();
-  if (!data.ok) console.error("❌ Telegram Fehler:", data);
+  if (!data.ok) console.error(data);
   return data;
 }
 
-async function sendMessage(chatId, text, extra = {}) {
-  return tg("sendMessage", { chat_id: chatId, text, ...extra });
-}
-
-async function playMovie(chatId, fileId) {
-  return tg("sendVideo", {
-    chat_id: chatId,
-    video: fileId,
-    supports_streaming: true
-  });
-}
-
-// ===== RATING =====
-function getStars(r) {
-  const stars = Math.round((r || 0) / 2);
-  return "⭐".repeat(stars) + "☆".repeat(5 - stars) + ` (${r?.toFixed(1) || "-"})`;
-}
-
-// ===== CARD (NETFLIX STYLE) =====
-async function sendCard(chatId, data, fileId, extra = {}) {
+// ===== NETFLIX CARD =====
+async function sendCard(chatId, data, fileId, extra, fileName) {
 
   const title = (data.title || data.name || "").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
+  const audio = detectAudio(fileName);
+  const collection = detectCollection(title);
+
   const genres = (data.genres || [])
     .slice(0,2)
-    .map(g => g.name)
+    .map(g => `${genreEmoji(g.name)} ${g.name}`)
     .join(" • ");
 
-  const runtime = data.runtime || "-";
+  let story = data.overview || "";
+  if (story.length > 300) {
+    story = story.slice(0, 300);
+    story = story.slice(0, story.lastIndexOf(".")) + "...";
+  }
 
-  const episodeInfo = extra.type === "series"
-    ? `📦 Staffel ${extra.season} • Folge ${extra.episode}\n`
-    : "";
+  const id = "#" + (loadDB().length + 1).toString().padStart(4,"0");
 
   const text =
 `━━━━━━━━━━━━━━━
 🎬 ${title} (${year})
-
+${collection ? "🎞 " + collection : ""}
+━━━━━━━━━━━━━━━
 ${getStars(data.vote_average)}
-🔥 ${genres || "-"}
+${genres}
 
-${episodeInfo}⏱ ${runtime} Min
+⏱ ${data.runtime || "-"} Min • 🔞 FSK -
+🎧 ${audio}
 
+━━━━━━━━━━━━━━━
 📝 STORY
-${(data.overview || "").slice(0,180)}...
-━━━━━━━━━━━━━━━`;
+${story}
+━━━━━━━━━━━━━━━
+▶️ ${id}
+#${title.split(" ")[0]}
+@LibraryOfLegends`;
 
   await tg("sendPhoto", {
     chat_id: chatId,
-    photo: data.poster_path
-      ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
-      : "https://via.placeholder.com/300x450",
+    photo: `https://image.tmdb.org/t/p/w500${data.poster_path}`,
     caption: text,
     reply_markup: {
       inline_keyboard: [[
@@ -156,144 +198,53 @@ ${(data.overview || "").slice(0,180)}...
   });
 }
 
-// ===== SERIES MENU =====
-async function sendSeriesMenu(chatId) {
+// ===== NETFLIX FEED =====
+async function sendFeed(chatId) {
   const db = loadDB();
-  const groups = [...new Set(db.filter(x => x.group).map(x => x.group))];
 
-  await sendMessage(chatId, "📺 Serien:", {
-    reply_markup: {
-      inline_keyboard: groups.map(g => [{
-        text: g,
-        callback_data: `open_${g}`
-      }])
-    }
+  const newest = db.slice(0,5);
+  const top = [...db].sort((a,b)=>b.rating-a.rating).slice(0,5);
+
+  let text = "🎬 Library of Legends\n\n🔥 Neu:\n";
+  newest.forEach(m => text += `• ${m.title}\n`);
+
+  text += "\n⭐ Top:\n";
+  top.forEach(m => text += `• ${m.title}\n`);
+
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text,
   });
-}
-
-async function sendSeasonMenu(chatId, group) {
-  const db = loadDB();
-  const seasons = [...new Set(db.filter(x => x.group === group).map(x => x.season))];
-
-  await sendMessage(chatId, `📺 ${group}`, {
-    reply_markup: {
-      inline_keyboard: seasons.map(s => [{
-        text: `Staffel ${s}`,
-        callback_data: `season_${group}_${s}`
-      }])
-    }
-  });
-}
-
-async function sendEpisodeMenu(chatId, group, season) {
-  const db = loadDB();
-  const eps = db.filter(x => x.group === group && x.season == season);
-
-  await sendMessage(chatId, `📦 Staffel ${season}`, {
-    reply_markup: {
-      inline_keyboard: eps.map(e => [{
-        text: `▶️ Folge ${e.episode}`,
-        callback_data: `play_${e.file_id}`
-      }])
-    }
-  });
-}
-
-// ===== SEARCH =====
-async function ultraSearch(title, type) {
-
-  // 🔥 Klassiker Fix (DER PATE)
-  if (title.toLowerCase().includes("pate")) {
-    const res = await fetch(
-      `https://api.themoviedb.org/3/movie/238?api_key=${TMDB_KEY}&language=de-DE`
-    );
-    const data = await res.json();
-    return [data];
-  }
-
-  const variants = generateTitleVariants(title);
-
-  for (const v of variants) {
-    if (!v || v.length < 2) continue;
-
-    let res = await fetch(
-      `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(v)}&language=de-DE`
-    );
-    let data = await res.json();
-
-    if (data.results?.length) return data.results;
-
-    res = await fetch(
-      `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(v)}&language=en-US`
-    );
-    data = await res.json();
-
-    if (data.results?.length) return data.results;
-  }
-
-  return [];
 }
 
 // ===== WEBHOOK =====
 app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
-    const body = req.body;
-
-    if (body.callback_query) {
-      const data = body.callback_query.data;
-      const chatId = body.callback_query.message.chat.id;
-
-      if (data.startsWith("play_")) {
-        await playMovie(chatId, data.replace("play_", ""));
-      }
-
-      if (data === "series") await sendSeriesMenu(chatId);
-
-      if (data.startsWith("open_")) {
-        await sendSeasonMenu(chatId, data.replace("open_", ""));
-      }
-
-      if (data.startsWith("season_")) {
-        const [, group, season] = data.split("_");
-        await sendEpisodeMenu(chatId, group, season);
-      }
-
-      return res.sendStatus(200);
-    }
-
-    const msg = body.message || body.channel_post;
+    const msg = req.body.message || req.body.channel_post;
     if (!msg) return res.sendStatus(200);
 
     if (msg.text?.startsWith("/start")) {
-      await sendMessage(msg.chat.id, "🎬 Library of Legends", {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "📺 Serien", callback_data: "series" }]
-          ]
-        }
-      });
+      await sendFeed(msg.chat.id);
       return res.sendStatus(200);
     }
 
     if (msg.document || msg.video) {
+
       const file = msg.document || msg.video;
       const fileId = file.file_id;
-      const fileName = file.file_name || msg.caption || "video";
-
-      console.log("📥 Datei:", fileName);
+      const fileName = file.file_name || msg.caption || "";
 
       const parsed = parseFileName(fileName);
 
       const results = await ultraSearch(parsed.title, parsed.type);
 
       if (!results.length) {
-        await sendMessage(msg.chat.id, "❌ Nichts gefunden");
+        await tg("sendMessage", { chat_id: msg.chat.id, text: "❌ Nichts gefunden" });
         return res.sendStatus(200);
       }
 
       let best = results[0];
 
-      // 👉 falls nur ID → Details holen
       if (!best.overview) {
         const resDetails = await fetch(
           `https://api.themoviedb.org/3/${parsed.type === "series" ? "tv" : "movie"}/${best.id}?api_key=${TMDB_KEY}&language=de-DE`
@@ -304,29 +255,25 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       const db = loadDB();
       db.unshift({
         title: best.title || best.name,
-        file_id: fileId,
-        type: parsed.type,
-        group: parsed.group,
-        season: parsed.season,
-        episode: parsed.episode,
-        added: Date.now()
+        rating: best.vote_average,
+        file_id: fileId
       });
       saveDB(db);
 
-      await sendCard(msg.chat.id, best, fileId, parsed);
+      await sendCard(msg.chat.id, best, fileId, parsed, fileName);
 
       return res.sendStatus(200);
     }
 
     res.sendStatus(200);
 
-  } catch (err) {
-    console.error("❌ Fehler:", err);
+  } catch (e) {
+    console.error(e);
     res.sendStatus(200);
   }
 });
 
 // ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 FINAL NETFLIX BOT AKTIV");
+  console.log("🔥 ULTRA NETFLIX BOT READY");
 });
