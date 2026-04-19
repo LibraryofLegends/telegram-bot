@@ -57,7 +57,7 @@ function parseFileName(name) {
   };
 }
 
-// ===== 🤖 AI MATCHING PRO =====
+// ===== AI MATCHING =====
 function generateTitleVariants(title) {
   const clean = title
     .toLowerCase()
@@ -67,13 +67,13 @@ function generateTitleVariants(title) {
 
   const words = clean.split(" ").filter(w => w.length > 2);
 
-  const variants = new Set();
-
-  variants.add(clean);
-  variants.add(words.slice(0, 2).join(" "));
-  variants.add(words.slice(0, 3).join(" "));
-  variants.add(words.slice(0, 4).join(" "));
-  variants.add(words[0]);
+  const variants = new Set([
+    clean,
+    words.slice(0,2).join(" "),
+    words.slice(0,3).join(" "),
+    words.slice(0,4).join(" "),
+    words[0]
+  ]);
 
   return [...variants].filter(v => v && v.length > 1);
 }
@@ -103,29 +103,40 @@ async function playMovie(chatId, fileId) {
   });
 }
 
-// ===== ⭐ RATING =====
-function getRating(r) {
+// ===== RATING =====
+function getStars(r) {
   const stars = Math.round((r || 0) / 2);
   return "⭐".repeat(stars) + "☆".repeat(5 - stars) + ` (${r?.toFixed(1) || "-"})`;
 }
 
-// ===== 🎴 CARD (FIXED BUTTON) =====
+// ===== CARD (NETFLIX STYLE) =====
 async function sendCard(chatId, data, fileId, extra = {}) {
-  const title = data.title || data.name;
-  const year = (data.release_date || data.first_air_date || "").slice(0, 4);
+
+  const title = (data.title || data.name || "").toUpperCase();
+  const year = (data.release_date || data.first_air_date || "").slice(0,4);
+
+  const genres = (data.genres || [])
+    .slice(0,2)
+    .map(g => g.name)
+    .join(" • ");
+
+  const runtime = data.runtime || "-";
 
   const episodeInfo = extra.type === "series"
-    ? `\n📦 Staffel ${extra.season} • Folge ${extra.episode}`
+    ? `📦 Staffel ${extra.season} • Folge ${extra.episode}\n`
     : "";
 
   const text =
 `━━━━━━━━━━━━━━━
 🎬 ${title} (${year})
 
-${getRating(data.vote_average)}
-${episodeInfo}
+${getStars(data.vote_average)}
+🔥 ${genres || "-"}
 
-📝 ${(data.overview || "").slice(0,120)}...
+${episodeInfo}⏱ ${runtime} Min
+
+📝 STORY
+${(data.overview || "").slice(0,180)}...
 ━━━━━━━━━━━━━━━`;
 
   await tg("sendPhoto", {
@@ -145,15 +156,15 @@ ${episodeInfo}
   });
 }
 
-// ===== SERIES MENUS =====
+// ===== SERIES MENU =====
 async function sendSeriesMenu(chatId) {
   const db = loadDB();
   const groups = [...new Set(db.filter(x => x.group).map(x => x.group))];
 
-  await sendMessage(chatId, "📺 Serien auswählen:", {
+  await sendMessage(chatId, "📺 Serien:", {
     reply_markup: {
       inline_keyboard: groups.map(g => [{
-        text: `📺 ${g}`,
+        text: g,
         callback_data: `open_${g}`
       }])
     }
@@ -167,7 +178,7 @@ async function sendSeasonMenu(chatId, group) {
   await sendMessage(chatId, `📺 ${group}`, {
     reply_markup: {
       inline_keyboard: seasons.map(s => [{
-        text: `📦 Staffel ${s}`,
+        text: `Staffel ${s}`,
         callback_data: `season_${group}_${s}`
       }])
     }
@@ -188,22 +199,22 @@ async function sendEpisodeMenu(chatId, group, season) {
   });
 }
 
-// ===== 🔍 AI SEARCH =====
+// ===== SEARCH =====
 async function ultraSearch(title, type) {
 
-  // 🔥 HARDCODE FIX (wichtige Klassiker)
+  // 🔥 Klassiker Fix (DER PATE)
   if (title.toLowerCase().includes("pate")) {
-    return [{ id: 238 }];
+    const res = await fetch(
+      `https://api.themoviedb.org/3/movie/238?api_key=${TMDB_KEY}&language=de-DE`
+    );
+    const data = await res.json();
+    return [data];
   }
 
   const variants = generateTitleVariants(title);
 
-  console.log("🧠 Varianten:", variants);
-
   for (const v of variants) {
     if (!v || v.length < 2) continue;
-
-    console.log("🔎 Suche:", v);
 
     let res = await fetch(
       `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(v)}&language=de-DE`
@@ -273,13 +284,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       const parsed = parseFileName(fileName);
 
-      console.log("🧠 Parsed:", parsed.title);
-
-      if (!parsed.title || parsed.title.length < 2) {
-        await sendMessage(msg.chat.id, "❌ Titel nicht erkannt");
-        return res.sendStatus(200);
-      }
-
       const results = await ultraSearch(parsed.title, parsed.type);
 
       if (!results.length) {
@@ -287,23 +291,26 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
         return res.sendStatus(200);
       }
 
-      const best = results[0];
+      let best = results[0];
 
-      const save = {
+      // 👉 falls nur ID → Details holen
+      if (!best.overview) {
+        const resDetails = await fetch(
+          `https://api.themoviedb.org/3/${parsed.type === "series" ? "tv" : "movie"}/${best.id}?api_key=${TMDB_KEY}&language=de-DE`
+        );
+        best = await resDetails.json();
+      }
+
+      const db = loadDB();
+      db.unshift({
         title: best.title || best.name,
-        rating: best.vote_average,
-        overview: best.overview,
-        cover: `https://image.tmdb.org/t/p/w500${best.poster_path}`,
         file_id: fileId,
         type: parsed.type,
         group: parsed.group,
         season: parsed.season,
         episode: parsed.episode,
         added: Date.now()
-      };
-
-      const db = loadDB();
-      db.unshift(save);
+      });
       saveDB(db);
 
       await sendCard(msg.chat.id, best, fileId, parsed);
@@ -321,5 +328,5 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
 // ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 FINAL BOT läuft stabil + AI Matching Pro aktiv");
+  console.log("🔥 FINAL NETFLIX BOT AKTIV");
 });
