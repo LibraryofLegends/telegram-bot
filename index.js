@@ -15,6 +15,7 @@ function loadDB() {
   if (!fs.existsSync(DB_FILE)) return [];
   return JSON.parse(fs.readFileSync(DB_FILE));
 }
+
 function saveDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
@@ -96,7 +97,7 @@ const GENRES = {
 };
 
 function getGenres(ids = []) {
-  return ids.slice(0,3).map(id => GENRES[id] || "").join(" • ");
+  return ids.slice(0, 3).map(id => GENRES[id] || "").join(" • ");
 }
 
 // ===== TMDB =====
@@ -107,7 +108,7 @@ async function searchMulti(title, type) {
     `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
   );
   const data = await res.json();
-  return data.results.slice(0, 5);
+  return data.results || [];
 }
 
 async function fetchDetails(id, type) {
@@ -129,7 +130,7 @@ async function fetchEpisode(tvId, season, episode) {
 // ===== CARD =====
 async function sendCard(chatId, data, fileId, extra = {}) {
   const title = data.title || data.name;
-  const year = (data.release_date || data.first_air_date || "").slice(0,4);
+  const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
   const text =
 `🎬 ${title} (${year})
@@ -137,7 +138,7 @@ async function sendCard(chatId, data, fileId, extra = {}) {
 ${getRating(data.vote_average)}
 ${getGenres(data.genre_ids)}
 
-${(extra.overview || data.overview || "").slice(0,100)}...`;
+${(extra.overview || data.overview || "").slice(0, 100)}...`;
 
   await tg("sendPhoto", {
     chat_id: chatId,
@@ -163,15 +164,12 @@ async function sendDetails(chatId, item) {
 
 ⭐ ${getRating(item.rating)}
 
-📺 ${item.season ? `S${item.season}E${item.episode}` : ""}
-⏱ ${item.runtime || "-"} min • 🔞 ${item.fsk || "-"}
-
-📝
-${item.overview || "Keine Beschreibung"}`;
+${item.season ? `📺 S${item.season}E${item.episode}` : ""}
+📝 ${item.overview || "Keine Beschreibung"}`;
 
   await tg("sendMessage", {
     chat_id: chatId,
-    text: text,
+    text,
     reply_markup: {
       inline_keyboard: [
         [{ text: "▶️ Abspielen", callback_data: `play_${item.file_id}` }]
@@ -248,19 +246,18 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     const body = req.body;
 
+    // CALLBACKS
     if (body.callback_query) {
-      const cb = body.callback_query;
-      const data = cb.data;
-      const chatId = cb.message.chat.id;
+      const data = body.callback_query.data;
+      const chatId = body.callback_query.message.chat.id;
 
       if (data.startsWith("play_")) {
         await playMovie(chatId, data.replace("play_", ""));
       }
 
       if (data.startsWith("info_")) {
-        const id = data.replace("info_", "");
         const db = loadDB();
-        const item = db.find(x => x.file_id === id);
+        const item = db.find(x => x.file_id === data.replace("info_", ""));
         if (item) await sendDetails(chatId, item);
       }
 
@@ -281,22 +278,29 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     const msg = body.message || body.channel_post;
     if (!msg) return res.sendStatus(200);
 
+    // START
     if (msg.text?.startsWith("/start")) {
       await sendMenu(msg.chat.id);
       return res.sendStatus(200);
     }
 
+    // FILE INPUT
     if (msg.document || msg.video) {
       const file = msg.document || msg.video;
-      const parsed = parseFileName(file.file_name || "");
-      const fileName = file.file_name || file.caption || "video";
+
+      const fileId = file.file_id;
+      const fileName = file.file_name || msg.caption || "video";
+
+      console.log("📥 Datei:", fileName);
+
+      const parsed = parseFileName(fileName);
 
       const results = await searchMulti(parsed.title, parsed.type);
-      if (!results || results.length === 0) {
-  console.log("❌ TMDB nichts gefunden:", parsed.title);
-  await sendMessage(msg.chat.id, `❌ Nichts gefunden: ${parsed.title}`);
-  return res.sendStatus(200);
-}
+
+      if (!results.length) {
+        await sendMessage(msg.chat.id, `❌ Nichts gefunden: ${parsed.title}`);
+        return res.sendStatus(200);
+      }
 
       const best = results[0];
       const details = await fetchDetails(best.id, parsed.type);
@@ -332,12 +336,13 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     res.sendStatus(200);
 
-  } catch (e) {
-    console.error(e);
+  } catch (err) {
+    console.error("❌ Fehler:", err);
     res.sendStatus(200);
   }
 });
 
+// ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 Server läuft");
+  console.log("🔥 Server läuft sauber");
 });
