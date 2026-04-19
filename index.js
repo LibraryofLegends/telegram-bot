@@ -1,6 +1,4 @@
 const express = require("express");
-// ❌ node-fetch entfernen
-// const fetch = require("node-fetch");
 const fs = require("fs");
 
 const app = express();
@@ -31,7 +29,7 @@ function cleanName(name) {
     .trim();
 }
 
-// ===== PARSER (FIXED) =====
+// ===== PARSER =====
 function parseFileName(name) {
   name = cleanName(name);
 
@@ -77,8 +75,8 @@ async function tg(method, body) {
   return data;
 }
 
-async function sendMessage(chatId, text) {
-  return tg("sendMessage", { chat_id: chatId, text });
+async function sendMessage(chatId, text, extra = {}) {
+  return tg("sendMessage", { chat_id: chatId, text, ...extra });
 }
 
 async function playMovie(chatId, fileId) {
@@ -86,6 +84,89 @@ async function playMovie(chatId, fileId) {
     chat_id: chatId,
     video: fileId,
     supports_streaming: true
+  });
+}
+
+// ===== CARD =====
+async function sendCard(chatId, data, fileId) {
+  const title = data.title || data.name;
+  const year = (data.release_date || data.first_air_date || "").slice(0,4);
+
+  const text =
+`🎬 ${title} (${year})
+⭐ ${data.vote_average?.toFixed(1) || "-"}
+
+${(data.overview || "").slice(0,100)}...`;
+
+  await tg("sendPhoto", {
+    chat_id: chatId,
+    photo: data.poster_path
+      ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
+      : "https://via.placeholder.com/300x450",
+    caption: text,
+    reply_markup: {
+      inline_keyboard: [[
+        { text: "▶️ Abspielen", callback_data: `play_${fileId}` }
+      ]]
+    }
+  });
+}
+
+// ===== GENRES =====
+function groupByGenre(db) {
+  const groups = {};
+
+  db.forEach(m => {
+    if (!m.genre_ids) return;
+
+    m.genre_ids.forEach(id => {
+      if (!groups[id]) groups[id] = [];
+      groups[id].push(m);
+    });
+  });
+
+  return groups;
+}
+
+// ===== NETFLIX FEED =====
+async function sendNetflixFeed(chatId) {
+  const db = loadDB();
+
+  if (!db.length) {
+    return sendMessage(chatId, "📭 Keine Filme vorhanden");
+  }
+
+  const newest = [...db].sort((a,b)=>(b.added||0)-(a.added||0)).slice(0,5);
+  const top = [...db].sort((a,b)=>(b.rating||0)-(a.rating||0)).slice(0,5);
+  const random = [...db].sort(()=>0.5 - Math.random()).slice(0,5);
+
+  let text = `🎬 Library of Legends\n\n`;
+
+  text += `🔥 Neu:\n`;
+  newest.forEach(m => text += `• ${m.title}\n`);
+
+  text += `\n⭐ Top:\n`;
+  top.forEach(m => text += `• ${m.title}\n`);
+
+  text += `\n🎲 Entdecken:\n`;
+  random.forEach(m => text += `• ${m.title}\n`);
+
+  await sendMessage(chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "🔥 Neu", callback_data: "feed_new" },
+          { text: "⭐ Top", callback_data: "feed_top" }
+        ],
+        [
+          { text: "🎬 Filme", callback_data: "feed_movies" },
+          { text: "📺 Serien", callback_data: "feed_series" }
+        ],
+        [
+          { text: "🎭 Genres", callback_data: "feed_genres" }
+        ]
+      ]
+    }
   });
 }
 
@@ -111,27 +192,91 @@ async function fetchDetails(id, type) {
   return res.json();
 }
 
-async function fetchEpisode(tvId, season, episode) {
-  const res = await fetch(
-    `https://api.themoviedb.org/3/tv/${tvId}/season/${season}/episode/${episode}?api_key=${TMDB_KEY}&language=de-DE`
-  );
-
-  return res.json();
-}
-
-// ===== API =====
-app.get("/api/films", (req, res) => {
-  res.json(loadDB());
-});
-
 // ===== WEBHOOK =====
 app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     const body = req.body;
 
+    // CALLBACKS
+    if (body.callback_query) {
+      const data = body.callback_query.data;
+      const chatId = body.callback_query.message.chat.id;
+
+      const db = loadDB();
+
+      if (data.startsWith("play_")) {
+        await playMovie(chatId, data.replace("play_", ""));
+      }
+
+      if (data === "feed_new") {
+        db.slice(0,10).forEach(x => sendCard(chatId, x, x.file_id));
+      }
+
+      if (data === "feed_top") {
+        [...db].sort((a,b)=>b.rating-a.rating)
+          .slice(0,10)
+          .forEach(x => sendCard(chatId, x, x.file_id));
+      }
+
+      if (data === "feed_movies") {
+        db.filter(x=>x.type==="movie")
+          .slice(0,10)
+          .forEach(x => sendCard(chatId, x, x.file_id));
+      }
+
+      if (data === "feed_series") {
+        const groups = [...new Set(db.map(x=>x.group).filter(Boolean))];
+
+        await sendMessage(chatId, "📺 Serien", {
+          reply_markup: {
+            inline_keyboard: groups.map(g => [{
+              text: g,
+              callback_data: `open_${g}`
+            }])
+          }
+        });
+      }
+
+      if (data.startsWith("open_")) {
+        const group = data.replace("open_", "");
+        const eps = db.filter(x => x.group === group);
+
+        eps.forEach(x => sendCard(chatId, x, x.file_id));
+      }
+
+      if (data === "feed_genres") {
+        const genres = groupByGenre(db);
+
+        const buttons = Object.keys(genres).map(g => [{
+          text: `🎭 ${g}`,
+          callback_data: `genre_${g}`
+        }]);
+
+        await sendMessage(chatId, "🎭 Genres", {
+          reply_markup: { inline_keyboard: buttons }
+        });
+      }
+
+      if (data.startsWith("genre_")) {
+        const id = data.replace("genre_", "");
+        const list = groupByGenre(db)[id] || [];
+
+        list.slice(0,10).forEach(x => sendCard(chatId, x, x.file_id));
+      }
+
+      return res.sendStatus(200);
+    }
+
     const msg = body.message || body.channel_post;
     if (!msg) return res.sendStatus(200);
 
+    // START → Netflix Feed
+    if (msg.text?.startsWith("/start")) {
+      await sendNetflixFeed(msg.chat.id);
+      return res.sendStatus(200);
+    }
+
+    // FILE
     if (msg.document || msg.video) {
       const file = msg.document || msg.video;
 
@@ -149,7 +294,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       const best = results[0];
       const details = await fetchDetails(best.id, parsed.type);
 
-      let save = {
+      const save = {
         title: details.title || details.name,
         rating: details.vote_average,
         overview: details.overview,
@@ -157,7 +302,8 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
         genre_ids: details.genre_ids,
         year: (details.release_date || details.first_air_date || "").slice(0,4),
         file_id: fileId,
-        type: parsed.type
+        type: parsed.type,
+        added: Date.now()
       };
 
       const db = loadDB();
@@ -178,6 +324,11 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     console.error("❌ Fehler:", err);
     res.sendStatus(200);
   }
+});
+
+// ===== API =====
+app.get("/api/films", (req, res) => {
+  res.json(loadDB());
 });
 
 // ===== START =====
