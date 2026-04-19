@@ -278,7 +278,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       return res.sendStatus(200);
     }
 
-    const msg = body.message;
+    const msg = body.message || body.channel_post;
     if (!msg) return res.sendStatus(200);
 
     if (msg.text?.startsWith("/start")) {
@@ -289,7 +289,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     if (msg.document || msg.video) {
       const file = msg.document || msg.video;
       const parsed = parseFileName(file.file_name || "");
-      const fileId = file.file_id;
+      const fileName = file.file_name || file.caption || "video";
 
       const results = await searchMulti(parsed.title, parsed.type);
       if (!results.length) {
