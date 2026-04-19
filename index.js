@@ -286,53 +286,75 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     // FILE INPUT
     if (msg.document || msg.video) {
-      const file = msg.document || msg.video;
 
-      const fileId = file.file_id;
-      const fileName = file.file_name || msg.caption || "video";
+  const file = msg.document || msg.video;
 
-      console.log("📥 Datei:", fileName);
+  const fileId = file.file_id;
+  const fileName = file.file_name || msg.caption || "video";
 
-      const parsed = parseFileName(fileName);
+  console.log("📥 Datei:", fileName);
 
-      const results = await searchMulti(parsed.title, parsed.type);
+  const parsed = parseFileName(fileName);
 
-      if (!results.length) {
-        await sendMessage(msg.chat.id, `❌ Nichts gefunden: ${parsed.title}`);
-        return res.sendStatus(200);
-      }
+  console.log("🧠 Parsed:", parsed);
 
-      const best = results[0];
-      const details = await fetchDetails(best.id, parsed.type);
+  // ❗ WICHTIG: Wenn kein Titel erkannt → abbrechen
+  if (!parsed.title || parsed.title.length < 2) {
+    console.log("❌ Kein gültiger Titel erkannt");
+    await sendMessage(msg.chat.id, "❌ Dateiname nicht erkannt");
+    return res.sendStatus(200);
+  }
 
-      let save = {
-        title: details.title || details.name,
-        rating: details.vote_average,
-        overview: details.overview,
-        file_id: fileId,
-        type: parsed.type
-      };
+  const results = await searchMulti(parsed.title, parsed.type);
 
-      if (parsed.type === "series") {
-        const ep = await fetchEpisode(details.id, parsed.season, parsed.episode);
+  console.log("🎬 TMDB Results:", results?.length);
 
-        save = {
-          ...save,
-          group: parsed.group,
-          season: parsed.season,
-          episode: parsed.episode,
-          overview: ep.overview || details.overview
-        };
-      }
+  if (!results || results.length === 0) {
+    console.log("❌ TMDB nichts gefunden:", parsed.title);
+    await sendMessage(msg.chat.id, `❌ Nichts gefunden: ${parsed.title}`);
+    return res.sendStatus(200);
+  }
 
-      const db = loadDB();
-      db.unshift(save);
-      saveDB(db);
+  const best = results[0];
 
-      await sendCard(msg.chat.id, details, fileId, save);
+  console.log("✅ Bester Treffer:", best.title || best.name);
 
-      return res.sendStatus(200);
-    }
+  const details = await fetchDetails(best.id, parsed.type);
+
+  let save = {
+    title: details.title || details.name,
+    rating: details.vote_average,
+    overview: details.overview,
+    file_id: fileId,
+    type: parsed.type
+  };
+
+  if (parsed.type === "series") {
+    const ep = await fetchEpisode(
+      details.id,
+      parsed.season,
+      parsed.episode
+    );
+
+    save = {
+      ...save,
+      group: parsed.group,
+      season: parsed.season,
+      episode: parsed.episode,
+      overview: ep.overview || details.overview
+    };
+  }
+
+  const db = loadDB();
+  db.unshift(save);
+  saveDB(db);
+
+  console.log("💾 Gespeichert:", save.title);
+
+  await sendCard(msg.chat.id, details, fileId, save);
+
+  return res.sendStatus(200);
+}
 
     res.sendStatus(200);
 
