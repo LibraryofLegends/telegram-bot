@@ -186,28 +186,41 @@ async function sendNetflixFeed(chatId) {
 }
 
 // ===== TMDB =====
-async function searchMulti(title, type) {
+async function ultraSearch(title, type) {
+  const learn = loadLearning();
+  const key = normalizeKey(title);
+
+  // 🔁 1. Learning Treffer
+  if (learn[key]) {
+    console.log("🧠 Learning Treffer:", learn[key].title);
+    return [learn[key]];
+  }
+
   const url = type === "series" ? "tv" : "movie";
 
-  // 1. DE Suche
+  // 🇩🇪 DE Suche
   let res = await fetch(
     `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
   );
   let data = await res.json();
 
-  if (data.results && data.results.length > 0) {
+  if (data.results?.length) {
+    saveLearnResult(title, data.results[0]);
     return data.results;
   }
 
-  console.log("⚠️ Kein Treffer (DE), versuche EN...");
-
-  // 2. EN FALLBACK
+  // 🇺🇸 EN Fallback
   res = await fetch(
     `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=en-US`
   );
   data = await res.json();
 
-  return data.results || [];
+  if (data.results?.length) {
+    saveLearnResult(title, data.results[0]);
+    return data.results;
+  }
+
+  return [];
 }
 
 // ===== WEBHOOK =====
