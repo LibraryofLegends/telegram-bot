@@ -183,15 +183,43 @@ async function sendEpisodeMenu(chatId, group, season) {
 }
 
 // ===== SEARCH =====
-async function searchTMDB(title, type) {
-  const url = type === "series" ? "tv" : "movie";
+async function ultraSearch(title, type) {
 
-  const res = await fetch(
-    `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}`
-  );
+  const variants = generateTitleVariants(title);
 
-  const data = await res.json();
-  return data.results || [];
+  console.log("🧠 Varianten:", variants);
+
+  for (const v of variants) {
+
+    if (!v || v.length < 2) continue;
+
+    console.log("🔎 Suche:", v);
+
+    // 🇩🇪
+    let res = await fetch(
+      `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(v)}&language=de-DE`
+    );
+    let data = await res.json();
+
+    if (data.results?.length) {
+      console.log("✅ Treffer DE:", data.results[0].title || data.results[0].name);
+      return data.results;
+    }
+
+    // 🇺🇸
+    res = await fetch(
+      `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(v)}&language=en-US`
+    );
+    data = await res.json();
+
+    if (data.results?.length) {
+      console.log("✅ Treffer EN:", data.results[0].title || data.results[0].name);
+      return data.results;
+    }
+  }
+
+  console.log("❌ GAR NICHTS GEFUNDEN");
+  return [];
 }
 
 // ===== WEBHOOK =====
