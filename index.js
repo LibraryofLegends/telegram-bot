@@ -1,3 +1,4 @@
+
 const express = require("express");
 const fs = require("fs");
 
@@ -263,6 +264,14 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       if (data.startsWith("play_")) {
         await playMovie(chatId, data.replace("play_", ""));
       }
+      
+      if (data.startsWith("select_")) {
+  const id = data.replace("select_", "");
+
+  const details = await fetchDetails(id, "movie");
+
+  await sendCard(chatId, details, "manual");
+}
 
       if (data === "feed_new") {
         db.slice(0,10).forEach(x => sendCard(chatId, x, x.file_id));
