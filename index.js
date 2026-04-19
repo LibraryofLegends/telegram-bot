@@ -59,11 +59,19 @@ function parseFileName(name) {
 
 // ===== TELEGRAM =====
 async function tg(method, body) {
-  return fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
+  const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
+
+  const data = await res.json();
+
+  if (!data.ok) {
+    console.error("❌ Telegram Fehler:", data);
+  }
+
+  return data;
 }
 
 async function sendMessage(chatId, text, extra = {}) {
