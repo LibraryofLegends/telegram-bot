@@ -57,7 +57,7 @@ function parseFileName(name) {
   };
 }
 
-// ===== AUDIO DETECTION =====
+// ===== AUDIO =====
 function detectAudio(name) {
   name = name.toLowerCase();
   if (name.includes("german")) return "DE";
@@ -79,17 +79,6 @@ function genreEmoji(name) {
   return map[name] || "🎬";
 }
 
-// ===== COLLECTION =====
-function detectCollection(title) {
-  if (!title) return null;
-
-  if (title.includes("Fast")) return "Fast & Furious Collection";
-  if (title.includes("Avengers")) return "Marvel Collection";
-  if (title.includes("Expendables")) return "Expendables Collection";
-
-  return null;
-}
-
 // ===== STARS =====
 function getStars(r) {
   const stars = Math.round((r || 0) / 2);
@@ -100,9 +89,7 @@ function getStars(r) {
 async function ultraSearch(title, type) {
 
   if (title.toLowerCase().includes("pate")) {
-    const res = await fetch(
-      `https://api.themoviedb.org/3/movie/238?api_key=${TMDB_KEY}&language=de-DE`
-    );
+    const res = await fetch(`https://api.themoviedb.org/3/movie/238?api_key=${TMDB_KEY}&language=de-DE`);
     return [await res.json()];
   }
 
@@ -114,13 +101,13 @@ async function ultraSearch(title, type) {
 
   for (const q of queries) {
     let res = await fetch(
-      `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=de-DE`
+      `https://api.themoviedb.org/3/search/${type==="series"?"tv":"movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=de-DE`
     );
     let data = await res.json();
     if (data.results?.length) return data.results;
 
     res = await fetch(
-      `https://api.themoviedb.org/3/search/${type === "series" ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=en-US`
+      `https://api.themoviedb.org/3/search/${type==="series"?"tv":"movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=en-US`
     );
     data = await res.json();
     if (data.results?.length) return data.results;
@@ -142,19 +129,18 @@ async function tg(method, body) {
   return data;
 }
 
-// ===== NETFLIX CARD =====
+// ===== CARD =====
 async function sendCard(chatId, data, fileId, extra, fileName) {
 
   const title = (data.title || data.name || "").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
-  const audio = detectAudio(fileName);
-  const collection = detectCollection(title);
-
   const genres = (data.genres || [])
     .slice(0,2)
     .map(g => `${genreEmoji(g.name)} ${g.name}`)
     .join(" • ");
+
+  const audio = detectAudio(fileName);
 
   let story = data.overview || "";
   if (story.length > 300) {
@@ -167,10 +153,9 @@ async function sendCard(chatId, data, fileId, extra, fileName) {
   const text =
 `━━━━━━━━━━━━━━━
 🎬 ${title} (${year})
-${collection ? "🎞 " + collection : ""}
 ━━━━━━━━━━━━━━━
 ${getStars(data.vote_average)}
-${genres}
+${genres || "-"}
 
 ⏱ ${data.runtime || "-"} Min • 🔞 FSK -
 🎧 ${audio}
@@ -198,28 +183,41 @@ ${story}
   });
 }
 
-// ===== NETFLIX FEED =====
+// ===== 🎬 NETFLIX FEED (UPGRADE) =====
 async function sendFeed(chatId) {
+
   const db = loadDB();
 
   const newest = db.slice(0,5);
   const top = [...db].sort((a,b)=>b.rating-a.rating).slice(0,5);
 
-  let text = "🎬 Library of Legends\n\n🔥 Neu:\n";
+  const action = db.filter(x => x.genre_ids?.includes(28)).slice(0,5);
+  const horror = db.filter(x => x.genre_ids?.includes(27)).slice(0,5);
+
+  let text = "🎬 Library of Legends\n\n";
+
+  text += "🔥 Neu:\n";
   newest.forEach(m => text += `• ${m.title}\n`);
 
   text += "\n⭐ Top:\n";
   top.forEach(m => text += `• ${m.title}\n`);
 
+  text += "\n🔥 Action:\n";
+  action.forEach(m => text += `• ${m.title}\n`);
+
+  text += "\n👻 Horror:\n";
+  horror.forEach(m => text += `• ${m.title}\n`);
+
   await tg("sendMessage", {
     chat_id: chatId,
-    text,
+    text
   });
 }
 
 // ===== WEBHOOK =====
 app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
+
     const msg = req.body.message || req.body.channel_post;
     if (!msg) return res.sendStatus(200);
 
@@ -245,19 +243,21 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       let best = results[0];
 
-      if (!best.overview) {
-        const resDetails = await fetch(
-          `https://api.themoviedb.org/3/${parsed.type === "series" ? "tv" : "movie"}/${best.id}?api_key=${TMDB_KEY}&language=de-DE`
-        );
-        best = await resDetails.json();
-      }
+      // 👉 FULL DETAILS (WICHTIG)
+      const resDetails = await fetch(
+        `https://api.themoviedb.org/3/${parsed.type==="series"?"tv":"movie"}/${best.id}?api_key=${TMDB_KEY}&language=de-DE`
+      );
+      best = await resDetails.json();
 
       const db = loadDB();
+
       db.unshift({
         title: best.title || best.name,
         rating: best.vote_average,
+        genre_ids: best.genres?.map(g=>g.id),
         file_id: fileId
       });
+
       saveDB(db);
 
       await sendCard(msg.chat.id, best, fileId, parsed, fileName);
@@ -275,5 +275,5 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
 // ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 ULTRA NETFLIX BOT READY");
+  console.log("🔥 FINAL NETFLIX BOT + KATEGORIEN AKTIV");
 });
