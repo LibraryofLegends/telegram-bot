@@ -352,9 +352,17 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       const results = await ultraSearch(parsed.title, parsed.type);
       if (!results.length) {
-        await sendMessage(msg.chat.id, "❌ Nichts gefunden");
-        return res.sendStatus(200);
-      }
+        if (!results.length) {
+  const fallback = await searchMulti(parsed.title, parsed.type);
+
+  if (fallback.length) {
+    await sendSuggestions(msg.chat.id, fallback);
+  } else {
+    await sendMessage(msg.chat.id, "❌ Nichts gefunden");
+  }
+
+  return res.sendStatus(200);
+}
 
       const best = results[0];
       const details = await fetchDetails(best.id, parsed.type);
