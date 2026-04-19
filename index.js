@@ -71,6 +71,32 @@ function parseFileName(name) {
   };
 }
 
+function generateTitleVariants(title) {
+
+  const clean = title
+    .toLowerCase()
+    .replace(/\b(der|die|das|und|the|a|german|dl|1080p|720p)\b/g, "")
+    .replace(/[^a-z0-9 ]/g, "")
+    .trim();
+
+  const words = clean.split(" ").filter(w => w.length > 2);
+
+  const variants = [];
+
+  // original clean
+  variants.push(clean);
+
+  // erste 2-4 Wörter
+  variants.push(words.slice(0,2).join(" "));
+  variants.push(words.slice(0,3).join(" "));
+  variants.push(words.slice(0,4).join(" "));
+
+  // nur erstes Wort
+  variants.push(words[0]);
+
+  return [...new Set(variants)].filter(v => v && v.length > 1);
+}
+
 // ===== TELEGRAM =====
 async function tg(method, body) {
   const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
