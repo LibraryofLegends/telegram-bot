@@ -276,8 +276,19 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       }
 
       const db = loadDB();
-      db.unshift(save);
-      saveDB(db);
+
+// ❌ Duplikate entfernen (gleicher file_id)
+const exists = db.find(x => x.file_id === fileId);
+
+if (!exists) {
+  db.unshift({
+    ...save,
+    added: Date.now()
+  });
+  saveDB(db);
+} else {
+  console.log("⚠️ Bereits vorhanden:", save.title);
+}
 
       console.log("💾 Gespeichert:", save.title);
 
