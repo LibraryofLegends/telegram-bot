@@ -1,5 +1,6 @@
 const express = require("express");
-const fetch = require("node-fetch");
+// ❌ node-fetch entfernen
+// const fetch = require("node-fetch");
 const fs = require("fs");
 
 const app = express();
@@ -30,7 +31,7 @@ function cleanName(name) {
     .trim();
 }
 
-// ===== PARSER =====
+// ===== PARSER (FIXED) =====
 function parseFileName(name) {
   name = cleanName(name);
 
@@ -39,18 +40,12 @@ function parseFileName(name) {
     name.match(/(\d{1,2})x(\d{1,2})/i);
 
   if (seriesMatch) {
+    const cleanTitle = name.replace(seriesMatch[0], "").trim();
+
     return {
       type: "series",
-      const cleanTitle = name.replace(seriesMatch[0], "").trim();
-
-return {
-  type: "series",
-  title: cleanTitle,
-  group: cleanTitle,
-  season: parseInt(seriesMatch[1]),
-  episode: parseInt(seriesMatch[2])
-};
-      group: name.replace(seriesMatch[0], "").trim(),
+      title: cleanTitle,
+      group: cleanTitle,
       season: parseInt(seriesMatch[1]),
       episode: parseInt(seriesMatch[2])
     };
@@ -94,28 +89,6 @@ async function playMovie(chatId, fileId) {
   });
 }
 
-// ===== RATING =====
-function getRating(r) {
-  const stars = Math.round((r || 0) / 2);
-  return "⭐".repeat(stars) + "☆".repeat(5 - stars) + ` (${r?.toFixed(1) || "-"})`;
-}
-
-// ===== GENRES =====
-const GENRES = {
-  28: "🔥 Action",
-  35: "😂 Comedy",
-  27: "👻 Horror",
-  53: "🔪 Thriller",
-  18: "🎭 Drama",
-  878: "🚀 Sci-Fi",
-  12: "🗺 Abenteuer",
-  80: "🕵️ Krimi"
-};
-
-function getGenres(ids = []) {
-  return ids.slice(0, 3).map(id => GENRES[id] || "").join(" • ");
-}
-
 // ===== TMDB =====
 async function searchMulti(title, type) {
   const url = type === "series" ? "tv" : "movie";
@@ -146,91 +119,15 @@ async function fetchEpisode(tvId, season, episode) {
   return res.json();
 }
 
-// ===== CARD =====
-async function sendCard(chatId, data, fileId, extra = {}) {
-  try {
-    const title = data.title || data.name;
-    const year = (data.release_date || data.first_air_date || "").slice(0,4);
-
-    const text =
-`🎬 ${title} (${year})
-
-${getRating(data.vote_average)}
-${getGenres(data.genre_ids)}
-
-${(extra.overview || data.overview || "").slice(0,100)}...`;
-
-    const image = data.poster_path
-      ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
-      : null;
-
-    if (image) {
-      await tg("sendPhoto", {
-        chat_id: chatId,
-        photo: image,
-        caption: text,
-        reply_markup: {
-          inline_keyboard: [[
-            { text: "▶️ Abspielen", callback_data: `play_${fileId}` },
-            { text: "ℹ️ Details", callback_data: `info_${fileId}` }
-          ]]
-        }
-      });
-    } else {
-      await sendMessage(chatId, text);
-    }
-
-    console.log("📤 Card gesendet");
-
-  } catch (err) {
-    console.error("❌ sendCard Fehler:", err);
-    await sendMessage(chatId, "❌ Fehler beim Anzeigen des Films");
-  }
-}
-
-// ===== DETAILS =====
-async function sendDetails(chatId, item) {
-  const text =
-`🎬 ${item.title}
-
-⭐ ${getRating(item.rating)}
-
-${item.season ? `📺 S${item.season}E${item.episode}` : ""}
-📝 ${item.overview || "Keine Beschreibung"}`;
-
-  await sendMessage(chatId, text);
-}
-
-// ===== API ROUTE (WICHTIG) =====
+// ===== API =====
 app.get("/api/films", (req, res) => {
-  try {
-    res.json(loadDB());
-  } catch (err) {
-    res.status(500).json({ error: "Server Fehler" });
-  }
+  res.json(loadDB());
 });
 
 // ===== WEBHOOK =====
 app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     const body = req.body;
-
-    if (body.callback_query) {
-      const data = body.callback_query.data;
-      const chatId = body.callback_query.message.chat.id;
-
-      if (data.startsWith("play_")) {
-        await playMovie(chatId, data.replace("play_", ""));
-      }
-
-      if (data.startsWith("info_")) {
-        const db = loadDB();
-        const item = db.find(x => x.file_id === data.replace("info_", ""));
-        if (item) await sendDetails(chatId, item);
-      }
-
-      return res.sendStatus(200);
-    }
 
     const msg = body.message || body.channel_post;
     if (!msg) return res.sendStatus(200);
@@ -241,19 +138,11 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       const fileId = file.file_id;
       const fileName = file.file_name || msg.caption || "video";
 
-      console.log("📥 Datei:", fileName);
-
       const parsed = parseFileName(fileName);
 
-      if (!parsed.title || parsed.title.length < 2) {
-        await sendMessage(msg.chat.id, "❌ Dateiname nicht erkannt");
-        return res.sendStatus(200);
-      }
-
       const results = await searchMulti(parsed.title, parsed.type);
-
       if (!results.length) {
-        await sendMessage(msg.chat.id, `❌ Nichts gefunden: ${parsed.title}`);
+        await sendMessage(msg.chat.id, "❌ Nichts gefunden");
         return res.sendStatus(200);
       }
 
@@ -271,36 +160,14 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
         type: parsed.type
       };
 
-      if (parsed.type === "series") {
-        const ep = await fetchEpisode(details.id, parsed.season, parsed.episode);
-
-        save = {
-          ...save,
-          group: parsed.group,
-          season: parsed.season,
-          episode: parsed.episode,
-          overview: ep.overview || details.overview
-        };
-      }
-
       const db = loadDB();
 
-// ❌ Duplikate entfernen (gleicher file_id)
-const exists = db.find(x => x.file_id === fileId);
+      if (!db.find(x => x.file_id === fileId)) {
+        db.unshift(save);
+        saveDB(db);
+      }
 
-if (!exists) {
-  db.unshift({
-    ...save,
-    added: Date.now()
-  });
-  saveDB(db);
-} else {
-  console.log("⚠️ Bereits vorhanden:", save.title);
-}
-
-      console.log("💾 Gespeichert:", save.title);
-
-      await sendCard(msg.chat.id, details, fileId, save);
+      await sendMessage(msg.chat.id, `✅ Gespeichert: ${save.title}`);
 
       return res.sendStatus(200);
     }
