@@ -174,22 +174,25 @@ async function sendNetflixFeed(chatId) {
 async function searchMulti(title, type) {
   const url = type === "series" ? "tv" : "movie";
 
-  const res = await fetch(
+  // 1. DE Suche
+  let res = await fetch(
     `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
   );
+  let data = await res.json();
 
-  const data = await res.json();
-  return data.results || [];
-}
+  if (data.results && data.results.length > 0) {
+    return data.results;
+  }
 
-async function fetchDetails(id, type) {
-  const url = type === "series" ? "tv" : "movie";
+  console.log("⚠️ Kein Treffer (DE), versuche EN...");
 
-  const res = await fetch(
-    `https://api.themoviedb.org/3/${url}/${id}?api_key=${TMDB_KEY}&language=de-DE`
+  // 2. EN FALLBACK
+  res = await fetch(
+    `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=en-US`
   );
+  data = await res.json();
 
-  return res.json();
+  return data.results || [];
 }
 
 // ===== WEBHOOK =====
