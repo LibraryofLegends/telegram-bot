@@ -9,6 +9,21 @@ const TMDB_KEY = process.env.TMDB_KEY;
 
 const DB_FILE = "films.json";
 
+const LEARN_FILE = "learning.json";
+
+function loadLearning() {
+  if (!fs.existsSync(LEARN_FILE)) return {};
+  return JSON.parse(fs.readFileSync(LEARN_FILE));
+}
+
+function saveLearning(data) {
+  fs.writeFileSync(LEARN_FILE, JSON.stringify(data, null, 2));
+}
+
+function normalizeKey(title) {
+  return title.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 // ===== DB =====
 function loadDB() {
   if (!fs.existsSync(DB_FILE)) return [];
