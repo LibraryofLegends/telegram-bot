@@ -223,6 +223,18 @@ async function ultraSearch(title, type) {
   return [];
 }
 
+function saveLearnResult(input, result) {
+  const learn = loadLearning();
+  const key = normalizeKey(input);
+
+  learn[key] = {
+    id: result.id,
+    title: result.title || result.name
+  };
+
+  saveLearning(learn);
+}
+
 // ===== WEBHOOK =====
 app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
