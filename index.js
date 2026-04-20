@@ -33,14 +33,12 @@ function saveHistory(data) {
 function cleanName(name) {
   return name
     .replace(/\.(mp4|mkv|avi)$/i, "")
-    .replace(/@\w+/g, "")
     .replace(/[._\-]+/g, " ")
-    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german|aac|hdrip|hdtv)\b/gi, "")
-    .replace(/\s+/g, " ")
+    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german)\b/gi, "")
     .trim();
 }
 
-// ===== PARSER (SERIES SUPPORT) =====
+// ===== PARSER =====
 function parseFileName(name) {
   name = cleanName(name);
 
@@ -69,36 +67,15 @@ function parseFileName(name) {
   };
 }
 
-// ===== AUDIO =====
-function detectAudio(name) {
-  name = name.toLowerCase();
-  if (name.includes("german")) return "DE";
-  if (name.includes("english")) return "EN";
-  return "DE/EN";
-}
-
-// ===== GENRE =====
-function genreEmoji(name) {
-  const map = {
-    Action: "🔥",
-    Horror: "👻",
-    Comedy: "😂",
-    Drama: "🎭",
-    Thriller: "🔪",
-    Adventure: "🗺",
-    "Science Fiction": "🚀"
-  };
-  return map[name] || "🎬";
-}
-
 // ===== STARS =====
 function getStars(r) {
   const stars = Math.round((r || 0) / 2);
   return "⭐".repeat(stars) + "☆".repeat(5 - stars) + ` (${r?.toFixed(1) || "-"})`;
 }
 
-// ===== TMDB SEARCH =====
-async function searchTMDB(title, type = "movie") {
+// ===== SEARCH =====
+async function searchTMDB(title, type="movie") {
+
   const url = type === "series" ? "tv" : "movie";
 
   const res = await fetch(
@@ -119,91 +96,82 @@ async function searchTMDB(title, type = "movie") {
 
 // ===== TELEGRAM =====
 async function tg(method, body) {
-  const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
+  return fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
-
-  return res.json();
 }
 
 // ===== CARD =====
-function buildCard(data, fileName, idNum) {
+function buildCard(data, id) {
 
   const title = (data.title || data.name || "").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
-
-  const genres = data.genres
-    ?.slice(0,2)
-    .map(g => `${genreEmoji(g.name)} ${g.name}`)
-    .join(" • ");
-
-  const audio = detectAudio(fileName);
-
-  const id = "#" + idNum.toString().padStart(4,"0");
 
   return `
 ━━━━━━━━━━━━━━━
 🎬 ${title} (${year})
 ━━━━━━━━━━━━━━━
 ${getStars(data.vote_average)}
-${genres || "-"}
 
-⏱ ${data.runtime || "-"} Min • 🔞 FSK -
-🎧 ${audio}
+⏱ ${data.runtime || "-"} Min
 ━━━━━━━━━━━━━━━
-▶️ ${id}
+▶️ #${id.toString().padStart(4,"0")}
 @LibraryOfLegends`;
 }
 
-// ===== SERIES MENUS =====
-async function sendSeriesMenu(chatId) {
-  const db = loadDB();
-  const groups = [...new Set(db.filter(x => x.type==="series").map(x => x.group))];
+// ===== NAVIGATION =====
+async function sendItem(chatId, list, index) {
 
-  await tg("sendMessage", {
+  const item = list[index];
+  if (!item) return;
+
+  const data = await searchTMDB(item.title, item.type);
+
+  await tg("sendPhoto", {
     chat_id: chatId,
-    text: "📺 Serien auswählen:",
+    photo: `https://image.tmdb.org/t/p/w500${data.poster_path}`,
+    caption: buildCard(data, index+1),
     reply_markup: {
-      inline_keyboard: groups.map(g => [{
-        text: g,
-        callback_data: `series_${g}`
-      }])
+      inline_keyboard: [[
+        { text: "⬅️", callback_data: `nav_${index-1}` },
+        { text: "▶️", url: `https://t.me/LIBRARY_OF_LEGENDS_Bot?start=${item.file_id}` },
+        { text: "➡️", callback_data: `nav_${index+1}` }
+      ]]
     }
   });
 }
 
-async function sendSeasonMenu(chatId, group) {
-  const db = loadDB();
-  const seasons = [...new Set(db.filter(x => x.group===group).map(x => x.season))];
-
+// ===== FEED =====
+async function sendFeed(chatId) {
   await tg("sendMessage", {
     chat_id: chatId,
-    text: `📦 ${group}`,
+    text: "🎬 NETFLIX UI",
     reply_markup: {
-      inline_keyboard: seasons.map(s => [{
-        text: `Staffel ${s}`,
-        callback_data: `season_${group}_${s}`
-      }])
+      inline_keyboard: [
+        [{ text: "🔥 Trending", callback_data: "cat_trending" }],
+        [{ text: "🆕 Neu", callback_data: "cat_new" }],
+        [{ text: "⭐ Top", callback_data: "cat_top" }],
+        [{ text: "🎬 Filme", callback_data: "cat_movies" }],
+        [{ text: "📺 Serien", callback_data: "cat_series" }],
+        [{ text: "▶️ Weiter", callback_data: "continue" }]
+      ]
     }
   });
 }
 
-async function sendEpisodeMenu(chatId, group, season) {
+// ===== CATEGORY =====
+function getCategory(type) {
   const db = loadDB();
-  const eps = db.filter(x => x.group===group && x.season==season);
 
-  await tg("sendMessage", {
-    chat_id: chatId,
-    text: `📺 ${group} • Staffel ${season}`,
-    reply_markup: {
-      inline_keyboard: eps.map(e => [{
-        text: `▶️ Folge ${e.episode}`,
-        url: `https://t.me/LIBRARY_OF_LEGENDS_Bot?start=${e.file_id}`
-      }])
-    }
-  });
+  if (type === "trending") return db.slice(0,10);
+  if (type === "new") return db.slice(0,10);
+  if (type === "top") return [...db].sort((a,b)=>b.rating-a.rating).slice(0,10);
+  if (type === "movies") return db.filter(x=>x.type==="movie");
+  if (type === "series") return db.filter(x=>x.type==="series");
+
+  return db;
 }
 
 // ===== WEBHOOK =====
@@ -211,19 +179,32 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   const body = req.body;
 
+  // CALLBACK
   if (body.callback_query) {
     const data = body.callback_query.data;
     const chatId = body.callback_query.message.chat.id;
 
-    if (data === "series") await sendSeriesMenu(chatId);
-
-    if (data.startsWith("series_")) {
-      await sendSeasonMenu(chatId, data.replace("series_", ""));
+    if (data.startsWith("nav_")) {
+      const index = parseInt(data.replace("nav_",""));
+      const list = loadDB();
+      if (index >= 0) await sendItem(chatId, list, index);
     }
 
-    if (data.startsWith("season_")) {
-      const [, group, season] = data.split("_");
-      await sendEpisodeMenu(chatId, group, season);
+    if (data.startsWith("cat_")) {
+      const type = data.replace("cat_","");
+      const list = getCategory(type);
+      await sendItem(chatId, list, 0);
+    }
+
+    if (data === "continue") {
+      const history = loadHistory();
+      const last = history[chatId];
+      if (last) {
+        await tg("sendVideo", {
+          chat_id: chatId,
+          video: last
+        });
+      }
     }
 
     return res.sendStatus(200);
@@ -232,28 +213,23 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   const msg = body.message || body.channel_post;
   if (!msg) return res.sendStatus(200);
 
-  // START PLAYER
+  // START
   if (msg.text?.startsWith("/start")) {
+
     const param = msg.text.split(" ")[1];
 
     if (param) {
+      const history = loadHistory();
+      history[msg.chat.id] = param;
+      saveHistory(history);
+
       return tg("sendVideo", {
         chat_id: msg.chat.id,
         video: param
       });
     }
 
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: "🎬 Library of Legends",
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "🎬 Filme", callback_data: "movies" }],
-          [{ text: "📺 Serien", callback_data: "series" }]
-        ]
-      }
-    });
-
+    await sendFeed(msg.chat.id);
     return res.sendStatus(200);
   }
 
@@ -276,6 +252,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     db.unshift({
       title: data.title || data.name,
+      rating: data.vote_average,
       file_id: fileId,
       type: parsed.type,
       group: parsed.group,
@@ -286,12 +263,10 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     saveDB(db);
 
-    const text = buildCard(data, fileName, db.length);
-
     await tg("sendPhoto", {
       chat_id: CHANNEL_ID,
       photo: `https://image.tmdb.org/t/p/w500${data.poster_path}`,
-      caption: text,
+      caption: buildCard(data, db.length),
       reply_markup: {
         inline_keyboard: [[
           {
@@ -310,5 +285,5 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
 // ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 NEXT LEVEL + SERIEN AKTIV");
+  console.log("🔥 ULTRA UI NETFLIX SYSTEM AKTIV");
 });
