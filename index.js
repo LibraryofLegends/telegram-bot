@@ -9,6 +9,7 @@ const TMDB_KEY = process.env.TMDB_KEY;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
 const DB_FILE = "films.json";
+const HISTORY_FILE = "history.json";
 
 // ===== DB =====
 function loadDB() {
@@ -19,13 +20,22 @@ function saveDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
+// ===== HISTORY =====
+function loadHistory() {
+  if (!fs.existsSync(HISTORY_FILE)) return {};
+  return JSON.parse(fs.readFileSync(HISTORY_FILE));
+}
+function saveHistory(data) {
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify(data, null, 2));
+}
+
 // ===== CLEAN =====
 function cleanName(name) {
   return name
     .replace(/\.(mp4|mkv|avi)$/i, "")
     .replace(/@\w+/g, "")
     .replace(/[._\-]+/g, " ")
-    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german|aac|hdrip|hdtv|originale|orginale|tonspur|extended|cut|remastered)\b/gi, "")
+    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german|aac|hdrip|hdtv|extended|cut|remastered)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -117,7 +127,6 @@ function buildCard(data, fileName, idNum) {
     .join(" • ");
 
   const audio = detectAudio(fileName);
-
   const id = "#" + idNum.toString().padStart(4,"0");
 
   let story = data.overview || "";
@@ -144,10 +153,9 @@ ${story}
 @LibraryOfLegends`;
 }
 
-// ===== NAVIGATION CARD =====
-async function sendMovie(chatId, index) {
-  const db = loadDB();
-  const item = db[index];
+// ===== SEND MOVIE =====
+async function sendMovie(chatId, index, list) {
+  const item = list[index];
   if (!item) return;
 
   const data = await searchTMDB(item.title);
@@ -159,20 +167,17 @@ async function sendMovie(chatId, index) {
     photo: `https://image.tmdb.org/t/p/w500${data.poster_path}`,
     caption: text,
     reply_markup: {
-      inline_keyboard: [
-        [
-          { text: "⬅️", callback_data: `nav_${index - 1}` },
-          { text: "▶️", url: `https://t.me/LIBRARY_OF_LEGENDS_Bot?start=${item.file_id}` },
-          { text: "➡️", callback_data: `nav_${index + 1}` }
-        ]
-      ]
+      inline_keyboard: [[
+        { text: "⬅️", callback_data: `nav_${index - 1}` },
+        { text: "▶️", url: `https://t.me/LIBRARY_OF_LEGENDS_Bot?start=${item.file_id}` },
+        { text: "➡️", callback_data: `nav_${index + 1}` }
+      ]]
     }
   });
 }
 
 // ===== FEED =====
 async function sendFeed(chatId) {
-
   await tg("sendMessage", {
     chat_id: chatId,
     text: "🎬 Library of Legends",
@@ -180,7 +185,8 @@ async function sendFeed(chatId) {
       inline_keyboard: [
         [{ text: "🔥 Neu", callback_data: "cat_new" }],
         [{ text: "⭐ Top", callback_data: "cat_top" }],
-        [{ text: "🎬 Alle Filme", callback_data: "cat_all" }]
+        [{ text: "🎬 Alle Filme", callback_data: "cat_all" }],
+        [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
       ]
     }
   });
@@ -198,7 +204,7 @@ async function sendCategory(chatId, type) {
 
   if (!list.length) return;
 
-  await sendMovie(chatId, 0);
+  await sendMovie(chatId, 0, list);
 }
 
 // ===== WEBHOOK =====
@@ -213,12 +219,26 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     if (data.startsWith("nav_")) {
       const index = parseInt(data.replace("nav_", ""));
-      if (index >= 0) await sendMovie(chatId, index);
+      const db = loadDB();
+      if (index >= 0 && index < db.length) {
+        await sendMovie(chatId, index, db);
+      }
     }
 
     if (data === "cat_new") await sendCategory(chatId, "new");
     if (data === "cat_top") await sendCategory(chatId, "top");
     if (data === "cat_all") await sendCategory(chatId, "all");
+
+    if (data === "continue") {
+      const history = loadHistory();
+      const last = history[chatId];
+      if (last) {
+        return tg("sendVideo", {
+          chat_id: chatId,
+          video: last
+        });
+      }
+    }
 
     return res.sendStatus(200);
   }
@@ -226,11 +246,27 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   const msg = body.message || body.channel_post;
   if (!msg) return res.sendStatus(200);
 
+  // 🎬 START PARAM PLAYER
   if (msg.text?.startsWith("/start")) {
+    const param = msg.text.split(" ")[1];
+
+    if (param) {
+      const history = loadHistory();
+      history[msg.chat.id] = param;
+      saveHistory(history);
+
+      return tg("sendVideo", {
+        chat_id: msg.chat.id,
+        video: param,
+        supports_streaming: true
+      });
+    }
+
     await sendFeed(msg.chat.id);
     return res.sendStatus(200);
   }
 
+  // 📥 UPLOAD
   if (msg.document || msg.video) {
 
     const file = msg.document || msg.video;
@@ -258,11 +294,18 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     const text = buildCard(data, fileName, db.length);
 
-    // CHANNEL POST
     await tg("sendPhoto", {
       chat_id: CHANNEL_ID,
       photo: `https://image.tmdb.org/t/p/w500${data.poster_path}`,
-      caption: text
+      caption: text,
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: "▶️ Abspielen",
+            url: `https://t.me/LIBRARY_OF_LEGENDS_Bot?start=${fileId}`
+          }
+        ]]
+      }
     });
 
     return res.sendStatus(200);
@@ -273,5 +316,5 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
 // ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 NEXT LEVEL SYSTEM AKTIV");
+  console.log("🔥 ULTRA FINAL SYSTEM AKTIV");
 });
