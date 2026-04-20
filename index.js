@@ -35,14 +35,31 @@ function cleanName(name) {
     .replace(/\.(mp4|mkv|avi)$/i, "")
     .replace(/@\w+/g, "")
     .replace(/[._\-]+/g, " ")
-    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german|aac|hdrip|hdtv|extended|cut|remastered)\b/gi, "")
+    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german|aac|hdrip|hdtv)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-// ===== PARSER =====
+// ===== PARSER (SERIES SUPPORT) =====
 function parseFileName(name) {
   name = cleanName(name);
+
+  const seriesMatch =
+    name.match(/S(\d{1,2})E(\d{1,2})/i) ||
+    name.match(/(\d{1,2})x(\d{1,2})/i);
+
+  if (seriesMatch) {
+    const cleanTitle = name.replace(seriesMatch[0], "").trim();
+
+    return {
+      type: "series",
+      title: cleanTitle,
+      group: cleanTitle,
+      season: parseInt(seriesMatch[1]),
+      episode: parseInt(seriesMatch[2])
+    };
+  }
+
   const year = name.match(/\d{4}/)?.[0];
 
   return {
@@ -80,25 +97,21 @@ function getStars(r) {
   return "⭐".repeat(stars) + "☆".repeat(5 - stars) + ` (${r?.toFixed(1) || "-"})`;
 }
 
-// ===== SEARCH =====
-async function searchTMDB(title) {
-
-  if (title.toLowerCase().includes("pate")) {
-    const res = await fetch(`https://api.themoviedb.org/3/movie/238?api_key=${TMDB_KEY}&language=de-DE`);
-    return await res.json();
-  }
+// ===== TMDB SEARCH =====
+async function searchTMDB(title, type = "movie") {
+  const url = type === "series" ? "tv" : "movie";
 
   const res = await fetch(
-    `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
+    `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
   );
-  const data = await res.json();
 
+  const data = await res.json();
   if (!data.results?.length) return null;
 
   const id = data.results[0].id;
 
   const details = await fetch(
-    `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_KEY}&language=de-DE`
+    `https://api.themoviedb.org/3/${url}/${id}?api_key=${TMDB_KEY}&language=de-DE`
   );
 
   return await details.json();
@@ -118,8 +131,8 @@ async function tg(method, body) {
 // ===== CARD =====
 function buildCard(data, fileName, idNum) {
 
-  const title = (data.title || "").toUpperCase();
-  const year = (data.release_date || "").slice(0,4);
+  const title = (data.title || data.name || "").toUpperCase();
+  const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
   const genres = data.genres
     ?.slice(0,2)
@@ -127,12 +140,8 @@ function buildCard(data, fileName, idNum) {
     .join(" • ");
 
   const audio = detectAudio(fileName);
-  const id = "#" + idNum.toString().padStart(4,"0");
 
-  let story = data.overview || "";
-  if (story.length > 300) {
-    story = story.slice(0, story.lastIndexOf(".")) + "...";
-  }
+  const id = "#" + idNum.toString().padStart(4,"0");
 
   return `
 ━━━━━━━━━━━━━━━
@@ -143,68 +152,58 @@ ${genres || "-"}
 
 ⏱ ${data.runtime || "-"} Min • 🔞 FSK -
 🎧 ${audio}
-
-━━━━━━━━━━━━━━━
-📝 STORY
-${story}
 ━━━━━━━━━━━━━━━
 ▶️ ${id}
-#${title.split(" ")[0]}
 @LibraryOfLegends`;
 }
 
-// ===== SEND MOVIE =====
-async function sendMovie(chatId, index, list) {
-  const item = list[index];
-  if (!item) return;
+// ===== SERIES MENUS =====
+async function sendSeriesMenu(chatId) {
+  const db = loadDB();
+  const groups = [...new Set(db.filter(x => x.type==="series").map(x => x.group))];
 
-  const data = await searchTMDB(item.title);
-
-  const text = buildCard(data, item.title, index + 1);
-
-  await tg("sendPhoto", {
-    chat_id: chatId,
-    photo: `https://image.tmdb.org/t/p/w500${data.poster_path}`,
-    caption: text,
-    reply_markup: {
-      inline_keyboard: [[
-        { text: "⬅️", callback_data: `nav_${index - 1}` },
-        { text: "▶️", url: `https://t.me/LIBRARY_OF_LEGENDS_Bot?start=${item.file_id}` },
-        { text: "➡️", callback_data: `nav_${index + 1}` }
-      ]]
-    }
-  });
-}
-
-// ===== FEED =====
-async function sendFeed(chatId) {
   await tg("sendMessage", {
     chat_id: chatId,
-    text: "🎬 Library of Legends",
+    text: "📺 Serien auswählen:",
     reply_markup: {
-      inline_keyboard: [
-        [{ text: "🔥 Neu", callback_data: "cat_new" }],
-        [{ text: "⭐ Top", callback_data: "cat_top" }],
-        [{ text: "🎬 Alle Filme", callback_data: "cat_all" }],
-        [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
-      ]
+      inline_keyboard: groups.map(g => [{
+        text: g,
+        callback_data: `series_${g}`
+      }])
     }
   });
 }
 
-// ===== CATEGORY =====
-async function sendCategory(chatId, type) {
+async function sendSeasonMenu(chatId, group) {
   const db = loadDB();
+  const seasons = [...new Set(db.filter(x => x.group===group).map(x => x.season))];
 
-  let list = [];
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text: `📦 ${group}`,
+    reply_markup: {
+      inline_keyboard: seasons.map(s => [{
+        text: `Staffel ${s}`,
+        callback_data: `season_${group}_${s}`
+      }])
+    }
+  });
+}
 
-  if (type === "new") list = db.slice(0,10);
-  if (type === "top") list = [...db].sort((a,b)=>b.rating-a.rating).slice(0,10);
-  if (type === "all") list = db;
+async function sendEpisodeMenu(chatId, group, season) {
+  const db = loadDB();
+  const eps = db.filter(x => x.group===group && x.season==season);
 
-  if (!list.length) return;
-
-  await sendMovie(chatId, 0, list);
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text: `📺 ${group} • Staffel ${season}`,
+    reply_markup: {
+      inline_keyboard: eps.map(e => [{
+        text: `▶️ Folge ${e.episode}`,
+        url: `https://t.me/LIBRARY_OF_LEGENDS_Bot?start=${e.file_id}`
+      }])
+    }
+  });
 }
 
 // ===== WEBHOOK =====
@@ -212,32 +211,19 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   const body = req.body;
 
-  // CALLBACKS
   if (body.callback_query) {
     const data = body.callback_query.data;
     const chatId = body.callback_query.message.chat.id;
 
-    if (data.startsWith("nav_")) {
-      const index = parseInt(data.replace("nav_", ""));
-      const db = loadDB();
-      if (index >= 0 && index < db.length) {
-        await sendMovie(chatId, index, db);
-      }
+    if (data === "series") await sendSeriesMenu(chatId);
+
+    if (data.startsWith("series_")) {
+      await sendSeasonMenu(chatId, data.replace("series_", ""));
     }
 
-    if (data === "cat_new") await sendCategory(chatId, "new");
-    if (data === "cat_top") await sendCategory(chatId, "top");
-    if (data === "cat_all") await sendCategory(chatId, "all");
-
-    if (data === "continue") {
-      const history = loadHistory();
-      const last = history[chatId];
-      if (last) {
-        return tg("sendVideo", {
-          chat_id: chatId,
-          video: last
-        });
-      }
+    if (data.startsWith("season_")) {
+      const [, group, season] = data.split("_");
+      await sendEpisodeMenu(chatId, group, season);
     }
 
     return res.sendStatus(200);
@@ -246,27 +232,32 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   const msg = body.message || body.channel_post;
   if (!msg) return res.sendStatus(200);
 
-  // 🎬 START PARAM PLAYER
+  // START PLAYER
   if (msg.text?.startsWith("/start")) {
     const param = msg.text.split(" ")[1];
 
     if (param) {
-      const history = loadHistory();
-      history[msg.chat.id] = param;
-      saveHistory(history);
-
       return tg("sendVideo", {
         chat_id: msg.chat.id,
-        video: param,
-        supports_streaming: true
+        video: param
       });
     }
 
-    await sendFeed(msg.chat.id);
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "🎬 Library of Legends",
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🎬 Filme", callback_data: "movies" }],
+          [{ text: "📺 Serien", callback_data: "series" }]
+        ]
+      }
+    });
+
     return res.sendStatus(200);
   }
 
-  // 📥 UPLOAD
+  // UPLOAD
   if (msg.document || msg.video) {
 
     const file = msg.document || msg.video;
@@ -274,7 +265,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     const fileName = file.file_name || "";
 
     const parsed = parseFileName(fileName);
-    const data = await searchTMDB(parsed.title);
+    const data = await searchTMDB(parsed.title, parsed.type);
 
     if (!data) {
       await tg("sendMessage", { chat_id: msg.chat.id, text: "❌ Nichts gefunden" });
@@ -284,9 +275,12 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     const db = loadDB();
 
     db.unshift({
-      title: data.title,
-      rating: data.vote_average,
+      title: data.title || data.name,
       file_id: fileId,
+      type: parsed.type,
+      group: parsed.group,
+      season: parsed.season,
+      episode: parsed.episode,
       added: Date.now()
     });
 
@@ -316,5 +310,5 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
 // ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 ULTRA FINAL SYSTEM AKTIV");
+  console.log("🔥 NEXT LEVEL + SERIEN AKTIV");
 });
