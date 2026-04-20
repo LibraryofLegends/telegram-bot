@@ -48,7 +48,6 @@ function parseFileName(name) {
 
   if (seriesMatch) {
     const cleanTitle = name.replace(seriesMatch[0], "").trim();
-
     return {
       type: "series",
       title: cleanTitle,
@@ -65,6 +64,28 @@ function parseFileName(name) {
     title: name.replace(year, "").trim(),
     year
   };
+}
+
+// ===== AUDIO =====
+function detectAudio(name) {
+  name = name.toLowerCase();
+  if (name.includes("german")) return "DE";
+  if (name.includes("english")) return "EN";
+  return "DE/EN";
+}
+
+// ===== GENRE EMOJI =====
+function genreEmoji(name) {
+  const map = {
+    Action: "🔥",
+    Horror: "👻",
+    Comedy: "😂",
+    Drama: "🎭",
+    Thriller: "🔪",
+    Adventure: "🗺",
+    "Science Fiction": "🚀"
+  };
+  return map[name] || "🎬";
 }
 
 // ===== STARS =====
@@ -103,27 +124,62 @@ async function tg(method, body) {
   });
 }
 
-// ===== CARD =====
-function buildCard(data, id) {
+// ===== CARD ULTRA =====
+function buildCard(data, fileName, idNum) {
 
   const title = (data.title || data.name || "").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
+
+  const genres = data.genres
+    ?.slice(0,2)
+    .map(g => `${genreEmoji(g.name)} ${g.name}`)
+    .join(" • ");
+
+  const audio = detectAudio(fileName);
+
+  let story = data.overview || "";
+  if (story.length > 250) {
+    story = story.slice(0, story.lastIndexOf(".")) + "...";
+  }
+
+  const id = "#" + idNum.toString().padStart(4,"0");
 
   return `
 ━━━━━━━━━━━━━━━
 🎬 ${title} (${year})
 ━━━━━━━━━━━━━━━
 ${getStars(data.vote_average)}
+${genres || "-"}
 
 ⏱ ${data.runtime || "-"} Min
+🎧 ${audio}
+
 ━━━━━━━━━━━━━━━
-▶️ #${id.toString().padStart(4,"0")}
+📝 STORY
+${story}
+━━━━━━━━━━━━━━━
+▶️ ${id}
+#${title.split(" ")[0]}
 @LibraryOfLegends`;
 }
 
-// ===== NAVIGATION =====
-async function sendItem(chatId, list, index) {
+// ===== CATEGORY LOGIC =====
+function getCategory(type) {
+  const db = loadDB();
 
+  if (type === "trending") return db.slice(0,10);
+  if (type === "top") return [...db].sort((a,b)=>b.rating-a.rating).slice(0,10);
+  if (type === "movies") return db.filter(x=>x.type==="movie");
+  if (type === "series") return db.filter(x=>x.type==="series");
+
+  if (type === "action") return db.filter(x=>x.title.toLowerCase().includes("action"));
+  if (type === "horror") return db.filter(x=>x.title.toLowerCase().includes("horror"));
+
+  return db;
+}
+
+// ===== NAV =====
+async function sendItem(chatId, list, index) {
   const item = list[index];
   if (!item) return;
 
@@ -132,7 +188,7 @@ async function sendItem(chatId, list, index) {
   await tg("sendPhoto", {
     chat_id: chatId,
     photo: `https://image.tmdb.org/t/p/w500${data.poster_path}`,
-    caption: buildCard(data, index+1),
+    caption: buildCard(data, item.title, index+1),
     reply_markup: {
       inline_keyboard: [[
         { text: "⬅️", callback_data: `nav_${index-1}` },
@@ -147,31 +203,19 @@ async function sendItem(chatId, list, index) {
 async function sendFeed(chatId) {
   await tg("sendMessage", {
     chat_id: chatId,
-    text: "🎬 NETFLIX UI",
+    text: "🎬 ULTRA PRO MAX",
     reply_markup: {
       inline_keyboard: [
         [{ text: "🔥 Trending", callback_data: "cat_trending" }],
-        [{ text: "🆕 Neu", callback_data: "cat_new" }],
         [{ text: "⭐ Top", callback_data: "cat_top" }],
         [{ text: "🎬 Filme", callback_data: "cat_movies" }],
         [{ text: "📺 Serien", callback_data: "cat_series" }],
+        [{ text: "🔥 Action", callback_data: "cat_action" }],
+        [{ text: "👻 Horror", callback_data: "cat_horror" }],
         [{ text: "▶️ Weiter", callback_data: "continue" }]
       ]
     }
   });
-}
-
-// ===== CATEGORY =====
-function getCategory(type) {
-  const db = loadDB();
-
-  if (type === "trending") return db.slice(0,10);
-  if (type === "new") return db.slice(0,10);
-  if (type === "top") return [...db].sort((a,b)=>b.rating-a.rating).slice(0,10);
-  if (type === "movies") return db.filter(x=>x.type==="movie");
-  if (type === "series") return db.filter(x=>x.type==="series");
-
-  return db;
 }
 
 // ===== WEBHOOK =====
@@ -179,7 +223,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   const body = req.body;
 
-  // CALLBACK
   if (body.callback_query) {
     const data = body.callback_query.data;
     const chatId = body.callback_query.message.chat.id;
@@ -213,7 +256,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   const msg = body.message || body.channel_post;
   if (!msg) return res.sendStatus(200);
 
-  // START
   if (msg.text?.startsWith("/start")) {
 
     const param = msg.text.split(" ")[1];
@@ -233,7 +275,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     return res.sendStatus(200);
   }
 
-  // UPLOAD
   if (msg.document || msg.video) {
 
     const file = msg.document || msg.video;
@@ -255,9 +296,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       rating: data.vote_average,
       file_id: fileId,
       type: parsed.type,
-      group: parsed.group,
-      season: parsed.season,
-      episode: parsed.episode,
       added: Date.now()
     });
 
@@ -266,7 +304,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     await tg("sendPhoto", {
       chat_id: CHANNEL_ID,
       photo: `https://image.tmdb.org/t/p/w500${data.poster_path}`,
-      caption: buildCard(data, db.length),
+      caption: buildCard(data, fileName, db.length),
       reply_markup: {
         inline_keyboard: [[
           {
@@ -283,7 +321,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   res.sendStatus(200);
 });
 
-// ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 ULTRA UI NETFLIX SYSTEM AKTIV");
+  console.log("🔥 ULTRA PRO MAX AKTIV");
 });
