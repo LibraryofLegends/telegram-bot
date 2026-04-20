@@ -115,11 +115,17 @@ function generateTitleVariants(title) {
   return [...variants].filter(v => v && v.length > 1);
 }
 
-// ===== MEDIA DETECTION =====
+// ===== 🔥 AUDIO PRO =====
 function detectAudio(name = "") {
   const n = String(name).toLowerCase();
-  if (n.includes("german") || n.includes("deutsch")) return "Deutsch";
-  if (n.includes("english") || n.includes("englisch")) return "Englisch";
+
+  const hasDE = /german|deutsch|dl|dual|multi/.test(n);
+  const hasEN = /english|englisch|eng/.test(n);
+
+  if (hasDE && hasEN) return "Deutsch • Englisch";
+  if (hasDE) return "Deutsch";
+  if (hasEN) return "Englisch";
+
   return "Deutsch • Englisch";
 }
 
