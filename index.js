@@ -1,9 +1,6 @@
 const express = require("express");
 const fs = require("fs");
 
-// Node <18 → aktivieren
-// const fetch = require("node-fetch");
-
 const app = express();
 app.use(express.json());
 
@@ -13,7 +10,6 @@ const CHANNEL_ID = process.env.CHANNEL_ID;
 const BOT_USERNAME = process.env.BOT_USERNAME || "LIBRARY_OF_LEGENDS_Bot";
 
 const DB_FILE = "films.json";
-const HISTORY_FILE = "history.json";
 
 const sessions = {};
 
@@ -39,6 +35,10 @@ async function tg(method, body) {
 
 // ================= PARSER =================
 function parseFileName(name = "") {
+  if (!name || name.length < 2) {
+    return { type: "movie", title: "", year: "" };
+  }
+
   const clean = name
     .replace(/\.(mp4|mkv|avi)$/i, "")
     .replace(/[._\-]+/g, " ");
@@ -63,8 +63,10 @@ function parseFileName(name = "") {
   };
 }
 
-// ================= TMDB SEARCH =================
-async function searchTMDB(title, type = "movie", year = "") {
+// ================= TMDB =================
+async function searchTMDB(title, type = "movie") {
+  if (!title) return null;
+
   const url = type === "series" ? "tv" : "movie";
 
   const res = await fetch(
@@ -75,7 +77,6 @@ async function searchTMDB(title, type = "movie", year = "") {
   return data.results?.[0] || null;
 }
 
-// ================= DETAILS =================
 async function getDetails(id, type = "movie") {
   const url = type === "series" ? "tv" : "movie";
 
@@ -146,11 +147,25 @@ function playerUrl(mode, id) {
 async function handleUpload(msg) {
   const file = msg.document || msg.video;
   const fileId = file.file_id;
-  const fileName = file.file_name || msg.caption || "";
+
+  // 🔥 FIX: bessere Titel-Erkennung
+  const fileName =
+    file.file_name ||
+    msg.caption ||
+    msg.video?.file_name ||
+    "unknown";
 
   const parsed = parseFileName(fileName);
 
-  const result = await searchTMDB(parsed.title, parsed.type, parsed.year);
+  // ❌ Kein Titel → abbrechen
+  if (!parsed.title) {
+    return tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Kein Titel erkannt (Forward Problem)"
+    });
+  }
+
+  const result = await searchTMDB(parsed.title, parsed.type);
 
   if (!result) {
     return tg("sendMessage", {
@@ -197,7 +212,7 @@ async function handleUpload(msg) {
   });
 }
 
-// ================= PLAYER START =================
+// ================= START =================
 async function handleStart(msg, param) {
   const id = param.replace(/str_|dl_/, "");
   const db = loadDB();
@@ -230,7 +245,12 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     const body = req.body;
 
+    // ✅ CALLBACK FIX
     if (body.callback_query) {
+      await tg("answerCallbackQuery", {
+        callback_query_id: body.callback_query.id
+      });
+
       const data = body.callback_query.data;
       const chatId = body.callback_query.message.chat.id;
 
@@ -252,8 +272,12 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       return res.sendStatus(200);
     }
 
-    const msg = body.message || body.channel_post;
+    // 🔥 FIX: KEINE CHANNEL POSTS
+    const msg = body.message;
     if (!msg) return res.sendStatus(200);
+
+    // 🔥 FIX: IGNORIERE BOT SELBST
+    if (msg.from?.is_bot) return res.sendStatus(200);
 
     if (msg.text?.startsWith("/start")) {
       const param = msg.text.split(" ")[1];
@@ -273,6 +297,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   }
 });
 
+// ================= START =================
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 PREMIUM SYSTEM READY");
+  console.log("🔥 PREMIUM SYSTEM FIXED & READY");
 });
