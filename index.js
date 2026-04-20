@@ -408,7 +408,6 @@ ${collectionLine}━━━━━━━━━━━━━━━━━━
 ━━━━━━━━━━━━━━━━━━
 ${getStars(data.vote_average)}
 ${episodeLine}⏱ ${runtime} Min • 🔞 FSK ${fsk}  
-⭐ IMDb ${imdb}  
 🎥 ${director}  
 👥 ${cast}  
 ━━━━━━━━━━━━━━━━━━
