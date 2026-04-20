@@ -327,6 +327,47 @@ async function smartSearch(title, type = "movie", year = "") {
   return null;
 }
 
+// ===== 🧠 AI COVER SELECTION =====
+function getBestCover(data) {
+  if (data.poster_path) {
+    return `https://image.tmdb.org/t/p/w780${data.poster_path}`;
+  }
+
+  if (data.backdrop_path) {
+    return `https://image.tmdb.org/t/p/w780${data.backdrop_path}`;
+  }
+
+  return "https://via.placeholder.com/500x750?text=No+Image";
+}
+
+// ===== 🎯 HASHTAGS PRO =====
+function generateTags(data) {
+  const tags = new Set();
+
+  const title = (data.title || data.name || "").split(" ")[0];
+  if (title) tags.add(`#${title.replace(/[^a-z0-9]/gi, "")}`);
+
+  // Genres
+  (data.genres || []).slice(0, 3).forEach(g => {
+    tags.add(`#${g.name.replace(/\s/g, "")}`);
+  });
+
+  // Collection
+  if (data.belongs_to_collection?.name) {
+    tags.add(`#${data.belongs_to_collection.name.replace(/[^a-z0-9]/gi, "")}`);
+  }
+
+  // Actors (besser gefiltert)
+  (data.credits?.cast || []).slice(0, 3).forEach(a => {
+    const name = a.name.split(" ")[0];
+    if (name.length > 2) {
+      tags.add(`#${name.replace(/[^a-z0-9]/gi, "")}`);
+    }
+  });
+
+  return [...tags].slice(0, 8).join(" ");
+}
+
 // ===== TELEGRAM =====
 async function tg(method, body) {
   const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
