@@ -34,7 +34,7 @@ function cleanName(name) {
   return name
     .replace(/\.(mp4|mkv|avi)$/i, "")
     .replace(/[._\-]+/g, " ")
-    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german)\b/gi, "")
+    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german|extended|cut)\b/gi, "")
     .trim();
 }
 
@@ -66,7 +66,7 @@ function parseFileName(name) {
   };
 }
 
-// ===== AUDIO =====
+// ===== 🎧 AUDIO =====
 function detectAudio(name) {
   name = name.toLowerCase();
   if (name.includes("german")) return "DE";
@@ -74,45 +74,79 @@ function detectAudio(name) {
   return "DE/EN";
 }
 
-// ===== GENRE EMOJI =====
-function genreEmoji(name) {
-  const map = {
-    Action: "🔥",
-    Horror: "👻",
-    Comedy: "😂",
-    Drama: "🎭",
-    Thriller: "🔪",
-    Adventure: "🗺",
-    "Science Fiction": "🚀"
-  };
-  return map[name] || "🎬";
-}
-
-// ===== STARS =====
+// ===== ⭐ STARS =====
 function getStars(r) {
   const stars = Math.round((r || 0) / 2);
   return "⭐".repeat(stars) + "☆".repeat(5 - stars) + ` (${r?.toFixed(1) || "-"})`;
 }
 
-// ===== SEARCH =====
-async function searchTMDB(title, type="movie") {
+// ===== 🏷 HASHTAGS =====
+function generateTags(data) {
+  const tags = [];
+
+  if (data.genres) {
+    data.genres.forEach(g => {
+      tags.push(`#${g.name.replace(/\s/g,"")}`);
+    });
+  }
+
+  const titleTag = "#" + (data.title || data.name || "")
+    .split(" ")[0]
+    .toUpperCase();
+
+  tags.unshift(titleTag);
+
+  return tags.join(" ");
+}
+
+// ===== 🧠 AI SEARCH =====
+async function smartSearch(title, type="movie") {
 
   const url = type === "series" ? "tv" : "movie";
 
+  const variants = [
+    title,
+    title.split(" ").slice(0,2).join(" "),
+    title.split(" ")[0]
+  ];
+
+  for (const q of variants) {
+
+    if (!q) continue;
+
+    // 🇩🇪
+    let res = await fetch(
+      `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=de-DE`
+    );
+    let data = await res.json();
+
+    if (data.results?.length) {
+      return data.results[0];
+    }
+
+    // 🇺🇸
+    res = await fetch(
+      `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=en-US`
+    );
+    data = await res.json();
+
+    if (data.results?.length) {
+      return data.results[0];
+    }
+  }
+
+  return null;
+}
+
+// ===== DETAILS =====
+async function fetchDetails(id, type="movie") {
+  const url = type === "series" ? "tv" : "movie";
+
   const res = await fetch(
-    `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
-  );
-
-  const data = await res.json();
-  if (!data.results?.length) return null;
-
-  const id = data.results[0].id;
-
-  const details = await fetch(
     `https://api.themoviedb.org/3/${url}/${id}?api_key=${TMDB_KEY}&language=de-DE`
   );
 
-  return await details.json();
+  return res.json();
 }
 
 // ===== TELEGRAM =====
@@ -124,18 +158,14 @@ async function tg(method, body) {
   });
 }
 
-// ===== CARD ULTRA =====
+// ===== 🎴 CARD =====
 function buildCard(data, fileName, idNum) {
 
   const title = (data.title || data.name || "").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
-  const genres = data.genres
-    ?.slice(0,2)
-    .map(g => `${genreEmoji(g.name)} ${g.name}`)
-    .join(" • ");
-
   const audio = detectAudio(fileName);
+  const tags = generateTags(data);
 
   let story = data.overview || "";
   if (story.length > 250) {
@@ -149,7 +179,6 @@ function buildCard(data, fileName, idNum) {
 🎬 ${title} (${year})
 ━━━━━━━━━━━━━━━
 ${getStars(data.vote_average)}
-${genres || "-"}
 
 ⏱ ${data.runtime || "-"} Min
 🎧 ${audio}
@@ -159,103 +188,17 @@ ${genres || "-"}
 ${story}
 ━━━━━━━━━━━━━━━
 ▶️ ${id}
-#${title.split(" ")[0]}
+${tags}
 @LibraryOfLegends`;
-}
-
-// ===== CATEGORY LOGIC =====
-function getCategory(type) {
-  const db = loadDB();
-
-  if (type === "trending") return db.slice(0,10);
-  if (type === "top") return [...db].sort((a,b)=>b.rating-a.rating).slice(0,10);
-  if (type === "movies") return db.filter(x=>x.type==="movie");
-  if (type === "series") return db.filter(x=>x.type==="series");
-
-  if (type === "action") return db.filter(x=>x.title.toLowerCase().includes("action"));
-  if (type === "horror") return db.filter(x=>x.title.toLowerCase().includes("horror"));
-
-  return db;
-}
-
-// ===== NAV =====
-async function sendItem(chatId, list, index) {
-  const item = list[index];
-  if (!item) return;
-
-  const data = await searchTMDB(item.title, item.type);
-
-  await tg("sendPhoto", {
-    chat_id: chatId,
-    photo: `https://image.tmdb.org/t/p/w500${data.poster_path}`,
-    caption: buildCard(data, item.title, index+1),
-    reply_markup: {
-      inline_keyboard: [[
-        { text: "⬅️", callback_data: `nav_${index-1}` },
-        { text: "▶️", url: `https://t.me/LIBRARY_OF_LEGENDS_Bot?start=${item.file_id}` },
-        { text: "➡️", callback_data: `nav_${index+1}` }
-      ]]
-    }
-  });
-}
-
-// ===== FEED =====
-async function sendFeed(chatId) {
-  await tg("sendMessage", {
-    chat_id: chatId,
-    text: "🎬 ULTRA PRO MAX",
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "🔥 Trending", callback_data: "cat_trending" }],
-        [{ text: "⭐ Top", callback_data: "cat_top" }],
-        [{ text: "🎬 Filme", callback_data: "cat_movies" }],
-        [{ text: "📺 Serien", callback_data: "cat_series" }],
-        [{ text: "🔥 Action", callback_data: "cat_action" }],
-        [{ text: "👻 Horror", callback_data: "cat_horror" }],
-        [{ text: "▶️ Weiter", callback_data: "continue" }]
-      ]
-    }
-  });
 }
 
 // ===== WEBHOOK =====
 app.post(`/bot${TOKEN}`, async (req, res) => {
 
-  const body = req.body;
-
-  if (body.callback_query) {
-    const data = body.callback_query.data;
-    const chatId = body.callback_query.message.chat.id;
-
-    if (data.startsWith("nav_")) {
-      const index = parseInt(data.replace("nav_",""));
-      const list = loadDB();
-      if (index >= 0) await sendItem(chatId, list, index);
-    }
-
-    if (data.startsWith("cat_")) {
-      const type = data.replace("cat_","");
-      const list = getCategory(type);
-      await sendItem(chatId, list, 0);
-    }
-
-    if (data === "continue") {
-      const history = loadHistory();
-      const last = history[chatId];
-      if (last) {
-        await tg("sendVideo", {
-          chat_id: chatId,
-          video: last
-        });
-      }
-    }
-
-    return res.sendStatus(200);
-  }
-
-  const msg = body.message || body.channel_post;
+  const msg = req.body.message || req.body.channel_post;
   if (!msg) return res.sendStatus(200);
 
+  // START
   if (msg.text?.startsWith("/start")) {
 
     const param = msg.text.split(" ")[1];
@@ -271,10 +214,15 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       });
     }
 
-    await sendFeed(msg.chat.id);
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "🎬 ULTRA AI SYSTEM READY"
+    });
+
     return res.sendStatus(200);
   }
 
+  // UPLOAD
   if (msg.document || msg.video) {
 
     const file = msg.document || msg.video;
@@ -282,12 +230,15 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     const fileName = file.file_name || "";
 
     const parsed = parseFileName(fileName);
-    const data = await searchTMDB(parsed.title, parsed.type);
 
-    if (!data) {
+    const result = await smartSearch(parsed.title, parsed.type);
+
+    if (!result) {
       await tg("sendMessage", { chat_id: msg.chat.id, text: "❌ Nichts gefunden" });
       return res.sendStatus(200);
     }
+
+    const data = await fetchDetails(result.id, parsed.type);
 
     const db = loadDB();
 
@@ -321,6 +272,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   res.sendStatus(200);
 });
 
+// ===== START =====
 app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 ULTRA PRO MAX AKTIV");
+  console.log("🔥 AI SEARCH + AUTO TAGS AKTIV");
 });
