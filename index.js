@@ -124,10 +124,17 @@ function detectAudio(name = "") {
 }
 
 function detectQuality(name = "") {
-  const n = String(name).toLowerCase();
-  if (n.includes("2160") || n.includes("4k")) return "4K";
-  if (n.includes("1080")) return "1080p";
-  if (n.includes("720")) return "720p";
+  const n = name.toLowerCase();
+
+  if (/2160|4k|uhd/.test(n)) return "4K";
+  if (/1080|fullhd/.test(n)) return "1080p";
+  if (/720/.test(n)) return "720p";
+
+  // 🔥 SMART FALLBACK (wichtig!)
+  if (n.includes("bluray") || n.includes("web") || n.includes("hdrip")) {
+    return "HD";
+  }
+
   return "SD";
 }
 
