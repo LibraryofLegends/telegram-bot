@@ -242,10 +242,11 @@ async function sendFeed(chatId) {
 
 // ================= WEBHOOK =================
 app.post(`/bot${TOKEN}`, async (req, res) => {
-  try {
-    const body = req.body;
+  res.sendStatus(200); // ✅ SOFORT antworten
 
-    // ✅ CALLBACK FIX
+  const body = req.body;
+
+  try {
     if (body.callback_query) {
       await tg("answerCallbackQuery", {
         callback_query_id: body.callback_query.id
@@ -269,15 +270,13 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
         });
       }
 
-      return res.sendStatus(200);
+      return;
     }
 
-    // 🔥 FIX: KEINE CHANNEL POSTS
-    const msg = body.message;
-    if (!msg) return res.sendStatus(200);
+    const msg = body.message || body.channel_post;
+    if (!msg) return;
 
-    // 🔥 FIX: IGNORIERE BOT SELBST
-    if (msg.from?.is_bot) return res.sendStatus(200);
+    if (msg.from?.is_bot) return;
 
     if (msg.text?.startsWith("/start")) {
       const param = msg.text.split(" ")[1];
@@ -289,11 +288,8 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       await handleUpload(msg);
     }
 
-    res.sendStatus(200);
-
   } catch (err) {
-    console.error(err);
-    res.sendStatus(200);
+    console.error("❌ Fehler:", err);
   }
 });
 
