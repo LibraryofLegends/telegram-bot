@@ -260,7 +260,8 @@ ${LINE_MAIN}
 🎬 ${title} (${year})
 ${LINE_SOFT}
 🎞 ${genres || "-"}
-🔥 ${detectQuality(fileName)} • 🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
+🔥 ${detectQuality(fileName)} • ${detectSource(fileName)}
+🎧 ${detectAudio(fileName)}
 ${LINE_MAIN}
 ${stars(data.vote_average)}
 ⏱ ${runtime} Min • 🔞 FSK ${fsk}
