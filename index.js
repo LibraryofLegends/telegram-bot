@@ -171,6 +171,36 @@ function getFSK(data) {
   }
 }
 
+function generateTags(data) {
+  const tags = new Set();
+
+  // 🎬 Titel
+  const title = (data.title || data.name || "").split(" ")[0];
+  if (title) {
+    tags.add(`#${title.replace(/[^a-z0-9]/gi, "")}`);
+  }
+
+  // 🎭 Genres
+  (data.genres || []).slice(0, 3).forEach(g => {
+    tags.add(`#${g.name.replace(/\s/g, "")}`);
+  });
+
+  // 🎞 Collection
+  if (data.belongs_to_collection?.name) {
+    tags.add(`#${data.belongs_to_collection.name.replace(/[^a-z0-9]/gi, "")}`);
+  }
+
+  // 👥 Actors
+  (data.credits?.cast || []).slice(0, 2).forEach(actor => {
+    const name = actor.name.split(" ")[0];
+    if (name.length > 2) {
+      tags.add(`#${name.replace(/[^a-z0-9]/gi, "")}`);
+    }
+  });
+
+  return [...tags].slice(0, 8).join(" ");
+}
+
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const title = (data.title || data.name || "").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
