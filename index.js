@@ -537,12 +537,30 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     // ================= CALLBACK =================
     if (body.callback_query) {
-      const data = body.callback_query.data;
-      const chatId = body.callback_query.message.chat.id;
 
-      await tg("answerCallbackQuery", {
-        callback_query_id: body.callback_query.id
-      });
+  const data = body.callback_query.data;
+  const chatId = body.callback_query.message.chat.id;
+
+  await tg("answerCallbackQuery", {
+    callback_query_id: body.callback_query.id
+  });
+
+  if (data === "back_menu") {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "🔥 Menü",
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🔥 Action", callback_data: "cat_28" }],
+          [{ text: "👻 Horror", callback_data: "cat_27" }],
+          [{ text: "😂 Comedy", callback_data: "cat_35" }],
+          [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+        ]
+      }
+    });
+  }
+
+}
 
       // 🎬 ÄHNLICHE
       if (data.startsWith("sim_")) {
@@ -595,21 +613,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           }
         });
       }
-      
-      if (data === "back_menu") {
-  return tg("sendMessage", {
-    chat_id: chatId,
-    text: "🔥 Menü",
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "🔥 Action", callback_data: "cat_28" }],
-        [{ text: "👻 Horror", callback_data: "cat_27" }],
-        [{ text: "😂 Comedy", callback_data: "cat_35" }],
-        [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
-      ]
-    }
-  });
-}
       
       // 🔥 TRENDING
 if (data === "trending") {
