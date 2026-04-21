@@ -184,27 +184,29 @@ function getFSK(data) {
 function generateTags(data) {
   const tags = new Set();
 
-  // 🎬 Titel komplett (ohne Sonderzeichen)
-  const title = (data.title || data.name || "")
+  // 🎬 Titel (2 Wörter max)
+  const titleWords = (data.title || data.name || "")
     .replace(/[^\w\s]/gi, "")
     .split(" ")
-    .slice(0, 2)
-    .join("");
+    .filter(w => w.length > 2)
+    .slice(0, 2);
 
-  if (title) tags.add(`#${title}`);
+  if (titleWords.length) {
+    tags.add(`#${titleWords.join("")}`);
+  }
 
   // 🎭 Genres
-  (data.genres || []).slice(0, 3).forEach(g => {
+  (data.genres || []).slice(0, 2).forEach(g => {
     tags.add(`#${g.name.replace(/\s/g, "")}`);
   });
 
-  // 👥 Actors (besser lesbar)
+  // 👥 Actors (nur starke Namen)
   (data.credits?.cast || []).slice(0, 2).forEach(actor => {
     const name = actor.name.split(" ")[0];
-    if (name.length > 2) tags.add(`#${name}`);
+    if (name.length > 3) tags.add(`#${name}`);
   });
 
-  return [...tags].join(" ");
+  return [...tags].slice(0, 6).join(" ");
 }
 
 function genreEmoji(name) {
