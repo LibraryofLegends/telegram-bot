@@ -246,7 +246,6 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
 
   const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
   const LINE_SOFT = "──────────────";
-  const LINE_MINI = "────────";
   const runtime = data.runtime || "-";
   const fsk = getFSK(data);
   const tags = generateTags(data);
@@ -257,8 +256,8 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
 ${LINE_MAIN}
 🎬 ${title} (${year})
 ${LINE_SOFT}
-🔥 ${detectQuality(fileName)} • ${genres || "-"}
-🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
+🎞 ${genres || "-"}
+🔥 ${detectQuality(fileName)} • 🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
 ${LINE_MAIN}
 ${stars(data.vote_average)}
 ⏱ ${runtime} Min • 🔞 FSK ${fsk}
