@@ -40,7 +40,7 @@ async function tg(method, body) {
     return data || { ok: false };
   } catch (err) {
     console.error("TG FETCH ERROR:", err);
-    return null;
+    return { ok: false };
   }
 }
 
@@ -105,7 +105,7 @@ async function multiSearch(title, type) {
     if (res) return res;
   }
 
-  return null;
+  return { ok: false };
 }
 
 async function getDetails(id, type = "movie") {
@@ -436,7 +436,7 @@ async function handleUpload(msg) {
   const db = loadDB();
 
   // 🔥 ID GENERATION (FIXED)
-  const lastId = parseInt(db[0]?.display_id || "0", 10);
+  const lastId = Math.max(0, ...db.map(x => parseInt(x.display_id || "0")));
   const nextId = String(lastId + 1).padStart(4, "0");
 
   const item = {
@@ -478,7 +478,7 @@ try {
   });
 
   console.log("CHANNEL RESPONSE:", res);
-  if (!res.ok) {
+  if (!res?.ok) {
   console.error("TELEGRAM ERROR:", res);
 }
 
@@ -622,7 +622,7 @@ if (msg.text && !msg.text.startsWith("/")) {
 }
 
     // ================= START MENU =================
-    if (msg.text?.startsWith("/start")) {
+    if (msg.text === "/start") {
       return tg("sendMessage", {
         chat_id: msg.chat.id,
         text: "🔥 ULTRA SYSTEM",
