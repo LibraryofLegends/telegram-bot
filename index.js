@@ -184,31 +184,27 @@ function getFSK(data) {
 function generateTags(data) {
   const tags = new Set();
 
-  // 🎬 Titel
-  const rawTitle = (data.title || data.name || "").split(" ")[0];
-if (rawTitle) {
-  tags.add(`#${rawTitle.replace(/[^a-z0-9]/gi, "")}`);
-}
+  // 🎬 Titel komplett (ohne Sonderzeichen)
+  const title = (data.title || data.name || "")
+    .replace(/[^a-z0-9 ]/gi, "")
+    .split(" ")
+    .slice(0, 2)
+    .join("");
+
+  if (title) tags.add(`#${title}`);
 
   // 🎭 Genres
   (data.genres || []).slice(0, 3).forEach(g => {
     tags.add(`#${g.name.replace(/\s/g, "")}`);
   });
 
-  // 🎞 Collection
-  if (data.belongs_to_collection?.name) {
-    tags.add(`#${data.belongs_to_collection.name.replace(/[^a-z0-9]/gi, "")}`);
-  }
-
-  // 👥 Actors
+  // 👥 Actors (besser lesbar)
   (data.credits?.cast || []).slice(0, 2).forEach(actor => {
     const name = actor.name.split(" ")[0];
-    if (name.length > 2) {
-      tags.add(`#${name.replace(/[^a-z0-9]/gi, "")}`);
-    }
+    if (name.length > 2) tags.add(`#${name}`);
   });
 
-  return [...tags].slice(0, 8).join(" ");
+  return [...tags].join(" ");
 }
 
 function genreEmoji(name) {
