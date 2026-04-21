@@ -505,34 +505,77 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     callback_query_id: body.callback_query.id
   });
 
-  // 🎬 SIMILAR
+  // 🎬 ÄHNLICHE
   if (data.startsWith("sim_")) {
-    ...
-    return tg(...);
+    const [, id, type] = data.split("_");
+
+    const list = await getSimilar(id, type);
+
+    const buttons = list.map(m => ([
+      {
+        text: `🎬 ${m.title || m.name}`,
+        callback_data: `search_${m.id}_${type}`
+      }
+    ]));
+
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "🎬 Ähnliche Filme:",
+      reply_markup: { inline_keyboard: buttons }
+    });
   }
 
-  // 🔎 SEARCH
+  // 🔎 SEARCH RESULT
   if (data.startsWith("search_")) {
-    ...
-    return tg(...);
+    const [, id, type] = data.split("_");
+
+    const details = await getDetails(id, type);
+
+    return tg("sendPhoto", {
+      chat_id: chatId,
+      photo: getCover(details),
+      caption: buildCard(details),
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
+        ]]
+      }
+    });
   }
 
-  // 📂 CATEGORY
+  // 📂 KATEGORIEN
   if (data.startsWith("cat_")) {
-    ...
-    return tg(...);
+    const genre = data.split("_")[1];
+    const list = await getByGenre(genre);
+
+    const buttons = list.map(m => ([
+      { text: `🎬 ${m.title}`, callback_data: `search_${m.id}_movie` }
+    ]));
+
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "📂 Kategorie:",
+      reply_markup: { inline_keyboard: buttons }
+    });
   }
 
   // ▶️ CONTINUE
   if (data === "continue") {
-    ...
-    return tg(...);
-  }
+    let h = {};
+    if (fs.existsSync(HISTORY_FILE)) {
+      h = JSON.parse(fs.readFileSync(HISTORY_FILE));
+    }
 
-  // ▶️ PLAY
-  if (data.startsWith("play_")) {
-    ...
-    return handleStart(...);
+    const last = Array.isArray(h[chatId]) ? h[chatId][0] : h[chatId];
+
+    if (!last) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Kein Verlauf"
+      });
+    }
+
+    return handleStart({ chat: { id: chatId } }, `str_${last}`);
   }
 
   return;
