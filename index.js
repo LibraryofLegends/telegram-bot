@@ -134,6 +134,18 @@ function detectAudio(name = "") {
   return "Deutsch • Englisch";
 }
 
+function detectSource(name = "") {
+  const n = String(name).toLowerCase();
+
+  if (n.includes("bluray")) return "BluRay";
+  if (n.includes("web-dl") || n.includes("webdl")) return "WEB-DL";
+  if (n.includes("webrip")) return "WEBRip";
+  if (n.includes("hdtv")) return "HDTV";
+  if (n.includes("dvdrip")) return "DVD";
+
+  return "-";
+}
+
 function toBold(text = "") {
   const normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const bold   = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟕𝟖𝟗";
