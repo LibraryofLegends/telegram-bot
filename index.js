@@ -374,6 +374,30 @@ function playerUrl(mode, id) {
   return `https://t.me/${BOT_USERNAME}?start=${mode}_${id}`;
 }
 
+async function sendMovieDetails(chatId, id, type = "movie") {
+  const details = await getDetails(id, type);
+
+  return tg("sendPhoto", {
+    chat_id: chatId,
+    photo: getCover(details),
+    caption: buildCard(details),
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "▶️ Stream", url: `https://t.me/${BOT_USERNAME}?start=str_${id}` },
+          { text: "⬇️ Download", url: `https://t.me/${BOT_USERNAME}?start=dl_${id}` }
+        ],
+        [
+          { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
+        ],
+        [
+          { text: "🔙 Menü", callback_data: "back_menu" }
+        ]
+      ]
+    }
+  });
+}
+
 // ================= START HANDLER =================
 async function handleStart(msg, param) {
   // 🔥 SIM zuerst prüfen
@@ -522,36 +546,41 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       // 🎬 ÄHNLICHE
       if (data.startsWith("sim_")) {
-        const [, id, typeRaw] = data.split("_");
-        const type = (typeRaw === "series" || typeRaw === "tv") ? "tv" : "movie";
+  const [, id, typeRaw] = data.split("_");
+  const type = (typeRaw === "series" || typeRaw === "tv") ? "tv" : "movie";
 
-        const list = await getSimilar(id, type);
+  const list = await getSimilar(id, type);
 
-        if (!list.length) {
-          return tg("sendMessage", {
-            chat_id: chatId,
-            text: "❌ Keine Ergebnisse gefunden"
-          });
-        }
+  if (!list.length) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Keine Ergebnisse"
+    });
+  }
 
-        const buttons = list.map(m => ([
-          {
-            text: `🎬 ${m.title || m.name}`,
-            callback_data: `search_${m.id}_${type}`
-          }
-        ]));
+  const buttons = list.map(m => ([
+    {
+      text: `🎬 ${m.title || m.name}`,
+      callback_data: `search_${m.id}_${type}`
+    }
+  ]));
 
-        return tg("sendMessage", {
-          chat_id: chatId,
-          text: "🎬 Ähnliche Filme:",
-          reply_markup: { inline_keyboard: buttons }
-        });
-      }
+  buttons.push([{ text: "🔙 Zurück", callback_data: "back_menu" }]);
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "🎬 Ähnliche Filme:",
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
 
       // 🔎 SEARCH RESULT
       if (data.startsWith("search_")) {
         const [, id, typeRaw] = data.split("_");
         const type = (typeRaw === "series" || typeRaw === "tv") ? "tv" : "movie";
+
+        return sendMovieDetails(chatId, id, type);
+}
 
         const details = await getDetails(id, type);
 
@@ -566,6 +595,21 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           }
         });
       }
+      
+      if (data === "back_menu") {
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "🔥 Menü",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🔥 Action", callback_data: "cat_28" }],
+        [{ text: "👻 Horror", callback_data: "cat_27" }],
+        [{ text: "😂 Comedy", callback_data: "cat_35" }],
+        [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+      ]
+    }
+  });
+}
       
       // 🔥 TRENDING
 if (data === "trending") {
