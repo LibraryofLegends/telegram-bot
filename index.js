@@ -373,7 +373,7 @@ async function handleStart(msg, param) {
   const list = await getSimilar(id, type);
 
   const buttons = list.map(m => ([
-    { text: `🎬 ${m.title || m.name}`, callback_data: `search_${m.id}_${type}` }
+    { text: `🎬 ${m.title || m.name}`, callback_data: `search_${m.id}_${m.media_type || type}` }
   ]));
 
   return tg("sendMessage", {
@@ -502,7 +502,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       });
 
       // 🎬 ÄHNLICHE
-      if (data.startsWith("sim_")) {
+if (data.startsWith("sim_")) {
   const [, id, type] = data.split("_");
 
   const list = await getSimilar(id, type);
@@ -510,7 +510,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   const buttons = list.map(m => ([
     {
       text: `🎬 ${m.title || m.name}`,
-      callback_data: `search_${m.id}_${type}`
+      callback_data: `search_${m.id}_${m.media_type || type}`
     }
   ]));
 
@@ -521,18 +521,25 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   });
 }
 
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "🎬 Ähnliche Filme:",
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
       // 🔎 SEARCH RESULT
-      if (data.startsWith("search_")) {
-        const [, id, type] = data.split("_");
+if (data.startsWith("search_")) {
+  const [, id, type] = data.split("_");
 
-        const details = await getDetails(id, type);
+  const details = await getDetails(id, type);
 
-        return tg("sendPhoto", {
-          chat_id: chatId,
-          photo: getCover(details),
-          caption: buildCard(details),
-          reply_markup: {
-          inline_keyboard: [[
+  return tg("sendPhoto", {
+    chat_id: chatId,
+    photo: getCover(details),
+    caption: buildCard(details),
+    reply_markup: {
+      inline_keyboard: [[
         { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
       ]]
     }
@@ -587,31 +594,31 @@ if (msg.text?.startsWith("/start ")) {
 }
 
     // ================= SEARCH =================
-    if (msg.text && !msg.text.startsWith("/")) {
-      const results = await searchMultiTMDB(msg.text);
+if (msg.text && !msg.text.startsWith("/")) {
+  const results = await searchMultiTMDB(msg.text);
 
-      if (!results.length) {
-        return tg("sendMessage", {
-          chat_id: msg.chat.id,
-          text: "❌ Nichts gefunden"
-        });
+  if (!results.length) {
+    return tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Nichts gefunden"
+    });
+  }
+
+  const buttons = results
+    .filter(r => ["movie", "tv"].includes(r.media_type))
+    .map(r => ([
+      {
+        text: `🎬 ${r.title || r.name || "Unbekannt"}`,
+        callback_data: `search_${r.id}_${r.media_type}`
       }
+    ]));
 
-      const buttons = results
-  .filter(r => ["movie", "tv"].includes(r.media_type))
-  .map(r => ([
-    {
-      text: `🎬 ${r.title || r.name || "Unbekannt"}`,
-      callback_data: `search_${m.id}_${m.media_type || type}`
-    }
-  ]));
-
-      return tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text: `🔎 Ergebnisse für: "${msg.text}"`,
-        reply_markup: { inline_keyboard: buttons }
+  return tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: `🔎 Ergebnisse für: "${msg.text}"`,
+    reply_markup: { inline_keyboard: buttons }
   });
-    }
+}
 
     // ================= START MENU =================
     if (msg.text?.startsWith("/start")) {
