@@ -23,12 +23,24 @@ function saveDB(data) {
 
 // ================= TELEGRAM =================
 async function tg(method, body) {
-  const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  return res.json();
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      console.error("TG ERROR:", data);
+    }
+
+    return data;
+  } catch (err) {
+    console.error("TG FETCH ERROR:", err);
+    return null;
+  }
 }
 
 // ================= PARSER =================
@@ -162,10 +174,13 @@ async function searchMultiTMDB(query) {
 }
 
 // 🎬 ÄHNLICHE FILME
-async function getSimilar(id) {
+async function getSimilar(id, type = "movie") {
+  const url = type === "tv" ? "tv" : "movie";
+
   const res = await fetch(
-    `https://api.themoviedb.org/3/movie/${id}/similar?api_key=${TMDB_KEY}&language=de-DE`
+    `https://api.themoviedb.org/3/${url}/${id}/similar?api_key=${TMDB_KEY}&language=de-DE`
   );
+
   const data = await res.json();
   return data.results?.slice(0, 5) || [];
 }
@@ -299,7 +314,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
   const LINE_SOFT = "──────────────";
 
-  let story = data.overview || "Keine Beschreibung verfügbar.";
+  let story = data.overview?.trim() || "Keine Beschreibung verfügbar.";
 
 if (story.length > 220) {
   story = story.slice(0, 220);
@@ -313,8 +328,7 @@ ${LINE_MAIN}
 🎬 ${title} (${year})
 ${LINE_SOFT}
 🎞 ${genres && genres.length ? genres : "-"}
-🔥 ${detectQuality(fileName)} • ${detectSource(fileName)}
-🎧 ${detectAudio(fileName)}
+🔥 ${detectQuality(fileName)} • 🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
 ${LINE_MAIN}
 ${stars(data.vote_average)}
 ⏱ ${runtime} Min • 🔞 FSK ${fsk}
@@ -497,6 +511,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       // 🔎 SEARCH RESULT
       if (data.startsWith("search_")) {
         const [, id, type] = data.split("_");
+        const list = await getSimilar(id, type);
 
         const details = await getDetails(id, type);
 
@@ -506,7 +521,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           caption: buildCard(details),
           reply_markup: {
             inline_keyboard: [[
-              { text: "🎬 Ähnliche", callback_data: `sim_${id}` }
+              { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}`
             ]]
           }
         });
@@ -581,7 +596,7 @@ if (msg.text?.startsWith("/start ")) {
 
       return tg("sendMessage", {
         chat_id: msg.chat.id,
-        text: "🔎 Ergebnisse:",
+        text: `🔎 Ergebnisse für: "${msg.text}"`
         reply_markup: { inline_keyboard: buttons }
       });
     }
