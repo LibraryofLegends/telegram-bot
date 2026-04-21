@@ -373,8 +373,11 @@ async function handleStart(msg, param) {
   const list = await getSimilar(id, type);
 
   const buttons = list.map(m => ([
-    { text: `🎬 ${m.title || m.name}`, callback_data: `search_${m.id}_${m.media_type || type}` }
-  ]));
+  { 
+    text: `🎬 ${m.title || m.name}`, 
+    callback_data: `search_${m.id}_${type}` 
+  }
+]));
 
   return tg("sendMessage", {
     chat_id: msg.chat.id,
@@ -508,11 +511,11 @@ if (data.startsWith("sim_")) {
   const list = await getSimilar(id, type);
 
   const buttons = list.map(m => ([
-    {
-      text: `🎬 ${m.title || m.name}`,
-      callback_data: `search_${m.id}_${m.media_type || type}`
-    }
-  ]));
+  { 
+    text: `🎬 ${m.title || m.name}`, 
+    callback_data: `search_${m.id}_${type}` 
+  }
+]));
 
   return tg("sendMessage", {
     chat_id: chatId,
