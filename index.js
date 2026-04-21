@@ -494,15 +494,51 @@ async function sendDetails(chatId, id, type, displayId = null) {
 
 // ================= START HANDLER =================
 async function handleStart(msg, param) {
-  if (param === "netflix" || param === "browse" || param === "menu") {
+
+  // ================= STREAM / DOWNLOAD =================
+  if (param.startsWith("str_") || param.startsWith("dl_")) {
+    const id = param.replace(/^(str_|dl_)/, "");
+    const item = CACHE.find(x => x.display_id === id);
+
+    if (!item) {
+      return tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text: "❌ Datei nicht gefunden"
+      });
+    }
+
+    saveHistory(msg.chat.id, {
+      id: item.tmdb_id,
+      type: item.media_type || "movie",
+      display_id: item.display_id
+    });
+
+    if (item.file_type === "document") {
+      return tg("sendDocument", {
+        chat_id: msg.chat.id,
+        document: item.file_id
+      });
+    }
+
+    return tg("sendVideo", {
+      chat_id: msg.chat.id,
+      video: item.file_id,
+      supports_streaming: true
+    });
+  }
+
+  // ================= NETFLIX MENU =================
+  if (param === "netflix" || param === "menu") {
     return showNetflixMenu(msg.chat.id);
   }
 
+  // ================= SIMILAR =================
   if (param.startsWith("sim_")) {
     const [, id, typeRaw] = param.split("_");
     const type = typeRaw === "tv" ? "tv" : "movie";
 
     const list = await getSimilar(id, type);
+
     if (!list.length) {
       return tg("sendMessage", {
         chat_id: msg.chat.id,
@@ -510,10 +546,12 @@ async function handleStart(msg, param) {
       });
     }
 
-    const buttons = list.map(m => ([{
-      text: `🎬 ${sanitizeTelegramText(m.title || m.name || "Unbekannt")}`,
-      callback_data: `search_${m.id}_${m.media_type || type}`
-    }]));
+    const buttons = list.map(m => ([
+      {
+        text: `🎬 ${sanitizeTelegramText(m.title || m.name || "Unbekannt")}`,
+        callback_data: `search_${m.id}_${m.media_type || type}`
+      }
+    ]));
 
     return tg("sendMessage", {
       chat_id: msg.chat.id,
@@ -522,6 +560,7 @@ async function handleStart(msg, param) {
     });
   }
 
+  // ================= LIBRARY ITEM =================
   if (param.startsWith("item_")) {
     const id = param.split("_")[1];
     const item = CACHE.find(x => x.display_id === id);
@@ -533,14 +572,27 @@ async function handleStart(msg, param) {
       });
     }
 
-    return sendDetails(msg.chat.id, item.tmdb_id, item.media_type || "movie", item.display_id);
+    return sendDetails(
+      msg.chat.id,
+      item.tmdb_id,
+      item.media_type || "movie",
+      item.display_id
+    );
   }
 
+  // ================= DIRECT ID =================
   const item = CACHE.find(x => x.display_id === param);
+
   if (item) {
-    return sendDetails(msg.chat.id, item.tmdb_id, item.media_type || "movie", item.display_id);
+    return sendDetails(
+      msg.chat.id,
+      item.tmdb_id,
+      item.media_type || "movie",
+      item.display_id
+    );
   }
 
+  // ================= FALLBACK =================
   return tg("sendMessage", {
     chat_id: msg.chat.id,
     text: "❌ Datei nicht gefunden"
@@ -719,12 +771,22 @@ async function handleUpload(msg) {
     caption,
     parse_mode: "HTML",
     reply_markup: {
-      inline_keyboard: [
-        [{ text: "🔎 Details", callback_data: `item_${item.display_id}` }],
-        [{ text: "🎬 Ähnliche", callback_data: `sim_${item.tmdb_id}_${item.media_type}` }],
-        [{ text: "🎬 Netflix Menü", callback_data: "netflix" }]
-      ]
-    }
+  inline_keyboard: [
+    [
+      { text: "▶️ Stream", url: playerUrl("str", item.display_id) },
+      { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
+    ],
+    [
+      { text: "🔎 Details", callback_data: `item_${item.display_id}` }
+    ],
+    [
+      { text: "🎬 Ähnliche", callback_data: `sim_${item.tmdb_id}_${item.media_type}` }
+    ],
+    [
+      { text: "🎬 Netflix Menü", callback_data: "netflix" }
+    ]
+  ]
+}
   });
 
   console.log("CHANNEL RESPONSE:", res);
