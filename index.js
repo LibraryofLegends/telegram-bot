@@ -1,3 +1,4 @@
+const fetch = global.fetch || require("node-fetch");
 const express = require("express");
 const fs = require("fs");
 
@@ -36,7 +37,7 @@ async function tg(method, body) {
       console.error("TG ERROR:", data);
     }
 
-    return data;
+    return data || { ok: false };
   } catch (err) {
     console.error("TG FETCH ERROR:", err);
     return null;
@@ -507,7 +508,8 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   // 🎬 ÄHNLICHE
   if (data.startsWith("sim_")) {
-    const [, id, type] = data.split("_");
+    const [, id, typeRaw] = data.split("_");
+    const type = typeRaw || "movie";
 
     const list = await getSimilar(id, type);
 
@@ -527,7 +529,8 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   // 🔎 SEARCH RESULT
   if (data.startsWith("search_")) {
-    const [, id, type] = data.split("_");
+    const [, id, typeRaw] = data.split("_");
+    const type = typeRaw || "movie";
 
     const details = await getDetails(id, type);
 
