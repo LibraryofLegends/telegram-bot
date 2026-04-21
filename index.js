@@ -220,7 +220,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const fsk = getFSK(data);
   const tags = generateTags(data);
 
-  const story = (data.overview || "").slice(0, 250);
+  const story = (data.overview || "Keine Beschreibung verfügbar.").slice(0, 250);
 
   return `
 ━━━━━━━━━━━━━━━━━━━━━
