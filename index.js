@@ -240,11 +240,11 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const director =
     data.credits?.crew?.find(x => x.job === "Director")?.name || "-";
 
-  const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
-  const LINE_SOFT = "──────────────";
   const runtime = data.runtime || "-";
   const fsk = getFSK(data);
   const tags = generateTags(data);
+  const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
+  const LINE_SOFT = "──────────────";
 
   const story = (data.overview || "Keine Beschreibung verfügbar.").slice(0, 250);
 
