@@ -263,8 +263,7 @@ if (story.length > 220) {
 
   return `
 ${LINE_MAIN}
-🎬 ${title}
-📅 ${year}
+🎬 ${title} (${year})
 ${LINE_SOFT}
 🎞 ${genres || "-"}
 🔥 ${detectQuality(fileName)} • ${detectSource(fileName)}
@@ -276,7 +275,7 @@ ${stars(data.vote_average)}
 👥 ${cast}
 ${LINE_MAIN}
 📖 STORY
-${story}
+${story || "-"}
 ${LINE_MAIN}
 ▶️ #${id}
 ${LINE_SOFT}
