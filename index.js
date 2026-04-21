@@ -246,7 +246,14 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
   const LINE_SOFT = "──────────────";
 
-  const story = (data.overview || "Keine Beschreibung verfügbar.").slice(0, 250);
+  let story = data.overview || "Keine Beschreibung verfügbar.";
+
+if (story.length > 220) {
+  story = story.slice(0, 220);
+  const cut = story.lastIndexOf(".");
+  if (cut > 100) story = story.slice(0, cut + 1);
+  story += "...";
+}
 
   return `
 ${LINE_MAIN}
