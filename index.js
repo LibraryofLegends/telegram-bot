@@ -547,19 +547,22 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       // 🔙 MENU
       if (data === "back_menu") {
-        return tg("sendMessage", {
-          chat_id: chatId,
-          text: "🔥 Menü",
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "🔥 Action", callback_data: "cat_28" }],
-              [{ text: "👻 Horror", callback_data: "cat_27" }],
-              [{ text: "😂 Comedy", callback_data: "cat_35" }],
-              [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
-            ]
-          }
-        });
-      }
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "🎬 Menü",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🔥 Action", callback_data: "cat_28" }],
+        [{ text: "👻 Horror", callback_data: "cat_27" }],
+        [{ text: "😂 Comedy", callback_data: "cat_35" }],
+        [{ text: "🚀 Sci-Fi", callback_data: "cat_878" }],
+        [{ text: "🎭 Drama", callback_data: "cat_18" }],
+        [{ text: "⭐ Trending", callback_data: "trending" }],
+        [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+      ]
+    }
+  });
+}
 
       // 🎬 ÄHNLICHE
       if (data.startsWith("sim_")) {
@@ -588,6 +591,33 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           reply_markup: { inline_keyboard: buttons }
         });
       }
+      
+      // ⭐ TRENDING
+if (data === "trending") {
+  const list = await getTrending();
+
+  if (!list.length) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Keine Ergebnisse"
+    });
+  }
+
+  const buttons = list.map(m => ([
+    {
+      text: `🔥 ${m.title}`,
+      callback_data: `search_${m.id}_movie`
+    }
+  ]));
+
+  buttons.push([{ text: "🔙 Menü", callback_data: "back_menu" }]);
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "🔥 Trending Filme:",
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
 
       // 🔎 SEARCH
       if (data.startsWith("search_")) {
@@ -700,19 +730,22 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     // START MENU
     if (msg.text === "/start") {
-      return tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text: "🔥 ULTRA SYSTEM",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "🔥 Action", callback_data: "cat_28" }],
-            [{ text: "👻 Horror", callback_data: "cat_27" }],
-            [{ text: "😂 Comedy", callback_data: "cat_35" }],
-            [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
-          ]
-        }
-      });
+  return tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: "🎬 LIBRARY OF LEGENDS\n\n🔥 Wähle eine Kategorie:",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🔥 Action", callback_data: "cat_28" }],
+        [{ text: "👻 Horror", callback_data: "cat_27" }],
+        [{ text: "😂 Comedy", callback_data: "cat_35" }],
+        [{ text: "🚀 Sci-Fi", callback_data: "cat_878" }],
+        [{ text: "🎭 Drama", callback_data: "cat_18" }],
+        [{ text: "⭐ Trending", callback_data: "trending" }],
+        [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+      ]
     }
+  });
+}
 
     // UPLOAD
     if (msg.document || msg.video) {
