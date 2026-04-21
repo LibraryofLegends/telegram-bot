@@ -141,6 +141,30 @@ function stars(r) {
 }
 
 // ================= CARD =================
+function getFSK(data) {
+  try {
+    const releases = data.release_dates?.results || [];
+
+    // 🇩🇪 Deutschland priorisieren
+    const de = releases.find(r => r.iso_3166_1 === "DE");
+    if (de?.release_dates?.length) {
+      const cert = de.release_dates.find(x => x.certification);
+      if (cert?.certification) return cert.certification;
+    }
+
+    // 🇺🇸 Fallback USA
+    const us = releases.find(r => r.iso_3166_1 === "US");
+    if (us?.release_dates?.length) {
+      const cert = us.release_dates.find(x => x.certification);
+      if (cert?.certification) return cert.certification;
+    }
+
+    return "-";
+  } catch {
+    return "-";
+  }
+}
+
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const title = (data.title || data.name || "").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
