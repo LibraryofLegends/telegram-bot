@@ -11,6 +11,7 @@ const CHANNEL_ID = process.env.CHANNEL_ID;
 const BOT_USERNAME = process.env.BOT_USERNAME || "LIBRARY_OF_LEGENDS_Bot";
 
 const DB_FILE = "films.json";
+let CACHE = loadDB();
 
 // ================= DB =================
 function loadDB() {
@@ -19,6 +20,7 @@ function loadDB() {
 }
 
 function saveDB(data) {
+  CACHE = data;
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
@@ -370,10 +372,15 @@ async function handleStart(msg, param) {
   // 🔥 SIM zuerst prüfen
   if (param.startsWith("sim_")) {
   const [, id, typeRaw] = param.split("_");
-  const type = typeRaw || "movie";
+  const type = (typeRaw === "series" || typeRaw === "tv") ? "tv" : "movie";
 
   const list = await getSimilar(id, type);
-
+  if (!list.length) {
+    return tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Keine Ergebnisse gefunden"
+  });
+}
   const buttons = list.map(m => ([
   { 
     text: `🎬 ${m.title || m.name}`, 
@@ -390,7 +397,7 @@ async function handleStart(msg, param) {
 
   // 👉 danach normaler Flow
   const id = param.replace(/str_|dl_/, "");
-  const db = loadDB();
+  const db = CACHE;
   const item = db.find(x => x.display_id === id);
 
   if (!item) {
@@ -433,7 +440,7 @@ async function handleUpload(msg) {
 
   const details = await getDetails(result.id, parsed.type);
 
-  const db = loadDB();
+  const db = CACHE;
 
   // 🔥 ID GENERATION (FIXED)
   const lastId = db.length
@@ -511,10 +518,15 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   // 🎬 ÄHNLICHE
   if (data.startsWith("sim_")) {
     const [, id, typeRaw] = data.split("_");
-    const type = typeRaw || "movie";
+    const type = (typeRaw === "series" || typeRaw === "tv") ? "tv" : "movie";
 
     const list = await getSimilar(id, type);
-
+    if (!list.length) {
+      return tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text: "❌ Keine Ergebnisse gefunden"
+  });
+}
     const buttons = list.map(m => ([
       {
         text: `🎬 ${m.title || m.name}`,
@@ -532,7 +544,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   // 🔎 SEARCH RESULT
   if (data.startsWith("search_")) {
     const [, id, typeRaw] = data.split("_");
-    const type = typeRaw || "movie";
+    const type = (typeRaw === "series" || typeRaw === "tv") ? "tv" : "movie";
 
     const details = await getDetails(id, type);
 
@@ -552,7 +564,12 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   if (data.startsWith("cat_")) {
     const genre = data.split("_")[1];
     const list = await getByGenre(genre);
-
+    if (!list.length) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Keine Ergebnisse gefunden"
+  });
+}
     const buttons = list.map(m => ([
       { text: `🎬 ${m.title}`, callback_data: `search_${m.id}_movie` }
     ]));
