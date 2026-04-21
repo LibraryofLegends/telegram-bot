@@ -105,7 +105,7 @@ async function multiSearch(title, type) {
     if (res) return res;
   }
 
-  return { ok: false };
+  return null;
 }
 
 async function getDetails(id, type = "movie") {
@@ -424,7 +424,7 @@ async function handleUpload(msg) {
 
   const result = await multiSearch(searchTitle, parsed.type);
 
-  if (!result) {
+  if (!result || !result.id)
     return tg("sendMessage", {
       chat_id: msg.chat.id,
       text: `❌ Kein Match gefunden\n${searchTitle}`
@@ -436,7 +436,9 @@ async function handleUpload(msg) {
   const db = loadDB();
 
   // 🔥 ID GENERATION (FIXED)
-  const lastId = Math.max(0, ...db.map(x => parseInt(x.display_id || "0")));
+  const lastId = db.length
+  ? Math.max(...db.map(x => parseInt(x.display_id || "0")))
+  : 0;
   const nextId = String(lastId + 1).padStart(4, "0");
 
   const item = {
