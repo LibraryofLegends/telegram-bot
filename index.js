@@ -257,7 +257,8 @@ if (story.length > 220) {
 
   return `
 ${LINE_MAIN}
-🎬 ${title} (${year})
+🎬 ${title}
+📅 ${year}
 ${LINE_SOFT}
 🎞 ${genres || "-"}
 🔥 ${detectQuality(fileName)} • ${detectSource(fileName)}
