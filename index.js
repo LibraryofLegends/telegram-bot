@@ -186,7 +186,7 @@ function generateTags(data) {
 
   // 🎬 Titel komplett (ohne Sonderzeichen)
   const title = (data.title || data.name || "")
-    .replace(/[^a-z0-9 ]/gi, "")
+    .replace(/[^\w\s]/gi, "")
     .split(" ")
     .slice(0, 2)
     .join("");
