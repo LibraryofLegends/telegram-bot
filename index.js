@@ -357,6 +357,7 @@ async function handleUpload(msg) {
 
 console.log("SEND PHOTO RESPONSE:", response);
 
+  if (msg.chat?.id) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text: "✅ Upload verarbeitet"
