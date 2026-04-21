@@ -316,20 +316,27 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
   const genres = (data.genres || [])
-    .slice(0, 3)
-    .map(g => `${genreEmoji(g.name)} ${sanitizeTelegramText(g.name)}`)
-    .join(" • ") || "-";
+    .slice(0, 2)
+    .map(g => `${genreEmoji(g.name)} ${g.name}`)
+    .join(" • ");
 
-  const cast = data.credits?.cast?.slice(0, 3).map(x => sanitizeTelegramText(x.name)).join(" • ") || "-";
-  const director = data.credits?.crew?.find(x => x.job === "Director")?.name || data.created_by?.[0]?.name || "-";
-  const runtime = data.runtime || (Array.isArray(data.episode_run_time) && data.episode_run_time.length > 0 ? data.episode_run_time[0] : "-");
+  const cast = data.credits?.cast?.slice(0, 3).map(x => x.name).join(" • ") || "-";
+  const director = data.credits?.crew?.find(x => x.job === "Director")?.name || "-";
+
+  const runtime =
+    data.runtime ||
+    (Array.isArray(data.episode_run_time) && data.episode_run_time.length > 0
+      ? data.episode_run_time[0]
+      : "-");
+
   const fsk = getFSK(data);
   const tags = generateTags(data);
 
   const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
   const LINE_SOFT = "──────────────";
 
-  let story = sanitizeTelegramText(data.overview?.trim() || "Keine Beschreibung verfügbar.");
+  let story = data.overview?.trim() || "Keine Beschreibung verfügbar.";
+
   if (story.length > 220) {
     story = story.slice(0, 220);
     const cut = story.lastIndexOf(".");
@@ -337,29 +344,24 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
     story += "...";
   }
 
-  const typeLine = extra.type === "tv"
-    ? `📺 SERIE${extra.season ? ` • S${extra.season}${extra.episode ? `E${extra.episode}` : ""}` : ""}`
-    : "🎬 FILM";
-
-  const text = `
+  let text = `
 ${LINE_MAIN}
-${typeLine}
-*${mdEscape(title)}${year ? ` (${year})` : ""}*
+🎬 ${title}${year ? ` (${year})` : ""}
 ${LINE_SOFT}
-🎞 ${mdEscape(genres)}
-🔥 ${mdEscape(detectQuality(fileName))} • 🎧 ${mdEscape(detectAudio(fileName))} • 💿 ${mdEscape(detectSource(fileName))}
+🎞 ${genres || "-"}
+🔥 ${detectQuality(fileName)} • 🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
 ${LINE_MAIN}
-${mdEscape(stars(data.vote_average))}
-⏱ ${mdEscape(runtime)} Min • 🔞 FSK ${mdEscape(fsk)}
-🎥 ${mdEscape(director)}
-👥 ${mdEscape(cast)}
+${stars(data.vote_average)}
+⏱ ${runtime} Min • 🔞 FSK ${fsk}
+🎥 ${director}
+👥 ${cast}
 ${LINE_MAIN}
 📖 STORY
-${mdEscape(story)}
+${story}
 ${LINE_MAIN}
-🆔 #${mdEscape(id)}
+▶️ #${id}
 ${LINE_SOFT}
-${mdEscape(tags)}
+${tags}
 @LibraryOfLegends
 `.trim();
 
