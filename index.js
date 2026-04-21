@@ -331,6 +331,29 @@ function playerUrl(mode, id) {
   return `https://t.me/${BOT_USERNAME}?start=${mode}_${id}`;
 }
 
+// ================= START HANDLER =================
+async function handleStart(msg, param) {
+  const id = param.replace(/str_|dl_/, "");
+  const db = loadDB();
+  const item = db.find(x => x.display_id === id);
+
+  if (!item) {
+    return tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Datei nicht gefunden"
+    });
+  }
+
+  // 👉 HISTORY speichern (WICHTIG für Continue)
+  saveHistory(msg.chat.id, id);
+
+  return tg("sendVideo", {
+    chat_id: msg.chat.id,
+    video: item.file_id,
+    supports_streaming: true
+  });
+}
+
 // ================= UPLOAD =================
 async function handleUpload(msg) {
   const file = msg.document || msg.video;
