@@ -11,7 +11,14 @@ const CHANNEL_ID = process.env.CHANNEL_ID;
 const BOT_USERNAME = process.env.BOT_USERNAME || "LIBRARY_OF_LEGENDS_Bot";
 
 const DB_FILE = "films.json";
-let CACHE = loadDB();
+let CACHE = [];
+
+function loadDB() {
+  if (!fs.existsSync(DB_FILE)) return [];
+  return JSON.parse(fs.readFileSync(DB_FILE, "utf8") || "[]");
+}
+
+CACHE = loadDB();
 
 // ================= DB =================
 function loadDB() {
@@ -444,7 +451,7 @@ async function handleUpload(msg) {
 
   // 🔥 ID GENERATION (FIXED)
   const lastId = db.length
-  ? Math.max(...db.map(x => parseInt(x.display_id || "0")))
+  ? Math.max(...db.map(x => parseInt(x.display_id || "0", 10)))
   : 0;
   const nextId = String(lastId + 1).padStart(4, "0");
 
@@ -523,9 +530,9 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     const list = await getSimilar(id, type);
     if (!list.length) {
       return tg("sendMessage", {
-        chat_id: msg.chat.id,
+        chat_id: chatId,
         text: "❌ Keine Ergebnisse gefunden"
-  });
+      });
 }
     const buttons = list.map(m => ([
       {
