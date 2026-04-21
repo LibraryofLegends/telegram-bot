@@ -265,7 +265,7 @@ if (story.length > 220) {
 ${LINE_MAIN}
 🎬 ${title} (${year})
 ${LINE_SOFT}
-🎞 ${genres || "-"}
+🎞 ${genres && genres.length ? genres : "-"}
 🔥 ${detectQuality(fileName)} • ${detectSource(fileName)}
 🎧 ${detectAudio(fileName)}
 ${LINE_MAIN}
@@ -322,7 +322,8 @@ async function handleUpload(msg) {
   };
 
   db.unshift(item);
-  saveDB(db);
+if (db.length > 500) db.length = 500;
+saveDB(db);
 
   let caption;
 
