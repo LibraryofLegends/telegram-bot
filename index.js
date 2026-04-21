@@ -521,13 +521,6 @@ if (data.startsWith("sim_")) {
   });
 }
 
-  return tg("sendMessage", {
-    chat_id: chatId,
-    text: "🎬 Ähnliche Filme:",
-    reply_markup: { inline_keyboard: buttons }
-  });
-}
-
       // 🔎 SEARCH RESULT
 if (data.startsWith("search_")) {
   const [, id, type] = data.split("_");
