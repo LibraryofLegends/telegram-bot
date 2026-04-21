@@ -34,33 +34,26 @@ async function tg(method, body) {
 }
 
 // ================= PARSER =================
-function parseFileName(name = "") {
-  if (!name || name.length < 2) {
-    return { type: "movie", title: "", year: "" };
-  }
-
-  const clean = name
+function cleanTitleAdvanced(name = "") {
+  return name
     .replace(/\.(mp4|mkv|avi)$/i, "")
-    .replace(/[._\-]+/g, " ");
 
-  const series = clean.match(/S(\d+)E(\d+)/i);
+    // remove release junk
+    .replace(/\b(1080p|720p|2160p|4k|uhd)\b/gi, "")
+    .replace(/\b(x264|x265|h264|h265)\b/gi, "")
+    .replace(/\b(bluray|web|webdl|webrip|hdrip|brrip)\b/gi, "")
+    .replace(/\b(german|deutsch|dl|dual|ac3|eac3|aac)\b/gi, "")
 
-  if (series) {
-    return {
-      type: "series",
-      title: clean.replace(series[0], "").trim(),
-      season: parseInt(series[1]),
-      episode: parseInt(series[2])
-    };
-  }
+    // remove scene groups
+    .replace(/- ?[a-z0-9]+$/i, "")
+    .replace(/\b(sixtynine|wayne|fun|details|joe|sixxty|sixxtyNine)\b/gi, "")
 
-  const year = clean.match(/\d{4}/)?.[0];
+    // remove special chars
+    .replace(/[._\-]+/g, " ")
 
-  return {
-    type: "movie",
-    title: clean.replace(year, "").trim(),
-    year
-  };
+    // remove multiple spaces
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // ================= TMDB =================
