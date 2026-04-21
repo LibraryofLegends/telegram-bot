@@ -95,23 +95,98 @@ function getCover(data) {
 }
 
 // ================= CARD =================
-function buildCard(data, extra = {}) {
+function genreEmoji(name) {
+  const map = {
+    Action: "🔥",
+    Horror: "👻",
+    Comedy: "😂",
+    Drama: "🎭",
+    Thriller: "🔪",
+    Adventure: "🗺",
+    "Science Fiction": "🚀",
+    Crime: "🕵️",
+    Animation: "🎨",
+    Family: "👨‍👩‍👧‍👦",
+    Romance: "❤️"
+  };
+  return map[name] || "🎬";
+}
+
+function getStars(rating) {
+  const r = rating || 0;
+  const stars = Math.round(r / 2);
+  return "⭐".repeat(stars) + "☆".repeat(5 - stars) + ` (${r.toFixed(1)})`;
+}
+
+function detectQuality(name = "") {
+  const n = name.toLowerCase();
+  if (/2160|4k|uhd/.test(n)) return "4K";
+  if (/1080/.test(n)) return "1080p";
+  if (/720/.test(n)) return "720p";
+  return "HD";
+}
+
+function detectAudio(name = "") {
+  const n = name.toLowerCase();
+  if (/german|deutsch/.test(n) && /eng/.test(n)) return "Deutsch • Englisch";
+  if (/german|deutsch/.test(n)) return "Deutsch";
+  if (/eng/.test(n)) return "Englisch";
+  return "Deutsch • Englisch";
+}
+
+function buildCard(data, extra = {}, fileName = "") {
   const title = (data.title || data.name || "").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
-  const rating = data.vote_average || "-";
+
+  const rating = data.vote_average || 0;
+  const stars = getStars(rating);
+
+  const genres = (data.genres || [])
+    .slice(0, 2)
+    .map(g => `${genreEmoji(g.name)} ${g.name}`)
+    .join(" • ");
+
+  const runtime = data.runtime || data.episode_run_time?.[0] || "-";
+
+  const quality = detectQuality(fileName);
+  const audio = detectAudio(fileName);
+
+  const director =
+    data.credits?.crew?.find(c => c.job === "Director")?.name || "-";
+
+  const cast = (data.credits?.cast || [])
+    .slice(0, 3)
+    .map(a => a.name)
+    .join(" • ") || "-";
 
   const episodeLine = extra.season
     ? `📺 Staffel ${extra.season} • Folge ${extra.episode}\n`
     : "";
 
+  let story = data.overview || "Keine Beschreibung verfügbar.";
+  if (story.length > 260) {
+    story = story.slice(0, 260);
+    const cut = story.lastIndexOf(".");
+    if (cut > 100) story = story.slice(0, cut + 1);
+    story += "...";
+  }
+
   return `
 ━━━━━━━━━━━━━━━━━━
 🎬 ${title} (${year})
 ━━━━━━━━━━━━━━━━━━
-⭐ ${rating}
-${episodeLine}
-📖 ${data.overview || "Keine Beschreibung"}
+🔥 ${quality} • ${genres || "-"}
+🎧 ${audio}
 ━━━━━━━━━━━━━━━━━━
+${stars}
+${episodeLine}⏱ ${runtime} Min
+🎥 ${director}
+👥 ${cast}
+━━━━━━━━━━━━━━━━━━
+📖 STORY
+${story}
+━━━━━━━━━━━━━━━━━━
+@LibraryOfLegends
 `.trim();
 }
 
