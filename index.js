@@ -175,7 +175,7 @@ function generateTags(data) {
   const tags = new Set();
 
   // 🎬 Titel
-  const title = (data.title || data.name || "").split(" ")[0];
+  const title = `🎬 ${toBold((data.title || data.name || "").toUpperCase())}`;
   if (title) {
     tags.add(`#${title.replace(/[^a-z0-9]/gi, "")}`);
   }
@@ -206,9 +206,9 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
   const genres = (data.genres || [])
-    .slice(0, 2)
-    .map(g => g.name)
-    .join(" • ");
+  .slice(0, 2)
+  .map(g => `${genreEmoji(g.name)} ${g.name}`)
+  .join(" • ");
 
   const cast =
     data.credits?.cast?.slice(0, 3).map(x => x.name).join(" • ") || "-";
