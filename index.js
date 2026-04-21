@@ -175,10 +175,10 @@ function generateTags(data) {
   const tags = new Set();
 
   // 🎬 Titel
-  const title = `🎬 ${toBold((data.title || data.name || "").toUpperCase())}`;
-  if (title) {
-    tags.add(`#${title.replace(/[^a-z0-9]/gi, "")}`);
-  }
+  const rawTitle = (data.title || data.name || "").split(" ")[0];
+if (rawTitle) {
+  tags.add(`#${rawTitle.replace(/[^a-z0-9]/gi, "")}`);
+}
 
   // 🎭 Genres
   (data.genres || []).slice(0, 3).forEach(g => {
