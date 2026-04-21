@@ -380,12 +380,15 @@ async function handleUpload(msg) {
 
   const db = loadDB();
 
-  const item = {
+  // 🔥 ID GENERATION (FIXED)
   const lastId = db[0]?.display_id || "0000";
   const nextId = String(parseInt(lastId) + 1).padStart(4, "0");
+
+  const item = {
+    display_id: nextId,
     file_id: file.file_id,
     tmdb_id: result.id
-  };
+};
 
   db.unshift(item);
 if (db.length > 500) db.length = 500;
@@ -520,6 +523,12 @@ if (fs.existsSync(HISTORY_FILE)) {
     if (!msg) return;
 
     if (msg.from?.is_bot) return;
+    
+    // ================= START PARAM =================
+if (msg.text?.startsWith("/start ")) {
+  const param = msg.text.split(" ")[1];
+  if (param) return handleStart(msg, param);
+}
 
     // ================= SEARCH =================
     if (msg.text && !msg.text.startsWith("/")) {
