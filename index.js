@@ -320,8 +320,11 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
     .map(g => `${genreEmoji(g.name)} ${g.name}`)
     .join(" • ");
 
-  const cast = data.credits?.cast?.slice(0, 3).map(x => x.name).join(" • ") || "-";
-  const director = data.credits?.crew?.find(x => x.job === "Director")?.name || "-";
+  const cast =
+    data.credits?.cast?.slice(0, 3).map(x => x.name).join(" • ") || "-";
+
+  const director =
+    data.credits?.crew?.find(x => x.job === "Director")?.name || "-";
 
   const runtime =
     data.runtime ||
