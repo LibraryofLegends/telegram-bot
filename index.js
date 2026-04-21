@@ -148,29 +148,55 @@ async function handleUpload(msg) {
   const file = msg.document || msg.video;
   const fileId = file.file_id;
 
-  // 🔥 FIX: bessere Titel-Erkennung
-  const fileName =
+  // 🔥 bessere Quellen sammeln
+  let fileName =
     file.file_name ||
     msg.caption ||
     msg.video?.file_name ||
-    "unknown";
+    "";
 
-  const parsed = parseFileName(fileName);
-
-  // ❌ Kein Titel → abbrechen
-  if (!parsed.title) {
+  // 👉 fallback wenn forward (kein name vorhanden)
+  if (!fileName || fileName.length < 3) {
     return tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "❌ Kein Titel erkannt (Forward Problem)"
+      text: "❌ Kein Titel erkannt\n👉 Bitte Datei mit Namen oder Caption senden"
     });
   }
 
-  const result = await searchTMDB(parsed.title, parsed.type);
+  const parsed = parseFileName(fileName);
+
+  // 🔥 extra cleaning
+  let searchTitle = parsed.title
+    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german|aac)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!searchTitle || searchTitle.length < 2) {
+    return tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Titel unbrauchbar erkannt"
+    });
+  }
+
+  // 🔥 FIRST TRY
+  let result = await searchTMDB(searchTitle, parsed.type);
+
+  // 🔥 SECOND TRY (nur erstes Wort)
+  if (!result) {
+    const short = searchTitle.split(" ").slice(0, 2).join(" ");
+    result = await searchTMDB(short, parsed.type);
+  }
+
+  // 🔥 THIRD TRY (nur 1 Wort)
+  if (!result) {
+    const one = searchTitle.split(" ")[0];
+    result = await searchTMDB(one, parsed.type);
+  }
 
   if (!result) {
     return tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "❌ Kein Match gefunden"
+      text: `❌ Kein Match gefunden\n\n🔎 Gesucht: ${searchTitle}`
     });
   }
 
