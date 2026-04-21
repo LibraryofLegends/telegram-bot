@@ -80,7 +80,7 @@ function smartTitleSplit(title) {
 
 // ================= TMDB =================
 async function searchTMDB(title, type = "movie") {
-  const url = type === "series" ? "tv" : "movie";
+  const url = type === "series" || type === "tv" ? "tv" : "movie";
 
   const res = await fetch(
     `https://api.themoviedb.org/3/search/${url}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
@@ -108,7 +108,7 @@ async function multiSearch(title, type) {
 }
 
 async function getDetails(id, type = "movie") {
-  const url = type === "series" ? "tv" : "movie";
+  const url = type === "series" || type === "tv" ? "tv" : "movie";
 
   const res = await fetch(
     `https://api.themoviedb.org/3/${url}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,release_dates&language=de-DE`
