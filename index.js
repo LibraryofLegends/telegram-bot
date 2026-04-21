@@ -181,7 +181,7 @@ async function searchMultiTMDB(query) {
 
 // 🎬 ÄHNLICHE FILME
 async function getSimilar(id, type = "movie") {
-  const url = type === "tv" ? "tv" : "movie";
+  const url = type === "series" || type === "tv" ? "tv" : "movie";
 
   const res = await fetch(
     `https://api.themoviedb.org/3/${url}/${id}/similar?api_key=${TMDB_KEY}&language=de-DE`
@@ -368,7 +368,8 @@ async function handleStart(msg, param) {
 
   // 🔥 SIM zuerst prüfen
   if (param.startsWith("sim_")) {
-  const [, id, type] = param.split("_");
+  const [, id, typeRaw] = param.split("_");
+  const type = typeRaw || "movie";
 
   const list = await getSimilar(id, type);
 
