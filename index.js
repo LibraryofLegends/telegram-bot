@@ -282,10 +282,7 @@ async function handleUpload(msg) {
   const parsed = parseFileName(fileName);
 
   // 🔥 extra cleaning
-  let searchTitle = parsed.title
-    .replace(/\b(1080p|720p|2160p|x264|x265|bluray|web|dl|german|aac)\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  let searchTitle = cleanTitleAdvanced(fileName);
 
   if (!searchTitle || searchTitle.length < 2) {
     return tg("sendMessage", {
