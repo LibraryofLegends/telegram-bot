@@ -292,19 +292,20 @@ async function handleUpload(msg) {
   }
 
   // 🔥 FIRST TRY
-  let result = await searchTMDB(searchTitle, parsed.type);
+  const variants = [
+  searchTitle,
+  searchTitle.split(" ").slice(0, 3).join(" "),
+  searchTitle.split(" ").slice(0, 2).join(" "),
+  searchTitle.split(" ")[0]
+];
 
-  // 🔥 SECOND TRY (nur erstes Wort)
-  if (!result) {
-    const short = searchTitle.split(" ").slice(0, 2).join(" ");
-    result = await searchTMDB(short, parsed.type);
-  }
+let result = null;
 
-  // 🔥 THIRD TRY (nur 1 Wort)
-  if (!result) {
-    const one = searchTitle.split(" ")[0];
-    result = await searchTMDB(one, parsed.type);
-  }
+for (const v of variants) {
+  if (!v || v.length < 2) continue;
+  result = await searchTMDB(v, parsed.type);
+  if (result) break;
+}
 
   if (!result) {
     return tg("sendMessage", {
