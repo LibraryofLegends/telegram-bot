@@ -170,6 +170,7 @@ function buildCard(data, extra = {}, fileName = "", displayId = "0001") {
   const genres = (data.genres || [])
   .slice(0, 2)
   .map(g => `${genreEmoji(g.name)} ${g.name}`)
+  .join(" • ");
 
   // ===== COLLECTION =====
   let collection = data.belongs_to_collection?.name || "";
