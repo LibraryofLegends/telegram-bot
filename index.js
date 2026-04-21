@@ -125,6 +125,14 @@ async function getDetails(id, type = "movie") {
   return await res.json();
 }
 
+async function getTrending() {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_KEY}&language=de-DE`
+  );
+  const data = await res.json();
+  return data.results?.slice(0, 10) || [];
+}
+
 // ================= HELPERS =================
 function toBold(text = "") {
   return text; // 🔥 verhindert UTF-Fehler
@@ -558,6 +566,31 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           }
         });
       }
+      
+      // 🔥 TRENDING
+if (data === "trending") {
+  const list = await getTrending();
+
+  if (!list.length) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Keine Ergebnisse"
+    });
+  }
+
+  const buttons = list.map(m => ([
+    {
+      text: `🔥 ${m.title}`,
+      callback_data: `search_${m.id}_movie`
+    }
+  ]));
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "🔥 Trending Filme:",
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
 
       // 📂 KATEGORIEN
       if (data.startsWith("cat_")) {
@@ -642,19 +675,39 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     // ================= START =================
     if (msg.text === "/start") {
-      return tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text: "🔥 ULTRA SYSTEM",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "🔥 Action", callback_data: "cat_28" }],
-            [{ text: "👻 Horror", callback_data: "cat_27" }],
-            [{ text: "😂 Comedy", callback_data: "cat_35" }],
-            [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
-          ]
-        }
-      });
+  return tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: `
+🔥 *LIBRARY OF LEGENDS*
+
+Willkommen im System 👇
+Wähle eine Kategorie oder suche direkt nach einem Film
+`.trim(),
+    parse_mode: "Markdown",
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "🔥 Action", callback_data: "cat_28" },
+          { text: "👻 Horror", callback_data: "cat_27" }
+        ],
+        [
+          { text: "😂 Comedy", callback_data: "cat_35" },
+          { text: "🎭 Drama", callback_data: "cat_18" }
+        ],
+        [
+          { text: "🚀 Sci-Fi", callback_data: "cat_878" },
+          { text: "🕵️ Crime", callback_data: "cat_80" }
+        ],
+        [
+          { text: "🎬 Trending", callback_data: "trending" }
+        ],
+        [
+          { text: "▶️ Weiter schauen", callback_data: "continue" }
+        ]
+      ]
     }
+  });
+}
 
     // ================= UPLOAD =================
     if (msg.document || msg.video) {
