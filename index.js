@@ -190,9 +190,13 @@ async function getSimilar(id, type = "movie") {
 }
 
 // ================= HELPERS =================
+function escapeMarkdown(text = "") {
+  return text.replace(/[_*[\]()~`>#+=|{}.!-]/g, "\\$&");
+}
+
 function toBold(text = "") {
-  const normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  const bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟕𝟖𝟗";
+  return `*${escapeMarkdown(text)}*`;
+}
 
   return sanitizeTelegramText(text).split("").map(c => {
     const i = normal.indexOf(c);
@@ -574,9 +578,10 @@ async function handleUpload(msg) {
   }
 
   const res = await tg("sendPhoto", {
-    chat_id: CHANNEL_ID,
-    photo: getCover(details),
-    caption,
+  chat_id: CHANNEL_ID,
+  photo: getCover(details),
+  caption,
+  parse_mode: "Markdown",
     reply_markup: {
       inline_keyboard: [
         [
@@ -674,9 +679,10 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
         const details = await getDetails(id, type);
 
         return tg("sendPhoto", {
-          chat_id: chatId,
-          photo: getCover(details),
-          caption: buildCard(details, {}, "", id),
+  chat_id: chatId,
+  photo: getCover(details),
+  caption: buildCard(details),
+  parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
