@@ -129,14 +129,6 @@ async function getDetails(id, type = "movie") {
 function toBold(text = "") {
   return text; // 🔥 verhindert UTF-Fehler
 }
-  const normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  const bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟕𝟖𝟗";
-
-  return text.split("").map(c => {
-    const i = normal.indexOf(c);
-    return i >= 0 ? bold[i] : c;
-  }).join("");
-}
 
 function getCover(data) {
   if (data.poster_path) {
