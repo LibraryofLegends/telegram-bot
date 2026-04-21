@@ -341,6 +341,9 @@ try {
   });
 
   console.log("CHANNEL RESPONSE:", res);
+  if (!res.ok) {
+  console.error("TELEGRAM ERROR:", res);
+}
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
