@@ -201,6 +201,24 @@ function generateTags(data) {
   return [...tags].slice(0, 8).join(" ");
 }
 
+function genreEmoji(name) {
+  const map = {
+    Action: "🔥",
+    Horror: "👻",
+    Comedy: "😂",
+    Drama: "🎭",
+    Thriller: "🔪",
+    Adventure: "🗺",
+    "Science Fiction": "🚀",
+    Crime: "🕵️",
+    Animation: "🎨",
+    Family: "👨‍👩‍👧‍👦",
+    Romance: "❤️"
+  };
+
+  return map[name] || "🎬";
+}
+
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const title = (data.title || data.name || "").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
