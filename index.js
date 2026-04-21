@@ -364,6 +364,9 @@ console.log("SEND PHOTO RESPONSE:", response);
   });
 }
 
+// 👉 DIESE KLAMMER FEHLT
+}
+
 // ================= START =================
 async function handleStart(msg, param) {
   const id = param.replace(/str_|dl_/, "");
