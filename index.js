@@ -81,7 +81,7 @@ async function getDetails(id, type = "movie") {
   const url = type === "series" ? "tv" : "movie";
 
   const res = await fetch(
-    `https://api.themoviedb.org/3/${url}/${id}?api_key=${TMDB_KEY}&language=de-DE`
+    `https://api.themoviedb.org/3/${url}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,release_dates&language=de-DE`
   );
 
   return await res.json();
