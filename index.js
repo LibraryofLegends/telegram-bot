@@ -648,7 +648,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       });
     }
 
-    // ================= START MENU =================
+    // ================= START =================
     if (msg.text === "/start") {
       return tg("sendMessage", {
         chat_id: msg.chat.id,
@@ -669,7 +669,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       await handleUpload(msg);
     }
 
-  } catch (err) {
+    } catch (err) {
     console.error("❌ Fehler:", err);
   }
 });
