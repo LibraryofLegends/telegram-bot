@@ -381,7 +381,8 @@ async function handleUpload(msg) {
   const db = loadDB();
 
   const item = {
-    display_id: String(db.length + 1).padStart(4, "0"),
+  const lastId = db[0]?.display_id || "0000";
+  const nextId = String(parseInt(lastId) + 1).padStart(4, "0");
     file_id: file.file_id,
     tmdb_id: result.id
   };
@@ -497,7 +498,10 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       // ▶️ CONTINUE
       if (data === "continue") {
-        const h = JSON.parse(fs.readFileSync(HISTORY_FILE) || "{}");
+        let h = {};
+if (fs.existsSync(HISTORY_FILE)) {
+  h = JSON.parse(fs.readFileSync(HISTORY_FILE));
+}
         const last = h[chatId];
 
         if (!last) {
@@ -528,12 +532,14 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
         });
       }
 
-      const buttons = results.map(r => ([
-        {
-          text: `🎬 ${r.title || r.name}`,
-          callback_data: `search_${r.id}_${r.media_type}`
-        }
-      ]));
+      const buttons = results
+  .filter(r => r.media_type === "movie" || r.media_type === "tv")
+  .map(r => ([
+    {
+      text: `🎬 ${r.title || r.name}`,
+      callback_data: `search_${r.id}_${r.media_type}`
+    }
+  ]));
 
       return tg("sendMessage", {
         chat_id: msg.chat.id,
