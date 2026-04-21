@@ -758,7 +758,7 @@ Wähle eine Kategorie oder suche direkt nach einem Film
       await handleUpload(msg);
     }
 
-    } catch (err) {
+      } catch (err) {
     console.error("❌ Fehler:", err);
   }
 });
