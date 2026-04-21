@@ -483,7 +483,7 @@ async function sendDetails(chatId, id, type, displayId = null) {
     chat_id: chatId,
     photo: getCover(details),
     caption: buildCard(details, { type }, "", displayId || id),
-    parse_mode: "MarkdownV2",
+    parse_mode: "HTML",
     reply_markup: {
       inline_keyboard: keyboard
     }
@@ -715,7 +715,7 @@ async function handleUpload(msg) {
     chat_id: CHANNEL_ID,
     photo: getCover(details),
     caption,
-    parse_mode: "MarkdownV2",
+    parse_mode: "HTML",
     reply_markup: {
       inline_keyboard: [
         [{ text: "🔎 Details", callback_data: `item_${item.display_id}` }],
