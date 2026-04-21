@@ -329,7 +329,7 @@ async function handleUpload(msg) {
   db.unshift(item);
   saveDB(db);
 
-  const caption = buildCard(details, parsed, fileName);
+  const caption = buildCard(details, parsed, fileName, item.display_id);
 
   await tg("sendPhoto", {
     chat_id: CHANNEL_ID,
