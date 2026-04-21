@@ -225,7 +225,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
 
   const genres = (data.genres || [])
   .slice(0, 2)
-  .map(g => `${genreEmoji(g.name)} ${g.name}`)
+  .map(g => `${genreEmoji?.(g.name) || "🎬"} ${g.name}`)
   .join(" • ");
 
   const cast =
