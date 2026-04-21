@@ -230,7 +230,7 @@ function genreEmoji(name) {
 }
 
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
-  const title = (data.title || data.name || "").toUpperCase();
+  const title = toBold((data.title || data.name || "").toUpperCase());
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
   const genres = (data.genres || [])
