@@ -364,7 +364,6 @@ console.log("SEND PHOTO RESPONSE:", response);
   });
 }
 
-// 👉 DIESE KLAMMER FEHLT
 }
 
 // ================= START =================
