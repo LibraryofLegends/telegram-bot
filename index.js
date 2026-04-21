@@ -145,21 +145,27 @@ function getFSK(data) {
   try {
     const releases = data.release_dates?.results || [];
 
-    // 🇩🇪 Deutschland priorisieren
+    const findCert = (arr) =>
+      arr?.release_dates?.find(x => x.certification)?.certification;
+
+    // 🇩🇪 Deutschland
     const de = releases.find(r => r.iso_3166_1 === "DE");
-    if (de?.release_dates?.length) {
-      const cert = de.release_dates.find(x => x.certification);
-      if (cert?.certification) return cert.certification;
+    let cert = findCert(de);
+
+    // 🇺🇸 Fallback
+    if (!cert) {
+      const us = releases.find(r => r.iso_3166_1 === "US");
+      cert = findCert(us);
+
+      // 👉 Mapping US → FSK
+      if (cert === "G") cert = "0";
+      if (cert === "PG") cert = "6";
+      if (cert === "PG-13") cert = "12";
+      if (cert === "R") cert = "16";
+      if (cert === "NC-17") cert = "18";
     }
 
-    // 🇺🇸 Fallback USA
-    const us = releases.find(r => r.iso_3166_1 === "US");
-    if (us?.release_dates?.length) {
-      const cert = us.release_dates.find(x => x.certification);
-      if (cert?.certification) return cert.certification;
-    }
-
-    return "-";
+    return cert || "-";
   } catch {
     return "-";
   }
