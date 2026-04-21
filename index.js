@@ -535,70 +535,64 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   const msg = body.message || body.channel_post;
 
   try {
+
     // ================= CALLBACK =================
     if (body.callback_query) {
+      const data = body.callback_query.data;
+      const chatId = body.callback_query.message.chat.id;
 
-  const data = body.callback_query.data;
-  const chatId = body.callback_query.message.chat.id;
+      await tg("answerCallbackQuery", {
+        callback_query_id: body.callback_query.id
+      });
 
-  await tg("answerCallbackQuery", {
-    callback_query_id: body.callback_query.id
-  });
-
-  if (data === "back_menu") {
-    return tg("sendMessage", {
-      chat_id: chatId,
-      text: "🔥 Menü",
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "🔥 Action", callback_data: "cat_28" }],
-          [{ text: "👻 Horror", callback_data: "cat_27" }],
-          [{ text: "😂 Comedy", callback_data: "cat_35" }],
-          [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
-        ]
+      // 🔙 MENU
+      if (data === "back_menu") {
+        return tg("sendMessage", {
+          chat_id: chatId,
+          text: "🔥 Menü",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔥 Action", callback_data: "cat_28" }],
+              [{ text: "👻 Horror", callback_data: "cat_27" }],
+              [{ text: "😂 Comedy", callback_data: "cat_35" }],
+              [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+            ]
+          }
+        });
       }
-    });
-  }
-
-}
 
       // 🎬 ÄHNLICHE
       if (data.startsWith("sim_")) {
-  const [, id, typeRaw] = data.split("_");
-  const type = (typeRaw === "series" || typeRaw === "tv") ? "tv" : "movie";
-
-  const list = await getSimilar(id, type);
-
-  if (!list.length) {
-    return tg("sendMessage", {
-      chat_id: chatId,
-      text: "❌ Keine Ergebnisse"
-    });
-  }
-
-  const buttons = list.map(m => ([
-    {
-      text: `🎬 ${m.title || m.name}`,
-      callback_data: `search_${m.id}_${type}`
-    }
-  ]));
-
-  buttons.push([{ text: "🔙 Zurück", callback_data: "back_menu" }]);
-
-  return tg("sendMessage", {
-    chat_id: chatId,
-    text: "🎬 Ähnliche Filme:",
-    reply_markup: { inline_keyboard: buttons }
-  });
-}
-
-      // 🔎 SEARCH RESULT
-      if (data.startsWith("search_")) {
         const [, id, typeRaw] = data.split("_");
         const type = (typeRaw === "series" || typeRaw === "tv") ? "tv" : "movie";
 
-        return sendMovieDetails(chatId, id, type);
-}
+        const list = await getSimilar(id, type);
+
+        if (!list.length) {
+          return tg("sendMessage", {
+            chat_id: chatId,
+            text: "❌ Keine Ergebnisse gefunden"
+          });
+        }
+
+        const buttons = list.map(m => ([
+          {
+            text: `🎬 ${m.title || m.name}`,
+            callback_data: `search_${m.id}_${type}`
+          }
+        ]));
+
+        return tg("sendMessage", {
+          chat_id: chatId,
+          text: "🎬 Ähnliche Filme:",
+          reply_markup: { inline_keyboard: buttons }
+        });
+      }
+
+      // 🔎 SEARCH
+      if (data.startsWith("search_")) {
+        const [, id, typeRaw] = data.split("_");
+        const type = (typeRaw === "series" || typeRaw === "tv") ? "tv" : "movie";
 
         const details = await getDetails(id, type);
 
@@ -607,37 +601,17 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           photo: getCover(details),
           caption: buildCard(details),
           reply_markup: {
-            inline_keyboard: [[
-              { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
-            ]]
+            inline_keyboard: [
+              [
+                { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
+              ],
+              [
+                { text: "🔙 Menü", callback_data: "back_menu" }
+              ]
+            ]
           }
         });
       }
-      
-      // 🔥 TRENDING
-if (data === "trending") {
-  const list = await getTrending();
-
-  if (!list.length) {
-    return tg("sendMessage", {
-      chat_id: chatId,
-      text: "❌ Keine Ergebnisse"
-    });
-  }
-
-  const buttons = list.map(m => ([
-    {
-      text: `🔥 ${m.title}`,
-      callback_data: `search_${m.id}_movie`
-    }
-  ]));
-
-  return tg("sendMessage", {
-    chat_id: chatId,
-    text: "🔥 Trending Filme:",
-    reply_markup: { inline_keyboard: buttons }
-  });
-}
 
       // 📂 KATEGORIEN
       if (data.startsWith("cat_")) {
@@ -652,7 +626,10 @@ if (data === "trending") {
         }
 
         const buttons = list.map(m => ([
-          { text: `🎬 ${m.title}`, callback_data: `search_${m.id}_movie` }
+          {
+            text: `🎬 ${m.title}`,
+            callback_data: `search_${m.id}_movie`
+          }
         ]));
 
         return tg("sendMessage", {
@@ -665,8 +642,9 @@ if (data === "trending") {
       // ▶️ CONTINUE
       if (data === "continue") {
         let h = {};
+
         if (fs.existsSync(HISTORY_FILE)) {
-          h = JSON.parse(fs.readFileSync(HISTORY_FILE, "utf8") || "{}");
+          h = JSON.parse(fs.readFileSync(HISTORY_FILE));
         }
 
         const last = Array.isArray(h[chatId]) ? h[chatId][0] : h[chatId];
@@ -687,13 +665,13 @@ if (data === "trending") {
     if (!msg) return;
     if (msg.from?.is_bot) return;
 
-    // ================= START PARAM =================
+    // START PARAM
     if (msg.text?.startsWith("/start ")) {
       const param = msg.text.split(" ")[1];
       if (param) return handleStart(msg, param);
     }
 
-    // ================= SEARCH =================
+    // SEARCH TEXT
     if (msg.text && !msg.text.startsWith("/")) {
       const results = await searchMultiTMDB(msg.text);
 
@@ -720,48 +698,28 @@ if (data === "trending") {
       });
     }
 
-    // ================= START =================
+    // START MENU
     if (msg.text === "/start") {
-  return tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: `
-🔥 *LIBRARY OF LEGENDS*
-
-Willkommen im System 👇
-Wähle eine Kategorie oder suche direkt nach einem Film
-`.trim(),
-    parse_mode: "Markdown",
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: "🔥 Action", callback_data: "cat_28" },
-          { text: "👻 Horror", callback_data: "cat_27" }
-        ],
-        [
-          { text: "😂 Comedy", callback_data: "cat_35" },
-          { text: "🎭 Drama", callback_data: "cat_18" }
-        ],
-        [
-          { text: "🚀 Sci-Fi", callback_data: "cat_878" },
-          { text: "🕵️ Crime", callback_data: "cat_80" }
-        ],
-        [
-          { text: "🎬 Trending", callback_data: "trending" }
-        ],
-        [
-          { text: "▶️ Weiter schauen", callback_data: "continue" }
-        ]
-      ]
+      return tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text: "🔥 ULTRA SYSTEM",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔥 Action", callback_data: "cat_28" }],
+            [{ text: "👻 Horror", callback_data: "cat_27" }],
+            [{ text: "😂 Comedy", callback_data: "cat_35" }],
+            [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+          ]
+        }
+      });
     }
-  });
-}
 
-    // ================= UPLOAD =================
+    // UPLOAD
     if (msg.document || msg.video) {
       await handleUpload(msg);
     }
 
-      } catch (err) {
+  } catch (err) {
     console.error("❌ Fehler:", err);
   }
 });
