@@ -150,6 +150,48 @@ function stars(r) {
   return "⭐".repeat(s) + "☆".repeat(5 - s) + ` (${(r || 0).toFixed(1)})`;
 }
 
+// ================= ELITE FEATURES =================
+
+// 🔎 SEARCH (Multi)
+async function searchMultiTMDB(query) {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=de-DE`
+  );
+  const data = await res.json();
+  return data.results?.slice(0, 5) || [];
+}
+
+// 🎬 ÄHNLICHE FILME
+async function getSimilar(id) {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/movie/${id}/similar?api_key=${TMDB_KEY}&language=de-DE`
+  );
+  const data = await res.json();
+  return data.results?.slice(0, 5) || [];
+}
+
+// 📂 KATEGORIEN
+async function getByGenre(genreId) {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=${genreId}&language=de-DE`
+  );
+  const data = await res.json();
+  return data.results?.slice(0, 10) || [];
+}
+
+// ▶️ CONTINUE WATCHING
+const HISTORY_FILE = "history.json";
+
+function saveHistory(userId, filmId) {
+  let h = {};
+  if (fs.existsSync(HISTORY_FILE)) {
+    h = JSON.parse(fs.readFileSync(HISTORY_FILE));
+  }
+
+  h[userId] = filmId;
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify(h, null, 2));
+}
+
 // ================= CARD =================
 function getFSK(data) {
   try {
@@ -339,10 +381,15 @@ try {
     photo: getCover(details),
     caption,
     reply_markup: {
-      inline_keyboard: [[
-        { text: "▶️ Stream", url: playerUrl("str", item.display_id) },
-        { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
-      ]]
+      inline_keyboard: [
+  [
+    { text: "▶️ Stream", url: playerUrl("str", item.display_id) },
+    { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
+  ],
+  [
+    { text: "🎬 Ähnliche", callback_data: `sim_${item.tmdb_id}` }
+  ]
+]
     }
   });
 
@@ -361,18 +408,140 @@ try {
 app.post(`/bot${TOKEN}`, async (req, res) => {
   res.sendStatus(200);
 
-  const msg = req.body.message || req.body.channel_post;
-  if (!msg) return;
+  const body = req.body;
+  const msg = body.message || body.channel_post;
 
-  if (msg.document || msg.video) {
-    await handleUpload(msg);
-  }
+  try {
 
-  if (msg.text?.startsWith("/start")) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: "🔥 ULTRA SYSTEM READY"
-    });
+    // ================= CALLBACK =================
+    if (body.callback_query) {
+      const data = body.callback_query.data;
+      const chatId = body.callback_query.message.chat.id;
+
+      await tg("answerCallbackQuery", {
+        callback_query_id: body.callback_query.id
+      });
+
+      // 🎬 ÄHNLICHE
+      if (data.startsWith("sim_")) {
+        const id = data.split("_")[1];
+        const list = await getSimilar(id);
+
+        const buttons = list.map(m => ([
+          { text: `🎬 ${m.title}`, callback_data: `search_${m.id}_movie` }
+        ]));
+
+        return tg("sendMessage", {
+          chat_id: chatId,
+          text: "🎬 Ähnliche Filme:",
+          reply_markup: { inline_keyboard: buttons }
+        });
+      }
+
+      // 🔎 SEARCH RESULT
+      if (data.startsWith("search_")) {
+        const [, id, type] = data.split("_");
+
+        const details = await getDetails(id, type);
+
+        return tg("sendPhoto", {
+          chat_id: chatId,
+          photo: getCover(details),
+          caption: buildCard(details),
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "🎬 Ähnliche", callback_data: `sim_${id}` }
+            ]]
+          }
+        });
+      }
+
+      // 📂 KATEGORIEN
+      if (data.startsWith("cat_")) {
+        const genre = data.split("_")[1];
+        const list = await getByGenre(genre);
+
+        const buttons = list.map(m => ([
+          { text: `🎬 ${m.title}`, callback_data: `search_${m.id}_movie` }
+        ]));
+
+        return tg("sendMessage", {
+          chat_id: chatId,
+          text: "📂 Kategorie:",
+          reply_markup: { inline_keyboard: buttons }
+        });
+      }
+
+      // ▶️ CONTINUE
+      if (data === "continue") {
+        const h = JSON.parse(fs.readFileSync(HISTORY_FILE) || "{}");
+        const last = h[chatId];
+
+        if (!last) {
+          return tg("sendMessage", {
+            chat_id: chatId,
+            text: "❌ Kein Verlauf"
+          });
+        }
+
+        return handleStart({ chat: { id: chatId } }, `str_${last}`);
+      }
+
+      return;
+    }
+
+    if (!msg) return;
+
+    if (msg.from?.is_bot) return;
+
+    // ================= SEARCH =================
+    if (msg.text && !msg.text.startsWith("/")) {
+      const results = await searchMultiTMDB(msg.text);
+
+      if (!results.length) {
+        return tg("sendMessage", {
+          chat_id: msg.chat.id,
+          text: "❌ Nichts gefunden"
+        });
+      }
+
+      const buttons = results.map(r => ([
+        {
+          text: `🎬 ${r.title || r.name}`,
+          callback_data: `search_${r.id}_${r.media_type}`
+        }
+      ]));
+
+      return tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text: "🔎 Ergebnisse:",
+        reply_markup: { inline_keyboard: buttons }
+      });
+    }
+
+    // ================= START MENU =================
+    if (msg.text?.startsWith("/start")) {
+      return tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text: "🔥 ULTRA SYSTEM",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔥 Action", callback_data: "cat_28" }],
+            [{ text: "👻 Horror", callback_data: "cat_27" }],
+            [{ text: "😂 Comedy", callback_data: "cat_35" }],
+            [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+          ]
+        }
+      });
+    }
+
+    // ================= UPLOAD =================
+    if (msg.document || msg.video) {
+      await handleUpload(msg);
+    }
+
+  } catch (err) {
+    console.error("❌ Fehler:", err);
   }
 });
 
