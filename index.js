@@ -106,6 +106,16 @@ async function getDetails(id, type = "movie") {
 }
 
 // ================= HELPERS =================
+function toBold(text = "") {
+  const normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const bold   = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟕𝟖𝟗";
+
+  return text.split("").map(c => {
+    const i = normal.indexOf(c);
+    return i >= 0 ? bold[i] : c;
+  }).join("");
+}
+
 function getCover(data) {
   return data.poster_path
     ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
