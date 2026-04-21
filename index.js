@@ -129,9 +129,15 @@ function toBold(text = "") {
 }
 
 function getCover(data) {
-  return data.poster_path
-  ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
-  : `https://image.tmdb.org/t/p/w500${data.backdrop_path || ""}`;
+  if (data.poster_path) {
+    return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
+  }
+
+  if (data.backdrop_path) {
+    return `https://image.tmdb.org/t/p/w500${data.backdrop_path}`;
+  }
+
+  return "https://via.placeholder.com/500x750?text=No+Image";
 }
 
 function detectQuality(name = "") {
@@ -457,9 +463,11 @@ try {
     { text: "▶️ Stream", url: playerUrl("str", item.display_id) },
     { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
   ],
-  [
-    { url: `https://t.me/${BOT_USERNAME}?start=sim_${item.tmdb_id}_${parsed.type}` }
-  ]
+[
+  { 
+    text: "🎬 Ähnliche", 
+    url: `https://t.me/${BOT_USERNAME}?start=sim_${item.tmdb_id}_${parsed.type}` 
+  }
 ]
     }
   });
@@ -495,19 +503,20 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       // 🎬 ÄHNLICHE
       if (data.startsWith("sim_")) {
-        const id = data.split("_")[1];
-        const list = await getSimilar(id);
+  const [, id, type] = data.split("_");
 
-        const buttons = list.map(m => ([
-          { text: `🎬 ${m.title}`, callback_data: `search_${m.id}_movie` }
-        ]));
+  const list = await getSimilar(id, type);
 
-        return tg("sendMessage", {
-          chat_id: chatId,
-          text: "🎬 Ähnliche Filme:",
-          reply_markup: { inline_keyboard: buttons }
-        });
-      }
+  const buttons = list.map(m => ([
+    { text: `🎬 ${m.title || m.name}`, callback_data: `search_${m.id}_${type}` }
+  ]));
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "🎬 Ähnliche Filme:",
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
 
       // 🔎 SEARCH RESULT
       if (data.startsWith("search_")) {
@@ -521,7 +530,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           caption: buildCard(details),
           reply_markup: {
           inline_keyboard: [[
-        { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
+        { text: "🎬 Ähnliche", callback_data: `sim_<id>_<type>` }
       ]]
     }
   });
@@ -589,7 +598,7 @@ if (msg.text?.startsWith("/start ")) {
   .filter(r => ["movie", "tv"].includes(r.media_type))
   .map(r => ([
     {
-      text: `🎬 ${r.title || r.name || "Unbekannt"}`
+      text: `🎬 ${r.title || r.name || "Unbekannt"}`,
       callback_data: `search_${r.id}_${r.media_type}`
     }
   ]));
