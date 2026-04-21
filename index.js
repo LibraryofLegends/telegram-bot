@@ -134,58 +134,94 @@ function detectAudio(name = "") {
   return "Deutsch • Englisch";
 }
 
-function buildCard(data, extra = {}, fileName = "") {
-  const title = (data.title || data.name || "").toUpperCase();
+function toBold(text = "") {
+  const normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const bold   = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟕𝟖𝟗";
+
+  return text.split("").map(c => {
+    const i = normal.indexOf(c);
+    return i >= 0 ? bold[i] : c;
+  }).join("");
+}
+
+function buildCard(data, extra = {}, fileName = "", displayId = "0001") {
+
+  const title = toBold((data.title || data.name || "").toUpperCase());
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
-  const rating = data.vote_average || 0;
-  const stars = getStars(rating);
-
-  const genres = (data.genres || [])
-    .slice(0, 2)
-    .map(g => `${genreEmoji(g.name)} ${g.name}`)
-    .join(" • ");
-
-  const runtime = data.runtime || data.episode_run_time?.[0] || "-";
-
+  // ===== BASIC =====
   const quality = detectQuality(fileName);
+  const source = detectSource(fileName);
   const audio = detectAudio(fileName);
 
+  // ===== GENRES =====
+  const genres = (data.genres || [])
+    .slice(0, 2)
+    .map(g => g.name)
+    .join(" • ");
+
+  // ===== COLLECTION =====
+  let collection = data.belongs_to_collection?.name || "";
+  if (collection) collection = `🎞 ${toBold(collection.toUpperCase())}\n`;
+
+  // ===== CREW =====
   const director =
-    data.credits?.crew?.find(c => c.job === "Director")?.name || "-";
+    data.credits?.crew?.find(x => x.job === "Director")?.name || "-";
 
-  const cast = (data.credits?.cast || [])
-    .slice(0, 3)
-    .map(a => a.name)
-    .join(" • ") || "-";
+  const cast =
+    data.credits?.cast?.slice(0, 3).map(x => x.name).join(" • ") || "-";
 
-  const episodeLine = extra.season
-    ? `📺 Staffel ${extra.season} • Folge ${extra.episode}\n`
-    : "";
+  // ===== RATING =====
+  const rating = getStars(data.vote_average);
 
+  // ===== RUNTIME =====
+  const runtime = data.runtime || data.episode_run_time?.[0] || "-";
+
+  // ===== FSK =====
+  const fsk = data.release_dates?.results?.[0]?.release_dates?.[0]?.certification || "-";
+
+  // ===== STORY =====
   let story = data.overview || "Keine Beschreibung verfügbar.";
-  if (story.length > 260) {
-    story = story.slice(0, 260);
+  if (story.length > 300) {
+    story = story.slice(0, 300);
     const cut = story.lastIndexOf(".");
-    if (cut > 100) story = story.slice(0, cut + 1);
-    story += "...";
+    story = (cut > 100 ? story.slice(0, cut + 1) : story) + "...";
   }
 
+  // ===== IDS =====
+  const mainId = `#${String(displayId).padStart(4, "0")}`;
+  const extraId = `#A${String(data.id).slice(-3)}`;
+
+  // ===== TAGS =====
+  const tags = (data.genres || [])
+    .slice(0, 2)
+    .map(g => `#${g.name.replace(/\s/g, "")}`)
+    .join(" ");
+
+  const episodeLine =
+    extra.season
+      ? `📺 Staffel ${extra.season} • Folge ${extra.episode}\n`
+      : "";
+
   return `
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━
 🎬 ${title} (${year})
-━━━━━━━━━━━━━━━━━━
-🔥 ${quality} • ${genres || "-"}
-🎧 ${audio}
-━━━━━━━━━━━━━━━━━━
-${stars}
-${episodeLine}⏱ ${runtime} Min
-🎥 ${director}
-👥 ${cast}
-━━━━━━━━━━━━━━━━━━
-📖 STORY
+${collection}━━━━━━━━━━━━━━━━━━━━━
+🔥 ${quality} • ${genres || "-"}  
+🎧 ${audio}  
+💿 ${source}  
+━━━━━━━━━━━━━━━━━━━━━
+${rating}
+${episodeLine}⏱ ${runtime} Min • 🔞 FSK ${fsk}  
+🎥 ${director}  
+👥 ${cast}  
+━━━━━━━━━━━━━━━━━━━━━
+📖 STORY  
 ${story}
-━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━
+▶️ ${mainId} • ${extraId}
+━━━━━━━━━━━━━━━━━━━━━
+${tags}
 @LibraryOfLegends
 `.trim();
 }
