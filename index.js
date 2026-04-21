@@ -184,11 +184,16 @@ const HISTORY_FILE = "history.json";
 
 function saveHistory(userId, filmId) {
   let h = {};
+
   if (fs.existsSync(HISTORY_FILE)) {
     h = JSON.parse(fs.readFileSync(HISTORY_FILE));
   }
 
-  h[userId] = filmId;
+  if (!h[userId]) h[userId] = [];
+
+  h[userId].unshift(filmId);
+  h[userId] = [...new Set(h[userId])].slice(0, 10);
+
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(h, null, 2));
 }
 
@@ -303,7 +308,7 @@ if (story.length > 220) {
   story += "...";
 }
 
-  return `
+  let text = `
 ${LINE_MAIN}
 🎬 ${title} (${year})
 ${LINE_SOFT}
@@ -324,10 +329,8 @@ ${LINE_SOFT}
 ${tags}
 @LibraryOfLegends
 `.trim();
-}
 
-let text = `...dein template...`.trim();
-
+// 🔥 TELEGRAM LIMIT FIX
 if (text.length > 1024) {
   text = text.slice(0, 1000) + "...";
 }
@@ -341,6 +344,24 @@ function playerUrl(mode, id) {
 
 // ================= START HANDLER =================
 async function handleStart(msg, param) {
+
+  // 🔥 SIM zuerst prüfen
+  if (param.startsWith("sim_")) {
+    const id = param.split("_")[1];
+    const list = await getSimilar(id);
+
+    const buttons = list.map(m => ([
+      { text: `🎬 ${m.title}`, callback_data: `search_${m.id}_movie` }
+    ]));
+
+    return tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "🎬 Ähnliche Filme:",
+      reply_markup: { inline_keyboard: buttons }
+    });
+  }
+
+  // 👉 danach normaler Flow
   const id = param.replace(/str_|dl_/, "");
   const db = loadDB();
   const item = db.find(x => x.display_id === id);
@@ -351,40 +372,8 @@ async function handleStart(msg, param) {
       text: "❌ Datei nicht gefunden"
     });
   }
-  
-  if (param.startsWith("sim_")) {
-  const id = param.split("_")[1];
-  const list = await getSimilar(id);
 
-  const buttons = list.map(m => ([
-    { text: `🎬 ${m.title}`, callback_data: `search_${m.id}_movie` }
-  ]));
-
-  return tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: "🎬 Ähnliche Filme:",
-    reply_markup: { inline_keyboard: buttons }
-  });
-}
-
-  // 👉 HISTORY speichern (WICHTIG für Continue)
-  function saveHistory(userId, filmId) {
-  let h = {};
-
-  if (fs.existsSync(HISTORY_FILE)) {
-    h = JSON.parse(fs.readFileSync(HISTORY_FILE));
-  }
-
-  if (!h[userId]) h[userId] = [];
-
-  // 🔥 neueste zuerst
-  h[userId].unshift(filmId);
-
-  // max 10 Einträge
-  h[userId] = [...new Set(h[userId])].slice(0, 10);
-
-  fs.writeFileSync(HISTORY_FILE, JSON.stringify(h, null, 2));
-}
+  saveHistory(msg.chat.id, id);
 
   return tg("sendVideo", {
     chat_id: msg.chat.id,
@@ -544,7 +533,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 if (fs.existsSync(HISTORY_FILE)) {
   h = JSON.parse(fs.readFileSync(HISTORY_FILE));
 }
-        const last = h[chatId];
+        const last = Array.isArray(h[chatId]) ? h[chatId][0] : h[chatId];
 
         if (!last) {
           return tg("sendMessage", {
