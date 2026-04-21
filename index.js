@@ -28,6 +28,9 @@ function saveDB(data) {
 // ================= TELEGRAM =================
 async function tg(method, body) {
   try {
+    // 🔥 FIX: verhindert UTF-8 Fehler
+    body = JSON.parse(JSON.stringify(body));
+
     const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -41,6 +44,7 @@ async function tg(method, body) {
     }
 
     return data || { ok: false };
+
   } catch (err) {
     console.error("TG FETCH ERROR:", err);
     return { ok: false };
@@ -123,6 +127,8 @@ async function getDetails(id, type = "movie") {
 
 // ================= HELPERS =================
 function toBold(text = "") {
+  return text; // 🔥 verhindert UTF-Fehler
+}
   const normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟕𝟖𝟗";
 
