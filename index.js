@@ -508,7 +508,10 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   const list = await getSimilar(id, type);
 
   const buttons = list.map(m => ([
-    { text: `🎬 ${m.title || m.name}`, callback_data: `search_${m.id}_${type}` }
+    {
+      text: `🎬 ${m.title || m.name}`,
+      callback_data: `search_${m.id}_${type}`
+    }
   ]));
 
   return tg("sendMessage", {
@@ -530,7 +533,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           caption: buildCard(details),
           reply_markup: {
           inline_keyboard: [[
-        { text: "🎬 Ähnliche", callback_data: `sim_<id>_<type>` }
+        { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
       ]]
     }
   });
@@ -599,7 +602,7 @@ if (msg.text?.startsWith("/start ")) {
   .map(r => ([
     {
       text: `🎬 ${r.title || r.name || "Unbekannt"}`,
-      callback_data: `search_${r.id}_${r.media_type}`
+      callback_data: `search_${m.id}_${m.media_type || type}`
     }
   ]));
 
