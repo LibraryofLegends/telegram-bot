@@ -240,7 +240,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const director =
     data.credits?.crew?.find(x => x.job === "Director")?.name || "-";
 
-  const runtime = data.runtime || "-";
+  const runtime = data.runtime || data.episode_run_time?.[0] || "-";
   const fsk = getFSK(data);
   const tags = generateTags(data);
   const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
