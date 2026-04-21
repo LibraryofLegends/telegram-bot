@@ -181,6 +181,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
     data.credits?.crew?.find(x => x.job === "Director")?.name || "-";
 
   const runtime = data.runtime || "-";
+  const fsk = getFSK(data);
 
   const story = (data.overview || "").slice(0, 250);
 
@@ -193,7 +194,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
 💿 ${detectSource(fileName)}
 ━━━━━━━━━━━━━━━━━━━━━
 ${stars(data.vote_average)}
-⏱ ${runtime} Min
+⏱ ${runtime} Min • 🔞 FSK ${fsk}
 🎥 ${director}
 👥 ${cast}
 ━━━━━━━━━━━━━━━━━━━━━
