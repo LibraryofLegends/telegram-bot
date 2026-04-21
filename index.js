@@ -343,17 +343,19 @@ async function handleUpload(msg) {
 
   const caption = buildCard(details, parsed, fileName, item.display_id);
 
-  await tg("sendPhoto", {
-    chat_id: CHANNEL_ID,
-    photo: getCover(details),
-    caption,
-    reply_markup: {
-      inline_keyboard: [[
-        { text: "▶️ Stream", url: playerUrl("str", item.display_id) },
-        { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
-      ]]
-    }
-  });
+  const response = await tg("sendPhoto", {
+  chat_id: CHANNEL_ID,
+  photo: getCover(details),
+  caption,
+  reply_markup: {
+    inline_keyboard: [[
+      { text: "▶️ Stream", url: playerUrl("str", item.display_id) },
+      { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
+    ]]
+  }
+});
+
+console.log("SEND PHOTO RESPONSE:", response);
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
