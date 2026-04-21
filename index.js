@@ -216,6 +216,9 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const director =
     data.credits?.crew?.find(x => x.job === "Director")?.name || "-";
 
+  const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
+  const LINE_SOFT = "──────────────";
+  const LINE_MINI = "────────";
   const runtime = data.runtime || "-";
   const fsk = getFSK(data);
   const tags = generateTags(data);
@@ -223,23 +226,22 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const story = (data.overview || "Keine Beschreibung verfügbar.").slice(0, 250);
 
   return `
-━━━━━━━━━━━━━━━━━━━━━
+${LINE_MAIN}
 🎬 ${title} (${year})
-━━━━━━━━━━━━━━━━━━━━━
-🔥 ${detectQuality(fileName)} • ${genres}
-🎧 ${detectAudio(fileName)}
-💿 ${detectSource(fileName)}
-━━━━━━━━━━━━━━━━━━━━━
+${LINE_SOFT}
+🔥 ${detectQuality(fileName)} • ${genres || "-"}
+🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
+${LINE_MAIN}
 ${stars(data.vote_average)}
 ⏱ ${runtime} Min • 🔞 FSK ${fsk}
 🎥 ${director}
 👥 ${cast}
-━━━━━━━━━━━━━━━━━━━━━
+${LINE_MAIN}
 📖 STORY
 ${story}
-━━━━━━━━━━━━━━━━━━━━━
+${LINE_MAIN}
 ▶️ #${id}
-━━━━━━━━━━━━━━━━━━━━━
+${LINE_SOFT}
 ${tags}
 @LibraryOfLegends
 `.trim();
