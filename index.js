@@ -326,6 +326,14 @@ ${tags}
 `.trim();
 }
 
+let text = `...dein template...`.trim();
+
+if (text.length > 1024) {
+  text = text.slice(0, 1000) + "...";
+}
+
+return text;
+
 // ================= PLAYER =================
 function playerUrl(mode, id) {
   return `https://t.me/${BOT_USERNAME}?start=${mode}_${id}`;
@@ -343,9 +351,40 @@ async function handleStart(msg, param) {
       text: "❌ Datei nicht gefunden"
     });
   }
+  
+  if (param.startsWith("sim_")) {
+  const id = param.split("_")[1];
+  const list = await getSimilar(id);
+
+  const buttons = list.map(m => ([
+    { text: `🎬 ${m.title}`, callback_data: `search_${m.id}_movie` }
+  ]));
+
+  return tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: "🎬 Ähnliche Filme:",
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
 
   // 👉 HISTORY speichern (WICHTIG für Continue)
-  saveHistory(msg.chat.id, id);
+  function saveHistory(userId, filmId) {
+  let h = {};
+
+  if (fs.existsSync(HISTORY_FILE)) {
+    h = JSON.parse(fs.readFileSync(HISTORY_FILE));
+  }
+
+  if (!h[userId]) h[userId] = [];
+
+  // 🔥 neueste zuerst
+  h[userId].unshift(filmId);
+
+  // max 10 Einträge
+  h[userId] = [...new Set(h[userId])].slice(0, 10);
+
+  fs.writeFileSync(HISTORY_FILE, JSON.stringify(h, null, 2));
+}
 
   return tg("sendVideo", {
     chat_id: msg.chat.id,
@@ -381,8 +420,8 @@ async function handleUpload(msg) {
   const db = loadDB();
 
   // 🔥 ID GENERATION (FIXED)
-  const lastId = db[0]?.display_id || "0000";
-  const nextId = String(parseInt(lastId) + 1).padStart(4, "0");
+  const lastId = parseInt(db[0]?.display_id || "0", 10);
+  const nextId = String(lastId + 1).padStart(4, "0");
 
   const item = {
     display_id: nextId,
@@ -414,7 +453,7 @@ try {
     { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
   ],
   [
-    { text: "🎬 Ähnliche", callback_data: `sim_${item.tmdb_id}` }
+    { text: "🎬 Ähnliche", url: `https://t.me/${BOT_USERNAME}?start=sim_${item.tmdb_id}` }
   ]
 ]
     }
