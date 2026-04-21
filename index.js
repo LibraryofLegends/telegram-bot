@@ -336,6 +336,7 @@ if (text.length > 1024) {
 }
 
 return text;
+}
 
 // ================= PLAYER =================
 function playerUrl(mode, id) {
@@ -570,7 +571,7 @@ if (msg.text?.startsWith("/start ")) {
       }
 
       const buttons = results
-  .filter(r => r.media_type === "movie" || r.media_type === "tv")
+  .filter(r => ["movie", "tv"].includes(r.media_type))
   .map(r => ([
     {
       text: `🎬 ${r.title || r.name}`,
