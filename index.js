@@ -130,8 +130,8 @@ function toBold(text = "") {
 
 function getCover(data) {
   return data.poster_path
-    ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
-    : "https://via.placeholder.com/500x750?text=No+Image";
+  ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
+  : `https://image.tmdb.org/t/p/w500${data.backdrop_path || ""}`;
 }
 
 function detectQuality(name = "") {
@@ -362,19 +362,20 @@ async function handleStart(msg, param) {
 
   // 🔥 SIM zuerst prüfen
   if (param.startsWith("sim_")) {
-    const id = param.split("_")[1];
-    const list = await getSimilar(id);
+  const [, id, type] = param.split("_");
 
-    const buttons = list.map(m => ([
-      { text: `🎬 ${m.title}`, callback_data: `search_${m.id}_movie` }
-    ]));
+  const list = await getSimilar(id, type);
 
-    return tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: "🎬 Ähnliche Filme:",
-      reply_markup: { inline_keyboard: buttons }
-    });
-  }
+  const buttons = list.map(m => ([
+    { text: `🎬 ${m.title || m.name}`, callback_data: `search_${m.id}_${type}` }
+  ]));
+
+  return tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: "🎬 Ähnliche Filme:",
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
 
   // 👉 danach normaler Flow
   const id = param.replace(/str_|dl_/, "");
@@ -457,7 +458,7 @@ try {
     { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
   ],
   [
-    { text: "🎬 Ähnliche", url: `https://t.me/${BOT_USERNAME}?start=sim_${item.tmdb_id}` }
+    { url: `https://t.me/${BOT_USERNAME}?start=sim_${item.tmdb_id}_${parsed.type}` }
   ]
 ]
     }
@@ -511,7 +512,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       // 🔎 SEARCH RESULT
       if (data.startsWith("search_")) {
         const [, id, type] = data.split("_");
-        const list = await getSimilar(id, type);
 
         const details = await getDetails(id, type);
 
@@ -520,12 +520,12 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           photo: getCover(details),
           caption: buildCard(details),
           reply_markup: {
-            inline_keyboard: [[
-              { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}`
-            ]]
-          }
-        });
-      }
+          inline_keyboard: [[
+        { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
+      ]]
+    }
+  });
+}
 
       // 📂 KATEGORIEN
       if (data.startsWith("cat_")) {
@@ -589,16 +589,16 @@ if (msg.text?.startsWith("/start ")) {
   .filter(r => ["movie", "tv"].includes(r.media_type))
   .map(r => ([
     {
-      text: `🎬 ${r.title || r.name}`,
+      text: `🎬 ${r.title || r.name || "Unbekannt"}`
       callback_data: `search_${r.id}_${r.media_type}`
     }
   ]));
 
       return tg("sendMessage", {
         chat_id: msg.chat.id,
-        text: `🔎 Ergebnisse für: "${msg.text}"`
+        text: `🔎 Ergebnisse für: "${msg.text}"`,
         reply_markup: { inline_keyboard: buttons }
-      });
+  });
     }
 
     // ================= START MENU =================
