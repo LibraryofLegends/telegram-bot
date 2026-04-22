@@ -442,32 +442,32 @@ function readHistory(userId) {
 function showNetflixMenu(chatId) {
   return tg("sendMessage", {
     chat_id: chatId,
-    text: "🎬 ULTRA NETFLIX MODE\nWähle einen Bereich:",
+    text:
+`🎬 ULTRA NETFLIX SYSTEM
+
+Wähle deinen Bereich 👇`,
     reply_markup: {
       inline_keyboard: [
-  [{ text: "🔥 Trending", callback_data: "net_trending" }],
-  [{ text: "📈 Popular", callback_data: "net_popular" }],
-  [{ text: "🆕 Neu", callback_data: "net_new" }],
 
-  [
-    { text: "🔥 Action", callback_data: "genre_28" },
-    { text: "👻 Horror", callback_data: "genre_27" }
-  ],
-  [
-    { text: "😂 Comedy", callback_data: "genre_35" },
-    { text: "🎭 Drama", callback_data: "genre_18" }
-  ],
-  [
-    { text: "🔪 Thriller", callback_data: "genre_53" },
-    { text: "❤️ Romance", callback_data: "genre_10749" }
-  ],
-  [
-    { text: "🚀 Sci-Fi", callback_data: "genre_878" },
-    { text: "🗺 Adventure", callback_data: "genre_12" }
-  ],
+        [{ text: "🔥 Trending", callback_data: "net_trending" }],
+        [{ text: "📈 Popular", callback_data: "net_popular" }],
+        [{ text: "🆕 Neu", callback_data: "net_new" }],
 
-  [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
-]
+        [
+          { text: "🔥 Action", callback_data: "genre_28" },
+          { text: "👻 Horror", callback_data: "genre_27" }
+        ],
+        [
+          { text: "😂 Comedy", callback_data: "genre_35" },
+          { text: "🎭 Drama", callback_data: "genre_18" }
+        ],
+        [
+          { text: "🔪 Thriller", callback_data: "genre_53" },
+          { text: "❤️ Romance", callback_data: "genre_10749" }
+        ],
+
+        [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+      ]
     }
   });
 }
@@ -482,44 +482,38 @@ function sendResultsList(chatId, heading, list, page = 0, defaultType = "movie")
 
   const perPage = 5;
   const start = page * perPage;
-  const end = start + perPage;
-
-  const slice = list.slice(start, end);
+  const slice = list.slice(start, start + perPage);
 
   const emojis = ["🥇","🥈","🥉","4️⃣","5️⃣"];
 
   const buttons = slice.map((m, i) => {
-    const label = sanitizeTelegramText(m.title || m.name || "Unbekannt");
+    const title = sanitizeTelegramText(m.title || m.name || "Unbekannt");
     const year = (m.release_date || m.first_air_date || "").slice(0, 4);
 
     return [{
-      text: `${emojis[i] || "🎬"} ${label}${year ? ` (${year})` : ""}`,
+      text: `${emojis[i]} ${title}${year ? ` (${year})` : ""}`,
       callback_data: `search_${m.id}_${m.media_type || defaultType}`
     }];
   });
 
-  // 🔥 NAVIGATION
   const nav = [];
 
   if (page > 0) {
-    nav.push({ text: "⬅️ Zurück", callback_data: `page_${page - 1}` });
+    nav.push({ text: "⬅️", callback_data: `page_${page - 1}` });
   }
 
-  if (end < list.length) {
-    nav.push({ text: "➡️ Weiter", callback_data: `page_${page + 1}` });
+  if (start + perPage < list.length) {
+    nav.push({ text: "➡️", callback_data: `page_${page + 1}` });
   }
 
   if (nav.length) buttons.push(nav);
 
-  // 🔥 MENU BUTTON
   buttons.push([{ text: "🏠 Menü", callback_data: "netflix" }]);
 
   return tg("sendMessage", {
     chat_id: chatId,
     text: `${heading}\n\n📄 Seite ${page + 1}`,
-    reply_markup: {
-      inline_keyboard: buttons
-    }
+    reply_markup: { inline_keyboard: buttons }
   });
 }
 
@@ -699,16 +693,9 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     callback_query_id: body.callback_query.id
   });
 
-  // 🔥 PAGE SWITCH
+  // 🔥 PAGES
   if (data.startsWith("page_")) {
     const page = parseInt(data.split("_")[1], 10);
-
-    if (!global.LAST_LIST) {
-      return tg("sendMessage", {
-        chat_id: chatId,
-        text: "❌ Keine Daten"
-      });
-    }
 
     return sendResultsList(
       chatId,
@@ -716,6 +703,37 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       global.LAST_LIST,
       page
     );
+  }
+
+  // 🔥 TRENDING
+  if (data === "net_trending") {
+    const list = await getTrending();
+
+    global.LAST_LIST = list;
+    global.LAST_HEADING = "🔥 Trending:";
+
+    return sendResultsList(chatId, global.LAST_HEADING, list, 0);
+  }
+
+  // 🔥 POPULAR
+  if (data === "net_popular") {
+    const list = await getPopular();
+
+    global.LAST_LIST = list;
+    global.LAST_HEADING = "📈 Popular:";
+
+    return sendResultsList(chatId, global.LAST_HEADING, list, 0);
+  }
+
+  // 🔥 GENRE
+  if (data.startsWith("genre_")) {
+    const genre = data.split("_")[1];
+    const list = await getByGenre(genre);
+
+    global.LAST_LIST = list;
+    global.LAST_HEADING = "📂 Kategorie:";
+
+    return sendResultsList(chatId, global.LAST_HEADING, list, 0);
   }
 
   // 🔥 SEARCH CLICK
@@ -736,6 +754,9 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
             { text: "⬇️ Download", url: playerUrl("dl", id) }
           ],
           [
+            { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
+          ],
+          [
             { text: "🏠 Menü", callback_data: "netflix" }
           ]
         ]
@@ -743,12 +764,25 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     });
   }
 
-  // 🔥 MENU
-if (data === "netflix") {
-  return showNetflixMenu(chatId);
-}
+  // 🔥 SIMILAR
+  if (data.startsWith("sim_")) {
+    const [, id, typeRaw] = data.split("_");
+    const type = typeRaw === "tv" ? "tv" : "movie";
 
-// ✅ DIESE KLAMMER FEHLT BEI DIR
+    const list = await getSimilar(id, type);
+
+    global.LAST_LIST = list;
+    global.LAST_HEADING = "🎬 Ähnliche:";
+
+    return sendResultsList(chatId, global.LAST_HEADING, list, 0);
+  }
+
+  // 🔥 MENU
+  if (data === "netflix") {
+    return showNetflixMenu(chatId);
+  }
+
+  return;
 }
 
     // ================= START PARAM =================
