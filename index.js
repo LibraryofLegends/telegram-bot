@@ -353,8 +353,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
   const LINE_SOFT = "──────────────";
 
-  let text = `
-${LINE_MAIN}
+  let text = `${LINE_MAIN}
 🎬 ${title}${year ? ` (${year})` : ""}
 ${typeLine}${LINE_SOFT}
 🎞 ${genres || "-"}
@@ -371,8 +370,7 @@ ${LINE_MAIN}
 ▶️ #${id}
 ${LINE_SOFT}
 ${tags}
-@LibraryOfLegends
-`.trim();
+@LibraryOfLegends`;
 
   // ✅ NUR sauberes Cleanup (kein Layout zerstören!)
   text = text
