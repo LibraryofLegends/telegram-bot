@@ -312,7 +312,7 @@ function genreEmoji(name) {
 }
 
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
-  const title = sanitizeTelegramText((data.title || data.name || "Unbekannt").toUpperCase());
+  const title = (data.title || data.name || "").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
   const genres = (data.genres || [])
@@ -324,7 +324,9 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
     data.credits?.cast?.slice(0, 3).map(x => x.name).join(" • ") || "-";
 
   const director =
-    data.credits?.crew?.find(x => x.job === "Director")?.name || "-";
+    data.credits?.crew?.find(x => x.job === "Director")?.name ||
+    data.created_by?.[0]?.name ||
+    "-";
 
   const runtime =
     data.runtime ||
@@ -347,10 +349,15 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
     story += "...";
   }
 
+  const typeLine =
+    extra.type === "tv" && extra.season
+      ? `📺 S${extra.season}E${extra.episode || "01"}\n`
+      : "";
+
   let text = `
 ${LINE_MAIN}
-🎬 ${title}${year ? ` (${year})` : ""}
-${LINE_SOFT}
+🎬 ${title} (${year})
+${typeLine}${LINE_SOFT}
 🎞 ${genres || "-"}
 🔥 ${detectQuality(fileName)} • 🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
 ${LINE_MAIN}
