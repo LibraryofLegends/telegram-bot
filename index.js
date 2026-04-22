@@ -368,14 +368,6 @@ ${tags}
 @LibraryOfLegends`;
 }
 
-  // ✅ NUR sauberes Cleanup (kein Layout zerstören!)
-  text = text
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/[ \t]+\n/g, "\n");
-
-  return limitText(text, 1024);
-}
-
 function playerUrl(mode, id) {
   return `https://t.me/${BOT_USERNAME}?start=${mode}_${id}`;
 }
@@ -492,7 +484,7 @@ async function sendDetails(chatId, id, type, displayId = null) {
   return tg("sendPhoto", {
   chat_id: chatId,
   photo: getCover(details),
-  caption: buildCard(details, { type }, "", id),
+  caption: caption(details, { type }, "", id),
   reply_markup: {
     inline_keyboard: keyboard
   }
