@@ -471,7 +471,7 @@ function showNetflixMenu(chatId) {
   return tg("sendMessage", {
     chat_id: chatId,
     text:
-`🎬 ULTRA NETFLIX SYSTEM
+`🎬 LIBRARY OF LEGENDS
 
 Wähle deinen Bereich 👇`,
     reply_markup: {
@@ -479,22 +479,14 @@ Wähle deinen Bereich 👇`,
 
         [{ text: "🔥 Trending", callback_data: "net_trending" }],
         [{ text: "📈 Popular", callback_data: "net_popular" }],
-        [{ text: "🆕 Neu", callback_data: "net_new" }],
 
         [
-          { text: "🔥 Action", callback_data: "genre_28" },
-          { text: "👻 Horror", callback_data: "genre_27" }
-        ],
-        [
-          { text: "😂 Comedy", callback_data: "genre_35" },
-          { text: "🎭 Drama", callback_data: "genre_18" }
-        ],
-        [
-          { text: "🔪 Thriller", callback_data: "genre_53" },
-          { text: "❤️ Romance", callback_data: "genre_10749" }
+          { text: "🎬 Filme A–Z", callback_data: "movies_az" },
+          { text: "📺 Serien", callback_data: "series_menu" }
         ],
 
         [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+
       ]
     }
   });
@@ -665,12 +657,13 @@ if (parsed.type === "tv") {
 }
 
   const item = {
-    display_id: nextId,
-    file_id: file.file_id,
-    file_type: msg.document ? "document" : "video",
-    tmdb_id: result.id,
-    media_type: result.media_type || parsed.type
-  };
+  display_id: nextId,
+  file_id: file.file_id,
+  file_type: msg.document ? "document" : "video",
+  tmdb_id: result.id,
+  media_type: result.media_type || parsed.type,
+  title: result.title || result.name // 🔥 WICHTIG
+};
 
   db.unshift(item);
   if (db.length > 500) db.length = 500;
@@ -971,6 +964,85 @@ if (data.startsWith("play_") || data.startsWith("dl_")) {
     chat_id: chatId,
     video: ep.file_id,
     supports_streaming: true
+  });
+}
+
+// ================= MOVIES A-Z =================
+if (data === "movies_az") {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+  const buttons = [];
+
+  for (let i = 0; i < alphabet.length; i += 4) {
+    buttons.push(
+      alphabet.slice(i, i + 4).map(letter => ({
+        text: letter,
+        callback_data: `az_${letter}`
+      }))
+    );
+  }
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "🎬 Wähle einen Buchstaben:",
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
+// ================= FILTER A-Z =================
+if (data.startsWith("az_")) {
+  const letter = data.split("_")[1];
+
+  const filtered = CACHE.filter(x =>
+    (x.title || "").toUpperCase().startsWith(letter)
+  );
+
+  if (!filtered.length) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Keine Filme gefunden"
+    });
+  }
+
+  const buttons = filtered.slice(0, 10).map(x => {
+  const title = sanitizeTelegramText(x.title || "Unbekannt");
+
+  return [{
+    text: `🎬 ${title}`,
+    callback_data: `search_${x.tmdb_id}_${x.media_type}`
+  }];
+});
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: `🎬 Filme mit "${letter}"`,
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
+// ================= SERIES MENU =================
+if (data === "series_menu") {
+
+  const keys = Object.keys(SERIES_DB);
+
+  if (!keys.length) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Keine Serien vorhanden"
+    });
+  }
+
+  const buttons = keys.map(k => ([
+    {
+      text: `📺 ${k.replace(/_/g, " ")}`,
+      callback_data: `tv_${k}`
+    }
+  ]));
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "📺 Deine Serien:",
+    reply_markup: { inline_keyboard: buttons }
   });
 }
 
