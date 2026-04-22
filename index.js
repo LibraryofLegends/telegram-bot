@@ -781,11 +781,6 @@ return tg("sendMessage", {
   }
 });
 
-      return tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text: `🔎 Ergebnisse für: "${sanitizeTelegramText(msg.text)}"`,
-        reply_markup: { inline_keyboard: buttons }
-      });
     }
 
     // ================= START MENU =================
