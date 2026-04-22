@@ -441,26 +441,29 @@ function showNetflixMenu(chatId) {
     text: "🎬 ULTRA NETFLIX MODE\nWähle einen Bereich:",
     reply_markup: {
       inline_keyboard: [
-        [{ text: "🔥 Trending", callback_data: "net_trending" }],
-        [{ text: "📈 Popular", callback_data: "net_popular" }],
-        [
-          { text: "🔥 Action", callback_data: "genre_28" },
-          { text: "👻 Horror", callback_data: "genre_27" }
-        ],
-        [
-          { text: "😂 Comedy", callback_data: "genre_35" },
-          { text: "🎭 Drama", callback_data: "genre_18" }
-        ],
-        [
-          { text: "🔪 Thriller", callback_data: "genre_53" },
-          { text: "❤️ Romance", callback_data: "genre_10749" }
-        ],
-        [
-          { text: "🚀 Sci-Fi", callback_data: "genre_878" },
-          { text: "🗺 Adventure", callback_data: "genre_12" }
-        ],
-        [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
-      ]
+  [{ text: "🔥 Trending", callback_data: "net_trending" }],
+  [{ text: "📈 Popular", callback_data: "net_popular" }],
+  [{ text: "🆕 Neu", callback_data: "net_new" }],
+
+  [
+    { text: "🔥 Action", callback_data: "genre_28" },
+    { text: "👻 Horror", callback_data: "genre_27" }
+  ],
+  [
+    { text: "😂 Comedy", callback_data: "genre_35" },
+    { text: "🎭 Drama", callback_data: "genre_18" }
+  ],
+  [
+    { text: "🔪 Thriller", callback_data: "genre_53" },
+    { text: "❤️ Romance", callback_data: "genre_10749" }
+  ],
+  [
+    { text: "🚀 Sci-Fi", callback_data: "genre_878" },
+    { text: "🗺 Adventure", callback_data: "genre_12" }
+  ],
+
+  [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+]
     }
   });
 }
