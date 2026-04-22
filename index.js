@@ -355,7 +355,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
 
   let text = `
 ${LINE_MAIN}
-🎬 ${title} (${year})
+🎬 ${sanitizeTelegramText(title)}${year ? ` (${year})` : ""}
 ${typeLine}${LINE_SOFT}
 🎞 ${genres || "-"}
 🔥 ${detectQuality(fileName)} • 🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
@@ -374,10 +374,9 @@ ${tags}
 @LibraryOfLegends
 `.trim();
 
-  // ✅ FIX LAYOUT
   text = text
-    .replace(/[ ]{2,}/g, " ")
-    .replace(/\n{3,}/g, "\n\n");
+  .replace(/\n{3,}/g, "\n\n")
+  .replace(/[ \t]+\n/g, "\n");
 
   return limitText(text, 1024);
 }
