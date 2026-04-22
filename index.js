@@ -30,6 +30,20 @@ function saveDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
+const SERIES_DB_FILE = "series.json";
+
+function loadSeriesDB() {
+  if (!fs.existsSync(SERIES_DB_FILE)) return {};
+  return JSON.parse(fs.readFileSync(SERIES_DB_FILE, "utf8") || "{}");
+}
+
+let SERIES_DB = loadSeriesDB();
+
+function saveSeriesDB(data) {
+  SERIES_DB = data;
+  fs.writeFileSync(SERIES_DB_FILE, JSON.stringify(data, null, 2));
+}
+
 // ================= UTF / SAFE =================
 function sanitizeTelegramText(input = "") {
   try {
@@ -83,14 +97,15 @@ async function tg(method, body) {
 // ================= PARSER =================
 function parseFileName(name = "") {
   const clean = name.replace(/\.(mp4|mkv|avi)$/i, "").replace(/[._\-]+/g, " ");
-  const series = clean.match(/S(\d+)E(\d+)/i);
 
-  if (series) {
+  const match = clean.match(/S(\d+)E(\d+)/i);
+
+  if (match) {
     return {
       type: "tv",
-      title: clean.replace(series[0], "").trim(),
-      season: parseInt(series[1], 10),
-      episode: parseInt(series[2], 10)
+      title: clean.replace(match[0], "").trim(),
+      season: parseInt(match[1], 10),
+      episode: parseInt(match[2], 10)
     };
   }
 
@@ -632,6 +647,22 @@ async function handleUpload(msg) {
   const db = CACHE;
   const lastId = db.length ? Math.max(...db.map(x => parseInt(x.display_id || "0", 10) || 0)) : 0;
   const nextId = String(lastId + 1).padStart(4, "0");
+  
+  // 🔥 SERIES AUTO SAVE
+if (parsed.type === "tv") {
+
+  const seriesKey = parsed.title.toLowerCase().replace(/\s/g, "_");
+
+  if (!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
+  if (!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
+
+  SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
+    file_id: file.file_id,
+    display_id: nextId
+  };
+
+  saveSeriesDB(SERIES_DB);
+}
 
   const item = {
     display_id: nextId,
@@ -822,66 +853,126 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   // ================= SERIE START =================
   if (data.startsWith("tv_")) {
-    const [, id] = data.split("_");
+  const [, seriesKey] = data.split("_");
 
-    const seasons = await getSeasons(id);
+  const seasons = SERIES_DB[seriesKey];
 
-    const buttons = seasons
-      .filter(s => s.season_number > 0)
-      .map(s => ([
-        {
-          text: `📺 Staffel ${s.season_number}`,
-          callback_data: `season_${id}_${s.season_number}`
-        }
-      ]));
-
+  if (!seasons) {
     return tg("sendMessage", {
       chat_id: chatId,
-      text: "📺 Wähle Staffel:",
-      reply_markup: { inline_keyboard: buttons }
+      text: "❌ Keine Staffel vorhanden"
     });
   }
+
+  const buttons = Object.keys(seasons).map(season => ([
+    {
+      text: `📺 Staffel ${season}`,
+      callback_data: `season_${seriesKey}_${season}`
+    }
+  ]));
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "📺 Wähle Staffel:",
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
 
   // ================= SEASON =================
   if (data.startsWith("season_")) {
-    const [, id, season] = data.split("_");
+  const [, seriesKey, season] = data.split("_");
 
-    const episodes = await getEpisodes(id, season);
+  const episodes = SERIES_DB?.[seriesKey]?.[season];
 
-    const buttons = episodes.map(ep => ([
-      {
-        text: `🎬 E${ep.episode_number} • ${sanitizeTelegramText(ep.name)}`,
-        callback_data: `episode_${id}_${season}_${ep.episode_number}`
-      }
-    ]));
-
+  if (!episodes) {
     return tg("sendMessage", {
       chat_id: chatId,
-      text: `📺 Staffel ${season}`,
-      reply_markup: { inline_keyboard: buttons }
+      text: "❌ Keine Episoden vorhanden"
     });
   }
+
+  const buttons = Object.keys(episodes).map(ep => ([
+    {
+      text: `🎬 Episode ${ep}`,
+      callback_data: `episode_${seriesKey}_${season}_${ep}`
+    }
+  ]));
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: `📺 Staffel ${season}`,
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
 
   // ================= EPISODE =================
-  if (data.startsWith("episode_")) {
-    const [, id, season, episode] = data.split("_");
+if (data.startsWith("episode_")) {
+  const [, seriesKey, season, episode] = data.split("_");
 
+  const ep = SERIES_DB?.[seriesKey]?.[season]?.[episode];
+
+  if (!ep) {
     return tg("sendMessage", {
       chat_id: chatId,
-      text: `🎬 Staffel ${season} • Episode ${episode}`,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "▶️ Stream", url: playerUrl("str", `${id}_${season}_${episode}`) },
-            { text: "⬇️ Download", url: playerUrl("dl", `${id}_${season}_${episode}`) }
-          ],
-          [
-            { text: "⬅️ Zurück", callback_data: `season_${id}_${season}` }
-          ]
-        ]
-      }
+      text: "❌ Episode nicht vorhanden"
     });
   }
+
+  saveHistory(chatId, {
+    id: `${seriesKey}_${season}_${episode}`,
+    type: "episode"
+  });
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: `🎬 Episode ${episode}\n📺 Staffel ${season}`,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "▶️ Stream",
+            callback_data: `play_${seriesKey}_${season}_${episode}`
+          },
+          {
+            text: "⬇️ Download",
+            callback_data: `dl_${seriesKey}_${season}_${episode}`
+          }
+        ],
+        [
+          {
+            text: "⬅️ Zurück",
+            callback_data: `season_${seriesKey}_${season}`
+          }
+        ]
+      ]
+    }
+  });
+}
+
+// ================= PLAY EPISODE =================
+if (data.startsWith("play_") || data.startsWith("dl_")) {
+  const parts = data.split("_");
+
+  const mode = parts[0]; // play oder dl
+  const seriesKey = parts[1];
+  const season = parts[2];
+  const episode = parts[3];
+
+  const ep = SERIES_DB?.[seriesKey]?.[season]?.[episode];
+
+  if (!ep) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Datei nicht gefunden"
+    });
+  }
+
+  return tg("sendVideo", {
+    chat_id: chatId,
+    video: ep.file_id,
+    supports_streaming: true
+  });
+}
 
   // ================= SIMILAR =================
   if (data.startsWith("sim_")) {
