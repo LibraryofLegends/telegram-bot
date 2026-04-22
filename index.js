@@ -270,17 +270,17 @@ function getFSK(data) {
 function generateTags(data) {
   const tags = new Set();
 
-  const rawTitle = data.title || data.name;
+  const baseTitle = data.title || data.name || "";
 
-if (!rawTitle || rawTitle.length < 2) {
-  rawTitle = cleanTitleAdvanced(fileName) || "UNBEKANNT";
-}
+  const titleWords = String(baseTitle)
     .replace(/[^\w\s]/gi, "")
     .split(" ")
     .filter(w => w.length > 2)
     .slice(0, 2);
 
-  if (titleWords.length) tags.add(`#${titleWords.join("")}`);
+  if (titleWords.length) {
+    tags.add(`#${titleWords.join("")}`);
+  }
 
   (data.genres || []).slice(0, 3).forEach(g => {
     tags.add(`#${g.name.replace(/\s/g, "")}`);
