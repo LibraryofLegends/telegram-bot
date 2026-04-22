@@ -468,7 +468,7 @@ function showNetflixMenu(chatId) {
   });
 }
 
-function sendResultsList(chatId, heading, list, defaultType = "movie") {
+function sendResultsList(chatId, heading, list, page = 0, defaultType = "movie") {
   if (!list || !list.length) {
     return tg("sendMessage", {
       chat_id: chatId,
@@ -476,24 +476,56 @@ function sendResultsList(chatId, heading, list, defaultType = "movie") {
     });
   }
 
-  // ✅ HIER IST DEIN EMOJI ARRAY
-  const emojis = ["🥇","🥈","🥉","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"];
+  const perPage = 5;
+  const start = page * perPage;
+  const end = start + perPage;
 
-  const buttons = list.slice(0, 10).map((m, i) => {
+  const slice = list.slice(start, end);
+
+  const emojis = ["🥇","🥈","🥉","4️⃣","5️⃣"];
+
+  const buttons = slice.map((m, i) => {
     const label = sanitizeTelegramText(m.title || m.name || "Unbekannt");
     const year = (m.release_date || m.first_air_date || "").slice(0, 4);
 
     return [{
-      // ✅ HIER WIRD ES VERWENDET
-      text: `${emojis[i]} ${label}${year ? ` (${year})` : ""}`,
+      text: `${emojis[i] || "🎬"} ${label}${year ? ` (${year})` : ""}`,
       callback_data: `search_${m.id}_${m.media_type || defaultType}`
     }];
   });
 
+  // 👉 NAVIGATION
+  const nav = [];
+
+  if (page > 0) {
+    nav.push({
+      text: "⬅️ Zurück",
+      callback_data: `page_${page - 1}`
+    });
+  }
+
+  if (end < list.length) {
+    nav.push({
+      text: "➡️ Weiter",
+      callback_data: `page_${page + 1}`
+    });
+  }
+
+  if (nav.length) {
+    buttons.push(nav);
+  }
+
+  // 👉 FOOTER
+  buttons.push([
+    { text: "🏠 Menü", callback_data: "netflix" }
+  ]);
+
   return tg("sendMessage", {
     chat_id: chatId,
-    text: sanitizeTelegramText(heading),
-    reply_markup: { inline_keyboard: buttons }
+    text: `${heading}\n\n📄 Seite ${page + 1}`,
+    reply_markup: {
+      inline_keyboard: buttons
+    }
   });
 }
 
