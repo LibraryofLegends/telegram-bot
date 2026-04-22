@@ -310,17 +310,25 @@ function genreEmoji(name) {
   return map[name] || "🎬";
 }
 
+function toBold(text = "") {
+  const normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const bold = "𝐀𝐁𝐂𝐃𝐄𝐅𝐆𝐇𝐈𝐉𝐊𝐋𝐌𝐍𝐎𝐏𝐐𝐑𝐒𝐓𝐔𝐕𝐖𝐗𝐘𝐙abcdefghijklmnopqrstuvwxyz0123456789";
+  return text.split("").map(c => {
+    const i = normal.indexOf(c);
+    return i !== -1 ? bold[i] : c;
+  }).join("");
+}
+
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
-  const title = sanitizeTelegramText((data.title || data.name || "").toUpperCase());
+  const titleRaw = (data.title || data.name || "").toUpperCase();
+  const title = toBold(titleRaw);
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
-  const genres = (data.genres || [])
-    .slice(0, 2)
-    .map(g => g.name)
-    .join(" • ");
+  const genresArr = (data.genres || []).map(g => g.name);
+  const mainGenre = genresArr[0] || "-";
+  const secondGenre = genresArr[1] || "";
 
-  const cast =
-    data.credits?.cast?.slice(0, 3).map(x => x.name).join(" • ") || "-";
+  const cast = data.credits?.cast?.slice(0, 3).map(x => x.name).join(" • ") || "-";
 
   const director =
     data.credits?.crew?.find(x => x.job === "Director")?.name ||
@@ -336,6 +344,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const fsk = getFSK(data);
   const tags = generateTags(data);
 
+  // Story sauber umbrechen
   let story = data.overview?.trim() || "Keine Beschreibung verfügbar.";
 
   if (story.length > 220) {
@@ -345,25 +354,30 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
     story += "...";
   }
 
-  const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
-  const LINE_SOFT = "──────────────";
+  // Story Absatz splitten
+  const storyParts = story.split(". ");
+  const storyFormatted = storyParts.join(".\n\n");
 
-  return `${LINE_MAIN}
+  const LINE = "━━━━━━━━━━━━━━━━━━";
+
+  return `${LINE}
 🎬 ${title} (${year})
-${LINE_SOFT}
-${genres || "-"}
-${detectQuality(fileName)} • ${detectAudio(fileName)} • ${detectSource(fileName)}
-${LINE_MAIN}
+🎞 𝐅𝐀𝐒𝐓 & 𝐅𝐔𝐑𝐈𝐎𝐔𝐒 𝐂𝐎𝐋𝐋𝐄𝐂𝐓𝐈𝐎𝐍
+${LINE}
+🔥 ${detectQuality(fileName)} • ${mainGenre}${secondGenre ? " • " + secondGenre : ""}
+🎧 ${detectAudio(fileName)}
+💿 ${detectSource(fileName)}
+${LINE}
 ${stars(data.vote_average)}
-${runtime} Min • FSK ${fsk}
-${director}
-${cast}
-${LINE_MAIN}
-STORY
-${story}
-${LINE_MAIN}
+⏱ ${runtime} Min • 🔞 FSK ${fsk}
+🎥 ${director}
+👥 ${cast}
+${LINE}
+📖 STORY  
+${storyFormatted}
+${LINE}
 ▶️ #${id}
-${LINE_SOFT}
+${LINE}
 ${tags}
 @LibraryOfLegends`;
 }
