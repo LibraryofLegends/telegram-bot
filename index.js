@@ -722,82 +722,53 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   await tg("answerCallbackQuery", {
     callback_query_id: body.callback_query.id
   });
-  
-  // ================= EPISODE =================
-if (data.startsWith("episode_")) {
-  const [, seriesKey, season, episode] = data.split("_");
-
-  const ep = SERIES_DB?.[seriesKey]?.[season]?.[episode];
-
-  if (!ep) {
-    return tg("sendMessage", {
-      chat_id: chatId,
-      text: "❌ Episode nicht vorhanden"
-    });
-  }
-
-  return tg("sendVideo", {
-    chat_id: chatId,
-    video: ep.file_id,
-    supports_streaming: true
-  });
-}
-
-if (data === "continue") {
-  const last = readHistory(chatId)[0];
-
-  if (!last) {
-    return tg("sendMessage", {
-      chat_id: chatId,
-      text: "❌ Kein Verlauf"
-    });
-  }
-
-  return tg("sendMessage", {
-    chat_id: chatId,
-    text: "▶️ Weiter schauen:",
-    reply_markup: {
-      inline_keyboard: [[
-        {
-          text: "🎬 Öffnen",
-          callback_data: `search_${last.id}_${last.type}`
-        }
-      ]]
-    }
-  });
-}
 
   // ================= CONTINUE =================
   if (data === "continue") {
-  const history = readHistory(chatId);
+    const history = readHistory(chatId);
 
-  if (!history.length) {
+    if (!history.length) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Kein Verlauf vorhanden"
+      });
+    }
+
+    const last = history[0];
+
     return tg("sendMessage", {
       chat_id: chatId,
-      text: "❌ Kein Verlauf vorhanden"
+      text: "▶️ Weiter schauen:",
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: "🎬 Öffnen",
+            callback_data: `search_${last.id}_${last.type}`
+          }
+        ]]
+      }
     });
   }
 
-  const last = history[0];
+  // ================= EPISODE =================
+  if (data.startsWith("episode_")) {
+    const [, seriesKey, season, episode] = data.split("_");
 
-  return tg("sendMessage", {
-    chat_id: chatId,
-    text: `▶️ Weiter schauen:\n\n🎬 Letzter Titel`,
-    reply_markup: {
-      inline_keyboard: [
-        [
-          {
-            text: "▶️ Öffnen",
-            callback_data: `search_${last.id}_${last.type}`
-          }
-        ],
-        [
-          { text: "🏠 Menü", callback_data: "netflix" }
-        ]
-      ]
+    const ep = SERIES_DB?.[seriesKey]?.[season]?.[episode];
+
+    if (!ep) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Episode nicht vorhanden"
+      });
     }
-  });
-}
+
+    return tg("sendVideo", {
+      chat_id: chatId,
+      video: ep.file_id,
+      supports_streaming: true
+    });
+  }
 
   // ================= MENU =================
   if (data === "netflix") {
