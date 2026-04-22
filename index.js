@@ -407,18 +407,18 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const LINE_SOFT = "──────────────";
 
   let text = `${LINE_MAIN}
-🎬 ${title}${year ? ` (${year})` : ""}
+🎬 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
+${title}${year ? ` (${year})` : ""}
 ${collectionLine ? collectionLine + "\n" : ""}${typeLine ? typeLine + "\n" : ""}${LINE_SOFT}
 🔥 ${quality} • ${genres || "-"}
-🎧 ${audio}
-💿 ${source}
+🎧 ${audio} • 💿 ${source}
 ${LINE_MAIN}
 ${stars(data.vote_average)}
 ⏱ ${runtime} Min • 🔞 FSK ${fsk}
 🎥 ${director}
 👥 ${cast}
 ${LINE_MAIN}
-📖 STORY
+📖 HANDLUNG
 ${story}
 ${LINE_MAIN}
 ▶️ #${id}
@@ -637,33 +637,36 @@ async function handleUpload(msg) {
   const details = await getDetails(result.id, result.media_type || parsed.type);
 
   const db = CACHE;
-  const lastId = db.length ? Math.max(...db.map(x => parseInt(x.display_id || "0", 10) || 0)) : 0;
+  const lastId = db.length
+    ? Math.max(...db.map(x => parseInt(x.display_id || "0", 10) || 0))
+    : 0;
+
   const nextId = String(lastId + 1).padStart(4, "0");
-  
-  // 🔥 SERIES AUTO SAVE
-if (parsed.type === "tv") {
 
-  const seriesKey = parsed.title.toLowerCase().replace(/\s/g, "_");
+  // 🔥 SERIES SAVE (RICHTIG PLATZIERT)
+  if (parsed.type === "tv") {
+    const seriesKey = parsed.title.toLowerCase().replace(/\s/g, "_");
 
-  if (!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
-  if (!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
+    if (!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
+    if (!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
 
-  SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
-    file_id: file.file_id,
-    display_id: nextId
-  };
+    SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
+      file_id: file.file_id,
+      display_id: nextId
+    };
 
-  saveSeriesDB(SERIES_DB);
-}
+    saveSeriesDB(SERIES_DB);
+  }
 
+  // 🔥 CLEAN ITEM
   const item = {
-  display_id: nextId,
-  file_id: file.file_id,
-  file_type: msg.document ? "document" : "video",
-  tmdb_id: result.id,
-  media_type: result.media_type || parsed.type,
-  title: result.title || result.name // 🔥 WICHTIG
-};
+    display_id: nextId,
+    file_id: file.file_id,
+    file_type: msg.document ? "document" : "video",
+    tmdb_id: result.id,
+    media_type: result.media_type || parsed.type,
+    title: result.title || result.name
+  };
 
   db.unshift(item);
   if (db.length > 500) db.length = 500;
@@ -677,7 +680,7 @@ if (parsed.type === "tv") {
     caption = "❌ Fehler beim Erstellen der Karte";
   }
 
-  const res = await tg("sendPhoto", {
+  await tg("sendPhoto", {
     chat_id: CHANNEL_ID,
     photo: getCover(details),
     caption,
@@ -696,11 +699,6 @@ if (parsed.type === "tv") {
       ]
     }
   });
-
-  console.log("CHANNEL RESPONSE:", res);
-  if (!res?.ok) {
-    console.error("TELEGRAM ERROR:", res);
-  }
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
@@ -724,6 +722,50 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   await tg("answerCallbackQuery", {
     callback_query_id: body.callback_query.id
   });
+  
+  // ================= EPISODE =================
+if (data.startsWith("episode_")) {
+  const [, seriesKey, season, episode] = data.split("_");
+
+  const ep = SERIES_DB?.[seriesKey]?.[season]?.[episode];
+
+  if (!ep) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Episode nicht vorhanden"
+    });
+  }
+
+  return tg("sendVideo", {
+    chat_id: chatId,
+    video: ep.file_id,
+    supports_streaming: true
+  });
+}
+
+if (data === "continue") {
+  const last = readHistory(chatId)[0];
+
+  if (!last) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Kein Verlauf"
+    });
+  }
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "▶️ Weiter schauen:",
+    reply_markup: {
+      inline_keyboard: [[
+        {
+          text: "🎬 Öffnen",
+          callback_data: `search_${last.id}_${last.type}`
+        }
+      ]]
+    }
+  });
+}
 
   // ================= CONTINUE =================
   if (data === "continue") {
@@ -829,17 +871,17 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       caption: buildCard(details, {}, "", id),
       reply_markup: {
         inline_keyboard: [
-          [
-            { text: "▶️ Stream", url: playerUrl("str", id) },
-            { text: "⬇️ Download", url: playerUrl("dl", id) }
-          ],
-          [
-            { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
-          ],
-          [
-            { text: "🏠 Menü", callback_data: "netflix" }
-          ]
-        ]
+  [
+    { text: "▶️ Stream", url: playerUrl("str", id) },
+    { text: "⬇️ Download", url: playerUrl("dl", id) }
+  ],
+  [
+    { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
+  ],
+  [
+    { text: "🔥 Mehr entdecken", callback_data: "net_trending" }
+  ]
+]
       }
     });
   }
