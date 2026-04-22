@@ -335,7 +335,7 @@ function genreEmoji(name) {
 }
 
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
-  const title = sanitizeTelegramText((data.title || data.name || "UNBEKANNT").toUpperCase());
+  const title = toBold((data.title || data.name || "UNBEKANNT").toUpperCase());
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
   const genres = (data.genres || [])
@@ -441,7 +441,7 @@ function saveHistory(userId, entry) {
   h[userId] = [
     entry,
     ...h[userId].filter(x => x.id !== entry.id)
-  ].slice(0, 10);
+  ].slice(0, 15); // 🔥 mehr History
 
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(h, null, 2));
 }
@@ -489,7 +489,7 @@ function sendResultsList(chatId, heading, list, page = 0, defaultType = "movie")
   if (!list || !list.length) {
     return tg("sendMessage", {
       chat_id: chatId,
-      text: "❌ Keine Ergebnisse gefunden"
+      text: "❌ Keine Ergebnisse"
     });
   }
 
@@ -511,13 +511,8 @@ function sendResultsList(chatId, heading, list, page = 0, defaultType = "movie")
 
   const nav = [];
 
-  if (page > 0) {
-    nav.push({ text: "⬅️", callback_data: `page_${page - 1}` });
-  }
-
-  if (start + perPage < list.length) {
-    nav.push({ text: "➡️", callback_data: `page_${page + 1}` });
-  }
+  if (page > 0) nav.push({ text: "⬅️", callback_data: `page_${page - 1}` });
+  if (start + perPage < list.length) nav.push({ text: "➡️", callback_data: `page_${page + 1}` });
 
   if (nav.length) buttons.push(nav);
 
@@ -525,7 +520,7 @@ function sendResultsList(chatId, heading, list, page = 0, defaultType = "movie")
 
   return tg("sendMessage", {
     chat_id: chatId,
-    text: `${heading}\n\n📄 Seite ${page + 1}`,
+    text: `🎬 ${heading}\n\n📄 Seite ${page + 1}`,
     reply_markup: { inline_keyboard: buttons }
   });
 }
@@ -708,28 +703,35 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   // ================= CONTINUE =================
   if (data === "continue") {
-    const last = readHistory(chatId)[0];
+  const history = readHistory(chatId);
 
-    if (!last) {
-      return tg("sendMessage", {
-        chat_id: chatId,
-        text: "❌ Kein Verlauf"
-      });
-    }
-
+  if (!history.length) {
     return tg("sendMessage", {
       chat_id: chatId,
-      text: "▶️ Weiter schauen:",
-      reply_markup: {
-        inline_keyboard: [[
-          {
-            text: "🎬 Öffnen",
-            callback_data: `search_${last.id}_${last.type}`
-          }
-        ]]
-      }
+      text: "❌ Kein Verlauf vorhanden"
     });
   }
+
+  const last = history[0];
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: `▶️ Weiter schauen:\n\n🎬 Letzter Titel`,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "▶️ Öffnen",
+            callback_data: `search_${last.id}_${last.type}`
+          }
+        ],
+        [
+          { text: "🏠 Menü", callback_data: "netflix" }
+        ]
+      ]
+    }
+  });
+}
 
   // ================= MENU =================
   if (data === "netflix") {
