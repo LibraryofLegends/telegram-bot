@@ -316,7 +316,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
 
   const genres = (data.genres || [])
     .slice(0, 2)
-    .map(g => `${genreEmoji(g.name)} ${g.name}`)
+    .map(g => g.name)
     .join(" • ");
 
   const cast =
@@ -345,32 +345,28 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
     story += "...";
   }
 
-  const typeLine =
-    extra.type === "tv" && extra.season
-      ? `📺 S${extra.season}E${extra.episode || "01"}\n`
-      : "";
-
   const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
   const LINE_SOFT = "──────────────";
 
-  let text = `${LINE_MAIN}
-🎬 ${title}${year ? ` (${year})` : ""}
-${typeLine}${LINE_SOFT}
-🎞 ${genres || "-"}
-🔥 ${detectQuality(fileName)} • 🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
+  return `${LINE_MAIN}
+🎬 ${title} (${year})
+${LINE_SOFT}
+${genres || "-"}
+${detectQuality(fileName)} • ${detectAudio(fileName)} • ${detectSource(fileName)}
 ${LINE_MAIN}
 ${stars(data.vote_average)}
-⏱ ${runtime} Min • 🔞 FSK ${fsk}
-🎥 ${director}
-👥 ${cast}
+${runtime} Min • FSK ${fsk}
+${director}
+${cast}
 ${LINE_MAIN}
-📖 STORY
+STORY
 ${story}
 ${LINE_MAIN}
 ▶️ #${id}
 ${LINE_SOFT}
 ${tags}
 @LibraryOfLegends`;
+}
 
   // ✅ NUR sauberes Cleanup (kein Layout zerstören!)
   text = text
@@ -777,27 +773,21 @@ async function handleUpload(msg) {
   }
 
   const res = await tg("sendPhoto", {
-    chat_id: CHANNEL_ID,
-    photo: getCover(details),
-    caption,
-    reply_markup: {
-  inline_keyboard: [
-    [
-      { text: "▶️ Stream", url: playerUrl("str", item.display_id) },
-      { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
-    ],
-    [
-      { text: "🔎 Details", callback_data: `item_${item.display_id}` }
-    ],
-    [
-      { text: "🎬 Ähnliche", callback_data: `sim_${item.tmdb_id}_${item.media_type}` }
-    ],
-    [
-      { text: "🎬 Netflix Menü", callback_data: "netflix" }
+  chat_id: CHANNEL_ID,
+  photo: getCover(details),
+  caption: buildCard(details, parsed, fileName, item.display_id),
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "▶️ Stream", url: playerUrl("str", item.display_id) },
+        { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
+      ],
+      [
+        { text: "🔎 Details", callback_data: `item_${item.display_id}` }
+      ]
     ]
-  ]
-}
-  });
+  }
+});
 
   console.log("CHANNEL RESPONSE:", res);
   if (!res?.ok) {
