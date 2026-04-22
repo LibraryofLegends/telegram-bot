@@ -550,44 +550,50 @@ async function sendFileById(chatId, item) {
 
 // ================= START HANDLER =================
 async function handleStart(msg, param) {
+
   if (param === "netflix" || param === "browse" || param === "menu") {
     return showNetflixMenu(msg.chat.id);
   }
 
+  // 🔥 TRENDING
+  if (param === "net_trending") {
+    const list = await getTrending();
+
+    global.LAST_LIST = list;
+    global.LAST_HEADING = "🔥 Trending:";
+
+    return sendResultsList(msg.chat.id, global.LAST_HEADING, list, 0);
+  }
+
+  // 🔥 POPULAR
+  if (param === "net_popular") {
+    const list = await getPopular();
+
+    global.LAST_LIST = list;
+    global.LAST_HEADING = "📈 Popular:";
+
+    return sendResultsList(msg.chat.id, global.LAST_HEADING, list, 0);
+  }
+
+  // 🔥 SIMILAR
   if (param.startsWith("sim_")) {
     const [, id, typeRaw] = param.split("_");
     const type = typeRaw === "tv" ? "tv" : "movie";
 
     const list = await getSimilar(id, type);
-    if (!list.length) {
-      return tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text: "❌ Keine Ergebnisse gefunden"
-      });
-    }
 
-    const buttons = list.map(m => ([
-      {
-        text: `🎬 ${sanitizeTelegramText(m.title || m.name || "Unbekannt")}`,
-        callback_data: `search_${m.id}_${m.media_type || type}`
-      }
-    ]));
-
-    return tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: "🎬 Ähnliche Filme:",
-      reply_markup: { inline_keyboard: buttons }
-    });
+    return sendResultsList(msg.chat.id, "🎬 Ähnliche:", list, 0);
   }
 
+  // 🔥 STREAM / DOWNLOAD
   if (param.startsWith("str_") || param.startsWith("dl_") || param.startsWith("play_")) {
     const id = param.replace(/^(str_|dl_|play_)/, "");
     const item = CACHE.find(x => x.display_id === id);
     return sendFileById(msg.chat.id, item);
   }
 
-  const id = param.replace(/^(str_|dl_|play_)/, "");
-  const item = CACHE.find(x => x.display_id === id);
+  // 🔥 FALLBACK
+  const item = CACHE.find(x => x.display_id === param);
 
   if (!item) {
     return tg("sendMessage", {
@@ -597,24 +603,6 @@ async function handleStart(msg, param) {
   }
 
   return sendFileById(msg.chat.id, item);
-  
-  if (param === "net_trending") {
-  const list = await getTrending();
-
-  global.LAST_LIST = list;
-  global.LAST_HEADING = "🔥 Trending:";
-
-  return sendResultsList(msg.chat.id, global.LAST_HEADING, list, 0);
-}
-
-if (param === "net_popular") {
-  const list = await getPopular();
-
-  global.LAST_LIST = list;
-  global.LAST_HEADING = "📈 Popular:";
-
-  return sendResultsList(msg.chat.id, global.LAST_HEADING, list, 0);
-}
 }
 
 // ================= UPLOAD =================
@@ -757,7 +745,8 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   // 🔥 MENU
   if (data === "netflix") {
-    return showNetflixMenu(chatId);
+  return showNetflixMenu(chatId);
+}
     
     [{ text: "🔥 Trending", callback_data: "net_trending" }],
 [{ text: "📈 Popular", callback_data: "net_popular" }],
@@ -772,23 +761,27 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     // ================= SEARCH =================
     if (msg.text && !msg.text.startsWith("/")) {
-      const results = await searchMultiTMDB(msg.text);
+      const result = await multiSearch(msg.text);
 
-      if (!results.length) {
-        return tg("sendMessage", {
-          chat_id: msg.chat.id,
-          text: "❌ Nichts gefunden"
-        });
+if (!result) {
+  return tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: "❌ Nichts gefunden"
+  });
+}
+
+return tg("sendMessage", {
+  chat_id: msg.chat.id,
+  text: "🎬 Ergebnis gefunden – bitte auswählen",
+  reply_markup: {
+    inline_keyboard: [[
+      {
+        text: `🎬 ${sanitizeTelegramText(result.title || result.name)}`,
+        callback_data: `search_${result.id}_${result.media_type || "movie"}`
       }
-
-      const buttons = results
-        .filter(r => ["movie", "tv"].includes(r.media_type))
-        .map(r => ([
-          {
-            text: `🎬 ${sanitizeTelegramText(r.title || r.name || "Unbekannt")}`,
-            callback_data: `search_${r.id}_${r.media_type}`
-          }
-        ]));
+    ]]
+  }
+});
 
       return tg("sendMessage", {
         chat_id: msg.chat.id,
