@@ -270,7 +270,11 @@ function getFSK(data) {
 function generateTags(data) {
   const tags = new Set();
 
-  const titleWords = (data.title || data.name || "")
+  const rawTitle = data.title || data.name;
+
+if (!rawTitle || rawTitle.length < 2) {
+  rawTitle = cleanTitleAdvanced(fileName) || "UNBEKANNT";
+}
     .replace(/[^\w\s]/gi, "")
     .split(" ")
     .filter(w => w.length > 2)
@@ -311,7 +315,10 @@ function genreEmoji(name) {
 }
 
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
-  const title = toBold((data.title || data.name || "UNBEKANNT").toUpperCase());
+  const rawTitle = data.title || data.name || "UNBEKANNT";
+
+// 👉 CLEAN + SAFE
+  const title = sanitizeTelegramText(rawTitle).toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
   const genres = (data.genres || [])
