@@ -476,12 +476,19 @@ function sendResultsList(chatId, heading, list, defaultType = "movie") {
     });
   }
 
-  const buttons = list.slice(0, 10).map(m => ([
-    {
-      text: `🎬 ${sanitizeTelegramText(m.title || m.name || "Unbekannt")}`,
+  // ✅ HIER IST DEIN EMOJI ARRAY
+  const emojis = ["🥇","🥈","🥉","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"];
+
+  const buttons = list.slice(0, 10).map((m, i) => {
+    const label = sanitizeTelegramText(m.title || m.name || "Unbekannt");
+    const year = (m.release_date || m.first_air_date || "").slice(0, 4);
+
+    return [{
+      // ✅ HIER WIRD ES VERWENDET
+      text: `${emojis[i]} ${label}${year ? ` (${year})` : ""}`,
       callback_data: `search_${m.id}_${m.media_type || defaultType}`
-    }
-  ]));
+    }];
+  });
 
   return tg("sendMessage", {
     chat_id: chatId,
