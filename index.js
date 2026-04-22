@@ -357,8 +357,8 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
 ${LINE_MAIN}
 🎬 ${title} (${year})
 ${typeLine}${LINE_SOFT}
-🎞 ${genres || "-"}
-🔥 ${detectQuality(fileName)} • 🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
+🎞 ${genres ? genres.replace(/\s+/g, " ") : "-"}
+🔥 ${detectQuality(fileName)} • ${detectAudio(fileName)} • ${detectSource(fileName)}
 ${LINE_MAIN}
 ${stars(data.vote_average)}
 ⏱ ${runtime} Min • 🔞 FSK ${fsk}
@@ -374,6 +374,12 @@ ${tags}
 @LibraryOfLegends
 `.trim(), 1024);
 }
+
+text = text
+  .replace(/[ ]{2,}/g, " ")
+  .replace(/\n{3,}/g, "\n\n");
+
+return limitText(text, 1024);
 
 function playerUrl(mode, id) {
   return `https://t.me/${BOT_USERNAME}?start=${mode}_${id}`;
