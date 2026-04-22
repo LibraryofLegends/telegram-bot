@@ -784,7 +784,10 @@ async function handleUpload(msg) {
   try {
     caption = buildCard(
   details,
-  { ...parsed, title: searchTitle },
+  {
+    ...parsed,
+    title: searchTitle // 🔥 DAS IST DER FIX
+  },
   fileName,
   item.display_id
 );
