@@ -283,7 +283,7 @@ function generateTags(data) {
     .slice(0, 2);
 
   if (titleWords.length) {
-    tags.add(`#${titleWords.join("")}`);
+    tags.add(`#${titleWords.join("").replace(/\s/g, "")}`);
   }
 
   (data.genres || []).slice(0, 3).forEach(g => {
@@ -409,8 +409,9 @@ function playerUrl(mode, id) {
 }
 
 // ================= HISTORY =================
-function saveHistory(userId, filmId) {
+function saveHistory(userId, entry) {
   let h = {};
+
   if (fs.existsSync(HISTORY_FILE)) {
     try {
       h = JSON.parse(fs.readFileSync(HISTORY_FILE, "utf8") || "{}");
@@ -420,22 +421,18 @@ function saveHistory(userId, filmId) {
   }
 
   if (!h[userId]) h[userId] = [];
-  h[userId].unshift(filmId);
-  h[userId] = [...new Set(h[userId])].slice(0, 10);
+
+  h[userId] = [
+    entry,
+    ...h[userId].filter(x => x.id !== entry.id)
+  ].slice(0, 10);
 
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(h, null, 2));
 }
 
 function readHistory(userId) {
-  let h = {};
-  if (fs.existsSync(HISTORY_FILE)) {
-    try {
-      h = JSON.parse(fs.readFileSync(HISTORY_FILE, "utf8") || "{}");
-    } catch {
-      h = {};
-    }
-  }
-  return h[userId];
+  if (!fs.existsSync(HISTORY_FILE)) return [];
+  return JSON.parse(fs.readFileSync(HISTORY_FILE, "utf8") || "{}")[userId] || [];
 }
 
 // ================= UI / NETFLIX MODE =================
@@ -738,31 +735,92 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   // 🔥 SEARCH CLICK
   if (data.startsWith("search_")) {
-    const [, id, typeRaw] = data.split("_");
-    const type = typeRaw === "tv" ? "tv" : "movie";
+  const [, id, typeRaw] = data.split("_");
+  const type = typeRaw === "tv" ? "tv" : "movie";
+  
+  // 🔥 ⬇️ HIER EINFÜGEN
 
-    const details = await getDetails(id, type);
+  if (data === "continue") {
 
-    return tg("sendPhoto", {
+    const last = readHistory(chatId)[0];
+
+    if (!last) {
+
+      return tg("sendMessage", {
+
+        chat_id: chatId,
+
+        text: "❌ Kein Verlauf"
+
+      });
+
+    }
+
+    return tg("sendMessage", {
+
       chat_id: chatId,
-      photo: getCover(details),
-      caption: buildCard(details, {}, "", id),
+
+      text: "▶️ Weiter schauen:",
+
       reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "▶️ Stream", url: playerUrl("str", id) },
-            { text: "⬇️ Download", url: playerUrl("dl", id) }
-          ],
-          [
-            { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
-          ],
-          [
-            { text: "🏠 Menü", callback_data: "netflix" }
-          ]
-        ]
+
+        inline_keyboard: [[
+
+          {
+
+            text: "🎬 Öffnen",
+
+            callback_data: `search_${last.id}_${last.type}`
+
+          }
+
+        ]]
+
       }
+
     });
+
   }
+
+  // 🔥 MENU
+
+  if (data === "netflix") {
+
+    return showNetflixMenu(chatId);
+
+  }
+
+}
+
+  const details = await getDetails(id, type);
+  
+  saveHistory(chatId, { id, type });
+
+  return tg("sendPhoto", {
+    chat_id: chatId,
+    photo: getCover(details),
+    caption: buildCard(details, {}, "", id),
+    reply_markup: {
+      inline_keyboard: [
+
+        [
+          { text: "▶️ Stream", url: playerUrl("str", id) },
+          { text: "⬇️ Download", url: playerUrl("dl", id) }
+        ],
+
+        [
+          { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` },
+          { text: "🔥 Trending", callback_data: "net_trending" }
+        ],
+
+        [
+          { text: "🏠 Menü", callback_data: "netflix" }
+        ]
+
+      ]
+    }
+  });
+}
 
   // 🔥 SIMILAR
   if (data.startsWith("sim_")) {
