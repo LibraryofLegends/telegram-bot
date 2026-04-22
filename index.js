@@ -706,7 +706,37 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     callback_query_id: body.callback_query.id
   });
 
-  // 🔥 PAGES
+  // ================= CONTINUE =================
+  if (data === "continue") {
+    const last = readHistory(chatId)[0];
+
+    if (!last) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Kein Verlauf"
+      });
+    }
+
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "▶️ Weiter schauen:",
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: "🎬 Öffnen",
+            callback_data: `search_${last.id}_${last.type}`
+          }
+        ]]
+      }
+    });
+  }
+
+  // ================= MENU =================
+  if (data === "netflix") {
+    return showNetflixMenu(chatId);
+  }
+
+  // ================= PAGE =================
   if (data.startsWith("page_")) {
     const page = parseInt(data.split("_")[1], 10);
 
@@ -718,27 +748,23 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     );
   }
 
-  // 🔥 TRENDING
+  // ================= TRENDING =================
   if (data === "net_trending") {
     const list = await getTrending();
-
     global.LAST_LIST = list;
     global.LAST_HEADING = "🔥 Trending:";
-
     return sendResultsList(chatId, global.LAST_HEADING, list, 0);
   }
 
-  // 🔥 POPULAR
+  // ================= POPULAR =================
   if (data === "net_popular") {
     const list = await getPopular();
-
     global.LAST_LIST = list;
     global.LAST_HEADING = "📈 Popular:";
-
     return sendResultsList(chatId, global.LAST_HEADING, list, 0);
   }
 
-  // 🔥 GENRE
+  // ================= GENRE =================
   if (data.startsWith("genre_")) {
     const genre = data.split("_")[1];
     const list = await getByGenre(genre);
@@ -749,96 +775,113 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     return sendResultsList(chatId, global.LAST_HEADING, list, 0);
   }
 
-  // 🔥 SEARCH CLICK
+  // ================= SEARCH =================
   if (data.startsWith("search_")) {
-  const [, id, typeRaw] = data.split("_");
-  const type = typeRaw === "tv" ? "tv" : "movie";
-  
-  // 🔥 ⬇️ HIER EINFÜGEN
+    const [, id, typeRaw] = data.split("_");
+    const type = typeRaw === "tv" ? "tv" : "movie";
 
-  if (data === "continue") {
-
-    const last = readHistory(chatId)[0];
-
-    if (!last) {
-
+    // 🔥 SERIE → weiter zu Staffel
+    if (type === "tv") {
       return tg("sendMessage", {
-
         chat_id: chatId,
-
-        text: "❌ Kein Verlauf"
-
+        text: "📺 Serie erkannt – Staffel wählen:",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "📺 Öffnen", callback_data: `tv_${id}` }
+          ]]
+        }
       });
-
     }
+
+    const details = await getDetails(id, type);
+
+    saveHistory(chatId, { id, type });
+
+    return tg("sendPhoto", {
+      chat_id: chatId,
+      photo: getCover(details),
+      caption: buildCard(details, {}, "", id),
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "▶️ Stream", url: playerUrl("str", id) },
+            { text: "⬇️ Download", url: playerUrl("dl", id) }
+          ],
+          [
+            { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
+          ],
+          [
+            { text: "🏠 Menü", callback_data: "netflix" }
+          ]
+        ]
+      }
+    });
+  }
+
+  // ================= SERIE START =================
+  if (data.startsWith("tv_")) {
+    const [, id] = data.split("_");
+
+    const seasons = await getSeasons(id);
+
+    const buttons = seasons
+      .filter(s => s.season_number > 0)
+      .map(s => ([
+        {
+          text: `📺 Staffel ${s.season_number}`,
+          callback_data: `season_${id}_${s.season_number}`
+        }
+      ]));
 
     return tg("sendMessage", {
-
       chat_id: chatId,
-
-      text: "▶️ Weiter schauen:",
-
-      reply_markup: {
-
-        inline_keyboard: [[
-
-          {
-
-            text: "🎬 Öffnen",
-
-            callback_data: `search_${last.id}_${last.type}`
-
-          }
-
-        ]]
-
-      }
-
+      text: "📺 Wähle Staffel:",
+      reply_markup: { inline_keyboard: buttons }
     });
-
   }
 
-  // 🔥 MENU
+  // ================= SEASON =================
+  if (data.startsWith("season_")) {
+    const [, id, season] = data.split("_");
 
-  if (data === "netflix") {
+    const episodes = await getEpisodes(id, season);
 
-    return showNetflixMenu(chatId);
+    const buttons = episodes.map(ep => ([
+      {
+        text: `🎬 E${ep.episode_number} • ${sanitizeTelegramText(ep.name)}`,
+        callback_data: `episode_${id}_${season}_${ep.episode_number}`
+      }
+    ]));
 
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: `📺 Staffel ${season}`,
+      reply_markup: { inline_keyboard: buttons }
+    });
   }
 
-}
+  // ================= EPISODE =================
+  if (data.startsWith("episode_")) {
+    const [, id, season, episode] = data.split("_");
 
-  const details = await getDetails(id, type);
-  
-  saveHistory(chatId, { id, type });
-
-  return tg("sendPhoto", {
-    chat_id: chatId,
-    photo: getCover(details),
-    caption: buildCard(details, {}, "", id),
-    reply_markup: {
-      inline_keyboard: [
-
-        [
-          { text: "▶️ Stream", url: playerUrl("str", id) },
-          { text: "⬇️ Download", url: playerUrl("dl", id) }
-        ],
-
-        [
-          { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` },
-          { text: "🔥 Trending", callback_data: "net_trending" }
-        ],
-
-        [
-          { text: "🏠 Menü", callback_data: "netflix" }
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: `🎬 Staffel ${season} • Episode ${episode}`,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "▶️ Stream", url: playerUrl("str", `${id}_${season}_${episode}`) },
+            { text: "⬇️ Download", url: playerUrl("dl", `${id}_${season}_${episode}`) }
+          ],
+          [
+            { text: "⬅️ Zurück", callback_data: `season_${id}_${season}` }
+          ]
         ]
+      }
+    });
+  }
 
-      ]
-    }
-  });
-}
-
-  // 🔥 SIMILAR
+  // ================= SIMILAR =================
   if (data.startsWith("sim_")) {
     const [, id, typeRaw] = data.split("_");
     const type = typeRaw === "tv" ? "tv" : "movie";
@@ -849,11 +892,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     global.LAST_HEADING = "🎬 Ähnliche:";
 
     return sendResultsList(chatId, global.LAST_HEADING, list, 0);
-  }
-
-  // 🔥 MENU
-  if (data === "netflix") {
-    return showNetflixMenu(chatId);
   }
 
   return;
