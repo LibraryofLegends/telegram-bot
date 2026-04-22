@@ -744,13 +744,8 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   }
 
   // 🔥 MENU
-  if (data === "netflix") {
+if (data === "netflix") {
   return showNetflixMenu(chatId);
-}
-    
-    [{ text: "🔥 Trending", callback_data: "net_trending" }],
-[{ text: "📈 Popular", callback_data: "net_popular" }],
-  }
 }
 
     // ================= START PARAM =================
