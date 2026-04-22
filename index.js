@@ -311,7 +311,7 @@ function genreEmoji(name) {
 }
 
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
-  const title = (data.title || data.name || "").toUpperCase();
+  const title = sanitizeTelegramText((data.title || data.name || "").toUpperCase());
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
   const genres = (data.genres || [])
@@ -355,7 +355,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
 
   let text = `
 ${LINE_MAIN}
-🎬 ${sanitizeTelegramText(title)}${year ? ` (${year})` : ""}
+🎬 ${title}${year ? ` (${year})` : ""}
 ${typeLine}${LINE_SOFT}
 🎞 ${genres || "-"}
 🔥 ${detectQuality(fileName)} • 🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
@@ -374,9 +374,10 @@ ${tags}
 @LibraryOfLegends
 `.trim();
 
+  // ✅ NUR sauberes Cleanup (kein Layout zerstören!)
   text = text
-  .replace(/\n{3,}/g, "\n\n")
-  .replace(/[ \t]+\n/g, "\n");
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+\n/g, "\n");
 
   return limitText(text, 1024);
 }
