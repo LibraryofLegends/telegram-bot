@@ -13,6 +13,10 @@ const BOT_USERNAME = process.env.BOT_USERNAME || "LIBRARY_OF_LEGENDS_Bot";
 const DB_FILE = "films.json";
 const HISTORY_FILE = "history.json";
 
+// ================= GLOBAL UI STATE =================
+global.LAST_LIST = null;
+global.LAST_HEADING = "";
+
 // ================= DB =================
 function loadDB() {
   if (!fs.existsSync(DB_FILE)) return [];
@@ -494,31 +498,21 @@ function sendResultsList(chatId, heading, list, page = 0, defaultType = "movie")
     }];
   });
 
-  // 👉 NAVIGATION
+  // 🔥 NAVIGATION
   const nav = [];
 
   if (page > 0) {
-    nav.push({
-      text: "⬅️ Zurück",
-      callback_data: `page_${page - 1}`
-    });
+    nav.push({ text: "⬅️ Zurück", callback_data: `page_${page - 1}` });
   }
 
   if (end < list.length) {
-    nav.push({
-      text: "➡️ Weiter",
-      callback_data: `page_${page + 1}`
-    });
+    nav.push({ text: "➡️ Weiter", callback_data: `page_${page + 1}` });
   }
 
-  if (nav.length) {
-    buttons.push(nav);
-  }
+  if (nav.length) buttons.push(nav);
 
-  // 👉 FOOTER
-  buttons.push([
-    { text: "🏠 Menü", callback_data: "netflix" }
-  ]);
+  // 🔥 MENU BUTTON
+  buttons.push([{ text: "🏠 Menü", callback_data: "netflix" }]);
 
   return tg("sendMessage", {
     chat_id: chatId,
@@ -603,6 +597,24 @@ async function handleStart(msg, param) {
   }
 
   return sendFileById(msg.chat.id, item);
+  
+  if (param === "net_trending") {
+  const list = await getTrending();
+
+  global.LAST_LIST = list;
+  global.LAST_HEADING = "🔥 Trending:";
+
+  return sendResultsList(msg.chat.id, global.LAST_HEADING, list, 0);
+}
+
+if (param === "net_popular") {
+  const list = await getPopular();
+
+  global.LAST_LIST = list;
+  global.LAST_HEADING = "📈 Popular:";
+
+  return sendResultsList(msg.chat.id, global.LAST_HEADING, list, 0);
+}
 }
 
 // ================= UPLOAD =================
@@ -692,104 +704,65 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   try {
     // ================= CALLBACK =================
     if (body.callback_query) {
-      const data = body.callback_query.data;
-      const chatId = body.callback_query.message.chat.id;
+  const data = body.callback_query.data;
+  const chatId = body.callback_query.message.chat.id;
 
-      await tg("answerCallbackQuery", {
-        callback_query_id: body.callback_query.id
+  await tg("answerCallbackQuery", {
+    callback_query_id: body.callback_query.id
+  });
+
+  // 🔥 PAGE SWITCH
+  if (data.startsWith("page_")) {
+    const page = parseInt(data.split("_")[1], 10);
+
+    if (!global.LAST_LIST) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Keine Daten"
       });
-
-      if (data === "netflix") {
-        return showNetflixMenu(chatId);
-      }
-
-      if (data === "net_trending") {
-        const list = await getTrending();
-        return sendResultsList(chatId, "🔥 Trending:", list);
-      }
-
-      if (data === "net_popular") {
-        const list = await getPopular();
-        return sendResultsList(chatId, "📈 Popular:", list);
-      }
-
-      if (data.startsWith("genre_")) {
-        const genre = data.split("_")[1];
-        const list = await getByGenre(genre);
-        return sendResultsList(chatId, "📂 Kategorie:", list);
-      }
-
-      if (data.startsWith("sim_")) {
-        const [, id, typeRaw] = data.split("_");
-        const type = typeRaw === "tv" ? "tv" : "movie";
-
-        const list = await getSimilar(id, type);
-        if (!list.length) {
-          return tg("sendMessage", {
-            chat_id: chatId,
-            text: "❌ Keine Ergebnisse gefunden"
-          });
-        }
-
-        const buttons = list.map(m => ([
-          {
-            text: `🎬 ${sanitizeTelegramText(m.title || m.name || "Unbekannt")}`,
-            callback_data: `search_${m.id}_${m.media_type || type}`
-          }
-        ]));
-
-        return tg("sendMessage", {
-          chat_id: chatId,
-          text: "🎬 Ähnliche Filme:",
-          reply_markup: { inline_keyboard: buttons }
-        });
-      }
-
-      if (data.startsWith("search_")) {
-        const [, id, typeRaw] = data.split("_");
-        const type = typeRaw === "tv" ? "tv" : "movie";
-
-        const details = await getDetails(id, type);
-
-        return tg("sendPhoto", {
-          chat_id: chatId,
-          photo: getCover(details),
-          caption: buildCard(details, {}, "", id),
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: "▶️ Stream", url: playerUrl("str", id) },
-                { text: "⬇️ Download", url: playerUrl("dl", id) }
-              ],
-              [
-                { text: "🎬 Ähnliche", callback_data: `sim_${id}_${type}` }
-              ],
-              [
-                { text: "🎬 Netflix Menü", callback_data: "netflix" }
-              ]
-            ]
-          }
-        });
-      }
-
-      if (data === "continue") {
-        const last = readHistory(chatId)?.[0];
-
-        if (!last) {
-          return tg("sendMessage", {
-            chat_id: chatId,
-            text: "❌ Kein Verlauf"
-          });
-        }
-
-        return handleStart({ chat: { id: chatId } }, `str_${last}`);
-      }
-
-      return;
     }
 
-    if (!msg) return;
-    if (msg.from?.is_bot) return;
+    return sendResultsList(
+      chatId,
+      global.LAST_HEADING,
+      global.LAST_LIST,
+      page
+    );
+  }
+
+  // 🔥 SEARCH CLICK
+  if (data.startsWith("search_")) {
+    const [, id, typeRaw] = data.split("_");
+    const type = typeRaw === "tv" ? "tv" : "movie";
+
+    const details = await getDetails(id, type);
+
+    return tg("sendPhoto", {
+      chat_id: chatId,
+      photo: getCover(details),
+      caption: buildCard(details, {}, "", id),
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "▶️ Stream", url: playerUrl("str", id) },
+            { text: "⬇️ Download", url: playerUrl("dl", id) }
+          ],
+          [
+            { text: "🏠 Menü", callback_data: "netflix" }
+          ]
+        ]
+      }
+    });
+  }
+
+  // 🔥 MENU
+  if (data === "netflix") {
+    return showNetflixMenu(chatId);
+    
+    [{ text: "🔥 Trending", callback_data: "net_trending" }],
+[{ text: "📈 Popular", callback_data: "net_popular" }],
+  }
+}
 
     // ================= START PARAM =================
     if (msg.text?.startsWith("/start ")) {
