@@ -193,6 +193,22 @@ async function getSimilar(id, type = "movie") {
   return data.results?.slice(0, 10) || [];
 }
 
+async function getSeasons(tvId) {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/tv/${tvId}?api_key=${TMDB_KEY}&language=de-DE`
+  );
+  const data = await res.json();
+  return data.seasons || [];
+}
+
+async function getEpisodes(tvId, season) {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/tv/${tvId}/season/${season}?api_key=${TMDB_KEY}&language=de-DE`
+  );
+  const data = await res.json();
+  return data.episodes || [];
+}
+
 // ================= HELPERS =================
 function toBold(text = "") {
   const normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
