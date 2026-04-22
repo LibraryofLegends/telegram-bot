@@ -374,12 +374,13 @@ ${tags}
 @LibraryOfLegends
 `.trim();
 
-// ✅ HIER REIN (WICHTIG!)
-text = text
-  .replace(/[ ]{2,}/g, " ")
-  .replace(/\n{3,}/g, "\n\n");
+  // ✅ FIX LAYOUT
+  text = text
+    .replace(/[ ]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n");
 
-return limitText(text, 1024);
+  return limitText(text, 1024);
+}
 
 function playerUrl(mode, id) {
   return `https://t.me/${BOT_USERNAME}?start=${mode}_${id}`;
