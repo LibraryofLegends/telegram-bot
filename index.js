@@ -320,9 +320,20 @@ function toBold(text = "") {
 }
 
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
-  const titleRaw = (data.title || data.name || "").toUpperCase();
+  const titleRaw = (
+  data.title ||
+  data.name ||
+  extra.title ||
+  "UNBEKANNT"
+).toUpperCase();
   const title = toBold(titleRaw);
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
+  
+  const collection = data.belongs_to_collection?.name || null;
+
+const collectionLine = collection
+  ? `🎞 ${toBold(collection.toUpperCase())}`
+  : "";
 
   const genresArr = (data.genres || []).map(g => g.name);
   const mainGenre = genresArr[0] || "-";
@@ -362,8 +373,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
 
   return `${LINE}
 🎬 ${title} (${year})
-🎞 𝐅𝐀𝐒𝐓 & 𝐅𝐔𝐑𝐈𝐎𝐔𝐒 𝐂𝐎𝐋𝐋𝐄𝐂𝐓𝐈𝐎𝐍
-${LINE}
+${collectionLine ? collectionLine + "\n" : ""}${LINE}
 🔥 ${detectQuality(fileName)} • ${mainGenre}${secondGenre ? " • " + secondGenre : ""}
 🎧 ${detectAudio(fileName)}
 💿 ${detectSource(fileName)}
@@ -772,7 +782,12 @@ async function handleUpload(msg) {
 
   let caption;
   try {
-    caption = buildCard(details, parsed, fileName, item.display_id);
+    caption = buildCard(
+  details,
+  { ...parsed, title: searchTitle },
+  fileName,
+  item.display_id
+);
   } catch (e) {
     console.error("CARD ERROR:", e);
     caption = "❌ Fehler beim Erstellen der Karte";
