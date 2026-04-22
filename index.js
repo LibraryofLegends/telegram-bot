@@ -304,10 +304,9 @@ function genreEmoji(name) {
     Crime: "🕵️",
     Animation: "🎨",
     Family: "👨‍👩‍👧‍👦",
-    Romance: "❤️",
-    Mystery: "🕵️‍♂️",
-    Fantasy: "✨"
+    Romance: "❤️"
   };
+
   return map[name] || "🎬";
 }
 
@@ -492,13 +491,13 @@ async function sendDetails(chatId, id, type, displayId = null) {
   ].filter(row => row.length);
 
   return tg("sendPhoto", {
-    chat_id: chatId,
-    photo: getCover(details),
-    caption: buildCard(details, { type }, "", displayId || id),
-    reply_markup: {
-      inline_keyboard: keyboard
-    }
-  });
+  chat_id: chatId,
+  photo: getCover(details),
+  caption: buildCard(details, { type }, "", id),
+  reply_markup: {
+    inline_keyboard: keyboard
+  }
+});
 }
 
 // ================= START HANDLER =================
