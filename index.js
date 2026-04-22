@@ -748,6 +748,9 @@ if (data === "netflix") {
   return showNetflixMenu(chatId);
 }
 
+// ✅ DIESE KLAMMER FEHLT BEI DIR
+}
+
     // ================= START PARAM =================
     if (msg.text?.startsWith("/start ")) {
       const param = msg.text.split(" ")[1];
