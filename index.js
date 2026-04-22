@@ -311,20 +311,30 @@ function genreEmoji(name) {
 }
 
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
-  const title = toBold((data.title || data.name || "").toUpperCase());
+  const title = toBold((data.title || data.name || "UNBEKANNT").toUpperCase());
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
+
   const genres = (data.genres || [])
     .slice(0, 2)
     .map(g => `${genreEmoji(g.name)} ${g.name}`)
     .join(" • ");
 
-  const cast = data.credits?.cast?.slice(0, 3).map(x => x.name).join(" • ") || "-";
-  const director = data.credits?.crew?.find(x => x.job === "Director")?.name || data.created_by?.[0]?.name || "-";
-  const runtime = data.runtime || (Array.isArray(data.episode_run_time) && data.episode_run_time.length > 0 ? data.episode_run_time[0] : "-");
+  const cast =
+    data.credits?.cast?.slice(0, 3).map(x => x.name).join(" • ") || "-";
+
+  const director =
+    data.credits?.crew?.find(x => x.job === "Director")?.name ||
+    data.created_by?.[0]?.name ||
+    "-";
+
+  const runtime =
+    data.runtime ||
+    (Array.isArray(data.episode_run_time) && data.episode_run_time.length > 0
+      ? data.episode_run_time[0]
+      : "-");
+
   const fsk = getFSK(data);
   const tags = generateTags(data);
-  const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
-  const LINE_SOFT = "──────────────";
 
   let story = data.overview?.trim() || "Keine Beschreibung verfügbar.";
 
@@ -335,12 +345,15 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
     story += "...";
   }
 
-  const typeLine = extra.type === "tv" && extra.season
-    ? `📺 S${extra.season}E${extra.episode || "01"}`
-    : "";
+  const typeLine =
+    extra.type === "tv" && extra.season
+      ? `📺 S${extra.season}E${extra.episode || "01"}`
+      : "";
 
-  let text = `
-${LINE_MAIN}
+  const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
+  const LINE_SOFT = "──────────────";
+
+  let text = `${LINE_MAIN}
 🎬 ${title}${year ? ` (${year})` : ""}
 ${typeLine ? `${typeLine}\n` : ""}${LINE_SOFT}
 🎞 ${genres || "-"}
@@ -352,13 +365,17 @@ ${stars(data.vote_average)}
 👥 ${cast}
 ${LINE_MAIN}
 📖 STORY
-${story || "-"}
+${story}
 ${LINE_MAIN}
 ▶️ #${id}
 ${LINE_SOFT}
 ${tags}
-@LibraryOfLegends
-`.trim();
+@LibraryOfLegends`;
+
+  // ✅ CLEANUP RICHTIG PLATZIERT
+  text = text
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+\n/g, "\n");
 
   return limitText(text, 1024);
 }
