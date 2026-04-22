@@ -336,9 +336,6 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const fsk = getFSK(data);
   const tags = generateTags(data);
 
-  const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
-  const LINE_SOFT = "──────────────";
-
   let story = data.overview?.trim() || "Keine Beschreibung verfügbar.";
 
   if (story.length > 220) {
@@ -353,7 +350,10 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
       ? `📺 S${extra.season}E${extra.episode || "01"}\n`
       : "";
 
-  let text = `
+  const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
+  const LINE_SOFT = "──────────────";
+
+  return limitText(`
 ${LINE_MAIN}
 🎬 ${title} (${year})
 ${typeLine}${LINE_SOFT}
@@ -372,9 +372,7 @@ ${LINE_MAIN}
 ${LINE_SOFT}
 ${tags}
 @LibraryOfLegends
-`.trim();
-
-  return limitText(text, 1024);
+`.trim(), 1024);
 }
 
 function playerUrl(mode, id) {
