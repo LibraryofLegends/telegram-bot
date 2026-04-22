@@ -315,15 +315,12 @@ function genreEmoji(name) {
 }
 
 function buildCard(data, extra = {}, fileName = "", id = "0001") {
-  const rawTitle = data.title || data.name || "UNBEKANNT";
-
-// 👉 CLEAN + SAFE
-  const title = sanitizeTelegramText(rawTitle).toUpperCase();
+  const title = sanitizeTelegramText((data.title || data.name || "UNBEKANNT").toUpperCase());
   const year = (data.release_date || data.first_air_date || "").slice(0, 4);
 
   const genres = (data.genres || [])
     .slice(0, 2)
-    .map(g => `${genreEmoji(g.name)} ${g.name}`)
+    .map(g => g.name)
     .join(" • ");
 
   const cast =
@@ -343,6 +340,19 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const fsk = getFSK(data);
   const tags = generateTags(data);
 
+  // ✅ NEU: QUALITY / AUDIO / SOURCE
+  const quality = detectQuality(fileName);
+  const audio = detectAudio(fileName);
+  const source = detectSource(fileName);
+
+  // ✅ NEU: COLLECTION
+  const collection = data.belongs_to_collection?.name || null;
+
+  const collectionLine = collection
+    ? `🎞 ${collection.toUpperCase()}`
+    : "";
+
+  // STORY
   let story = data.overview?.trim() || "Keine Beschreibung verfügbar.";
 
   if (story.length > 220) {
@@ -352,6 +362,7 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
     story += "...";
   }
 
+  // SERIES LINE
   const typeLine =
     extra.type === "tv" && extra.season
       ? `📺 S${extra.season}E${extra.episode || "01"}`
@@ -362,9 +373,10 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
 
   let text = `${LINE_MAIN}
 🎬 ${title}${year ? ` (${year})` : ""}
-${typeLine ? `${typeLine}\n` : ""}${LINE_SOFT}
-🎞 ${genres || "-"}
-🔥 ${detectQuality(fileName)} • 🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
+${collectionLine ? collectionLine + "\n" : ""}${typeLine ? typeLine + "\n" : ""}${LINE_SOFT}
+🔥 ${quality} • ${genres || "-"}
+🎧 ${audio}
+💿 ${source}
 ${LINE_MAIN}
 ${stars(data.vote_average)}
 ⏱ ${runtime} Min • 🔞 FSK ${fsk}
@@ -379,7 +391,7 @@ ${LINE_SOFT}
 ${tags}
 @LibraryOfLegends`;
 
-  // ✅ CLEANUP RICHTIG PLATZIERT
+  // CLEANUP (WICHTIG)
   text = text
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]+\n/g, "\n");
