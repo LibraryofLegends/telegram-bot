@@ -353,12 +353,12 @@ function buildCard(data, extra = {}, fileName = "", id = "0001") {
   const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
   const LINE_SOFT = "──────────────";
 
-  return limitText(`
+  let text = `
 ${LINE_MAIN}
 🎬 ${title} (${year})
 ${typeLine}${LINE_SOFT}
-🎞 ${genres ? genres.replace(/\s+/g, " ") : "-"}
-🔥 ${detectQuality(fileName)} • ${detectAudio(fileName)} • ${detectSource(fileName)}
+🎞 ${genres || "-"}
+🔥 ${detectQuality(fileName)} • 🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
 ${LINE_MAIN}
 ${stars(data.vote_average)}
 ⏱ ${runtime} Min • 🔞 FSK ${fsk}
@@ -372,9 +372,9 @@ ${LINE_MAIN}
 ${LINE_SOFT}
 ${tags}
 @LibraryOfLegends
-`.trim(), 1024);
-}
+`.trim();
 
+// ✅ HIER REIN (WICHTIG!)
 text = text
   .replace(/[ ]{2,}/g, " ")
   .replace(/\n{3,}/g, "\n\n");
