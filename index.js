@@ -281,7 +281,6 @@ async function sendFileById(chatId,item){
 // ================= UPLOAD =================
 async function handleUpload(msg){
 
-  const chatId = msg.chat.id;
   const file = msg.document || msg.video;
   if(!file) return;
 
@@ -289,15 +288,24 @@ async function handleUpload(msg){
   const parsed = parseFileName(fileName);
   const clean = cleanTitleAdvanced(parsed.title);
 
+  // 🔥 SEARCH
   const result = await searchTMDB(clean);
+
+  // 🔥 DETAILS (DAS HAT DIR GEFehlt)
+  let details = null;
+
+  if(result && result.id){
+    details = await getDetails(
+      result.id,
+      result.media_type === "tv" ? "tv" : "movie"
+    );
+  }
+
   const id = String(Date.now()).slice(-4);
 
-  // ================= SERIES SAVE =================
-  if(parsed.type==="tv"){
-    const key = parsed.title
-      .toLowerCase()
-      .replace(/[^\w\s]/g,"")
-      .replace(/\s+/g,"_");
+  // 🔥 SERIES SAVE
+  if(parsed.type === "tv"){
+    const key = parsed.title.toLowerCase().replace(/\s/g,"_");
 
     if(!SERIES_DB[key]) SERIES_DB[key]={};
     if(!SERIES_DB[key][parsed.season]) SERIES_DB[key][parsed.season]={};
@@ -310,49 +318,45 @@ async function handleUpload(msg){
     saveSeriesDB(SERIES_DB);
   }
 
-  // ================= SAVE NORMAL =================
   const item={
     display_id:id,
     file_id:file.file_id,
-    media_type:result?.media_type || parsed.type
+    media_type:result?.media_type || "movie"
   };
 
   CACHE.unshift(item);
   saveDB(CACHE);
 
   // ================= COVER FIX =================
-let cover = getCover(result || {});
+  let cover = getCover(details || result || {});
 
-// 🔥 Fallback wenn null oder kaputt
-try {
-  if (!cover || cover.includes("null")) {
-    throw new Error("Invalid cover");
+  try{
+    if(!cover || cover.includes("null")) throw new Error();
+    const res = await fetch(cover);
+    if(!res.ok) throw new Error();
+  }catch{
+    cover = "https://dummyimage.com/500x750/000/fff&text=No+Image";
   }
 
-  const res = await fetch(cover);
-
-  if (!res.ok) {
-    throw new Error("Image not reachable");
-  }
-
-} catch {
-  console.log("⚠️ COVER ERROR → FALLBACK USED");
-  cover = "https://dummyimage.com/500x750/000/fff&text=No+Image";
-}
-
-// ================= CHANNEL POST =================
-await tg("sendPhoto", {
-  chat_id: CHANNEL_ID,
-  photo: cover,
-  caption: buildCard(result || {}, fileName, id),
-  reply_markup: {
-    inline_keyboard: [
-      [
-        { text: "▶️ Stream", url: playerUrl("play", id) }
+  // ================= CHANNEL POST =================
+  await tg("sendPhoto",{
+    chat_id:CHANNEL_ID,
+    photo:cover,
+    caption:buildCard(details || result || {}, fileName, id),
+    reply_markup:{
+      inline_keyboard:[
+        [
+          {text:"▶️ Stream",url:playerUrl("play",id)}
+        ]
       ]
-    ]
-  }
-});
+    }
+  });
+
+  return tg("sendMessage",{
+    chat_id:msg.chat.id,
+    text:"✅ Upload verarbeitet"
+  });
+}
 
   // ================= USER FEEDBACK =================
   return tg("sendMessage",{
