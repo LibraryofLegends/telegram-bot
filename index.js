@@ -271,6 +271,8 @@ async function sendFileById(chatId,item){
 
 // ================= UPLOAD =================
 async function handleUpload(msg){
+
+  const chatId = msg.chat.id;
   const file = msg.document || msg.video;
   if(!file) return;
 
@@ -281,8 +283,12 @@ async function handleUpload(msg){
   const result = await searchTMDB(clean);
   const id = String(Date.now()).slice(-4);
 
+  // ================= SERIES SAVE =================
   if(parsed.type==="tv"){
-    const key = parsed.title.toLowerCase().replace(/\s/g,"_");
+    const key = parsed.title
+      .toLowerCase()
+      .replace(/[^\w\s]/g,"")
+      .replace(/\s+/g,"_");
 
     if(!SERIES_DB[key]) SERIES_DB[key]={};
     if(!SERIES_DB[key][parsed.season]) SERIES_DB[key][parsed.season]={};
@@ -295,16 +301,35 @@ async function handleUpload(msg){
     saveSeriesDB(SERIES_DB);
   }
 
+  // ================= SAVE NORMAL =================
   const item={
     display_id:id,
     file_id:file.file_id,
-    media_type:result?.media_type || "movie"
+    media_type:result?.media_type || parsed.type
   };
 
   CACHE.unshift(item);
   saveDB(CACHE);
 
-  return tg("sendMessage",{chat_id:msg.chat.id,text:"✅ Upload verarbeitet"});
+  // ================= 🔥 CHANNEL POST =================
+  await tg("sendPhoto", {
+    chat_id: CHANNEL_ID,
+    photo: getCover(result || {}),
+    caption: buildCard(result || {}, fileName, id),
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "▶️ Stream", url: playerUrl("play", id) }
+        ]
+      ]
+    }
+  });
+
+  // ================= USER FEEDBACK =================
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:"✅ Upload verarbeitet & im Channel gepostet"
+  });
 }
 
 // ================= WEBHOOK =================
