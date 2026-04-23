@@ -14,7 +14,6 @@ const DB_FILE = "films.json";
 const HISTORY_FILE = "history.json";
 const SERIES_DB_FILE = "series.json";
 
-// ================= STATE =================
 const USER_STATE = {};
 
 // ================= DB =================
@@ -59,7 +58,6 @@ function saveHistory(userId, entry) {
   }
 
   if (!h[userId]) h[userId] = [];
-
   h[userId] = [entry, ...h[userId].filter(x => x.id !== entry.id)].slice(0, 15);
 
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(h, null, 2));
@@ -91,195 +89,234 @@ function getCover(data = {}) {
   return "https://via.placeholder.com/500x750?text=No+Image";
 }
 
-// ================= TMDB =================
-async function tmdbFetch(url) {
-  try {
-    const res = await fetch(url);
-    return await res.json();
-  } catch {
-    return null;
+function parseFileName(name = "") {
+  const clean = name.replace(/[._\-]+/g, " ");
+  const match = clean.match(/S(\d{1,2})E(\d{1,2})/i);
+
+  if (match) {
+    return {
+      type: "tv",
+      title: clean.replace(match[0], "").trim(),
+      season: parseInt(match[1]),
+      episode: parseInt(match[2])
+    };
   }
+
+  return { type: "movie", title: clean };
 }
 
-async function searchTMDB(title) {
+function cleanTitleAdvanced(name = "") {
+  return name
+    .replace(/\.(mp4|mkv|avi)$/i, "")
+    .replace(/\b(1080p|720p|2160p|4k)\b/gi, "")
+    .replace(/\b(x264|x265)\b/gi, "")
+    .replace(/\b(bluray|web)\b/gi, "")
+    .replace(/S\d{1,2}E\d{1,2}/gi, "")
+    .replace(/[._\-]+/g, " ")
+    .trim();
+}
+
+function detectQuality(name=""){return /4k|2160/i.test(name)?"4K":/1080/.test(name)?"1080p":/720/.test(name)?"720p":"HD";}
+function detectAudio(name=""){return /deutsch|german/i.test(name)?"Deutsch":"EN";}
+function detectSource(name=""){return /bluray/i.test(name)?"BluRay":/web/i.test(name)?"WEB":"-";}
+
+function buildCard(data, fileName="", id="0001"){
+  const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
+  const year = (data.release_date || data.first_air_date || "").slice(0,4);
+
+  return `🎬 ${title} ${year}
+🔥 ${detectQuality(fileName)}
+🎧 ${detectAudio(fileName)}
+💿 ${detectSource(fileName)}
+
+▶️ #${id}
+@LibraryOfLegends`;
+}
+
+function playerUrl(mode,id){
+  return `https://t.me/${BOT_USERNAME}?start=${mode}_${id}`;
+}
+
+// ================= TMDB =================
+async function tmdbFetch(url){
+  try{
+    const res = await fetch(url);
+    return await res.json();
+  }catch{return null;}
+}
+
+async function searchTMDB(title){
   const data = await tmdbFetch(
-    `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
+    `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}`
   );
   return data?.results?.[0] || null;
 }
 
-async function getDetails(id, type) {
+async function getDetails(id,type){
   return await tmdbFetch(
     `https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_KEY}&language=de-DE`
   );
 }
 
-async function getTrending() {
-  const data = await tmdbFetch(
-    `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_KEY}&language=de-DE`
-  );
-  return data?.results?.slice(0, 10) || [];
+async function getTrending(){
+  const data = await tmdbFetch(`https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_KEY}`);
+  return data?.results?.slice(0,10) || [];
 }
 
-async function getPopular() {
-  const data = await tmdbFetch(
-    `https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_KEY}&language=de-DE`
-  );
-  return data?.results?.slice(0, 10) || [];
+async function getPopular(){
+  const data = await tmdbFetch(`https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_KEY}`);
+  return data?.results?.slice(0,10) || [];
 }
 
-async function getSimilar(id, type) {
-  const data = await tmdbFetch(
-    `https://api.themoviedb.org/3/${type}/${id}/similar?api_key=${TMDB_KEY}`
-  );
-  return data?.results?.slice(0, 10) || [];
+async function getSimilar(id,type){
+  const data = await tmdbFetch(`https://api.themoviedb.org/3/${type}/${id}/similar?api_key=${TMDB_KEY}`);
+  return data?.results?.slice(0,10) || [];
 }
 
 // ================= UI =================
-function showMenu(chatId) {
-  return tg("sendMessage", {
-    chat_id: chatId,
-    text: "🎬 LIBRARY OF LEGENDS",
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "🔥 Trending", callback_data: "net_trending" }],
-        [{ text: "📈 Popular", callback_data: "net_popular" }],
-        [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+function showMenu(chatId){
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:"🎬 LIBRARY OF LEGENDS",
+    reply_markup:{
+      inline_keyboard:[
+        [{text:"🔥 Trending",callback_data:"net_trending"}],
+        [{text:"📈 Popular",callback_data:"net_popular"}],
+        [{text:"▶️ Weiter schauen",callback_data:"continue"}]
       ]
     }
   });
 }
 
-async function sendResultsList(chatId, heading, list, page = 0) {
-  const perPage = 4;
-  const start = page * perPage;
-  const slice = list.slice(start, start + perPage);
+async function sendResultsList(chatId,heading,list){
+  USER_STATE[chatId]={list,heading};
 
-  USER_STATE[chatId] = { list, heading };
-
-  for (const m of slice) {
-    await tg("sendPhoto", {
-      chat_id: chatId,
-      photo: getCover(m),
-      caption: `🎬 ${m.title || m.name}`,
-      reply_markup: {
-        inline_keyboard: [[
-          { text: "▶️ Öffnen", callback_data: `search_${m.id}_${m.media_type}` }
-        ]]
+  for(const m of list.slice(0,4)){
+    await tg("sendPhoto",{
+      chat_id:chatId,
+      photo:getCover(m),
+      caption:`🎬 ${m.title || m.name}`,
+      reply_markup:{
+        inline_keyboard:[
+          [{text:"▶️ Öffnen",callback_data:`search_${m.id}_${m.media_type}`}]
+        ]
       }
     });
   }
 
-  return tg("sendMessage", {
-    chat_id: chatId,
-    text: heading
-  });
+  return tg("sendMessage",{chat_id:chatId,text:heading});
 }
 
 // ================= FILE =================
-async function sendFileById(chatId, item) {
-  if (!item) return;
+async function sendFileById(chatId,item){
+  if(!item) return;
 
-  saveHistory(chatId, { id: item.display_id, type: item.media_type });
+  saveHistory(chatId,{id:item.display_id,type:item.media_type});
 
-  return tg("sendVideo", {
-    chat_id: chatId,
-    video: item.file_id,
-    supports_streaming: true
+  return tg("sendVideo",{
+    chat_id:chatId,
+    video:item.file_id,
+    supports_streaming:true
   });
 }
 
 // ================= UPLOAD =================
-async function handleUpload(msg) {
+async function handleUpload(msg){
+
   const file = msg.document || msg.video;
-  if (!file) return;
+  if(!file) return;
 
-  const title = file.file_name || "Unknown";
+  const fileName = file.file_name || "";
+  const parsed = parseFileName(fileName);
+  const clean = cleanTitleAdvanced(parsed.title);
 
-  const result = await searchTMDB(title);
-
+  const result = await searchTMDB(clean);
   const id = String(Date.now()).slice(-4);
 
-  const item = {
-    display_id: id,
-    file_id: file.file_id,
-    media_type: result?.media_type || "movie"
+  if(parsed.type==="tv"){
+    const key = parsed.title.toLowerCase().replace(/\s/g,"_");
+
+    if(!SERIES_DB[key]) SERIES_DB[key]={};
+    if(!SERIES_DB[key][parsed.season]) SERIES_DB[key][parsed.season]={};
+
+    SERIES_DB[key][parsed.season][parsed.episode]={
+      file_id:file.file_id,
+      display_id:id
+    };
+
+    saveSeriesDB(SERIES_DB);
+  }
+
+  const item={
+    display_id:id,
+    file_id:file.file_id,
+    media_type:result?.media_type || "movie"
   };
 
   CACHE.unshift(item);
   saveDB(CACHE);
 
-  return tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: "✅ Upload verarbeitet"
-  });
+  return tg("sendMessage",{chat_id:msg.chat.id,text:"✅ Upload verarbeitet"});
 }
 
 // ================= WEBHOOK =================
-app.post(`/bot${TOKEN}`, async (req, res) => {
+app.post(`/bot${TOKEN}`, async (req,res)=>{
   res.sendStatus(200);
 
   const body = req.body;
   const msg = body.message;
 
-  try {
+  try{
 
-    // CALLBACK
-    if (body.callback_query) {
+    if(body.callback_query){
       const data = body.callback_query.data;
       const chatId = body.callback_query.message.chat.id;
 
-      if (data === "net_trending") {
-        const list = await getTrending();
-        return sendResultsList(chatId, "🔥 Trending", list);
+      if(data==="net_trending"){
+        return sendResultsList(chatId,"🔥 Trending",await getTrending());
       }
 
-      if (data === "net_popular") {
-        const list = await getPopular();
-        return sendResultsList(chatId, "📈 Popular", list);
+      if(data==="net_popular"){
+        return sendResultsList(chatId,"📈 Popular",await getPopular());
       }
 
-      if (data.startsWith("search_")) {
-        const [, id, type] = data.split("_");
-        const details = await getDetails(id, type);
+      if(data.startsWith("search_")){
+        const [,id,type]=data.split("_");
+        const details = await getDetails(id,type);
 
-        return tg("sendPhoto", {
-          chat_id: chatId,
-          photo: getCover(details),
-          caption: details.title || details.name,
-          reply_markup: {
-            inline_keyboard: [[
-              { text: "▶️ Stream", callback_data: `play_${id}` }
-            ]]
+        return tg("sendPhoto",{
+          chat_id:chatId,
+          photo:getCover(details),
+          caption:buildCard(details,"",id),
+          reply_markup:{
+            inline_keyboard:[
+              [{text:"▶️ Stream",callback_data:`play_${id}`}]
+            ]
           }
         });
       }
 
-      if (data.startsWith("play_")) {
-        const id = data.replace("play_", "");
-        const item = CACHE.find(x => x.display_id === id);
-        return sendFileById(chatId, item);
+      if(data.startsWith("play_")){
+        const id = data.replace("play_","");
+        const item = CACHE.find(x=>x.display_id===id);
+        return sendFileById(chatId,item);
       }
-
-      return;
     }
 
-    // START
-    if (msg.text === "/start") {
+    if(msg?.text==="/start"){
       return showMenu(msg.chat.id);
     }
 
-    // UPLOAD
-    if (msg.document || msg.video) {
+    if(msg?.document || msg?.video){
       return handleUpload(msg);
     }
 
-  } catch (err) {
-    console.error(err);
+  }catch(e){
+    console.error(e);
   }
 });
 
 // ================= START =================
-app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 FULL SYSTEM RESTORED");
+app.listen(process.env.PORT || 3000, ()=>{
+  console.log("🔥 FINAL CLEAN SYSTEM RUNNING");
 });
