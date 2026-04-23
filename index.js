@@ -560,9 +560,9 @@ async function sendResultsList(chatId, heading, list, page = 0, defaultType = "m
     text: `📄 ${heading} • Seite ${page + 1}`,
     reply_markup: {
       inline_keyboard: [
-        nav.length ? nav : [],
-        [{ text: "🏠 Menü", callback_data: "netflix" }]
-      ]
+  ...(nav.length ? [nav] : []),
+  [{ text: "🏠 Menü", callback_data: "netflix" }]
+]
     }
   });
 }
