@@ -198,23 +198,58 @@ function showMenu(chatId){
   });
 }
 
-async function sendResultsList(chatId,heading,list){
-  USER_STATE[chatId]={list,heading};
+async function sendResultsList(chatId, heading, list, page = 0){
 
-  for(const m of list.slice(0,4)){
+  if(!list || !list.length){
+    return tg("sendMessage",{chat_id:chatId,text:"❌ Keine Ergebnisse"});
+  }
+
+  const perPage = 4;
+  const start = page * perPage;
+  const slice = list.slice(start, start + perPage);
+
+  USER_STATE[chatId] = { list, heading };
+
+  // 🔥 Cards senden
+  for(const m of slice){
     await tg("sendPhoto",{
       chat_id:chatId,
       photo:getCover(m),
       caption:`🎬 ${m.title || m.name}`,
       reply_markup:{
         inline_keyboard:[
-          [{text:"▶️ Öffnen",callback_data:`search_${m.id}_${m.media_type}`}]
+          [
+            {text:"▶️ Öffnen",callback_data:`search_${m.id}_${m.media_type}`}
+          ],
+          [
+            {text:"🔥 Ähnliche",callback_data:`sim_${m.id}_${m.media_type}`}
+          ]
         ]
       }
     });
   }
 
-  return tg("sendMessage",{chat_id:chatId,text:heading});
+  // 🔥 Navigation
+  const nav = [];
+
+  if(page > 0){
+    nav.push({text:"⬅️",callback_data:`page_${page-1}`});
+  }
+
+  if(start + perPage < list.length){
+    nav.push({text:"➡️",callback_data:`page_${page+1}`});
+  }
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:`📄 ${heading} • Seite ${page+1}`,
+    reply_markup:{
+      inline_keyboard:[
+        ...(nav.length ? [nav] : []),
+        [{text:"🏠 Menü",callback_data:"menu"}]
+      ]
+    }
+  });
 }
 
 // ================= FILE =================
