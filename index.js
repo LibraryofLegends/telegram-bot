@@ -828,41 +828,28 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     const type = typeRaw === "tv" ? "tv" : "movie";
 
     if (type === "tv") {
-      return tg("sendMessage", {
-        chat_id: chatId,
-        text: "📺 Serie öffnen:",
-        reply_markup: {
-          inline_keyboard: [[
-            { text: "📺 Staffel wählen", callback_data: `tv_${id}` }
-          ]]
-        }
-      });
-    }
 
-    const details = await getDetails(id, type);
+  const details = await getDetails(id, type);
 
-    saveHistory(chatId, { id, type });
+  const seriesKey = (details.name || "")
+    .toLowerCase()
+    .replace(/\s/g, "_");
 
-    return tg("sendPhoto", {
-      chat_id: chatId,
-      photo: getCover(details),
-      caption: buildCard(details, {}, "", id),
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "▶️ Stream", url: playerUrl("str", id) },
-            { text: "⬇️ Download", url: playerUrl("dl", id) }
-          ],
-          [
-            { text: "🔥 Ähnliche", callback_data: `sim_${id}_${type}` }
-          ],
-          [
-            { text: "🏠 Menü", callback_data: "netflix" }
-          ]
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: `📺 ${details.name}`,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "📺 Staffeln öffnen",
+            callback_data: `tv_${seriesKey}`
+          }
         ]
-      }
-    });
-  }
+      ]
+    }
+  });
+}
 
   // ================= SIMILAR =================
   if (data.startsWith("sim_")) {
