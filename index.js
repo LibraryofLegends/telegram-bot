@@ -496,7 +496,7 @@ Wähle deinen Bereich 👇`,
   });
 }
 
-function sendResultsList(chatId, heading, list, page = 0, defaultType = "movie") {
+async function sendResultsList(chatId, heading, list, page = 0, defaultType = "movie") {
 
   if (!list || !list.length) {
     return tg("sendMessage", {
