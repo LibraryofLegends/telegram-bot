@@ -85,9 +85,17 @@ async function tg(method, body) {
 
 // ================= HELPERS =================
 function getCover(data = {}) {
-  if (data.poster_path)
+
+  if (data?.poster_path) {
     return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
-  return "https://via.placeholder.com/500x750?text=No+Image";
+  }
+
+  if (data?.backdrop_path) {
+    return `https://image.tmdb.org/t/p/w500${data.backdrop_path}`;
+  }
+
+  // 🔥 WICHTIG: echtes Bild als Fallback
+  return "https://dummyimage.com/500x750/000/fff&text=No+Image";
 }
 
 function parseFileName(name = "") {
