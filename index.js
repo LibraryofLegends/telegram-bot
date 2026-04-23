@@ -679,20 +679,23 @@ async function handleUpload(msg) {
 
   const nextId = String(lastId + 1).padStart(4, "0");
 
-  // 🔥 SERIES SAVE (nur für TV!)
-  if (parsed.type === "tv") {
-    const seriesKey = parsed.title.toLowerCase().replace(/\s/g, "_");
+  // ================= SERIES SAVE =================
+if (parsed.type === "tv") {
 
-    if (!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
-    if (!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
+  const seriesKey = parsed.title
+    .toLowerCase()
+    .replace(/\s/g, "_");
 
-    SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
-      file_id: file.file_id,
-      display_id: nextId
-    };
+  if (!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
+  if (!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
 
-    saveSeriesDB(SERIES_DB);
-  }
+  SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
+    file_id: file.file_id,
+    display_id: nextId
+  };
+
+  saveSeriesDB(SERIES_DB);
+}
 
   // 🔥 EINZIGES ITEM
   const item = {
@@ -821,13 +824,139 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     const list = await getByGenre(genre);
     return sendResultsList(chatId, "📂 Kategorie:", list, 0);
   }
+  
+  // ================= SERIES =================
+
+// 📺 SERIE → STAFFELN
+if (data.startsWith("tv_")) {
+
+  const [, seriesKey] = data.split("_");
+
+  const seasons = SERIES_DB[seriesKey];
+
+  if (!seasons) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Keine Staffel vorhanden"
+    });
+  }
+
+  const buttons = Object.keys(seasons)
+    .sort((a,b) => a - b)
+    .map(season => ([
+      {
+        text: `📺 Staffel ${season}`,
+        callback_data: `season_${seriesKey}_${season}`
+      }
+    ]));
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: "📺 Staffel auswählen:",
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
+
+// 🎬 STAFFEL → EPISODEN
+if (data.startsWith("season_")) {
+
+  const [, seriesKey, season] = data.split("_");
+
+  const episodes = SERIES_DB?.[seriesKey]?.[season];
+
+  if (!episodes) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Keine Episoden vorhanden"
+    });
+  }
+
+  const buttons = Object.keys(episodes)
+    .sort((a,b) => a - b)
+    .map(ep => ([
+      {
+        text: `🎬 Episode ${ep}`,
+        callback_data: `episode_${seriesKey}_${season}_${ep}`
+      }
+    ]));
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: `📺 Staffel ${season}`,
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
+
+// ▶️ EPISODE → PLAYER UI
+if (data.startsWith("episode_")) {
+
+  const [, seriesKey, season, ep] = data.split("_");
+
+  const item = SERIES_DB?.[seriesKey]?.[season]?.[ep];
+
+  if (!item) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Episode nicht gefunden"
+    });
+  }
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: `🎬 Episode ${ep} • Staffel ${season}`,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: "▶️ Stream",
+            callback_data: `play_${seriesKey}_${season}_${ep}`
+          },
+          {
+            text: "⬇️ Download",
+            callback_data: `dl_${seriesKey}_${season}_${ep}`
+          }
+        ],
+        [
+          {
+            text: "⬅️ Zurück",
+            callback_data: `season_${seriesKey}_${season}`
+          }
+        ]
+      ]
+    }
+  });
+}
+
+
+// ▶️ STREAM / DOWNLOAD
+if (data.startsWith("play_") || data.startsWith("dl_")) {
+
+  const [, seriesKey, season, ep] = data.split("_");
+
+  const item = SERIES_DB?.[seriesKey]?.[season]?.[ep];
+
+  if (!item) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Datei nicht gefunden"
+    });
+  }
+
+  return tg("sendVideo", {
+    chat_id: chatId,
+    video: item.file_id,
+    supports_streaming: true
+  });
+}
 
   // ================= SEARCH =================
   if (data.startsWith("search_")) {
     const [, id, typeRaw] = data.split("_");
     const type = typeRaw === "tv" ? "tv" : "movie";
 
-    if (type === "tv") {
+  if (type === "tv") {
 
   const details = await getDetails(id, type);
 
@@ -842,7 +971,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       inline_keyboard: [
         [
           {
-            text: "📺 Staffeln öffnen",
+            text: "📺 Staffel öffnen",
             callback_data: `tv_${seriesKey}`
           }
         ]
