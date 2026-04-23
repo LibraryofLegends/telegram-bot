@@ -311,19 +311,21 @@ async function handleUpload(msg){
   CACHE.unshift(item);
   saveDB(CACHE);
 
-  // ================= 🔥 CHANNEL POST =================
-  await tg("sendPhoto", {
-    chat_id: CHANNEL_ID,
-    photo: getCover(result || {}),
-    caption: buildCard(result || {}, fileName, id),
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: "▶️ Stream", url: playerUrl("play", id) }
-        ]
+  // ================= 🔥 CHANNEL POST DEBUG =================
+const sendResult = await tg("sendPhoto", {
+  chat_id: CHANNEL_ID,
+  photo: getCover(result || {}),
+  caption: buildCard(result || {}, fileName, id),
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "▶️ Stream", url: playerUrl("play", id) }
       ]
-    }
-  });
+    ]
+  }
+});
+
+console.log("CHANNEL RESULT:", sendResult);
 
   // ================= USER FEEDBACK =================
   return tg("sendMessage",{
