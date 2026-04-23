@@ -547,3 +547,639 @@ async function sendResultsList(chatId, heading, list, page = 0, defaultType = "m
     list,
     heading
   };
+  
+   // ================= SEND CARDS (PARALLEL 🔥)
+  await Promise.all(
+    slice.map(m => {
+      const title = sanitizeTelegramText(m.title || m.name || "Unbekannt");
+      const year = (m.release_date || m.first_air_date || "").slice(0, 4);
+
+      return tg("sendPhoto", {
+        chat_id: chatId,
+        photo: getCover(m),
+        caption: `🎬 ${title}${year ? ` (${year})` : ""}`,
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "▶️ Öffnen",
+                callback_data: `search_${m.id}_${m.media_type || defaultType}`
+              }
+            ],
+            [
+              {
+                text: "🔥 Ähnliche",
+                callback_data: `sim_${m.id}_${m.media_type || defaultType}`
+              }
+            ]
+          ]
+        }
+      });
+    })
+  );
+
+  // ================= NAVIGATION =================
+  const nav = [];
+
+  if (page > 0) {
+    nav.push({ text: "⬅️", callback_data: `page_${page - 1}` });
+  }
+
+  if (start + perPage < list.length) {
+    nav.push({ text: "➡️", callback_data: `page_${page + 1}` });
+  }
+
+  const keyboard = [];
+
+  if (nav.length) {
+    keyboard.push(nav);
+  }
+
+  keyboard.push([{ text: "🏠 Menü", callback_data: "netflix" }]);
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: `📄 ${heading} • Seite ${page + 1}`,
+    reply_markup: {
+      inline_keyboard: keyboard
+    }
+  });
+}
+
+// ================= FILE SEND =================
+async function sendFileById(chatId, item) {
+  if (!item) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Datei nicht gefunden"
+    });
+  }
+
+  saveHistory(chatId, {
+    id: item.display_id,
+    type: item.media_type
+  });
+
+  try {
+    if (item.file_type === "document") {
+      return tg("sendDocument", {
+        chat_id: chatId,
+        document: item.file_id
+      });
+    }
+
+    return tg("sendVideo", {
+      chat_id: chatId,
+      video: item.file_id,
+      supports_streaming: true
+    });
+
+  } catch (err) {
+    console.error("SEND FILE ERROR:", err);
+
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Fehler beim Senden"
+    });
+  }
+}
+
+// ================= START HANDLER =================
+async function handleStart(msg, param) {
+
+  const chatId = msg.chat.id;
+
+  if (param === "netflix" || param === "browse" || param === "menu") {
+    return showNetflixMenu(chatId);
+  }
+
+  // 🔥 TRENDING
+  if (param === "net_trending") {
+    const list = await getTrending();
+    return sendResultsList(chatId, "🔥 Trending:", list, 0);
+  }
+
+  // 🔥 POPULAR
+  if (param === "net_popular") {
+    const list = await getPopular();
+    return sendResultsList(chatId, "📈 Popular:", list, 0);
+  }
+
+  // 🔥 SIMILAR
+  if (param.startsWith("sim_")) {
+    const [, id, typeRaw] = param.split("_");
+    const type = typeRaw === "tv" ? "tv" : "movie";
+
+    const list = await getSimilar(id, type);
+    return sendResultsList(chatId, "🎬 Ähnliche:", list, 0);
+  }
+
+  // 🔥 STREAM / DOWNLOAD
+  if (param.startsWith("str_") || param.startsWith("dl_") || param.startsWith("play_")) {
+    const id = param.replace(/^(str_|dl_|play_)/, "");
+    const item = CACHE.find(x => x.display_id === id);
+    return sendFileById(chatId, item);
+  }
+
+  // 🔥 FALLBACK
+  const item = CACHE.find(x => x.display_id === param);
+
+  if (!item) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Datei nicht gefunden"
+    });
+  }
+
+  return sendFileById(chatId, item);
+}
+
+// ================= UPLOAD =================
+async function handleUpload(msg) {
+
+  const chatId = msg.chat.id;
+  const file = msg.document || msg.video;
+
+  if (!file) return;
+
+  const fileName = file.file_name || msg.caption || "";
+  if (!fileName) return;
+
+  const parsed = parseFileName(fileName);
+  const searchBase = cleanTitleAdvanced(parsed.title || fileName);
+  const searchTitle = smartTitleSplit(searchBase) || searchBase;
+
+  const result = await multiSearch(searchTitle, parsed.type);
+
+  if (!result || !result.id) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: `❌ Kein Match gefunden\n${sanitizeTelegramText(searchTitle)}`
+    });
+  }
+
+  const details = await getDetails(result.id, result.media_type || parsed.type);
+
+  // 🔥 FALLBACK DETAILS
+  if (!details) {
+    console.error("DETAILS ERROR:", result.id);
+  }
+
+  const db = CACHE;
+
+  // 🔥 SAFE ID GENERATION
+  const lastId = db.length
+    ? Math.max(...db.map(x => parseInt(x.display_id || "0", 10) || 0))
+    : 0;
+
+  const nextId = String((lastId || 0) + 1).padStart(4, "0");
+
+  // 🔥 SERIES SAVE (nur TV)
+  if (parsed.type === "tv") {
+    const seriesKey = parsed.title.toLowerCase().replace(/\s/g, "_");
+
+    if (!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
+    if (!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
+
+    SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
+      file_id: file.file_id,
+      display_id: nextId
+    };
+
+    saveSeriesDB(SERIES_DB);
+  }
+
+  const item = {
+    display_id: nextId,
+    file_id: file.file_id,
+    file_type: msg.document ? "document" : "video",
+    tmdb_id: result.id,
+    media_type: result.media_type || parsed.type,
+    title: result.title || result.name
+  };
+
+  db.unshift(item);
+
+  if (db.length > 500) db.length = 500;
+
+  saveDB(db);
+
+  let caption;
+
+  try {
+    caption = buildCard(details, parsed, fileName, item.display_id);
+  } catch (e) {
+    console.error("CARD ERROR:", e);
+    caption = "❌ Fehler beim Erstellen der Karte";
+  }
+
+  await tg("sendPhoto", {
+    chat_id: CHANNEL_ID,
+    photo: getCover(details || {}),
+    caption,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "▶️ Stream", url: playerUrl("str", item.display_id) },
+          { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
+        ],
+        [
+          {
+            text: "🎬 Ähnliche",
+            url: `https://t.me/${BOT_USERNAME}?start=sim_${item.tmdb_id}_${item.media_type}`
+          }
+        ]
+      ]
+    }
+  });
+
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text: "✅ Upload verarbeitet"
+  });
+}
+
+// ================= SERIES SAVE =================
+if (parsed.type === "tv") {
+
+  const safeTitle = (parsed.title || "unknown")
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .replace(/\s+/g, "_");
+
+  const season = parsed.season || 1;
+  const episode = parsed.episode || 1;
+
+  if (!SERIES_DB[safeTitle]) SERIES_DB[safeTitle] = {};
+  if (!SERIES_DB[safeTitle][season]) SERIES_DB[safeTitle][season] = {};
+
+  SERIES_DB[safeTitle][season][episode] = {
+    file_id: file.file_id,
+    display_id: nextId
+  };
+
+  saveSeriesDB(SERIES_DB);
+}
+
+// ================= ITEM =================
+const item = {
+  display_id: nextId,
+  file_id: file.file_id,
+  file_type: msg.document ? "document" : "video",
+  tmdb_id: result.id,
+  media_type: result.media_type || parsed.type,
+  title: result.title || result.name || parsed.title || "Unbekannt"
+};
+
+db.unshift(item);
+if (db.length > 500) db.length = 500;
+
+saveDB(db);
+
+// ================= CARD =================
+let caption;
+
+try {
+  caption = buildCard(details, parsed, fileName, item.display_id);
+} catch (e) {
+  console.error("CARD ERROR:", e);
+  caption = "❌ Fehler beim Erstellen der Karte";
+}
+
+// ================= SEND =================
+await tg("sendPhoto", {
+  chat_id: CHANNEL_ID,
+  photo: getCover(details || {}),
+  caption,
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "▶️ Stream", url: playerUrl("str", item.display_id) },
+        { text: "⬇️ Download", url: playerUrl("dl", item.display_id) }
+      ],
+      [
+        {
+          text: "🎬 Ähnliche",
+          url: `https://t.me/${BOT_USERNAME}?start=sim_${item.tmdb_id}_${item.media_type}`
+        }
+      ]
+    ]
+  }
+});
+
+// ================= FEEDBACK =================
+await tg("sendMessage", {
+  chat_id: msg.chat.id,
+  text: "✅ Upload verarbeitet"
+});
+
+// ================= CALLBACK =================
+if (body.callback_query) {
+  const data = body.callback_query.data;
+  const chatId = body.callback_query.message.chat.id;
+
+  await tg("answerCallbackQuery", {
+    callback_query_id: body.callback_query.id
+  });
+
+  // ================= CONTINUE =================
+  if (data === "continue") {
+    const history = readHistory(chatId);
+
+    if (!history.length) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Kein Verlauf vorhanden"
+      });
+    }
+
+    const last = history[0];
+
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "▶️ Weiter schauen:",
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: "🎬 Öffnen",
+            callback_data: `search_${last.id}_${last.type}`
+          }
+        ]]
+      }
+    });
+  }
+
+  // ================= MENU =================
+  if (data === "netflix") {
+    return showNetflixMenu(chatId);
+  }
+
+  // ================= PAGE =================
+  if (data.startsWith("page_")) {
+    if (!global.LAST_LIST) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Keine Liste geladen"
+      });
+    }
+
+    const page = parseInt(data.split("_")[1], 10);
+
+    return sendResultsList(
+      chatId,
+      global.LAST_HEADING || "Ergebnisse",
+      global.LAST_LIST,
+      page
+    );
+  }
+
+  // ================= TRENDING =================
+  if (data === "net_trending") {
+    const list = await getTrending();
+
+    global.LAST_LIST = list;
+    global.LAST_HEADING = "🔥 Trending:";
+
+    return sendResultsList(chatId, global.LAST_HEADING, list, 0);
+  }
+
+  // ================= POPULAR =================
+  if (data === "net_popular") {
+    const list = await getPopular();
+
+    global.LAST_LIST = list;
+    global.LAST_HEADING = "📈 Popular:";
+
+    return sendResultsList(chatId, global.LAST_HEADING, list, 0);
+  }
+
+  // ================= GENRE =================
+  if (data.startsWith("genre_")) {
+    const genre = data.split("_")[1];
+
+    const list = await getByGenre(genre);
+
+    global.LAST_LIST = list;
+    global.LAST_HEADING = "📂 Kategorie:";
+
+    return sendResultsList(chatId, global.LAST_HEADING, list, 0);
+  }
+
+  // ================= SERIES =================
+
+  // 📺 SERIE → STAFFELN
+  if (data.startsWith("tv_")) {
+    const [, rawKey] = data.split("_");
+
+    const seriesKey = rawKey.toLowerCase();
+
+    const seasons = SERIES_DB[seriesKey];
+
+    if (!seasons) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Keine Staffel vorhanden"
+      });
+    }
+
+    const buttons = Object.keys(seasons)
+      .sort((a, b) => a - b)
+      .map(season => ([
+        {
+          text: `📺 Staffel ${season}`,
+          callback_data: `season_${seriesKey}_${season}`
+        }
+      ]));
+
+    buttons.push([
+      { text: "🏠 Menü", callback_data: "netflix" }
+    ]);
+
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "📺 Staffel auswählen:",
+      reply_markup: { inline_keyboard: buttons }
+    });
+  }
+
+  // 🎬 STAFFEL → EPISODEN
+  if (data.startsWith("season_")) {
+    const [, seriesKey, season] = data.split("_");
+
+    const episodes = SERIES_DB?.[seriesKey]?.[season];
+
+    if (!episodes) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Keine Episoden vorhanden"
+      });
+    }
+
+    const buttons = Object.keys(episodes)
+      .sort((a, b) => a - b)
+      .map(ep => ([
+        {
+          text: `🎬 Episode ${ep}`,
+          callback_data: `episode_${seriesKey}_${season}_${ep}`
+        }
+      ]));
+
+    buttons.push([
+      { text: "⬅️ Zurück", callback_data: `tv_${seriesKey}` },
+      { text: "🏠 Menü", callback_data: "netflix" }
+    ]);
+
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: `📺 Staffel ${season}`,
+      reply_markup: { inline_keyboard: buttons }
+    });
+  }
+
+  // ▶️ EPISODE → PLAYER UI
+  if (data.startsWith("episode_")) {
+    const [, seriesKey, season, ep] = data.split("_");
+
+    const item = SERIES_DB?.[seriesKey]?.[season]?.[ep];
+
+    if (!item) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Episode nicht gefunden"
+      });
+    }
+
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: `🎬 Episode ${ep} • Staffel ${season}`,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "▶️ Stream",
+              callback_data: `play_${seriesKey}_${season}_${ep}`
+            },
+            {
+              text: "⬇️ Download",
+              callback_data: `dl_${seriesKey}_${season}_${ep}`
+            }
+          ],
+          [
+            {
+              text: "⬅️ Zurück",
+              callback_data: `season_${seriesKey}_${season}`
+            },
+            {
+              text: "🏠 Menü",
+              callback_data: "netflix"
+            }
+          ]
+        ]
+      }
+    });
+  }
+
+  // ▶️ STREAM / DOWNLOAD
+  if (data.startsWith("play_") || data.startsWith("dl_")) {
+    const [, seriesKey, season, ep] = data.split("_");
+
+    const item = SERIES_DB?.[seriesKey]?.[season]?.[ep];
+
+    if (!item) {
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Datei nicht gefunden"
+      });
+    }
+
+    return tg("sendVideo", {
+      chat_id: chatId,
+      video: item.file_id,
+      supports_streaming: true
+    });
+  }
+
+  return; // 🔥 VERY IMPORTANT
+}
+
+// ================= SEARCH =================
+if (data.startsWith("search_")) {
+  const [, id, typeRaw] = data.split("_");
+  const type = typeRaw === "tv" ? "tv" : "movie";
+
+  const details = await getDetails(id, type);
+
+  // 📺 TV MODE
+  if (type === "tv") {
+    const seriesKey = (details.name || "")
+      .toLowerCase()
+      .replace(/\s/g, "_");
+
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: `📺 ${details.name}`,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "📺 Staffel öffnen",
+              callback_data: `tv_${seriesKey}`
+            }
+          ],
+          [
+            {
+              text: "🏠 Menü",
+              callback_data: "netflix"
+            }
+          ]
+        ]
+      }
+    });
+  }
+
+  // 🎬 MOVIE MODE (🔥 DAS HAT GEFEHlt)
+  saveHistory(chatId, { id, type });
+
+  return tg("sendPhoto", {
+    chat_id: chatId,
+    photo: getCover(details),
+    caption: buildCard(details, {}, "", id),
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "▶️ Stream", url: playerUrl("str", id) },
+          { text: "⬇️ Download", url: playerUrl("dl", id) }
+        ],
+        [
+          { text: "🔥 Ähnliche", callback_data: `sim_${id}_${type}` }
+        ],
+        [
+          { text: "🏠 Menü", callback_data: "netflix" }
+        ]
+      ]
+    }
+  });
+}
+
+// ================= SIMILAR =================
+if (data.startsWith("sim_")) {
+  const [, id, typeRaw] = data.split("_");
+  const type = typeRaw === "tv" ? "tv" : "movie";
+
+  const list = await getSimilar(id, type);
+
+  global.LAST_LIST = list;
+  global.LAST_HEADING = "🎬 Ähnliche:";
+
+  return sendResultsList(chatId, global.LAST_HEADING, list, 0);
+}
+
+return; // 🔥 WICHTIG!
+
+// ================= START =================
+
+app.listen(process.env.PORT || 3000, () => {
+
+  console.log("🔥 FINAL SYSTEM READY");
+
+})
