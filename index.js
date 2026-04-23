@@ -190,12 +190,17 @@ async function getPopular(){
 function showMenu(chatId){
   return tg("sendMessage",{
     chat_id:chatId,
-    text:"🎬 LIBRARY OF LEGENDS\n\nWähle deinen Bereich 👇",
+    text:`🎬 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
+
+Wähle deinen Bereich 👇`,
     reply_markup:{
       inline_keyboard:[
         [{text:"🔥 Trending",callback_data:"net_trending"}],
         [{text:"📈 Popular",callback_data:"net_popular"}],
-        [{text:"📺 Serien",callback_data:"series_menu"}],
+        [
+          {text:"🎬 Filme",callback_data:"net_popular"},
+          {text:"📺 Serien",callback_data:"series_menu"}
+        ],
         [{text:"▶️ Weiter schauen",callback_data:"continue"}]
       ]
     }
