@@ -416,6 +416,7 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
   try{
 
     if(body.callback_query){
+
   const data = body.callback_query.data;
   const chatId = body.callback_query.message.chat.id;
 
@@ -423,52 +424,9 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
     callback_query_id: body.callback_query.id
   });
 
-  // ================= PAGINATION =================
-  if(data.startsWith("page_")){
-    const page = parseInt(data.split("_")[1]);
-    const state = USER_STATE[chatId];
-    if(!state) return;
-
-    return sendResultsList(chatId, state.heading, state.list, page);
-  }
-
   // ================= MENU =================
   if(data === "menu"){
     return showMenu(chatId);
-  }
-
-  // ================= SERIES MENU =================
-  if(data === "series_menu"){
-    const keys = Object.keys(SERIES_DB);
-
-    if(!keys.length){
-      return tg("sendMessage",{
-        chat_id: chatId,
-        text: "❌ Keine Serien vorhanden"
-      });
-    }
-
-    const buttons = keys.map(key => ([
-      {
-        text: key.replace(/_/g," ").toUpperCase(),
-        callback_data: `tv_${key}`
-      }
-    ]));
-
-    buttons.push([{ text: "🏠 Menü", callback_data: "menu" }]);
-
-    return tg("sendMessage",{
-      chat_id: chatId,
-      text: "📺 Serien auswählen",
-      reply_markup:{ inline_keyboard: buttons }
-    });
-  }
-
-  // ================= SIMILAR =================
-  if(data.startsWith("sim_")){
-    const [,id,type] = data.split("_");
-    const list = await getSimilar(id,type);
-    return sendResultsList(chatId,"🔥 Ähnliche",list,0);
   }
 
   // ================= CONTINUE =================
@@ -496,18 +454,41 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
   }
 
   // ================= TRENDING =================
-  if(data==="net_trending"){
-    return sendResultsList(chatId,"🔥 Trending",await getTrending());
+  if(data === "net_trending"){
+    const list = await getTrending();
+    return sendResultsList(chatId,"🔥 Trending",list,0);
   }
 
   // ================= POPULAR =================
-  if(data==="net_popular"){
-    return sendResultsList(chatId,"📈 Popular",await getPopular());
+  if(data === "net_popular"){
+    const list = await getPopular();
+    return sendResultsList(chatId,"📈 Popular",list,0);
+  }
+
+  // ================= PAGINATION =================
+  if(data.startsWith("page_")){
+    const page = parseInt(data.split("_")[1]);
+    const state = USER_STATE[chatId];
+    if(!state) return;
+
+    return sendResultsList(chatId,state.heading,state.list,page);
+  }
+
+  // ================= SIMILAR =================
+  if(data.startsWith("sim_")){
+    const [,id,type] = data.split("_");
+
+    const res = await tmdbFetch(
+      `https://api.themoviedb.org/3/${type}/${id}/similar?api_key=${TMDB_KEY}`
+    );
+
+    return sendResultsList(chatId,"🔥 Ähnliche",res?.results || [],0);
   }
 
   // ================= SEARCH =================
   if(data.startsWith("search_")){
-    const [,id,type]=data.split("_");
+    const [,id,type] = data.split("_");
+
     const details = await getDetails(id,type);
 
     return tg("sendPhoto",{
@@ -516,21 +497,30 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
       caption:buildCard(details,"",id),
       reply_markup:{
         inline_keyboard:[
-          [{text:"▶️ Stream",callback_data:`play_${id}`}],
-          [{text:"🔥 Ähnliche",callback_data:`sim_${id}_${type}`}],
-          [{text:"🏠 Menü",callback_data:"menu"}]
+          [
+            {text:"▶️ Stream",callback_data:`play_${id}`}
+          ],
+          [
+            {text:"🔥 Ähnliche",callback_data:`sim_${id}_${type}`}
+          ],
+          [
+            {text:"🏠 Menü",callback_data:"menu"}
+          ]
         ]
       }
     });
   }
 
-  // ================= SERIES FLOW =================
+  // ================= SERIES =================
   if(data.startsWith("tv_")){
     const key = data.split("_")[1];
     const seasons = SERIES_DB[key];
 
     if(!seasons){
-      return tg("sendMessage",{chat_id:chatId,text:"❌ Keine Staffel vorhanden"});
+      return tg("sendMessage",{
+        chat_id:chatId,
+        text:"❌ Keine Staffel vorhanden"
+      });
     }
 
     const buttons = Object.keys(seasons)
@@ -552,11 +542,23 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
     const [,key,season] = data.split("_");
     const eps = SERIES_DB[key]?.[season];
 
+    if(!eps){
+      return tg("sendMessage",{
+        chat_id:chatId,
+        text:"❌ Keine Episoden vorhanden"
+      });
+    }
+
     const buttons = Object.keys(eps)
       .sort((a,b)=>a-b)
       .map(ep => ([
         {text:`🎬 Episode ${ep}`,callback_data:`episode_${key}_${season}_${ep}`}
       ]));
+
+    buttons.push([
+      {text:"⬅️ Zurück",callback_data:`tv_${key}`},
+      {text:"🏠 Menü",callback_data:"menu"}
+    ]);
 
     return tg("sendMessage",{
       chat_id:chatId,
@@ -569,13 +571,22 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
     const [,key,season,ep] = data.split("_");
     const item = SERIES_DB[key]?.[season]?.[ep];
 
+    if(!item){
+      return tg("sendMessage",{
+        chat_id:chatId,
+        text:"❌ Episode nicht gefunden"
+      });
+    }
+
     return tg("sendMessage",{
       chat_id:chatId,
       text:`🎬 Episode ${ep}`,
       reply_markup:{
-        inline_keyboard:[[
-          {text:"▶️ Stream",callback_data:`play_${item.display_id}`}
-        ]]
+        inline_keyboard:[
+          [{text:"▶️ Stream",callback_data:`play_${item.display_id}`}],
+          [{text:"⬅️ Zurück",callback_data:`season_${key}_${season}`}],
+          [{text:"🏠 Menü",callback_data:"menu"}]
+        ]
       }
     });
   }
@@ -584,7 +595,7 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
   if(data.startsWith("play_")){
     const id = data.replace("play_","");
     const item = CACHE.find(x=>x.display_id===id);
-    return sendFileById(chatId,item);
+    return sendFile(chatId,id);
   }
 
   return;
