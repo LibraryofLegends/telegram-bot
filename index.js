@@ -320,10 +320,30 @@ async function handleUpload(msg){
   CACHE.unshift(item);
   saveDB(CACHE);
 
-  // ================= 🔥 CHANNEL POST DEBUG =================
-const sendResult = await tg("sendPhoto", {
+  // ================= COVER FIX =================
+let cover = getCover(result || {});
+
+// 🔥 Fallback wenn null oder kaputt
+try {
+  if (!cover || cover.includes("null")) {
+    throw new Error("Invalid cover");
+  }
+
+  const res = await fetch(cover);
+
+  if (!res.ok) {
+    throw new Error("Image not reachable");
+  }
+
+} catch {
+  console.log("⚠️ COVER ERROR → FALLBACK USED");
+  cover = "https://dummyimage.com/500x750/000/fff&text=No+Image";
+}
+
+// ================= CHANNEL POST =================
+await tg("sendPhoto", {
   chat_id: CHANNEL_ID,
-  photo: getCover(result || {}),
+  photo: cover,
   caption: buildCard(result || {}, fileName, id),
   reply_markup: {
     inline_keyboard: [
@@ -333,8 +353,6 @@ const sendResult = await tg("sendPhoto", {
     ]
   }
 });
-
-console.log("CHANNEL RESULT:", sendResult);
 
   // ================= USER FEEDBACK =================
   return tg("sendMessage",{
