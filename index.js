@@ -235,6 +235,13 @@ async function getPopular(){
   return data?.results?.slice(0,10) || [];
 }
 
+async function getByGenre(genreId){
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=${genreId}`
+  );
+  return data?.results?.slice(0,10) || [];
+}
+
 // ================= UI =================
 function showMenu(chatId){
   return tg("sendMessage",{
@@ -246,10 +253,17 @@ Wähle deinen Bereich 👇`,
       inline_keyboard:[
         [{text:"🔥 Trending",callback_data:"net_trending"}],
         [{text:"📈 Popular",callback_data:"net_popular"}],
+
         [
-          {text:"🎬 Filme",callback_data:"net_popular"},
+          {text:"🎬 A–Z",callback_data:"movies_az"},
           {text:"📺 Serien",callback_data:"series_menu"}
         ],
+
+        [
+          {text:"🔥 Action",callback_data:"genre_28"},
+          {text:"😂 Comedy",callback_data:"genre_35"}
+        ],
+
         [{text:"▶️ Weiter schauen",callback_data:"continue"}]
       ]
     }
