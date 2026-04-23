@@ -317,62 +317,191 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
   try{
 
     if(body.callback_query){
-      const data = body.callback_query.data;
-      const chatId = body.callback_query.message.chat.id;
+  const data = body.callback_query.data;
+  const chatId = body.callback_query.message.chat.id;
 
-      if(data==="net_trending"){
-        return sendResultsList(chatId,"🔥 Trending",await getTrending());
-      }
+  await tg("answerCallbackQuery", {
+    callback_query_id: body.callback_query.id
+  });
 
-      if(data==="net_popular"){
-        return sendResultsList(chatId,"📈 Popular",await getPopular());
-      }
+  // ================= PAGINATION =================
+  if(data.startsWith("page_")){
+    const page = parseInt(data.split("_")[1]);
 
-      if(data==="continue"){
-        const h = readHistory(chatId);
-        if(!h.length) return;
-        return tg("sendMessage",{
-          chat_id:chatId,
-          text:"▶️ Weiter schauen",
-          reply_markup:{inline_keyboard:[[{text:"🎬 Öffnen",callback_data:`play_${h[0].id}`}]]}
-        });
-      }
+    const state = USER_STATE[chatId];
+    if(!state) return;
 
-      if(data.startsWith("search_")){
-        const [,id,type]=data.split("_");
-        const details = await getDetails(id,type);
-
-        return tg("sendPhoto",{
-          chat_id:chatId,
-          photo:getCover(details),
-          caption:buildCard(details,"",id),
-          reply_markup:{
-            inline_keyboard:[
-              [{text:"▶️ Stream",callback_data:`play_${id}`}]
-            ]
-          }
-        });
-      }
-
-      if(data.startsWith("play_")){
-        const id = data.replace("play_","");
-        const item = CACHE.find(x=>x.display_id===id);
-        return sendFileById(chatId,item);
-      }
-    }
-
-    if(msg?.text==="/start"){
-      return showMenu(msg.chat.id);
-    }
-
-    if(msg?.document || msg?.video){
-      return handleUpload(msg);
-    }
-
-  }catch(e){
-    console.error(e);
+    return sendResultsList(chatId, state.heading, state.list, page);
   }
-});
+
+  // ================= MENU =================
+  if(data === "menu"){
+    return showMenu(chatId);
+  }
+
+  // ================= SIMILAR =================
+  if(data.startsWith("sim_")){
+    const [,id,type] = data.split("_");
+
+    const list = await getSimilar(id,type);
+
+    return sendResultsList(chatId,"🔥 Ähnliche",list,0);
+  }
+
+  // ================= CONTINUE =================
+  if(data === "continue"){
+    const history = readHistory(chatId);
+
+    if(!history.length){
+      return tg("sendMessage",{
+        chat_id:chatId,
+        text:"❌ Kein Verlauf vorhanden"
+      });
+    }
+
+    const last = history[0];
+
+    return tg("sendMessage",{
+      chat_id:chatId,
+      text:"▶️ Weiter schauen",
+      reply_markup:{
+        inline_keyboard:[[
+          {text:"🎬 Öffnen",callback_data:`play_${last.id}`}
+        ]]
+      }
+    });
+  }
+
+  // ================= TRENDING =================
+  if(data==="net_trending"){
+    return sendResultsList(chatId,"🔥 Trending",await getTrending());
+  }
+
+  // ================= POPULAR =================
+  if(data==="net_popular"){
+    return sendResultsList(chatId,"📈 Popular",await getPopular());
+  }
+
+  // ================= SEARCH =================
+  if(data.startsWith("search_")){
+    const [,id,type]=data.split("_");
+    const details = await getDetails(id,type);
+
+    return tg("sendPhoto",{
+      chat_id:chatId,
+      photo:getCover(details),
+      caption:buildCard(details,"",id),
+      reply_markup:{
+        inline_keyboard:[
+          [
+            {text:"▶️ Stream",callback_data:`play_${id}`}
+          ],
+          [
+            {text:"🔥 Ähnliche",callback_data:`sim_${id}_${type}`}
+          ],
+          [
+            {text:"🏠 Menü",callback_data:"menu"}
+          ]
+        ]
+      }
+    });
+  }
+
+  // ================= SERIES =================
+  if(data.startsWith("tv_")){
+    const key = data.split("_")[1];
+    const seasons = SERIES_DB[key];
+
+    if(!seasons){
+      return tg("sendMessage",{
+        chat_id:chatId,
+        text:"❌ Keine Staffel vorhanden"
+      });
+    }
+
+    const buttons = Object.keys(seasons)
+      .sort((a,b)=>a-b)
+      .map(s => ([
+        {text:`📺 Staffel ${s}`,callback_data:`season_${key}_${s}`}
+      ]));
+
+    buttons.push([{text:"🏠 Menü",callback_data:"menu"}]);
+
+    return tg("sendMessage",{
+      chat_id:chatId,
+      text:"📺 Staffel wählen",
+      reply_markup:{inline_keyboard:buttons}
+    });
+  }
+
+  if(data.startsWith("season_")){
+    const [,key,season] = data.split("_");
+    const eps = SERIES_DB[key]?.[season];
+
+    if(!eps){
+      return tg("sendMessage",{
+        chat_id:chatId,
+        text:"❌ Keine Episoden vorhanden"
+      });
+    }
+
+    const buttons = Object.keys(eps)
+      .sort((a,b)=>a-b)
+      .map(ep => ([
+        {text:`🎬 Episode ${ep}`,callback_data:`episode_${key}_${season}_${ep}`}
+      ]));
+
+    buttons.push([
+      {text:"⬅️ Zurück",callback_data:`tv_${key}`},
+      {text:"🏠 Menü",callback_data:"menu"}
+    ]);
+
+    return tg("sendMessage",{
+      chat_id:chatId,
+      text:`📺 Staffel ${season}`,
+      reply_markup:{inline_keyboard:buttons}
+    });
+  }
+
+  if(data.startsWith("episode_")){
+    const [,key,season,ep] = data.split("_");
+    const item = SERIES_DB[key]?.[season]?.[ep];
+
+    if(!item){
+      return tg("sendMessage",{
+        chat_id:chatId,
+        text:"❌ Episode nicht gefunden"
+      });
+    }
+
+    return tg("sendMessage",{
+      chat_id:chatId,
+      text:`🎬 Episode ${ep}`,
+      reply_markup:{
+        inline_keyboard:[
+          [
+            {text:"▶️ Stream",callback_data:`play_${item.display_id}`}
+          ],
+          [
+            {text:"⬅️ Zurück",callback_data:`season_${key}_${season}`}
+          ],
+          [
+            {text:"🏠 Menü",callback_data:"menu"}
+          ]
+        ]
+      }
+    });
+  }
+
+  // ================= PLAY =================
+  if(data.startsWith("play_")){
+    const id = data.replace("play_","");
+    const item = CACHE.find(x=>x.display_id===id);
+    return sendFileById(chatId,item);
+  }
+
+  return;
+}
 
 // ================= START =================
 app.listen(process.env.PORT || 3000, ()=>{
