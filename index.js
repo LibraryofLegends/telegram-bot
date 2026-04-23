@@ -58,6 +58,7 @@ function saveHistory(userId, entry) {
   }
 
   if (!h[userId]) h[userId] = [];
+
   h[userId] = [entry, ...h[userId].filter(x => x.id !== entry.id)].slice(0, 15);
 
   fs.writeFileSync(HISTORY_FILE, JSON.stringify(h, null, 2));
@@ -116,20 +117,33 @@ function cleanTitleAdvanced(name = "") {
     .trim();
 }
 
-function detectQuality(name=""){return /4k|2160/i.test(name)?"4K":/1080/.test(name)?"1080p":/720/.test(name)?"720p":"HD";}
-function detectAudio(name=""){return /deutsch|german/i.test(name)?"Deutsch":"EN";}
-function detectSource(name=""){return /bluray/i.test(name)?"BluRay":/web/i.test(name)?"WEB":"-";}
+function detectQuality(n=""){return /4k|2160/i.test(n)?"4K":/1080/.test(n)?"1080p":/720/.test(n)?"720p":"HD";}
+function detectAudio(n=""){return /deutsch|german/i.test(n)?"Deutsch":"EN";}
+function detectSource(n=""){return /bluray/i.test(n)?"BluRay":/web/i.test(n)?"WEB":"-";}
 
+// ================= CARD =================
 function buildCard(data, fileName="", id="0001"){
   const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
-  return `🎬 ${title} ${year}
-🔥 ${detectQuality(fileName)}
-🎧 ${detectAudio(fileName)}
-💿 ${detectSource(fileName)}
+  const genres = (data.genres || []).slice(0,2).map(g=>g.name).join(" • ");
+  const story = (data.overview || "Keine Beschreibung").slice(0,200) + "...";
 
+  const LINE = "━━━━━━━━━━━━━━━━━━";
+  const SOFT = "──────────────";
+
+  return `${LINE}
+🎬 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
+${title} ${year ? `(${year})` : ""}
+${SOFT}
+🔥 ${detectQuality(fileName)} • ${genres || "-"}
+🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
+${LINE}
+📖 HANDLUNG
+${story}
+${LINE}
 ▶️ #${id}
+${SOFT}
 @LibraryOfLegends`;
 }
 
@@ -168,20 +182,16 @@ async function getPopular(){
   return data?.results?.slice(0,10) || [];
 }
 
-async function getSimilar(id,type){
-  const data = await tmdbFetch(`https://api.themoviedb.org/3/${type}/${id}/similar?api_key=${TMDB_KEY}`);
-  return data?.results?.slice(0,10) || [];
-}
-
 // ================= UI =================
 function showMenu(chatId){
   return tg("sendMessage",{
     chat_id:chatId,
-    text:"🎬 LIBRARY OF LEGENDS",
+    text:"🎬 LIBRARY OF LEGENDS\n\nWähle deinen Bereich 👇",
     reply_markup:{
       inline_keyboard:[
         [{text:"🔥 Trending",callback_data:"net_trending"}],
         [{text:"📈 Popular",callback_data:"net_popular"}],
+        [{text:"📺 Serien",callback_data:"series_menu"}],
         [{text:"▶️ Weiter schauen",callback_data:"continue"}]
       ]
     }
@@ -222,7 +232,6 @@ async function sendFileById(chatId,item){
 
 // ================= UPLOAD =================
 async function handleUpload(msg){
-
   const file = msg.document || msg.video;
   if(!file) return;
 
@@ -280,6 +289,16 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
         return sendResultsList(chatId,"📈 Popular",await getPopular());
       }
 
+      if(data==="continue"){
+        const h = readHistory(chatId);
+        if(!h.length) return;
+        return tg("sendMessage",{
+          chat_id:chatId,
+          text:"▶️ Weiter schauen",
+          reply_markup:{inline_keyboard:[[{text:"🎬 Öffnen",callback_data:`play_${h[0].id}`}]]}
+        });
+      }
+
       if(data.startsWith("search_")){
         const [,id,type]=data.split("_");
         const details = await getDetails(id,type);
@@ -318,5 +337,5 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
 
 // ================= START =================
 app.listen(process.env.PORT || 3000, ()=>{
-  console.log("🔥 FINAL CLEAN SYSTEM RUNNING");
+  console.log("🔥 FULL FINAL SYSTEM RUNNING");
 });
