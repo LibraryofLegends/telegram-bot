@@ -399,13 +399,6 @@ async function handleUpload(msg){
   });
 }
 
-  // ================= USER FEEDBACK =================
-  return tg("sendMessage",{
-    chat_id:chatId,
-    text:"✅ Upload verarbeitet & im Channel gepostet"
-  });
-}
-
 // ================= WEBHOOK =================
 app.post(`/bot${TOKEN}`, async (req,res)=>{
   res.sendStatus(200);
@@ -428,6 +421,33 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
   if(data === "menu"){
     return showMenu(chatId);
   }
+  
+  if(data === "series_menu"){
+
+  const keys = Object.keys(SERIES_DB);
+
+  if(!keys.length){
+    return tg("sendMessage",{
+      chat_id:chatId,
+      text:"❌ Keine Serien vorhanden"
+    });
+  }
+
+  const buttons = keys.map(k => ([
+    {
+      text: `📺 ${k.replace(/_/g," ")}`,
+      callback_data:`tv_${k}`
+    }
+  ]));
+
+  buttons.push([{text:"🏠 Menü",callback_data:"menu"}]);
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:"📺 Serien auswählen",
+    reply_markup:{inline_keyboard:buttons}
+  });
+}
 
   // ================= CONTINUE =================
   if(data === "continue"){
@@ -595,7 +615,7 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
   if(data.startsWith("play_")){
     const id = data.replace("play_","");
     const item = CACHE.find(x=>x.display_id===id);
-    return sendFile(chatId,id);
+    return sendFileById(chatId,item);
   }
 
   return;
