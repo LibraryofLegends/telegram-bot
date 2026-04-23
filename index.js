@@ -135,21 +135,40 @@ function buildCard(data, fileName="", id="0001"){
   const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
-  const genres = (data.genres || []).slice(0,2).map(g=>g.name).join(" • ");
+  const genres = (data.genres || [])
+    .slice(0,2)
+    .map(g => g.name)
+    .join(" • ");
 
-  const story = (data.overview || "Keine Beschreibung")
-    .slice(0,200)
-    .trim() + "...";
+  const rating = data.vote_average
+    ? `⭐ ${Math.round(data.vote_average / 2)} / 5 (${data.vote_average.toFixed(1)})`
+    : "⭐ -";
+
+  const storyRaw = data.overview || "Keine Beschreibung verfügbar.";
+  let story = storyRaw.trim();
+
+  if (story.length > 220) {
+    story = story.slice(0, 220);
+    const cut = story.lastIndexOf(".");
+    if (cut > 100) story = story.slice(0, cut + 1);
+    story += "...";
+  }
+
+  const quality = detectQuality(fileName);
+  const audio = detectAudio(fileName);
+  const source = detectSource(fileName);
 
   const LINE = "━━━━━━━━━━━━━━━━━━";
   const SOFT = "──────────────";
 
   return `${LINE}
 🎬 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
-${title} ${year ? `(${year})` : ""}
+${title}${year ? ` (${year})` : ""}
 ${SOFT}
-🔥 ${detectQuality(fileName)} • ${genres || "-"}
-🎧 ${detectAudio(fileName)} • 💿 ${detectSource(fileName)}
+🔥 ${quality} • ${genres || "-"}
+🎧 ${audio} • 💿 ${source}
+${LINE}
+${rating}
 ${LINE}
 📖 HANDLUNG
 ${story}
