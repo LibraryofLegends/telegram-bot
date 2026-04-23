@@ -123,11 +123,15 @@ function detectSource(n=""){return /bluray/i.test(n)?"BluRay":/web/i.test(n)?"WE
 
 // ================= CARD =================
 function buildCard(data, fileName="", id="0001"){
+
   const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
   const genres = (data.genres || []).slice(0,2).map(g=>g.name).join(" • ");
-  const story = (data.overview || "Keine Beschreibung").slice(0,200) + "...";
+
+  const story = (data.overview || "Keine Beschreibung")
+    .slice(0,200)
+    .trim() + "...";
 
   const LINE = "━━━━━━━━━━━━━━━━━━";
   const SOFT = "──────────────";
