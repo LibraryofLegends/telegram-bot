@@ -30,3 +30,520 @@ function saveDB(data) {
   CACHE = data;
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
+
+// ================= SERIES DB =================
+const SERIES_DB_FILE = "series.json";
+
+function loadSeriesDB() {
+  if (!fs.existsSync(SERIES_DB_FILE)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(SERIES_DB_FILE, "utf8") || "{}");
+  } catch {
+    return {}; // 🔥 verhindert Crash bei kaputter JSON
+  }
+}
+
+let SERIES_DB = loadSeriesDB();
+
+function saveSeriesDB(data) {
+  SERIES_DB = data;
+  fs.writeFileSync(SERIES_DB_FILE, JSON.stringify(data, null, 2));
+}
+
+// ================= UTF / SAFE =================
+function sanitizeTelegramText(input = "") {
+  try {
+    return String(input)
+      .toWellFormed()
+      .normalize("NFC")
+      .replace(/\u0000/g, "");
+  } catch {
+    return String(input || "").replace(/\u0000/g, "");
+  }
+}
+
+function sanitizeDeep(value) {
+  if (typeof value === "string") return sanitizeTelegramText(value);
+  if (Array.isArray(value)) return value.map(sanitizeDeep);
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = sanitizeDeep(v);
+    return out;
+  }
+  return value;
+}
+
+function limitText(text = "", max = 1024) {
+  const safe = sanitizeTelegramText(text);
+  return safe.length > max ? `${safe.slice(0, max - 3)}...` : safe;
+}
+
+// ================= TELEGRAM =================
+async function tg(method, body) {
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify(sanitizeDeep(body))
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      console.error("TG ERROR:", data);
+    }
+
+    return data || { ok: false };
+
+  } catch (err) {
+    console.error("TG FETCH ERROR:", err);
+    return { ok: false };
+  }
+}
+
+// ================= PARSER =================
+function parseFileName(name = "") {
+
+  const clean = name
+    .replace(/\.(mp4|mkv|avi)$/i, "")
+    .replace(/[._\-]+/g, " ")
+    .trim();
+
+  const match = clean.match(/S(\d{1,2})E(\d{1,2})/i); // 🔥 stabiler
+
+  if (match) {
+    return {
+      type: "tv",
+      title: clean.replace(match[0], "").trim(),
+      season: parseInt(match[1], 10),
+      episode: parseInt(match[2], 10)
+    };
+  }
+
+  return {
+    type: "movie",
+    title: clean
+  };
+}
+
+// 🔥 BESSERER CLEANER (wichtig für TMDB Treffer)
+function cleanTitleAdvanced(name = "") {
+  return name
+    .replace(/\.(mp4|mkv|avi)$/i, "")
+
+    // Qualität
+    .replace(/\b(1080p|720p|2160p|4k|uhd)\b/gi, "")
+
+    // Codecs
+    .replace(/\b(x264|x265|h264|h265)\b/gi, "")
+
+    // Sources
+    .replace(/\b(bluray|web|webdl|webrip|hdrip|brrip)\b/gi, "")
+
+    // Audio
+    .replace(/\b(german|deutsch|dl|dual|ac3|eac3|aac)\b/gi, "")
+
+    // Staffel/Episode entfernen (🔥 wichtig!)
+    .replace(/S\d{1,2}E\d{1,2}/gi, "")
+
+    // Trennzeichen
+    .replace(/[._\-]+/g, " ")
+
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// 🔥 Titel sauber kürzen (bessere Suche)
+function smartTitleSplit(title = "") {
+
+  if (!title) return "";
+
+  // Klassiker: "Film - Extended Cut"
+  if (title.includes(" - ")) {
+    return title.split(" - ")[0].trim();
+  }
+
+  // Entfernt Klammern am Ende
+  return title.replace(/\(.*?\)$/g, "").trim();
+}
+
+// ================= TMDB =================
+
+// 🔥 BASE FETCH (WICHTIG!)
+async function tmdbFetch(url) {
+  try {
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      console.error("TMDB HTTP ERROR:", res.status);
+      return null;
+    }
+
+    return await res.json();
+
+  } catch (err) {
+    console.error("TMDB FETCH ERROR:", err);
+    return null;
+  }
+}
+
+// ================= SEARCH =================
+async function searchTMDB(title, type = "movie") {
+  const urlType = type === "tv" ? "tv" : "movie";
+
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/search/${urlType}?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
+  );
+
+  if (!data?.results?.length) return null;
+
+  return data.results[0];
+}
+
+// 🔥 ULTRA SEARCH (verbessert)
+async function multiSearch(title, preferredType = "movie") {
+
+  const clean = title.trim();
+
+  const variants = [
+    clean,
+    clean.split(" ").slice(0, 3).join(" "),
+    clean.split(" ").slice(0, 2).join(" "),
+    clean.split(" ")[0]
+  ].filter(v => v && v.length >= 2);
+
+  const types = preferredType === "tv"
+    ? ["tv", "movie"]
+    : ["movie", "tv"];
+
+  for (const v of variants) {
+    for (const type of types) {
+      const res = await searchTMDB(v, type);
+      if (res) return res;
+    }
+  }
+
+  return null;
+}
+
+// ================= DETAILS =================
+async function getDetails(id, type = "movie") {
+  const urlType = type === "tv" ? "tv" : "movie";
+
+  return await tmdbFetch(
+    `https://api.themoviedb.org/3/${urlType}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,release_dates&language=de-DE`
+  );
+}
+
+// ================= LISTS =================
+async function getTrending() {
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_KEY}&language=de-DE`
+  );
+
+  if (!data?.results) return [];
+
+  return data.results
+    .filter(x => x.media_type === "movie" || x.media_type === "tv")
+    .slice(0, 10);
+}
+
+async function getPopular() {
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_KEY}&language=de-DE`
+  );
+
+  return data?.results?.slice(0, 10) || [];
+}
+
+async function getByGenre(genreId) {
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=${genreId}&sort_by=popularity.desc&language=de-DE`
+  );
+
+  return data?.results?.slice(0, 10) || [];
+}
+
+// ================= SIMILAR =================
+async function getSimilar(id, type = "movie") {
+  const urlType = type === "tv" ? "tv" : "movie";
+
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/${urlType}/${id}/similar?api_key=${TMDB_KEY}&language=de-DE`
+  );
+
+  return data?.results?.slice(0, 10) || [];
+}
+
+// ================= SERIES =================
+async function getSeasons(tvId) {
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/tv/${tvId}?api_key=${TMDB_KEY}&language=de-DE`
+  );
+
+  return data?.seasons || [];
+}
+
+
+async function getEpisodes(tvId, season) {
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/tv/${tvId}/season/${season}?api_key=${TMDB_KEY}&language=de-DE`
+  );
+
+  return data?.episodes || [];
+}
+
+// ================= HELPERS =================
+
+// 🔥 FAST BOLD MAP
+const BOLD_MAP = (() => {
+  const normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const bold = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟕𝟖𝟗";
+  const map = {};
+  for (let i = 0; i < normal.length; i++) {
+    map[normal[i]] = bold[i];
+  }
+  return map;
+})();
+
+function toBold(text = "") {
+  return sanitizeTelegramText(text)
+    .split("")
+    .map(c => BOLD_MAP[c] || c)
+    .join("");
+}
+
+// ================= COVER =================
+function getCover(data = {}) {
+  if (data?.poster_path) {
+    return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
+  }
+
+  if (data?.backdrop_path) {
+    return `https://image.tmdb.org/t/p/w500${data.backdrop_path}`;
+  }
+
+  return "https://via.placeholder.com/500x750?text=No+Image";
+}
+
+// ================= DETECT =================
+function detectQuality(name = "") {
+  const n = name.toLowerCase();
+  if (/2160|4k/.test(n)) return "4K";
+  if (/1080/.test(n)) return "1080p";
+  if (/720/.test(n)) return "720p";
+  return "HD";
+}
+
+function detectAudio(name = "") {
+  const n = name.toLowerCase();
+  if (/deutsch|german/.test(n) && /eng/.test(n)) return "Deutsch • Englisch";
+  if (/deutsch|german/.test(n)) return "Deutsch";
+  if (/eng/.test(n)) return "Englisch";
+  return "Deutsch • Englisch";
+}
+
+function detectSource(name = "") {
+  const n = name.toLowerCase();
+  if (n.includes("bluray")) return "BluRay";
+  if (n.includes("web")) return "WEB-DL";
+  return "-";
+}
+
+// ================= UI =================
+function stars(r = 0) {
+  const rating = Number(r) || 0;
+  const s = Math.round(rating / 2);
+  return "⭐".repeat(s) + "☆".repeat(5 - s) + ` (${rating.toFixed(1)})`;
+}
+
+// ================= FSK =================
+function getFSK(data = {}) {
+  try {
+    const releases = data?.release_dates?.results || [];
+
+    const findCert = (arr) =>
+      arr?.release_dates?.find(x => x.certification)?.certification;
+
+    const de = releases.find(r => r.iso_3166_1 === "DE");
+    let cert = findCert(de);
+
+    if (!cert) {
+      const us = releases.find(r => r.iso_3166_1 === "US");
+      cert = findCert(us);
+
+      if (cert === "G") cert = "0";
+      if (cert === "PG") cert = "6";
+      if (cert === "PG-13") cert = "12";
+      if (cert === "R") cert = "16";
+      if (cert === "NC-17") cert = "18";
+    }
+
+    return cert || "-";
+  } catch {
+    return "-";
+  }
+}
+
+// ================= TAGS =================
+function generateTags(data = {}) {
+  const tags = new Set();
+
+  const baseTitle = data.title || data.name || "";
+
+  const titleWords = String(baseTitle)
+    .replace(/[^\w\s]/gi, "")
+    .split(" ")
+    .filter(w => w.length > 2)
+    .slice(0, 2);
+
+  if (titleWords.length) {
+    tags.add(`#${titleWords.join("")}`);
+  }
+
+  (data?.genres || []).slice(0, 3).forEach(g => {
+    if (g?.name) tags.add(`#${g.name.replace(/\s/g, "")}`);
+  });
+
+  (data?.credits?.cast || []).slice(0, 2).forEach(actor => {
+    const name = actor?.name?.split(" ")[0];
+    if (name && name.length > 3) tags.add(`#${name}`);
+  });
+
+  return [...tags].slice(0, 6).join(" ");
+}
+
+// ================= CARD =================
+function buildCard(data, extra = {}, fileName = "", id = "0001") {
+
+  // 🔥 ABSOLUTE SAFETY
+  if (!data) {
+    return "❌ Keine Daten verfügbar";
+  }
+
+  const title = toBold((data.title || data.name || "UNBEKANNT").toUpperCase());
+  const year = (data.release_date || data.first_air_date || "").slice(0, 4);
+
+  const genres = (data?.genres || [])
+    .slice(0, 2)
+    .map(g => g.name)
+    .join(" • ");
+
+  const cast =
+    data?.credits?.cast?.slice(0, 3).map(x => x.name).join(" • ") || "-";
+
+  const director =
+    data?.credits?.crew?.find(x => x.job === "Director")?.name ||
+    data?.created_by?.[0]?.name ||
+    "-";
+
+  const runtime =
+    data.runtime ||
+    (Array.isArray(data?.episode_run_time) && data.episode_run_time[0]) ||
+    "-";
+
+  const fsk = getFSK(data);
+  const tags = generateTags(data);
+
+  const quality = detectQuality(fileName);
+  const audio = detectAudio(fileName);
+  const source = detectSource(fileName);
+
+  const collection = data?.belongs_to_collection?.name || null;
+
+  const collectionLine = collection
+    ? `🎞 ${collection.toUpperCase()}`
+    : "";
+
+  let story = data?.overview?.trim() || "Keine Beschreibung verfügbar.";
+
+  if (story.length > 220) {
+    story = story.slice(0, 220);
+    const cut = story.lastIndexOf(".");
+    if (cut > 100) story = story.slice(0, cut + 1);
+    story += "...";
+  }
+
+  const typeLine =
+    extra.type === "tv" && extra.season
+      ? `📺 S${extra.season}E${extra.episode || "01"}`
+      : "";
+
+  const LINE_MAIN = "━━━━━━━━━━━━━━━━━━";
+  const LINE_SOFT = "──────────────";
+
+  let text = `${LINE_MAIN}
+🎬 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
+${title}${year ? ` (${year})` : ""}
+${collectionLine ? collectionLine + "\n" : ""}${typeLine ? typeLine + "\n" : ""}${LINE_SOFT}
+🔥 ${quality} • ${genres || "-"}
+🎧 ${audio} • 💿 ${source}
+${LINE_MAIN}
+${stars(data.vote_average)}
+⏱ ${runtime} Min • 🔞 FSK ${fsk}
+🎥 ${director}
+👥 ${cast}
+${LINE_MAIN}
+📖 HANDLUNG
+${story}
+${LINE_MAIN}
+▶️ #${id}
+${LINE_SOFT}
+${tags}
+@LibraryOfLegends`;
+
+  return limitText(
+    text
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]+\n/g, "\n"),
+    1024
+  );
+}
+
+// ================= UI / NETFLIX MODE =================
+
+function showNetflixMenu(chatId) {
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: `🎬 LIBRARY OF LEGENDS
+
+Wähle deinen Bereich 👇`,
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🔥 Trending", callback_data: "net_trending" }],
+        [{ text: "📈 Popular", callback_data: "net_popular" }],
+        [
+          { text: "🎬 Filme A–Z", callback_data: "movies_az" },
+          { text: "📺 Serien", callback_data: "series_menu" }
+        ],
+        [
+          { text: "🔥 Action", callback_data: "genre_28" },
+          { text: "😂 Comedy", callback_data: "genre_35" }
+        ],
+        [{ text: "▶️ Weiter schauen", callback_data: "continue" }]
+      ]
+    }
+  });
+}
+
+// 🔥 USER STATE (statt global!)
+const USER_STATE = {};
+
+async function sendResultsList(chatId, heading, list, page = 0, defaultType = "movie") {
+
+  if (!list || !list.length) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ Keine Ergebnisse"
+    });
+  }
+
+  const perPage = 4;
+  const start = page * perPage;
+  const slice = list.slice(start, start + perPage);
+
+  // 🔥 PRO USER STATE
+  USER_STATE[chatId] = {
+    list,
+    heading
+  };
