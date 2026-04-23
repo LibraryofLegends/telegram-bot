@@ -513,6 +513,20 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
     const list = await getPopular();
     return sendResultsList(chatId,"📈 Popular",list,0);
   }
+  
+  // ================= GENRE =================
+if(data.startsWith("genre_")){
+  const genre = data.split("_")[1];
+  const list = await getByGenre(genre);
+
+  return sendResultsList(chatId,"📂 Kategorie",list,0);
+}
+
+// ================= A-Z =================
+if(data === "movies_az"){
+  const list = await getPopular();
+  return sendResultsList(chatId,"🔤 A–Z",sortAZ(list),0);
+}
 
   // ================= PAGINATION =================
   if(data.startsWith("page_")){
