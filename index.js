@@ -751,7 +751,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   try {
     // ================= CALLBACK =================
-if (body.callback_query) {
+ if (body.callback_query) {
   const data = body.callback_query.data;
   const chatId = body.callback_query.message.chat.id;
 
