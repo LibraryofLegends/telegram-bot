@@ -500,8 +500,23 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
     return sendFileById(chatId,item);
   }
 
-  return;
+    return;
 }
+
+    // ================= START =================
+    if(msg?.text === "/start"){
+      return showMenu(msg.chat.id);
+    }
+
+    // ================= UPLOAD =================
+    if(msg?.document || msg?.video){
+      return handleUpload(msg);
+    }
+
+  }catch(e){
+    console.error(e);
+  }
+}); // 🔥 DAS HAT BEI DIR GEFEHLT
 
 // ================= START =================
 app.listen(process.env.PORT || 3000, ()=>{
