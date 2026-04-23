@@ -219,26 +219,22 @@ async function sendResultsList(chatId, heading, list, page = 0){
 
   USER_STATE[chatId] = { list, heading };
 
-  // 🔥 Cards senden
   for(const m of slice){
+    const title = m.title || m.name || "Unbekannt";
+
     await tg("sendPhoto",{
       chat_id:chatId,
       photo:getCover(m),
-      caption:`🎬 ${m.title || m.name}`,
+      caption:`🎬 ${title}`,
       reply_markup:{
         inline_keyboard:[
-          [
-            {text:"▶️ Öffnen",callback_data:`search_${m.id}_${m.media_type}`}
-          ],
-          [
-            {text:"🔥 Ähnliche",callback_data:`sim_${m.id}_${m.media_type}`}
-          ]
+          [{text:"▶️ Öffnen",callback_data:`search_${m.id}_${m.media_type}`}],
+          [{text:"🔥 Ähnliche",callback_data:`sim_${m.id}_${m.media_type}`}]
         ]
       }
     });
   }
 
-  // 🔥 Navigation
   const nav = [];
 
   if(page > 0){
