@@ -242,6 +242,21 @@ async function getByGenre(genreId){
   return data?.results?.slice(0,10) || [];
 }
 
+async function getByGenre(genreId){
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=${genreId}`
+  );
+  return data?.results?.slice(0,10) || [];
+}
+
+function sortAZ(list){
+  return list.sort((a,b)=>{
+    const A = (a.title || a.name || "").toLowerCase();
+    const B = (b.title || b.name || "").toLowerCase();
+    return A.localeCompare(B);
+  });
+}
+
 // ================= UI =================
 function showMenu(chatId){
   return tg("sendMessage",{
