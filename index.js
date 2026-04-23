@@ -140,9 +140,23 @@ function buildCard(data, fileName="", id="0001"){
     .map(g => g.name)
     .join(" • ");
 
+  const cast = (data.credits?.cast || [])
+    .slice(0,3)
+    .map(c => c.name)
+    .join(" • ") || "-";
+
   const rating = data.vote_average
     ? `⭐ ${Math.round(data.vote_average / 2)} / 5 (${data.vote_average.toFixed(1)})`
     : "⭐ -";
+
+  // 🔞 FSK
+  let fsk = "-";
+  try{
+    const rel = data.release_dates?.results || [];
+    const de = rel.find(r => r.iso_3166_1 === "DE");
+    const cert = de?.release_dates?.find(x => x.certification)?.certification;
+    if(cert) fsk = cert;
+  }catch{}
 
   const storyRaw = data.overview || "Keine Beschreibung verfügbar.";
   let story = storyRaw.trim();
@@ -158,6 +172,11 @@ function buildCard(data, fileName="", id="0001"){
   const audio = detectAudio(fileName);
   const source = detectSource(fileName);
 
+  const tags = (data.genres || [])
+    .slice(0,3)
+    .map(g => `#${g.name.replace(/\s/g,"")}`)
+    .join(" ");
+
   const LINE = "━━━━━━━━━━━━━━━━━━";
   const SOFT = "──────────────";
 
@@ -169,12 +188,15 @@ ${SOFT}
 🎧 ${audio} • 💿 ${source}
 ${LINE}
 ${rating}
+⛔ FSK ${fsk}
+👥 ${cast}
 ${LINE}
 📖 HANDLUNG
 ${story}
 ${LINE}
 ▶️ #${id}
 ${SOFT}
+${tags}
 @LibraryOfLegends`;
 }
 
@@ -199,7 +221,7 @@ async function searchTMDB(title){
 
 async function getDetails(id,type){
   return await tmdbFetch(
-    `https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_KEY}&language=de-DE`
+    `https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,release_dates&language=de-DE`
   );
 }
 
