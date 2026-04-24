@@ -726,7 +726,8 @@ if(data.startsWith("next_") || data.startsWith("prev_")){
 
   const item = list[newIndex];
 
-  const safeData = details || item || {};
+  const details = await getDetails(item.id, type);
+const safeData = details || item || {};
 
 return tg("sendPhoto",{
   chat_id:chatId,
