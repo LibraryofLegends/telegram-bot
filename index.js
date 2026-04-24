@@ -746,11 +746,11 @@ if(data.startsWith("next_") || data.startsWith("prev_")){
     const details = await getDetails(id,type);
 
     return tg("sendPhoto",{
-      chat_id:chatId,
-      photo:getCover(details),
-      caption:buildCard(details,"",id),
-      reply_markup: buildSwipeNav(id,type)
-        inline_keyboard:[
+  chat_id:chatId,
+  photo:getCover(details),
+  caption:buildCard(details,"",id),
+  reply_markup: buildSwipeNav(id,type)
+});
           [
             {text:"▶️ Stream",callback_data:`play_${id}`}
           ],
