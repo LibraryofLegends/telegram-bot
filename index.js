@@ -242,7 +242,7 @@ async function getByGenre(genreId){
   return data?.results?.slice(0,10) || [];
 }
 
-async function getByGenre(genreId){
+function getByGenre(genreId){
   const data = await tmdbFetch(
     `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=${genreId}`
   );
