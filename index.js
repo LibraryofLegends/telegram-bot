@@ -258,22 +258,15 @@ function showMenu(chatId){
     chat_id:chatId,
     text:`🎬 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
 
-Wähle deinen Bereich 👇`,
+🍿 Netflix Style Navigation`,
     reply_markup:{
       inline_keyboard:[
-        [{text:"🔥 Trending",callback_data:"net_trending"}],
-        [{text:"📈 Popular",callback_data:"net_popular"}],
-
-        [
-          {text:"🎬 Filme",callback_data:"browse_movies"},
-          {text:"📺 Serien",callback_data:"browse_series"}
-        ],
-
-        [
-          {text:"🔥 Action",callback_data:"genre_28"},
-          {text:"😂 Comedy",callback_data:"genre_35"}
-        ],
-
+        [{text:"🔥 Trending",callback_data:"row_trending"}],
+        [{text:"🎬 Beliebt",callback_data:"row_popular"}],
+        [{text:"🔥 Action",callback_data:"genre_28"}],
+        [{text:"😂 Comedy",callback_data:"genre_35"}],
+        [{text:"🔤 A–Z",callback_data:"movies_az"}],
+        [{text:"📺 Serien",callback_data:"browse_series"}],
         [{text:"▶️ Weiter schauen",callback_data:"continue"}]
       ]
     }
