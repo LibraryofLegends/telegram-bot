@@ -98,6 +98,10 @@ function getCover(data = {}) {
   return "https://dummyimage.com/500x750/000/fff&text=No+Image";
 }
 
+function getLocalByGenre(genreId){
+  return CACHE.filter(x => x.genres?.includes(parseInt(genreId)));
+}
+
 function parseFileName(name = "") {
   const clean = name.replace(/[._\-]+/g, " ");
   const match = clean.match(/S(\d{1,2})E(\d{1,2})/i);
