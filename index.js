@@ -745,7 +745,7 @@ if(data.startsWith("next_") || data.startsWith("prev_")){
     return tg("sendPhoto",{
   chat_id:chatId,
   photo:getCover(details),
-  caption:buildCard(details,"",id),
+  caption:buildCard(details || result || {}, "", id)
   reply_markup: buildSwipeNav(id,type)
 });
           [
