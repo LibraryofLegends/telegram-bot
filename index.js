@@ -419,63 +419,42 @@ function buildLocalRows(){
 async function showNetflixHome(chatId){
 
   const trending = await getTrending();
-
   if(!trending.length) return;
 
   const first = trending[0];
 
   const details = await getDetails(
-
     first.id,
-
     first.media_type === "tv" ? "tv" : "movie"
-
   );
 
   const banner = getBanner(details);
 
   // 🎬 BIG NETFLIX HERO
-
   await tg("sendPhoto",{
-
     chat_id:chatId,
-
     photo:banner,
-
     caption: buildNetflixBanner(details),
-
     reply_markup:{
-
       inline_keyboard:[
-
         [
-
           {text:"▶️ Play",callback_data:`play_${first.id}`},
-
           {text:"➕ Merken",callback_data:`fav_${first.id}`}
-
         ],
-
         [
-
           {text:"🔥 Ähnliche",callback_data:`sim_${first.id}_${first.media_type}`}
-
         ]
-
       ]
-
     }
-
   });
 
-  // 🌍 TMDB ROWS
+  // 🔥 Reihen darunter
   const rows = await buildHomeRows();
 
   for(const row of rows){
     await sendResultsList(chatId,row.title,row.data,0);
   }
 
-  // 💾 LOCAL ROWS
   const localRows = buildLocalRows();
 
   for(const row of localRows){
