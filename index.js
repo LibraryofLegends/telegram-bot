@@ -416,19 +416,26 @@ async function handleUpload(msg){
     cover = "https://dummyimage.com/500x750/000/fff&text=No+Image";
   }
 
-  // ================= CHANNEL POST =================
-  await tg("sendPhoto",{
-    chat_id:CHANNEL_ID,
-    photo:cover,
-    caption:buildCard(details || result || {}, fileName, id),
-    reply_markup:{
-      inline_keyboard:[
-        [
-          {text:"▶️ Stream",url:playerUrl("play",id)}
-        ]
+  // 🔥 FALLBACK FIX (WICHTIG)
+if(!details && result){
+  details = result;
+}
+
+const safeData = details || result || {};
+
+// ================= CHANNEL POST =================
+await tg("sendPhoto",{
+  chat_id:CHANNEL_ID,
+  photo:cover,
+  caption:buildCard(safeData, fileName, id),
+  reply_markup:{
+    inline_keyboard:[
+      [
+        {text:"▶️ Stream",url:playerUrl("play",id)}
       ]
-    }
-  });
+    ]
+  }
+});
 
   return tg("sendMessage",{
     chat_id:msg.chat.id,
