@@ -364,6 +364,13 @@ async function handleUpload(msg){
       result.media_type === "tv" ? "tv" : "movie"
     );
   }
+  
+  // 🔥 GENRE SAVE
+let genreIds = [];
+
+if(result?.genre_ids){
+  genreIds = result.genre_ids;
+}
 
   const id = String(Date.now()).slice(-4);
 
