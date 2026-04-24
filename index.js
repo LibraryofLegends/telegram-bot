@@ -85,6 +85,33 @@ async function tg(method, body) {
 
 // ================= HELPERS =================
 
+function buildNetflixBanner(data){
+
+  const title = (data.title || data.name || "").toUpperCase();
+  const rating = data.vote_average
+    ? `⭐ ${data.vote_average.toFixed(1)}`
+    : "";
+
+  const year = (data.release_date || data.first_air_date || "").slice(0,4);
+
+  // 🔥 Trending Badge
+  let badge = "";
+  if(data.popularity > 100){
+    badge = "🔥 TRENDING";
+  }
+
+  // 🔥 Top 10 Fake (optional)
+  if(data.vote_average > 7){
+    badge = "🏆 TOP 10";
+  }
+
+  return `
+${badge ? badge + "\n\n" : ""}🎬 ${title}${year ? ` (${year})` : ""}
+
+${rating}
+`;
+}
+
 const GENRE_MAP = {
   28:"🔥 Action",
   35:"😂 Comedy",
