@@ -550,6 +550,11 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
     callback_query_id: body.callback_query.id
   });
   
+  // ================= HOME =================
+if(data === "home"){
+  return showNetflixHome(chatId);
+}
+  
   // ================= NETFLIX ROWS =================
 if(data === "row_trending"){
   return sendResultsList(chatId,"🔥 Trending",await getTrending(),0);
