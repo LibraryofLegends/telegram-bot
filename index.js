@@ -596,6 +596,14 @@ if(data.startsWith("genre_")){
   return sendResultsList(chatId,"📂 Kategorie",list,0);
 }
 
+// ================= LOCAL GENRE =================
+if(data.startsWith("genre_local_")){
+  const genre = data.split("_")[2];
+  const list = getLocalByGenre(genre);
+
+  return sendResultsList(chatId,"📂 Deine Filme",list,0);
+}
+
 // ================= A-Z =================
 if(data === "movies_az"){
   const list = await getPopular();
