@@ -460,6 +460,42 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
   await tg("answerCallbackQuery", {
     callback_query_id: body.callback_query.id
   });
+  
+  // ================= QUICK NAV =================
+if(data === "home"){
+  return showMenu(chatId);
+}
+
+if(data === "browse_movies"){
+  const list = await getPopular();
+  return sendResultsList(chatId,"🎬 Filme",list,0);
+}
+
+if(data === "browse_series"){
+  const keys = Object.keys(SERIES_DB);
+
+  if(!keys.length){
+    return tg("sendMessage",{
+      chat_id:chatId,
+      text:"❌ Keine Serien vorhanden"
+    });
+  }
+
+  const buttons = keys.map(k => ([
+    {
+      text:`📺 ${k.replace(/_/g," ")}`,
+      callback_data:`tv_${k}`
+    }
+  ]));
+
+  buttons.push([{text:"🏠 Menü",callback_data:"menu"}]);
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:"📺 Serien",
+    reply_markup:{inline_keyboard:buttons}
+  });
+}
 
   // ================= MENU =================
   if(data === "menu"){
