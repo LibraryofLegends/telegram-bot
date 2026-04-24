@@ -145,6 +145,7 @@ function getCover(data = {}) {
 }
 
 function getBanner(data = {}) {
+
   if(data?.backdrop_path){
     return `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
   }
