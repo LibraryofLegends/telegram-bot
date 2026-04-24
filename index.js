@@ -368,6 +368,10 @@ async function handleUpload(msg){
 
   // 🔥 SEARCH
   let result = await searchTMDB(clean);
+  
+  if(!result){
+  console.log("❌ TMDB NO MATCH:", clean);
+}
 
   // 🔥 fallback search (massiv wichtig)
   if(!result){
