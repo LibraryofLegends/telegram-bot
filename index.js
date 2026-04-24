@@ -85,6 +85,26 @@ async function tg(method, body) {
 
 // ================= HELPERS =================
 
+const GENRE_MAP = {
+  28:"🔥 Action",
+  35:"😂 Comedy",
+  27:"👻 Horror",
+  18:"🎭 Drama",
+  878:"🚀 Sci-Fi",
+  53:"🔪 Thriller"
+};
+
+function getAvailableGenres(){
+
+  const found = new Set();
+
+  for(const item of CACHE){
+    (item.genres || []).forEach(g => found.add(g));
+  }
+
+  return Array.from(found);
+}
+
 function getCover(data = {}) {
   if (data?.poster_path) {
     return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
