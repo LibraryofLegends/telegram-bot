@@ -565,9 +565,6 @@ if(data === "row_popular"){
 }
   
   // ================= QUICK NAV =================
-if(data === "home"){
-  return showMenu(chatId);
-}
 
 if(data === "browse_movies"){
   const list = await getPopular();
