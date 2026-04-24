@@ -85,6 +85,25 @@ async function tg(method, body) {
 
 // ================= HELPERS =================
 
+function getNetflixBannerWithBadges(data){
+
+  const title = encodeURIComponent((data.title || data.name || "").toUpperCase());
+
+  const rating = data.vote_average || 0;
+  const votes = data.vote_count || 0;
+  const popularity = data.popularity || 0;
+
+  let badges = [];
+
+  if(popularity > 100) badges.push("🔥 TRENDING");
+  if(rating > 8) badges.push("👑 TOP RATED");
+  if(votes > 1000) badges.push("🔥 BELIEBT");
+
+  const badgeText = encodeURIComponent(badges.join(" • "));
+
+  return `https://dummyimage.com/1280x720/000/fff&text=${badgeText}%0A%0A${title}`;
+}
+
 function buildNetflixBanner(data){
 
   const title = (data.title || data.name || "").toUpperCase();
@@ -426,7 +445,7 @@ async function showNetflixHome(chatId){
     first.media_type === "tv" ? "tv" : "movie"
   );
 
-  const banner = getBanner(details);
+  const banner = getNetflixBannerWithBadges(details);
 
   // 🎬 BIG NETFLIX HERO
   await tg("sendPhoto",{
@@ -871,7 +890,7 @@ if(data.startsWith("next_") || data.startsWith("prev_")){
 
   return tg("sendPhoto",{
   chat_id:chatId,
-  photo:getBanner(safeData),
+  photo:getNetflixBannerWithBadges(safeData),
   caption: buildNetflixBanner(safeData),
   reply_markup: buildSwipeNav(id,type)
 });
