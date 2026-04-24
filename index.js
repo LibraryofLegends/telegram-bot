@@ -740,12 +740,12 @@ if(data.startsWith("next_") || data.startsWith("prev_")){
   if(data.startsWith("search_")){
     const [,id,type] = data.split("_");
 
-    const details = await getDetails(id,type);
+    const safeData = details || {};
 
-    return tg("sendPhoto",{
+return tg("sendPhoto",{
   chat_id:chatId,
-  photo:getCover(details),
-  caption:buildCard(details || result || {}, "", id)
+  photo:getCover(safeData),
+  caption:buildCard(safeData, "", id),
   reply_markup: buildSwipeNav(id,type)
 });
           [
