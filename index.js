@@ -85,6 +85,19 @@ async function tg(method, body) {
 
 // ================= HELPERS =================
 function getCover(data = {}) {
+  
+  function getBanner(data = {}){
+
+  if(data?.backdrop_path){
+    return `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
+  }
+
+  if(data?.poster_path){
+    return `https://image.tmdb.org/t/p/w780${data.poster_path}`;
+  }
+
+  return "https://dummyimage.com/1280x720/000/fff&text=Library+of+Legends";
+}
 
   if (data?.poster_path) {
     return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
@@ -129,19 +142,6 @@ function cleanTitleAdvanced(name = "") {
     .replace(/[._\-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function getBanner(data = {}){
-
-  if(data?.backdrop_path){
-    return `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
-  }
-
-  if(data?.poster_path){
-    return `https://image.tmdb.org/t/p/w780${data.poster_path}`;
-  }
-
-  return "https://dummyimage.com/1280x720/000/fff&text=Library+of+Legends";
 }
 
 function detectQuality(n=""){return /4k|2160/i.test(n)?"4K":/1080/.test(n)?"1080p":/720/.test(n)?"720p":"HD";}
