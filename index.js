@@ -84,23 +84,20 @@ async function tg(method, body) {
 }
 
 // ================= HELPERS =================
+
 function getCover(data = {}) {
-  
-  function getBanner(data = {}){
-    
-    function buildStyledCover(title){
-  return `https://dummyimage.com/500x750/000/fff&text=${encodeURIComponent(title)}`;
-}
-
-function getTargetChannel(genres=[]){
-
-  for(const g of genres){
-    if(CHANNELS[g]) return CHANNELS[g];
+  if (data?.poster_path) {
+    return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
   }
 
-  return CHANNELS.default;
+  if (data?.backdrop_path) {
+    return `https://image.tmdb.org/t/p/w500${data.backdrop_path}`;
+  }
+
+  return "https://dummyimage.com/500x750/000/fff&text=No+Image";
 }
 
+function getBanner(data = {}) {
   if(data?.backdrop_path){
     return `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
   }
@@ -112,13 +109,27 @@ function getTargetChannel(genres=[]){
   return "https://dummyimage.com/1280x720/000/fff&text=Library+of+Legends";
 }
 
-  if (data?.poster_path) {
-    return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
-  }
+function buildStyledCover(title){
+  return `https://dummyimage.com/500x750/000/fff&text=${encodeURIComponent(title)}`;
+}
 
-  if (data?.backdrop_path) {
-    return `https://image.tmdb.org/t/p/w500${data.backdrop_path}`;
+const CHANNELS = {
+  default: CHANNEL_ID,
+  28: process.env.CHANNEL_ACTION,
+  27: process.env.CHANNEL_HORROR,
+  35: process.env.CHANNEL_COMEDY
+};
+
+function getTargetChannel(genres=[]){
+  for(const g of genres){
+    if(CHANNELS[g]) return CHANNELS[g];
   }
+  return CHANNELS.default;
+}
+
+function getLocalByGenre(genreId){
+  return CACHE.filter(x => x.genres?.includes(parseInt(genreId)));
+}
 
   // 🔥 WICHTIG: echtes Bild als Fallback
   return "https://dummyimage.com/500x750/000/fff&text=No+Image";
