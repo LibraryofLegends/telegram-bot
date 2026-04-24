@@ -370,19 +370,24 @@ function sortAZ(list){
 // ================= NETFLIX SYSTEM =================
 
 function buildLocalRows(){
-  return [
-    {title:"🔥 Deine Action Filme", data:getLocalByGenre(28)},
-    {title:"😂 Deine Comedy Filme", data:getLocalByGenre(35)}
-  ];
-}
 
-async function buildHomeRows(){
-  return [
-    {title:"🔥 Trending", data:await getTrending()},
-    {title:"🎬 Beliebt", data:await getPopular()},
-    {title:"🔥 Action", data:await getByGenre(28)},
-    {title:"😂 Comedy", data:await getByGenre(35)}
-  ];
+  const genres = getAvailableGenres();
+
+  const rows = [];
+
+  for(const genreId of genres){
+
+    const list = CACHE.filter(x => x.genres?.includes(genreId));
+
+    if(list.length < 2) continue;
+
+    rows.push({
+      title: GENRE_MAP[genreId] || `🎬 Genre ${genreId}`,
+      data: list
+    });
+  }
+
+  return rows;
 }
 
 async function showNetflixHome(chatId){
