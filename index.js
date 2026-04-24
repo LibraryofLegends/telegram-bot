@@ -215,10 +215,26 @@ async function tmdbFetch(url){
 }
 
 async function searchTMDB(title){
-  const data = await tmdbFetch(
-    `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}`
-  );
-  return data?.results?.[0] || null;
+
+  const variants = [
+    title,
+    title.split(" ").slice(0,3).join(" "),
+    title.split(" ").slice(0,2).join(" "),
+    title.split(" ")[0]
+  ].filter(x => x && x.length > 2);
+
+  for(const q of variants){
+
+    const data = await tmdbFetch(
+      `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=de-DE`
+    );
+
+    if(data?.results?.length){
+      return data.results[0];
+    }
+  }
+
+  return null;
 }
 
 async function getDetails(id,type){
