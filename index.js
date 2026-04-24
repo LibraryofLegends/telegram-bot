@@ -390,10 +390,11 @@ if(result?.genre_ids){
   }
 
   const item={
-    display_id:id,
-    file_id:file.file_id,
-    media_type:result?.media_type || "movie"
-  };
+  display_id:id,
+  file_id:file.file_id,
+  media_type:result?.media_type || "movie",
+  genres: genreIds
+};
 
   CACHE.unshift(item);
   saveDB(CACHE);
