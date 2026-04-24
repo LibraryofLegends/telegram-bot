@@ -94,23 +94,21 @@ function buildNetflixBanner(data){
 
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
-  // 🔥 Trending Badge
-  let badge = "";
-  if(data.popularity > 100){
-    badge = "🔥 TRENDING";
-  }
+  let badges = [];
 
-  // 🔥 Top 10 Fake (optional)
-  if(data.vote_average > 7){
-    badge = "🏆 TOP 10";
-  }
-
-  return `
-${badge ? badge + "\n\n" : ""}🎬 ${title}${year ? ` (${year})` : ""}
-
-${rating}
-`;
+if(data.popularity > 100){
+  badges.push("🔥 TRENDING");
 }
+
+if(data.vote_average > 8){
+  badges.push("👑 TOP RATED");
+}
+
+if(data.vote_count > 1000){
+  badges.push("🔥 BELIEBT");
+}
+
+const badge = badges.join(" • ");
 
 const GENRE_MAP = {
   28:"🔥 Action",
