@@ -83,6 +83,21 @@ async function tg(method, body) {
   }
 }
 
+async function buildHomeRows(){
+
+  const trending = await getTrending();
+  const popular = await getPopular();
+  const action = await getByGenre(28);
+  const comedy = await getByGenre(35);
+
+  return [
+    { title: "🔥 Trending", data: trending },
+    { title: "🎬 Beliebt", data: popular },
+    { title: "🔥 Action", data: action },
+    { title: "😂 Comedy", data: comedy }
+  ];
+}
+
 // ================= HELPERS =================
 function getCover(data = {}) {
 
