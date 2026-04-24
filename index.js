@@ -181,11 +181,41 @@ async function buildHomeRows(){
 }
 
 async function showNetflixHome(chatId){
+
+  const trending = await getTrending();
+  const first = trending[0];
+
+  const details = await getDetails(
+    first.id,
+    first.media_type === "tv" ? "tv" : "movie"
+  );
+
+  const banner = getBanner(details);
+
+  // 🔥 BIG BANNER
+  await tg("sendPhoto",{
+    chat_id:chatId,
+    photo:banner,
+    caption:buildCard(details,"",first.id),
+    reply_markup: buildSwipeNav(first.id, first.media_type)
+  });
+
+  // 🔥 TMDB Reihen
   const rows = await buildHomeRows();
 
   for(const row of rows){
-    await sendResultsList(chatId, row.title, row.data, 0);
+    await sendResultsList(chatId,row.title,row.data,0);
   }
+
+  // 🔥 DEINE FILME
+  const localRows = buildLocalRows();
+
+  for(const row of localRows){
+    if(row.data.length){
+      await sendResultsList(chatId,row.title,row.data,0);
+    }
+  }
+}
 
   return tg("sendMessage",{
     chat_id:chatId,
