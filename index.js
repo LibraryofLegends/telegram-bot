@@ -709,6 +709,35 @@ if(data === "movies_az"){
 
     return sendResultsList(chatId,"🔥 Ähnliche",res?.results || [],0);
   }
+  
+  // ================= SWIPE =================
+if(data.startsWith("next_") || data.startsWith("prev_")){
+
+  const [dir,id,type] = data.split("_");
+
+  const state = USER_STATE[chatId];
+  if(!state) return;
+
+  const list = state.list;
+  const index = list.findIndex(x => String(x.id) === id);
+
+  if(index === -1) return;
+
+  const newIndex = dir === "next" ? index+1 : index-1;
+
+  if(!list[newIndex]) return;
+
+  const item = list[newIndex];
+
+  const details = await getDetails(item.id,type);
+
+  return tg("sendPhoto",{
+    chat_id:chatId,
+    photo:getCover(details),
+    caption:buildCard(details,"",item.id),
+    reply_markup: buildSwipeNav(item.id,type)
+  });
+}
 
   // ================= SEARCH =================
   if(data.startsWith("search_")){
