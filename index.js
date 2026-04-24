@@ -715,7 +715,7 @@ if(data === "movies_az"){
       chat_id:chatId,
       photo:getCover(details),
       caption:buildCard(details,"",id),
-      reply_markup:{
+      reply_markup: buildSwipeNav(id,type)
         inline_keyboard:[
           [
             {text:"▶️ Stream",callback_data:`play_${id}`}
