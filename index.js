@@ -447,6 +447,15 @@ app.post(`/bot${TOKEN}`, async (req,res)=>{
     callback_query_id: body.callback_query.id
   });
   
+  // ================= NETFLIX ROWS =================
+if(data === "row_trending"){
+  return sendResultsList(chatId,"🔥 Trending",await getTrending(),0);
+}
+
+if(data === "row_popular"){
+  return sendResultsList(chatId,"🎬 Beliebt",await getPopular(),0);
+}
+  
   // ================= QUICK NAV =================
 if(data === "home"){
   return showMenu(chatId);
