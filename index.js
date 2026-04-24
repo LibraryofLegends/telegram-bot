@@ -179,22 +179,6 @@ async function buildHomeRows(){
   const popular = await getPopular();
   const action = await getByGenre(28);
   const comedy = await getByGenre(35);
-  
-  function buildLocalRows(){
-
-  const action = CACHE.filter(x => x.genres?.includes(28));
-
-  const comedy = CACHE.filter(x => x.genres?.includes(35));
-
-  return [
-
-    {title:"🔥 Deine Action Filme", data:action},
-
-    {title:"😂 Deine Comedy Filme", data:comedy}
-
-  ];
-
-}
 
   return [
     { title: "🔥 Trending", data: trending },
@@ -239,6 +223,17 @@ async function showNetflixHome(chatId){
       await sendResultsList(chatId,row.title,row.data,0);
     }
   }
+}
+
+function buildLocalRows(){
+
+  const action = CACHE.filter(x => x.genres?.includes(28));
+  const comedy = CACHE.filter(x => x.genres?.includes(35));
+
+  return [
+    {title:"🔥 Deine Action Filme", data:action},
+    {title:"😂 Deine Comedy Filme", data:comedy}
+  ];
 }
 
   return tg("sendMessage",{
