@@ -889,11 +889,12 @@ if(data.startsWith("next_") || data.startsWith("prev_")){
   const safeData = details || {};
 
   return tg("sendPhoto",{
-  chat_id:chatId,
-  photo:getNetflixBannerWithBadges(safeData),
-  caption: buildNetflixBanner(safeData),
-  reply_markup: buildSwipeNav(id,type)
-});
+    chat_id:chatId,
+    photo:getBanner(safeData),
+    caption:buildNetflixBanner(safeData),
+    reply_markup: buildSwipeNav(id,type)
+  });
+}
 
   // ================= SERIES =================
   if(data.startsWith("tv_")){
