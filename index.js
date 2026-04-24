@@ -98,6 +98,26 @@ async function buildHomeRows(){
   ];
 }
 
+async function showNetflixHome(chatId){
+
+  const rows = await buildHomeRows();
+
+  for(const row of rows){
+
+    await sendResultsList(chatId, row.title, row.data, 0);
+  }
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:"🏠 Home",
+    reply_markup:{
+      inline_keyboard:[
+        [{text:"🔄 Refresh",callback_data:"home"}]
+      ]
+    }
+  });
+}
+
 // ================= HELPERS =================
 function getCover(data = {}) {
 
