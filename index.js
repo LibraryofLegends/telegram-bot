@@ -419,23 +419,53 @@ function buildLocalRows(){
 async function showNetflixHome(chatId){
 
   const trending = await getTrending();
+
   if(!trending.length) return;
 
   const first = trending[0];
 
   const details = await getDetails(
+
     first.id,
+
     first.media_type === "tv" ? "tv" : "movie"
+
   );
 
   const banner = getBanner(details);
 
-  // 🎬 BIG BANNER
+  // 🎬 BIG NETFLIX HERO
+
   await tg("sendPhoto",{
+
     chat_id:chatId,
+
     photo:banner,
-    caption:buildCard(details,"",first.id),
-    reply_markup: buildSwipeNav(first.id, first.media_type)
+
+    caption: buildNetflixBanner(details),
+
+    reply_markup:{
+
+      inline_keyboard:[
+
+        [
+
+          {text:"▶️ Play",callback_data:`play_${first.id}`},
+
+          {text:"➕ Merken",callback_data:`fav_${first.id}`}
+
+        ],
+
+        [
+
+          {text:"🔥 Ähnliche",callback_data:`sim_${first.id}_${first.media_type}`}
+
+        ]
+
+      ]
+
+    }
+
   });
 
   // 🌍 TMDB ROWS
