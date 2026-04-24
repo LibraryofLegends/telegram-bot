@@ -361,7 +361,13 @@ async function handleUpload(msg){
   const clean = cleanTitleAdvanced(parsed.title);
 
   // 🔥 SEARCH
-  const result = await searchTMDB(clean);
+  let result = await searchTMDB(clean);
+
+  // 🔥 fallback search (massiv wichtig)
+  if(!result){
+    const short = clean.split(" ").slice(0,2).join(" ");
+    result = await searchTMDB(short);
+  }
 
   // 🔥 DETAILS (DAS HAT DIR GEFehlt)
   let details = null;
