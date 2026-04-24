@@ -560,6 +560,10 @@ if(result?.genre_ids){
   // ================= COVER FIX =================
   let cover = getCover(details || result || {});
 
+if(!details && !result){
+  cover = buildStyledCover(parsed.title);
+}
+
   try{
     if(!cover || cover.includes("null")) throw new Error();
     const res = await fetch(cover);
