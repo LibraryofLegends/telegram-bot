@@ -83,41 +83,6 @@ async function tg(method, body) {
   }
 }
 
-async function buildHomeRows(){
-
-  const trending = await getTrending();
-  const popular = await getPopular();
-  const action = await getByGenre(28);
-  const comedy = await getByGenre(35);
-
-  return [
-    { title: "🔥 Trending", data: trending },
-    { title: "🎬 Beliebt", data: popular },
-    { title: "🔥 Action", data: action },
-    { title: "😂 Comedy", data: comedy }
-  ];
-}
-
-async function showNetflixHome(chatId){
-
-  const rows = await buildHomeRows();
-
-  for(const row of rows){
-
-    await sendResultsList(chatId, row.title, row.data, 0);
-  }
-
-  return tg("sendMessage",{
-    chat_id:chatId,
-    text:"🏠 Home",
-    reply_markup:{
-      inline_keyboard:[
-        [{text:"🔄 Refresh",callback_data:"home"}]
-      ]
-    }
-  });
-}
-
 // ================= HELPERS =================
 function getCover(data = {}) {
 
@@ -169,6 +134,72 @@ function cleanTitleAdvanced(name = "") {
 function detectQuality(n=""){return /4k|2160/i.test(n)?"4K":/1080/.test(n)?"1080p":/720/.test(n)?"720p":"HD";}
 function detectAudio(n=""){return /deutsch|german/i.test(n)?"Deutsch":"EN";}
 function detectSource(n=""){return /bluray/i.test(n)?"BluRay":/web/i.test(n)?"WEB":"-";}
+
+// ================= NETFLIX SYSTEM =================
+
+async function buildHomeRows(){
+  const trending = await getTrending();
+  const popular = await getPopular();
+  const action = await getByGenre(28);
+  const comedy = await getByGenre(35);
+
+  return [
+    { title: "🔥 Trending", data: trending },
+    { title: "🎬 Beliebt", data: popular },
+    { title: "🔥 Action", data: action },
+    { title: "😂 Comedy", data: comedy }
+  ];
+}
+
+async function showNetflixHome(chatId){
+  const rows = await buildHomeRows();
+
+  for(const row of rows){
+    await sendResultsList(chatId, row.title, row.data, 0);
+  }
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:"🏠 Home",
+    reply_markup:{
+      inline_keyboard:[
+        [{text:"🔄 Refresh",callback_data:"home"}]
+      ]
+    }
+  });
+}
+
+function buildGenreButtons(){
+  const genres = [
+    {id:28,name:"🔥 Action"},
+    {id:35,name:"😂 Comedy"},
+    {id:27,name:"👻 Horror"},
+    {id:18,name:"🎭 Drama"},
+    {id:878,name:"🚀 Sci-Fi"}
+  ];
+
+  return genres.map(g => ([
+    { text: g.name, callback_data: `genre_${g.id}` }
+  ]));
+}
+
+function buildSwipeNav(id,type){
+  return {
+    inline_keyboard:[
+      [
+        {text:"⬅️",callback_data:`prev_${id}_${type}`},
+        {text:"▶️ Stream",callback_data:`play_${id}`},
+        {text:"➡️",callback_data:`next_${id}_${type}`}
+      ],
+      [
+        {text:"🔥 Ähnliche",callback_data:`sim_${id}_${type}`}
+      ],
+      [
+        {text:"🏠 Menü",callback_data:"menu"}
+      ]
+    ]
+  };
+}
 
 // ================= CARD =================
 function buildCard(data, fileName="", id="0001"){
