@@ -738,16 +738,18 @@ return tg("sendPhoto",{
 
   // ================= SEARCH =================
   if(data.startsWith("search_")){
-    const [,id,type] = data.split("_");
+  const [,id,type] = data.split("_");
 
-    const safeData = details || {};
+  const details = await getDetails(id,type);
+  const safeData = details || {};
 
-return tg("sendPhoto",{
-  chat_id:chatId,
-  photo:getCover(safeData),
-  caption:buildCard(safeData, "", id),
-  reply_markup: buildSwipeNav(id,type)
-});
+  return tg("sendPhoto",{
+    chat_id:chatId,
+    photo:getCover(safeData),
+    caption:buildCard(safeData,"",id),
+    reply_markup: buildSwipeNav(id,type)
+  });
+}
           [
             {text:"▶️ Stream",callback_data:`play_${id}`}
           ],
