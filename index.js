@@ -117,11 +117,13 @@ function parseFileName(name = "") {
 function cleanTitleAdvanced(name = "") {
   return name
     .replace(/\.(mp4|mkv|avi)$/i, "")
-    .replace(/\b(1080p|720p|2160p|4k)\b/gi, "")
-    .replace(/\b(x264|x265)\b/gi, "")
-    .replace(/\b(bluray|web)\b/gi, "")
+    .replace(/\b(1080p|720p|2160p|4k|uhd)\b/gi, "")
+    .replace(/\b(x264|x265|h264|h265)\b/gi, "")
+    .replace(/\b(bluray|web|webrip|webdl)\b/gi, "")
+    .replace(/\b(german|deutsch|dual|dl)\b/gi, "")
     .replace(/S\d{1,2}E\d{1,2}/gi, "")
     .replace(/[._\-]+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -270,8 +272,8 @@ Wähle deinen Bereich 👇`,
         [{text:"📈 Popular",callback_data:"net_popular"}],
 
         [
-          {text:"🎬 A–Z",callback_data:"movies_az"},
-          {text:"📺 Serien",callback_data:"series_menu"}
+          {text:"🎬 Filme",callback_data:"browse_movies"},
+          {text:"📺 Serien",callback_data:"browse_series"}
         ],
 
         [
