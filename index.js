@@ -187,16 +187,14 @@ function detectSource(n=""){return /bluray/i.test(n)?"BluRay":/web/i.test(n)?"WE
 // ================= EXTRA HELPERS =================
 
 function buildGenreButtons(){
-  const genres = [
-    {id:28,name:"🔥 Action"},
-    {id:35,name:"😂 Comedy"},
-    {id:27,name:"👻 Horror"},
-    {id:18,name:"🎭 Drama"},
-    {id:878,name:"🚀 Sci-Fi"}
-  ];
 
-  return genres.map(g => ([
-    { text: g.name, callback_data: `genre_${g.id}` }
+  const genres = getAvailableGenres();
+
+  return genres.map(id => ([
+    {
+      text: GENRE_MAP[id] || `🎬 ${id}`,
+      callback_data:`genre_local_${id}`
+    }
   ]));
 }
 
