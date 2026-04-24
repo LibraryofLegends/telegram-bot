@@ -751,19 +751,6 @@ return tg("sendPhoto",{
     reply_markup: buildSwipeNav(id,type)
   });
 }
-          [
-            {text:"▶️ Stream",callback_data:`play_${id}`}
-          ],
-          [
-            {text:"🔥 Ähnliche",callback_data:`sim_${id}_${type}`}
-          ],
-          [
-            {text:"🏠 Menü",callback_data:"menu"}
-          ]
-        ]
-      }
-    });
-  }
 
   // ================= SERIES =================
   if(data.startsWith("tv_")){
