@@ -311,8 +311,8 @@ async function sendResultsList(chatId, heading, list, page = 0){
   const nav = [];
 
   if(page > 0){
-    nav.push({text:"⬅️",callback_data:`page_${page-1}`});
-  }
+  nav.push({text:"⬅️",callback_data:`page_${page-1}`});
+}
 
   if(start + perPage < list.length){
     nav.push({text:"➡️",callback_data:`page_${page+1}`});
