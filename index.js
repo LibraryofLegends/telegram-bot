@@ -87,6 +87,10 @@ async function tg(method, body) {
 function getCover(data = {}) {
   
   function getBanner(data = {}){
+    
+    function buildStyledCover(title){
+  return `https://dummyimage.com/500x750/000/fff&text=${encodeURIComponent(title)}`;
+}
 
   if(data?.backdrop_path){
     return `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
