@@ -92,6 +92,15 @@ function getCover(data = {}) {
   return `https://dummyimage.com/500x750/000/fff&text=${encodeURIComponent(title)}`;
 }
 
+function getTargetChannel(genres=[]){
+
+  for(const g of genres){
+    if(CHANNELS[g]) return CHANNELS[g];
+  }
+
+  return CHANNELS.default;
+}
+
   if(data?.backdrop_path){
     return `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
   }
