@@ -1,8 +1,8 @@
 const fetch = global.fetch || require("node-fetch");
 const express = require("express");
 const fs = require("fs");
-const cloudinary = require("cloudinary").v2;
 
+const cloudinary = require("cloudinary").v2;
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
   api_key: process.env.CLOUD_KEY,
