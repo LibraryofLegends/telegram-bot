@@ -178,7 +178,10 @@ function getBanner(data = {}) {
 }
 
 function buildStyledCover(title){
-  return `https://dummyimage.com/500x750/000/fff&text=${encodeURIComponent(title)}`;
+
+  const t = encodeURIComponent(title.toUpperCase());
+
+  return `https://image.pollinations.ai/prompt/${t}%20movie%20poster%20cinematic%20dark%20background%20glow%20high%20contrast`;
 }
 
 
@@ -313,9 +316,11 @@ async function sendFileById(chatId,item){
 
   // 🧠 Verlauf speichern
   saveHistory(chatId,{
-    id:item.display_id,
-    type:item.media_type || "movie"
-  });
+  id:item.display_id,
+  type:item.media_type || "movie",
+  title:item.title || "",
+  timestamp:Date.now()
+});
 
   return tg("sendVideo",{
     chat_id:chatId,
@@ -540,6 +545,19 @@ function sortAZ(list){
 }
 
 // ================= NETFLIX SYSTEM =================
+
+function getSmartRecommendations(current, limit = 10){
+
+  if(!current?.genres) return [];
+
+  const genreIds = current.genres.map(g => g.id || g);
+
+  const localMatches = CACHE.filter(x =>
+    x.genres?.some(g => genreIds.includes(g))
+  );
+
+  return localMatches.slice(0, limit);
+}
 
 
 // 🎬 LOKALE REIHEN (AUS DEINER DB)
@@ -1008,14 +1026,24 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       }
 
       if (data.startsWith("sim_")) {
-        const [, id, type] = data.split("_");
 
-        const res = await tmdbFetch(
-          `https://api.themoviedb.org/3/${type}/${id}/similar?api_key=${TMDB_KEY}`
-        );
+  const [, id, type] = data.split("_");
 
-        return sendResultsList(chatId, "🔥 Ähnliche", res?.results || [], 0);
-      }
+  const details = await getDetails(id, type);
+  const safeData = details || {};
+
+  const smart = getSmartRecommendations(safeData);
+
+  if(smart.length){
+    return sendResultsList(chatId, "🔥 Für dich", smart, 0);
+  }
+
+  const res = await tmdbFetch(
+    `https://api.themoviedb.org/3/${type}/${id}/similar?api_key=${TMDB_KEY}`
+  );
+
+  return sendResultsList(chatId, "🔥 Ähnliche", res?.results || [], 0);
+}
 
       if (data.startsWith("next_") || data.startsWith("prev_")) {
         const [dir, id, type] = data.split("_");
