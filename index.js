@@ -546,6 +546,20 @@ function sortAZ(list){
 
 // ================= NETFLIX SYSTEM =================
 
+async function buildHomeRows(){
+
+  return [
+    {
+      title:"🔥 Trending",
+      data: await getTrending()
+    },
+    {
+      title:"📈 Popular",
+      data: await getPopular()
+    }
+  ];
+}
+
 function getSmartRecommendations(current, limit = 10){
 
   if(!current?.genres) return [];
