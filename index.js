@@ -1072,7 +1072,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     }
 
   } catch (e) {
-    console.error("❌ WEBHOOK ERROR:", e);
+    console.error("❌ WEBHOOK ERROR:", e.message, e.stack);
   }
 });
 
