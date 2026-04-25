@@ -984,25 +984,26 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       }
 
       if (data === "continue") {
-        const history = readHistory(chatId);
 
-        if (!history.length) {
-          return tg("sendMessage",{ chat_id: chatId, text: "❌ Kein Verlauf vorhanden" });
-        }
+  const history = readHistory(chatId);
 
-        const last = history[0];
+  if (!history.length) {
+    return tg("sendMessage",{ chat_id: chatId, text: "❌ Kein Verlauf vorhanden" });
+  }
 
-        return tg("sendMessage",{
-          chat_id: chatId,
-          text: "▶️ Weiter schauen",
-          reply_markup:{
-            inline_keyboard:[
-              [{ text: "🎬 Öffnen", callback_data: `play_${last.id}` }],
-              [{ text: "🏠 Menü", callback_data: "menu" }]
-            ]
-          }
-        });
-      }
+  const last = history[0];
+
+  return tg("sendMessage",{
+    chat_id: chatId,
+    text:`▶️ Weiter schauen\n\n🎬 ${last.title || "Film"}`,
+    reply_markup:{
+      inline_keyboard:[
+        [{ text: "▶️ Fortsetzen", callback_data: `play_${last.id}` }],
+        [{ text: "🏠 Menü", callback_data: "menu" }]
+      ]
+    }
+  });
+}
 
       if (data.startsWith("genre_") && !data.startsWith("genre_local_")) {
         const genre = data.split("_")[1];
