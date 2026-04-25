@@ -1,6 +1,13 @@
 const fetch = global.fetch || require("node-fetch");
 const express = require("express");
 const fs = require("fs");
+const cloudinary = require("cloudinary").v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.CLOUD_KEY,
+  api_secret: process.env.CLOUD_SECRET
+});
 
 const app = express();
 app.use(express.json());
@@ -152,6 +159,20 @@ function getAvailableGenres(){
 
 // ================= MEDIA HELPERS =================
 
+async function uploadToCloudinary(url){
+
+  try{
+    const res = await cloudinary.uploader.upload(url,{
+      folder:"library_of_legends"
+    });
+
+    return res.secure_url;
+
+  }catch{
+    return url;
+  }
+}
+
 function getCover(data = {}) {
   if (data?.poster_path) {
     return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
@@ -288,8 +309,12 @@ function buildSwipeNav(id,type){
 
       [
         {text:"⬅️",callback_data:`prev_${id}_${type}`},
-        {text:"▶️ Stream",callback_data:`play_${id}`},
+        {text:"🎬 DETAILS",callback_data:`search_${id}_${type}`},
         {text:"➡️",callback_data:`next_${id}_${type}`}
+      ],
+
+      [
+        {text:"▶️ SOFORT STARTEN",callback_data:`play_${id}`}
       ],
 
       [
@@ -764,29 +789,31 @@ async function sendResultsList(chatId, heading, list, page = 0){
   };
 
   // 🎬 ITEMS RENDERN
-  for(const m of slice){
+  const buttons = [];
 
-    const title = m.title || m.name || "Unbekannt";
-    const type = m.media_type || "movie";
+for (let i = 0; i < slice.length; i += 2) {
 
-    await tg("sendPhoto",{
-      chat_id:chatId,
-      photo:getCover(m),
-      caption:`🎬 ${title}`,
-      reply_markup:{
-        inline_keyboard:[
+  const row = [];
 
-          [
-            {text:"▶️ Öffnen",callback_data:`search_${m.id}_${type}`}
-          ],
+  const a = slice[i];
+  const b = slice[i + 1];
 
-          [
-            {text:"🔥 Ähnliche",callback_data:`sim_${m.id}_${type}`}
-          ]
-        ]
-      }
+  if (a) {
+    row.push({
+      text: `🎬 ${a.title || a.name}`,
+      callback_data: `search_${a.id}_${a.media_type || "movie"}`
     });
   }
+
+  if (b) {
+    row.push({
+      text: `🎬 ${b.title || b.name}`,
+      callback_data: `search_${b.id}_${b.media_type || "movie"}`
+    });
+  }
+
+  buttons.push(row);
+}
 
   // ================= NAVIGATION =================
 
@@ -807,20 +834,21 @@ async function sendResultsList(chatId, heading, list, page = 0){
   }
 
   return tg("sendMessage",{
-    chat_id:chatId,
-    text:`📄 ${heading}\nSeite ${page+1} / ${totalPages}`,
-    reply_markup:{
-      inline_keyboard:[
-
-        ...(nav.length ? [nav] : []),
-
-        [
-          {text:"🏠 Menü",callback_data:"menu"},
-          {text:"🔄 Refresh",callback_data:`page_${page}`}
-        ]
+  chat_id:chatId,
+  text:`📂 ${heading}`,
+  reply_markup:{
+    inline_keyboard:[
+      ...buttons,
+      [
+        {text:"⬅️",callback_data:`page_${page-1}`},
+        {text:"➡️",callback_data:`page_${page+1}`}
+      ],
+      [
+        {text:"🏠 Menü",callback_data:"menu"}
       ]
-    }
-  });
+    ]
+  }
+});
 }
 
 // ================= UPLOAD =================
@@ -886,6 +914,7 @@ async function handleUpload(msg){
 
   // ================= COVER FIX =================
   let cover = getCover(safeData);
+  cover = await uploadToCloudinary(cover);
 
   if(!safeData || (!details && !result)){
     cover = buildStyledCover(parsed.title);
@@ -1098,13 +1127,34 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       }
 
       if (data.startsWith("play_")) {
-        const id = data.replace("play_", "");
-        const item = CACHE.find(x => x.display_id === id);
-        return sendFileById(chatId, item);
-      }
 
-      return;
-    }
+  const id = data.replace("play_", "");
+  const item = CACHE.find(x => x.display_id === id);
+
+  if(!item){
+    return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
+  }
+
+  await tg("sendMessage",{
+    chat_id:chatId,
+    text:"🎬 Starte Stream..."
+  });
+
+  return sendFileById(chatId,item);
+}
+    
+    if (msg?.text?.startsWith("/delete")) {
+
+  const id = msg.text.split(" ")[1];
+
+  CACHE = CACHE.filter(x => x.display_id !== id);
+  saveDB(CACHE);
+
+  return tg("sendMessage",{
+    chat_id: msg.chat.id,
+    text:`🗑 Gelöscht: ${id}`
+  });
+}
 
     if (msg?.text === "/start") {
       return showMenu(msg.chat.id);
