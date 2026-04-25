@@ -826,7 +826,7 @@ async function handleUpload(msg){
     genreIds = details.genres.map(g => g.id);
   }
 
-  const id = String(Date.now()).slice(-4);
+  const id = Date.now().toString();
 
   if(parsed.type === "tv"){
     const key = parsed.title.toLowerCase().replace(/\s/g,"_");
