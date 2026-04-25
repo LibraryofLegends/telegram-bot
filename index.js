@@ -2,12 +2,20 @@ const fetch = global.fetch || require("node-fetch");
 const express = require("express");
 const fs = require("fs");
 
-const cloudinary = require("cloudinary").v2;
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.CLOUD_KEY,
-  api_secret: process.env.CLOUD_SECRET
-});
+let cloudinary;
+
+try {
+  cloudinary = require("cloudinary").v2;
+
+  cloudinary.config({
+    cloud_name: process.env.CLOUD_NAME,
+    api_key: process.env.CLOUD_KEY,
+    api_secret: process.env.CLOUD_SECRET
+  });
+
+} catch (err) {
+  console.log("⚠️ Cloudinary nicht installiert → Fallback aktiv");
+}
 
 const app = express();
 app.use(express.json());
@@ -160,14 +168,13 @@ function getAvailableGenres(){
 // ================= MEDIA HELPERS =================
 
 async function uploadToCloudinary(url){
+  if(!cloudinary) return url;
 
   try{
     const res = await cloudinary.uploader.upload(url,{
       folder:"library_of_legends"
     });
-
     return res.secure_url;
-
   }catch{
     return url;
   }
