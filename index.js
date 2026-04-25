@@ -1142,18 +1142,41 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   return sendFileById(chatId,item);
 }
+
+return;
+
+}
     
-    if (msg?.text?.startsWith("/delete")) {
+  // ================= COMMANDS =================
+
+if (msg?.text?.startsWith("/delete")) {
 
   const id = msg.text.split(" ")[1];
 
   CACHE = CACHE.filter(x => x.display_id !== id);
+
   saveDB(CACHE);
 
   return tg("sendMessage",{
+
     chat_id: msg.chat.id,
+
     text:`🗑 Gelöscht: ${id}`
+
   });
+
+}
+
+if (msg?.text === "/start") {
+
+  return showMenu(msg.chat.id);
+
+}
+
+if (msg?.document || msg?.video) {
+
+  return handleUpload(msg);
+
 }
 
     if (msg?.text === "/start") {
