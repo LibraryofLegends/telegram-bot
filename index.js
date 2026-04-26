@@ -492,26 +492,6 @@ function playerUrl(mode,id){
 
 // ================= TMDB =================
 
-// 🔥 CORE FETCH (MIT STATUS CHECK)
-async function tmdbFetch(url){
-  try{
-    const res = await fetch(url);
-
-    if(!res.ok){
-      console.log("❌ TMDB ERROR:", res.status, url);
-      return null;
-    }
-
-    return await res.json();
-
-  }catch(err){
-    console.log("❌ TMDB FETCH FAIL:", err.message);
-    return null;
-  }
-}
-
-
-// 🔎 SMART SEARCH (MIT PRIORITY + FALLBACKS)
 async function searchTMDBAdvanced(title, year=null, type=null){
 
   if(!title) return null;
@@ -540,7 +520,6 @@ async function searchTMDBAdvanced(title, year=null, type=null){
 
       let score = 0;
 
-      // 🎯 Titel Match
       if(name === clean) score += 100;
       if(name.includes(clean)) score += 50;
 
@@ -548,10 +527,8 @@ async function searchTMDBAdvanced(title, year=null, type=null){
       const hits = words.filter(w => name.includes(w)).length;
       score += hits * 10;
 
-      // 🎯 TYPE MATCH
       if(type && item.media_type === type) score += 40;
 
-      // 🎯 YEAR MATCH
       if(year){
         const y = parseInt((item.release_date || item.first_air_date || "").slice(0,4));
         if(y){
@@ -562,7 +539,6 @@ async function searchTMDBAdvanced(title, year=null, type=null){
         }
       }
 
-      // 🎯 Popularität
       score += item.popularity || 0;
 
       if(score > bestScore){
