@@ -945,6 +945,25 @@ let result = await searchTMDBAdvanced(
   parsed.type === "tv" ? "tv" : "movie"
 );
 
+if(!result){
+  const short = clean.split(" ").slice(0,2).join(" ");
+
+  result = await searchTMDBAdvanced(
+    short,
+    fileYear,
+    parsed.type === "tv" ? "tv" : "movie"
+  );
+}
+
+if(!result){
+
+  const search = await tmdbFetch(
+    `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}`
+  );
+
+  result = search?.results?.[0] || null;
+}
+
 // TYPE FILTER
 if(result){
   if(parsed.type === "tv" && result.media_type !== "tv") result = null;
