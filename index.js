@@ -497,46 +497,67 @@ async function tmdbFetch(url){
 
 
 // 🔎 SMART SEARCH (MIT PRIORITY + FALLBACKS)
-async function searchTMDB(title){
+async function searchTMDBAdvanced(title, year=null, type=null){
 
   if(!title) return null;
 
-  const data = await tmdbFetch(
-    `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
-  );
+  const queries = [
+    title,
+    title.split(" ").slice(0,3).join(" "),
+    title.split(" ").slice(0,2).join(" ")
+  ];
 
-  if(!data?.results?.length) return null;
+  let best = null;
+  let bestScore = 0;
 
-  const clean = title.toLowerCase();
+  for(const q of queries){
 
-  // 🔥 BEST MATCH LOGIC
-  const scored = data.results.map(item => {
+    const data = await tmdbFetch(
+      `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}`
+    );
 
-    const name = (item.title || item.name || "").toLowerCase();
+    if(!data?.results) continue;
 
-    let score = 0;
+    for(const item of data.results){
 
-    // 🎯 exakter Titel Match
-    if(name === clean) score += 100;
+      const name = (item.title || item.name || "").toLowerCase();
+      const clean = title.toLowerCase();
 
-    // 🎯 enthält Titel
-    if(name.includes(clean)) score += 50;
+      let score = 0;
 
-    // 🎯 ähnlich (Teilmatch)
-    const words = clean.split(" ");
-    const hits = words.filter(w => name.includes(w)).length;
-    score += hits * 10;
+      // 🎯 Titel Match
+      if(name === clean) score += 100;
+      if(name.includes(clean)) score += 50;
 
-    // 🎯 Popularität als Bonus
-    score += item.popularity || 0;
+      const words = clean.split(" ");
+      const hits = words.filter(w => name.includes(w)).length;
+      score += hits * 10;
 
-    return { item, score };
-  });
+      // 🎯 TYPE MATCH
+      if(type && item.media_type === type) score += 40;
 
-  // 🔥 BESTEN TREFFER NEHMEN
-  scored.sort((a,b)=>b.score - a.score);
+      // 🎯 YEAR MATCH
+      if(year){
+        const y = parseInt((item.release_date || item.first_air_date || "").slice(0,4));
+        if(y){
+          const diff = Math.abs(y - year);
+          if(diff === 0) score += 50;
+          else if(diff <= 1) score += 20;
+          else if(diff > 3) score -= 30;
+        }
+      }
 
-  return scored[0].item;
+      // 🎯 Popularität
+      score += item.popularity || 0;
+
+      if(score > bestScore){
+        bestScore = score;
+        best = item;
+      }
+    }
+  }
+
+  return best;
 }
 
 
