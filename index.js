@@ -393,9 +393,17 @@ function buildCard(data, fileName="", id="0001"){
   const genres = genresArr.map(g => g.name).join(" • ") || "-";
 
   // 🎧 AUDIO
-  const audio = /deutsch|german/i.test(fileName)
-    ? "Deutsch • Englisch"
-    : "Englisch";
+  let audio = "Unbekannt";
+
+if(/deutsch|german/i.test(fileName) && /english|eng/i.test(fileName)){
+  audio = "Deutsch • Englisch";
+}
+else if(/deutsch|german/i.test(fileName)){
+  audio = "Deutsch";
+}
+else if(/english|eng/i.test(fileName)){
+  audio = "Englisch";
+}
 
   // 💿 SOURCE
   const source = /bluray/i.test(fileName)
@@ -406,10 +414,11 @@ function buildCard(data, fileName="", id="0001"){
 
   // 🎞 QUALITÄT
   const quality =
-    /2160|4k/i.test(fileName) ? "4K" :
-    /1080/.test(fileName) ? "Full HD" :
-    /720/.test(fileName) ? "HD" :
-    "SD";
+  /2160|4k/i.test(fileName) ? "4K" :
+  /1080/i.test(fileName) ? "1080p" :
+  /720/i.test(fileName) ? "720p" :
+  /480/i.test(fileName) ? "480p" :
+  "HD";
 
   // ⭐ RATING
   const ratingValue = data.vote_average || 0;
