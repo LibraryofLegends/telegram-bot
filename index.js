@@ -948,7 +948,11 @@ async function handleUpload(msg){
     .replace(/\s+/g, " ")
     .trim();
 
-let result = await searchTMDB(clean);
+let result = await searchTMDBAdvanced(
+  clean,
+  fileYear,
+  parsed.type === "tv" ? "tv" : "movie"
+);
 
 // TYPE FILTER
 if(result){
