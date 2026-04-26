@@ -240,8 +240,23 @@ function getLocalByGenre(genreId){
 // ================= FILE PARSER =================
 
 function parseFileName(name = "") {
+
   const clean = name.replace(/[._\-]+/g, " ");
-  const match = clean.match(/S(\d{1,2})E(\d{1,2})/i);
+
+  // 🔥 SxxExx
+  let match = clean.match(/S(\d{1,2})E(\d{1,2})/i);
+
+  if (match) {
+    return {
+      type: "tv",
+      title: clean.replace(match[0], "").trim(),
+      season: parseInt(match[1]),
+      episode: parseInt(match[2])
+    };
+  }
+
+  // 🔥 1x02 FORMAT
+  match = clean.match(/(\d{1,2})x(\d{1,2})/i);
 
   if (match) {
     return {
