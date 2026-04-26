@@ -913,7 +913,19 @@ async function handleUpload(msg){
   const fileName = file.file_name || "";
 
   const parsed = parseFileName(fileName);
-const clean = parsed.title;
+
+  // 🔥 JAHR EXTRAHIEREN
+  const yearMatch = fileName.match(/(19|20)\d{2}/);
+  const fileYear = yearMatch ? parseInt(yearMatch[0]) : null;
+
+  // 🔥 CLEAN TITLE (weniger aggressiv)
+  const clean = parsed.title
+    .replace(/\b(1080p|720p|2160p|4k|uhd)\b/gi, "")
+    .replace(/\b(x264|x265|h264|h265)\b/gi, "")
+    .replace(/\b(bluray|web|webrip|webdl)\b/gi, "")
+    .replace(/\b(german|deutsch|dual|dl)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
 let result = await searchTMDB(clean);
 
