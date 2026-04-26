@@ -970,20 +970,6 @@ if(result){
   if(parsed.type === "movie" && result.media_type !== "movie") result = null;
 }
 
-// YEAR MATCH
-const yearMatch = fileName.match(/(19|20)\d{2}/);
-const fileYear = yearMatch ? parseInt(yearMatch[0]) : null;
-
-if(result && fileYear){
-  const foundYear = parseInt(
-    (result.release_date || result.first_air_date || "").slice(0,4)
-  );
-
-  if(foundYear && Math.abs(foundYear - fileYear) > 2){
-    result = null;
-  }
-}
-
 // FALLBACK
 if(!result){
   const short = clean.split(" ").slice(0,2).join(" ");
