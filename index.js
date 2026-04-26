@@ -406,11 +406,10 @@ else if(/english|eng/i.test(fileName)){
 }
 
   // 💿 SOURCE
-  const source = /bluray/i.test(fileName)
-    ? "BluRay"
-    : /web/i.test(fileName)
-    ? "WEB"
-    : "-";
+  const source =
+  /bluray/i.test(fileName) ? "BluRay" :
+  /web[-_. ]?dl|webrip|web/i.test(fileName) ? "WEB-DL" :
+  "Unknown";
 
   // 🎞 QUALITÄT
   const quality =
@@ -1072,7 +1071,7 @@ console.log("🎬 MATCH:", result?.title || result?.name);
     genreIds = details.genres.map(g => g.id);
   }
 
-  const id = Date.now().toString();
+  const id = String(CACHE.length + 1).padStart(4, "0");
 
   if(parsed.type === "tv"){
     const key = parsed.title.toLowerCase().replace(/\s/g,"_");
