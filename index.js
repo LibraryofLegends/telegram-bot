@@ -379,7 +379,7 @@ async function sendFileById(chatId,item){
 // ================= CARD =================
 function buildCard(data, fileName="", id="0001"){
 
-  const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
+  const title = (data.title || data.name || fileName || "UNBEKANNT").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
   // 🎬 COLLECTION (optional erkennen)
@@ -527,16 +527,17 @@ async function searchTMDBAdvanced(title, year=null, type=null){
   const queries = [
     title,
     title.split(" ").slice(0,3).join(" "),
-    title.split(" ").slice(0,2).join(" ")
-  ];
+    title.split(" ").slice(0,2).join(" "),
+    title.split(" ")[0]
+  ].filter(Boolean);
 
   let best = null;
-  let bestScore = 0;
+  let bestScore = -999;
 
   for(const q of queries){
 
     const data = await tmdbFetch(
-      `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}`
+      `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=de-DE`
     );
 
     if(!data?.results) continue;
@@ -548,26 +549,36 @@ async function searchTMDBAdvanced(title, year=null, type=null){
 
       let score = 0;
 
-      if(name === clean) score += 100;
-      if(name.includes(clean)) score += 50;
+      // 🎯 EXACT MATCH
+      if(name === clean) score += 120;
 
+      // 🔍 PARTIAL
+      if(name.includes(clean)) score += 60;
+
+      // 🧠 WORD MATCH
       const words = clean.split(" ");
       const hits = words.filter(w => name.includes(w)).length;
-      score += hits * 10;
+      score += hits * 15;
 
-      if(type && item.media_type === type) score += 40;
+      // 🎬 TYPE BOOST
+      if(type && item.media_type === type) score += 50;
 
+      // 📅 YEAR MATCH
       if(year){
         const y = parseInt((item.release_date || item.first_air_date || "").slice(0,4));
+
         if(y){
           const diff = Math.abs(y - year);
-          if(diff === 0) score += 50;
-          else if(diff <= 1) score += 20;
-          else if(diff > 3) score -= 30;
+
+          if(diff === 0) score += 60;
+          else if(diff === 1) score += 30;
+          else if(diff <= 2) score += 10;
+          else score -= 40;
         }
       }
 
-      score += item.popularity || 0;
+      // 🔥 POPULARITY
+      score += Math.min(item.popularity || 0, 50);
 
       if(score > bestScore){
         bestScore = score;
@@ -954,12 +965,15 @@ async function handleUpload(msg){
 
   // 🔥 CLEAN TITLE (weniger aggressiv)
   const clean = parsed.title
-    .replace(/\b(1080p|720p|2160p|4k|uhd)\b/gi, "")
-    .replace(/\b(x264|x265|h264|h265)\b/gi, "")
-    .replace(/\b(bluray|web|webrip|webdl)\b/gi, "")
-    .replace(/\b(german|deutsch|dual|dl)\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  .replace(/\.(mp4|mkv|avi)$/i, "")
+  .replace(/\b(1080p|720p|2160p|4k|uhd)\b/gi, "")
+  .replace(/\b(x264|x265|h264|h265)\b/gi, "")
+  .replace(/\b(bluray|web|webrip|webdl)\b/gi, "")
+  .replace(/\b(german|deutsch|dual|dl)\b/gi, "")
+  .replace(/\b(truehd|aac|dts|atmos)\b/gi, "")
+  .replace(/\b(extended|uncut|remastered)\b/gi, "")
+  .replace(/\s+/g, " ")
+  .trim();
 
 let result = await searchTMDBAdvanced(
   clean,
@@ -967,7 +981,7 @@ let result = await searchTMDBAdvanced(
   parsed.type === "tv" ? "tv" : "movie"
 );
 
-// 🔁 FALLBACK 1
+// 🔁 FALLBACK 1 (SHORT)
 if(!result){
   const short = clean.split(" ").slice(0,2).join(" ");
 
@@ -978,13 +992,27 @@ if(!result){
   );
 }
 
-// 🔁 FALLBACK 2 (RAW TMDB)
+// 🔁 FALLBACK 2 (DIRECT API)
 if(!result){
   const search = await tmdbFetch(
-    `https://api.themoviedb.org/3/search/${parsed.type}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}`
+    `https://api.themoviedb.org/3/search/${parsed.type}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}&language=de-DE`
   );
 
   result = search?.results?.[0] || null;
+}
+
+// 🔁 FALLBACK 3 (OHNE JAHR)
+if(!result){
+  result = await searchTMDBAdvanced(
+    clean,
+    null,
+    parsed.type === "tv" ? "tv" : "movie"
+  );
+}
+
+// ❗ FINAL FAIL SAFE
+if(!result){
+  console.log("❌ FINAL FAIL:", clean);
 }
 
 // TYPE FILTER
@@ -1004,6 +1032,15 @@ if(!result){
   );
 }
 
+if(!result){
+  console.log("❌ FINAL FAIL:", clean);
+}
+
+// 🔥 HIER EINFÜGEN 👇
+console.log("🎯 FILE:", fileName);
+console.log("🔎 CLEAN:", clean);
+console.log("🎬 MATCH:", result?.title || result?.name);
+
   let details = null;
 
   if(result?.id){
@@ -1011,7 +1048,12 @@ if(!result){
     details = await getDetails(result.id, type);
   }
 
-  const safeData = details || result || {};
+  const safeData = details || result || {
+  title: clean,
+  overview: "Keine Beschreibung verfügbar.",
+  vote_average: 0,
+  genres: []
+};
 
   let genreIds = [];
 
