@@ -984,7 +984,12 @@ if(result){
 // FALLBACK
 if(!result){
   const short = clean.split(" ").slice(0,2).join(" ");
-  result = await searchTMDB(short);
+
+  result = await searchTMDBAdvanced(
+    short,
+    fileYear,
+    parsed.type === "tv" ? "tv" : "movie"
+  );
 }
 
   let details = null;
