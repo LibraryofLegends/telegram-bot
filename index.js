@@ -367,31 +367,44 @@ function buildCard(data, fileName="", id="0001"){
   const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
-  // 🎭 GENRES
-  const genres = (data.genres || [])
-    .slice(0,2)
-    .map(g => g.name)
-    .join(" • ") || "-";
+  // 🎬 COLLECTION (optional erkennen)
+  let collection = "";
+  if(data.belongs_to_collection?.name){
+    collection = data.belongs_to_collection.name.toUpperCase();
+  }
 
-  // 👥 CAST
-  const cast = (data.credits?.cast || [])
-    .slice(0,3)
-    .map(c => c.name)
-    .join(" • ") || "-";
+  // 🎭 GENRES
+  const genresArr = (data.genres || []).slice(0,2);
+  const genres = genresArr.map(g => g.name).join(" • ") || "-";
+
+  // 🎧 AUDIO
+  const audio = /deutsch|german/i.test(fileName)
+    ? "Deutsch • Englisch"
+    : "Englisch";
+
+  // 💿 SOURCE
+  const source = /bluray/i.test(fileName)
+    ? "BluRay"
+    : /web/i.test(fileName)
+    ? "WEB"
+    : "-";
+
+  // 🎞 QUALITÄT
+  const quality =
+    /2160|4k/i.test(fileName) ? "4K" :
+    /1080/.test(fileName) ? "Full HD" :
+    /720/.test(fileName) ? "HD" :
+    "SD";
 
   // ⭐ RATING
-  const rating = data.vote_average
-    ? `⭐ ${Math.round(data.vote_average / 2)} / 5  (${data.vote_average.toFixed(1)})`
-    : "⭐ -";
+  const ratingValue = data.vote_average || 0;
+  const stars = "★".repeat(Math.round(ratingValue / 2)) +
+                "☆".repeat(5 - Math.round(ratingValue / 2));
 
-  // 🔥 BADGES (NEU)
-  let badges = [];
+  const rating = `${stars} (${ratingValue.toFixed(1)})`;
 
-  if(data.popularity > 100) badges.push("🔥 TRENDING");
-  if(data.vote_average > 8) badges.push("👑 TOP RATED");
-  if(data.vote_count > 1000) badges.push("💥 BELIEBT");
-
-  const badgeLine = badges.length ? badges.join(" • ") : null;
+  // ⏱ LAUFZEIT
+  const runtime = data.runtime ? `${data.runtime} Min` : "-";
 
   // 🔞 FSK
   let fsk = "-";
@@ -402,55 +415,56 @@ function buildCard(data, fileName="", id="0001"){
     if(cert) fsk = cert;
   }catch{}
 
-  // 📖 STORY (SMART CUT)
-  const storyRaw = data.overview || "Keine Beschreibung verfügbar.";
-  let story = storyRaw.trim();
+  // 🎥 DIRECTOR
+  const director = (data.credits?.crew || [])
+    .find(c => c.job === "Director")?.name || "-";
 
-  if (story.length > 220) {
-    story = story.slice(0, 220);
-    const cut = story.lastIndexOf(".");
-    if (cut > 100) story = story.slice(0, cut + 1);
-    story += "...";
+  // 👥 CAST
+  const cast = (data.credits?.cast || [])
+    .slice(0,3)
+    .map(c => c.name)
+    .join(" • ") || "-";
+
+  // 📖 STORY (SMART CUT + 2 Absätze)
+  let story = (data.overview || "Keine Beschreibung verfügbar.").trim();
+
+  if(story.length > 180){
+    const mid = Math.floor(story.length / 2);
+    const split = story.indexOf(".", mid);
+
+    if(split !== -1){
+      story = story.slice(0, split + 1) + "\n\n" + story.slice(split + 1);
+    }
   }
 
-  // 🎬 META
-  const quality = detectQuality(fileName);
-  const audio = detectAudio(fileName);
-  const source = detectSource(fileName);
+  if(story.length > 320){
+    story = story.slice(0, 320) + "...";
+  }
 
   // 🏷 TAGS
-  const tags = (data.genres || [])
-    .slice(0,3)
+  const tags = genresArr
     .map(g => `#${g.name.replace(/\s/g,"")}`)
     .join(" ");
 
-  // 🎨 DESIGN
-  const LINE = "━━━━━━━━━━━━━━━━━━";
-  const SOFT = "──────────────";
+  const line = "━━━━━━━━━━━━━━━━━━━━━";
 
-  return `${LINE}
-🎬 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
-
-${title}${year ? ` (${year})` : ""}
-
-${badgeLine ? badgeLine + "\n" : ""}${SOFT}
-
-🎞 ${quality} • ${genres}
-🔊 ${audio} • 💿 ${source}
-
-${LINE}
+  return `${line}
+🎬 𝐅𝐀𝐒𝐓 & 𝐅𝐔𝐑𝐈𝐎𝐔𝐒 𝟏𝟎 (${year})
+${collection ? `🎞 ${collection}\n` : ""}${line}
+🔥 ${quality} • ${genres}  
+🎧 ${audio}  
+💿 ${source}  
+${line}
 ${rating}
-⛔ FSK ${fsk}
-👥 ${cast}
-
-${LINE}
-📖 HANDLUNG
+⏱ ${runtime} • 🔞 FSK ${fsk}  
+🎥 ${director}  
+👥 ${cast}  
+${line}
+📖 STORY  
 ${story}
-
-${LINE}
-▶️ ID: ${id}
-
-${SOFT}
+${line}
+▶️ #${id}  
+${line}
 ${tags}
 @LibraryOfLegends`;
 }
