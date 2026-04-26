@@ -509,6 +509,17 @@ async function tmdbFetch(url){
   }
 }
 
+async function getDetails(id, type){
+
+  if(!id) return null;
+
+  const safeType = type === "tv" ? "tv" : "movie";
+
+  return await tmdbFetch(
+    `https://api.themoviedb.org/3/${safeType}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,release_dates&language=de-DE`
+  );
+}
+
 async function searchTMDBAdvanced(title, year=null, type=null){
 
   if(!title) return null;
@@ -956,6 +967,7 @@ let result = await searchTMDBAdvanced(
   parsed.type === "tv" ? "tv" : "movie"
 );
 
+// 🔁 FALLBACK 1
 if(!result){
   const short = clean.split(" ").slice(0,2).join(" ");
 
@@ -966,17 +978,17 @@ if(!result){
   );
 }
 
+// 🔁 FALLBACK 2 (RAW TMDB)
 if(!result){
-
   const search = await tmdbFetch(
-    `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}`
+    `https://api.themoviedb.org/3/search/${parsed.type}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}`
   );
 
   result = search?.results?.[0] || null;
 }
 
 // TYPE FILTER
-if(result){
+if(result && result.media_type){
   if(parsed.type === "tv" && result.media_type !== "tv") result = null;
   if(parsed.type === "movie" && result.media_type !== "movie") result = null;
 }
