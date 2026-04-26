@@ -683,7 +683,7 @@ async function showNetflixHome(chatId){
     if(rows && rows.length){
       for(const row of rows){
         if(row?.data?.length){
-          await sendResultsList(chatId,row.title,row.data,0);
+          await sendPosterRow(chatId,row.title,row.data);
         }
       }
     }
@@ -695,7 +695,7 @@ async function showNetflixHome(chatId){
     if(localRows.length){
 
       for(const row of localRows){
-        await sendResultsList(chatId,row.title,row.data,0);
+        await sendPosterRow(chatId,row.title,row.data);
       }
 
     }else{
@@ -787,6 +787,41 @@ async function sendResultsList(chatId, heading, list, page = 0){
 
   const start = page * perPage;
   const slice = list.slice(start, start + perPage);
+  
+  // ================= POSTER ROW (NETFLIX STYLE) =================
+async function sendPosterRow(chatId, heading, list){
+
+  if(!list || !list.length) return;
+
+  // Titel der Reihe
+  await tg("sendMessage",{
+    chat_id: chatId,
+    text: `🎬 ${heading}`
+  });
+
+  const slice = list.slice(0,5); // max 5 pro Reihe
+
+  for(const item of slice){
+
+    const title = item.title || item.name || "Film";
+    const type = item.media_type || "movie";
+
+    await tg("sendPhoto",{
+      chat_id: chatId,
+      photo: getCover(item), // 🔥 größer als Poster
+
+      caption: `🎬 ${title}`,
+
+      reply_markup:{
+        inline_keyboard:[
+          [
+            { text:"▶️", callback_data:`search_${item.id}_${type}` }
+          ]
+        ]
+      }
+    });
+  }
+}
 
   // 🧠 STATE SPEICHERN (für Swipe etc.)
   USER_STATE[chatId] = {
