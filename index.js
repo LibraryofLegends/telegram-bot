@@ -464,7 +464,7 @@ function buildCard(data, fileName="", id="0001"){
   const line = "━━━━━━━━━━━━━━━━━━━━━";
 
   return `${line}
-🎬 𝐅𝐀𝐒𝐓 & 𝐅𝐔𝐑𝐈𝐎𝐔𝐒 𝟏𝟎 (${year})
+🎬 ${title} (${year})
 ${collection ? `🎞 ${collection}\n` : ""}${line}
 🔥 ${quality} • ${genres}  
 🎧 ${audio}  
@@ -491,6 +491,23 @@ function playerUrl(mode,id){
 }
 
 // ================= TMDB =================
+
+async function tmdbFetch(url){
+  try{
+    const res = await fetch(url);
+
+    if(!res.ok){
+      console.log("❌ TMDB ERROR:", res.status, url);
+      return null;
+    }
+
+    return await res.json();
+
+  }catch(err){
+    console.log("❌ TMDB FETCH FAIL:", err.message);
+    return null;
+  }
+}
 
 async function searchTMDBAdvanced(title, year=null, type=null){
 
@@ -758,6 +775,35 @@ async function showNetflixHome(chatId){
 
 // ================= UI =================
 
+async function sendPosterRow(chatId, heading, list){
+
+  if(!list || !list.length) return;
+
+  await tg("sendMessage",{
+    chat_id: chatId,
+    text: `🎬 ${heading}`
+  });
+
+  const slice = list.slice(0,5);
+
+  for(const item of slice){
+
+    const title = item.title || item.name || "Film";
+    const type = item.media_type || "movie";
+
+    await tg("sendPhoto",{
+      chat_id: chatId,
+      photo: getCover(item),
+      caption: `🎬 ${title}`,
+      reply_markup:{
+        inline_keyboard:[
+          [{ text:"▶️", callback_data:`search_${item.id}_${type}` }]
+        ]
+      }
+    });
+  }
+}
+
 // 🎬 HAUPTMENÜ
 function showMenu(chatId){
 
@@ -810,41 +856,6 @@ async function sendResultsList(chatId, heading, list, page = 0){
 
   const start = page * perPage;
   const slice = list.slice(start, start + perPage);
-  
-  // ================= POSTER ROW (NETFLIX STYLE) =================
-async function sendPosterRow(chatId, heading, list){
-
-  if(!list || !list.length) return;
-
-  // Titel der Reihe
-  await tg("sendMessage",{
-    chat_id: chatId,
-    text: `🎬 ${heading}`
-  });
-
-  const slice = list.slice(0,5); // max 5 pro Reihe
-
-  for(const item of slice){
-
-    const title = item.title || item.name || "Film";
-    const type = item.media_type || "movie";
-
-    await tg("sendPhoto",{
-      chat_id: chatId,
-      photo: getCover(item), // 🔥 größer als Poster
-
-      caption: `🎬 ${title}`,
-
-      reply_markup:{
-        inline_keyboard:[
-          [
-            { text:"▶️", callback_data:`search_${item.id}_${type}` }
-          ]
-        ]
-      }
-    });
-  }
-}
 
   // 🧠 STATE SPEICHERN (für Swipe etc.)
   USER_STATE[chatId] = {
@@ -975,11 +986,6 @@ if(!result){
   const short = clean.split(" ").slice(0,2).join(" ");
   result = await searchTMDB(short);
 }
-
-  if(!result){
-    const short = clean.split(" ").slice(0,2).join(" ");
-    result = await searchTMDB(short);
-  }
 
   let details = null;
 
