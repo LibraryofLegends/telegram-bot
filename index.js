@@ -501,45 +501,42 @@ async function searchTMDB(title){
 
   if(!title) return null;
 
-  const variants = [
-    title,
-    title.split(" ").slice(0,3).join(" "),
-    title.split(" ").slice(0,2).join(" "),
-    title.split(" ")[0]
-  ].filter(x => x && x.length > 2);
-
-  for(const q of variants){
-
-    const data = await tmdbFetch(
-      `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=de-DE`
-    );
-
-    if(data?.results?.length){
-
-      // 🧠 BEST MATCH (KEIN RANDOM ERSTER TREFFER)
-      const best = data.results.find(x => x.media_type === "movie")
-                || data.results.find(x => x.media_type === "tv")
-                || data.results[0];
-
-      return best;
-    }
-  }
-
-  console.log("❌ TMDB NO MATCH:", title);
-  return null;
-}
-
-
-// 🎬 DETAILS (MIT FALLBACK TYPE)
-async function getDetails(id,type){
-
-  if(!id) return null;
-
-  const safeType = type === "tv" ? "tv" : "movie";
-
-  return await tmdbFetch(
-    `https://api.themoviedb.org/3/${safeType}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,release_dates&language=de-DE`
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
   );
+
+  if(!data?.results?.length) return null;
+
+  const clean = title.toLowerCase();
+
+  // 🔥 BEST MATCH LOGIC
+  const scored = data.results.map(item => {
+
+    const name = (item.title || item.name || "").toLowerCase();
+
+    let score = 0;
+
+    // 🎯 exakter Titel Match
+    if(name === clean) score += 100;
+
+    // 🎯 enthält Titel
+    if(name.includes(clean)) score += 50;
+
+    // 🎯 ähnlich (Teilmatch)
+    const words = clean.split(" ");
+    const hits = words.filter(w => name.includes(w)).length;
+    score += hits * 10;
+
+    // 🎯 Popularität als Bonus
+    score += item.popularity || 0;
+
+    return { item, score };
+  });
+
+  // 🔥 BESTEN TREFFER NEHMEN
+  scored.sort((a,b)=>b.score - a.score);
+
+  return scored[0].item;
 }
 
 
