@@ -208,6 +208,8 @@ function getCover(data = {}) {
   return "https://dummyimage.com/500x750/000/fff&text=No+Image";
 }
 
+console.log("❌ Cloudinary Upload Fehler:", err.message);
+
 function getBanner(data = {}) {
 
   if(data?.backdrop_path){
