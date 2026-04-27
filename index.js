@@ -403,11 +403,14 @@ function buildCard(data, fileName="", id="0001", width=null, height=null){
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
   const titleStyled = title
-    .split("")
-    .map(c => "ABCDEFGHIJKLMNOPQRSTUVWXYZ".includes(c)
-      ? String.fromCharCode(c.charCodeAt(0) + 119743)
-      : c
-    ).join("");
+  .split("")
+  .map(c => {
+    if (c >= "A" && c <= "Z") {
+      return String.fromCodePoint(c.charCodeAt(0) + 0x1D3BF);
+    }
+    return c;
+  })
+  .join("");
 
   // 🎬 COLLECTION (optional erkennen)
   let collection = "";
