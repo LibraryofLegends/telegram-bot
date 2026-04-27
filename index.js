@@ -1163,11 +1163,10 @@ console.log("🎬 MATCH:", result?.title || result?.name);
 
   // ================= COVER FIX =================
   let cover = getCover(safeData);
-  cover = await uploadToCloudinary(cover);
-
-  if(!safeData || (!details && !result)){
-    cover = buildStyledCover(parsed.title);
-  }
+  cover = await uploadToCloudinary(
+  cover,
+  safeData.title || safeData.name || parsed.title
+);
 
   try{
     if(!cover || cover.includes("null")){
