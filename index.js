@@ -182,11 +182,11 @@ async function uploadToCloudinary(url, title = ""){
   },
   {
     overlay: "library_of_legendes_logo",
-    width: 80,
-    opacity: 40,
+    width: 60,
+    opacity: 30,
     gravity: "south_east",
-    x: 20,
-    y: 20
+    x: 15,
+    y: 15
   }
 ]
     });
