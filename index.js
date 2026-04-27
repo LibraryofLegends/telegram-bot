@@ -185,13 +185,14 @@ async function uploadToCloudinary(url, title = ""){
 
   // Logo minimal & elegant
   {
-    overlay: "Library_Of_Legendes_Logo",
-    width: 80,
-    opacity: 40,
-    gravity: "south_east",
-    x: 20,
-    y: 20
-  }
+  overlay: "library_of_legendes_logo",
+  width: 90,
+  opacity: 50,
+  effect: "brightness:120",
+  gravity: "south_east",
+  x: 20,
+  y: 20
+}
 
 ]
 
