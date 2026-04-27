@@ -377,7 +377,7 @@ async function sendFileById(chatId,item){
 }
 
 // ================= CARD =================
-function buildCard(data, fileName="", id="0001"){
+function buildCard(data, fileName="", id="0001", width=null, height=null){
 
   const title = (data.title || data.name || fileName || "UNBEKANNT").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
@@ -422,11 +422,21 @@ if(audio === "Unbekannt"){
   "WEB";
 
   // 🎞 QUALITÄT
-  const quality =
-  /2160|4k|3840/i.test(fileName) ? "4K" :
-  /1080|1920/i.test(fileName) ? "1080p" :
-  /720|1280/i.test(fileName) ? "720p" :
-  "HD";
+  let quality = "HD";
+
+// 🔥 PRIORITY 1: echte Video-Daten
+if(width && height){
+  if(height >= 2160) quality = "4K";
+  else if(height >= 1080) quality = "1080p";
+  else if(height >= 720) quality = "720p";
+}
+
+// 🔥 PRIORITY 2: Dateiname fallback
+else{
+  if(/2160|4k/i.test(fileName)) quality = "4K";
+  else if(/1080/i.test(fileName)) quality = "1080p";
+  else if(/720/i.test(fileName)) quality = "720p";
+}
 
   // ⭐ RATING
   const ratingValue = data.vote_average || 0;
@@ -970,6 +980,8 @@ for (let i = 0; i < slice.length; i += 2) {
 async function handleUpload(msg){
 
   const file = msg.document || msg.video;
+  const width = msg.video?.width;
+  const height = msg.video?.height;
   if(!file) return;
 
   const fileName = file.file_name || "";
@@ -1133,7 +1145,7 @@ console.log("🎬 MATCH:", result?.title || result?.name);
   }
 
   const targetChannel = getTargetChannel(genreIds);
-  const caption = buildCard(safeData, fileName, id);
+  const caption = buildCard(safeData, fileName, id, width, height);
 
   try{
     await tg("sendPhoto",{
