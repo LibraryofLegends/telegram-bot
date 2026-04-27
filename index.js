@@ -402,15 +402,17 @@ function buildCard(data, fileName="", id="0001", width=null, height=null){
   const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
 
+  const BOLD_MAP = {
+    A:"𝐀",B:"𝐁",C:"𝐂",D:"𝐃",E:"𝐄",F:"𝐅",G:"𝐆",
+    H:"𝐇",I:"𝐈",J:"𝐉",K:"𝐊",L:"𝐋",M:"𝐌",N:"𝐍",
+    O:"𝐎",P:"𝐏",Q:"𝐐",R:"𝐑",S:"𝐒",T:"𝐓",U:"𝐔",
+    V:"𝐕",W:"𝐖",X:"𝐗",Y:"𝐘",Z:"𝐙"
+  };
+
   const titleStyled = title
-  .split("")
-  .map(c => {
-    if (c >= "A" && c <= "Z") {
-      return String.fromCodePoint(c.charCodeAt(0) + 0x1D3BF);
-    }
-    return c;
-  })
-  .join("");
+    .split("")
+    .map(c => BOLD_MAP[c] || c)
+    .join("");
 
   // 🎬 COLLECTION (optional erkennen)
   let collection = "";
