@@ -395,7 +395,7 @@ function buildCard(data, fileName="", id="0001"){
   // 🎧 AUDIO
   let audio = "Unbekannt";
 
-if(/deutsch|german/i.test(fileName) && /english|eng/i.test(fileName)){
+if(/multi|dual|dl/i.test(fileName)){
   audio = "Deutsch • Englisch";
 }
 else if(/deutsch|german/i.test(fileName)){
@@ -407,9 +407,12 @@ else if(/english|eng/i.test(fileName)){
 
   // 💿 SOURCE
   const source =
-  /bluray/i.test(fileName) ? "BluRay" :
-  /web[-_. ]?dl|webrip|web/i.test(fileName) ? "WEB-DL" :
-  "Unknown";
+  /bluray|bdrip|brrip/i.test(fileName) ? "BluRay" :
+  /web[-_. ]?dl/i.test(fileName) ? "WEB-DL" :
+  /webrip/i.test(fileName) ? "WEBRip" :
+  /hdrip/i.test(fileName) ? "HDRip" :
+  /dvdrip/i.test(fileName) ? "DVDRip" :
+  "WEB";
 
   // 🎞 QUALITÄT
   const quality =
