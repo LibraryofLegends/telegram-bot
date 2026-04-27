@@ -32,6 +32,36 @@ const SERIES_DB_FILE = "series.json";
 const USER_STATE = {};
 
 // ================= DB =================
+function generateNextId(){
+  
+  function generateCategoryId(genres=[]){
+
+  if(!genres.length) return "GEN000";
+
+  const main = genres[0];
+  const code = GENRE_CODE[main] || "GEN";
+
+  const sameGenre = CACHE.filter(x =>
+    x.genres?.includes(main)
+  );
+
+  const next = sameGenre.length + 1;
+
+  return `${code}${String(next).padStart(3,"0")}`;
+}
+
+  if(!CACHE.length) return "0001";
+
+  // höchste vorhandene ID finden
+  const maxId = Math.max(
+    ...CACHE.map(x => parseInt(x.display_id || "0"))
+  );
+
+  const next = maxId + 1;
+
+  return String(next).padStart(4,"0");
+}
+
 function loadDB() {
   if (!fs.existsSync(DB_FILE)) return [];
   try {
@@ -146,6 +176,14 @@ function buildNetflixBanner(data){
 // ================= GENRE SYSTEM =================
 
 const GENRE_MAP = {
+  const GENRE_CODE = {
+  28: "ACT",
+  27: "HOR",
+  35: "COM",
+  18: "DRA",
+  878: "SCI",
+  53: "THR"
+};
   28:"🔥 Action",
   35:"😂 Comedy",
   27:"👻 Horror",
@@ -397,7 +435,7 @@ async function sendFileById(chatId,item){
 }
 
 // ================= CARD =================
-function buildCard(data, fileName="", id="0001", width=null, height=null){
+function buildCard(data, fileName="", id="0001", categoryId="GEN000"){
 
   const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
@@ -537,7 +575,7 @@ ${line}
 📖 𝐒𝐓𝐎𝐑𝐘
 ${story}
 ${line}
-▶️ ID: ${id}
+▶️ PLAY • #${categoryId} • #${id}
 ${line}
 ${tags}
 @LibraryOfLegends`;
@@ -1141,11 +1179,12 @@ console.log("🎬 MATCH:", result?.title || result?.name);
   }
 
   const item = {
-    display_id:id,
-    file_id:file.file_id,
-    media_type: result?.media_type || "movie",
-    genres: genreIds
-  };
+  display_id:id,
+  category_id: categoryId,
+  file_id:file.file_id,
+  media_type: result?.media_type || "movie",
+  genres: genreIds
+};
 
   CACHE.unshift(item);
   saveDB(CACHE);
@@ -1176,7 +1215,7 @@ console.log("🎬 MATCH:", result?.title || result?.name);
   }
 
   const targetChannel = getTargetChannel(genreIds);
-  const caption = buildCard(safeData, fileName, id, width, height);
+  const caption = buildCard(safeData, fileName, id, categoryId);
 
   try{
     await tg("sendPhoto",{
