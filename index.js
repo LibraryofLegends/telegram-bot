@@ -178,7 +178,7 @@ async function uploadToCloudinary(url){
 
       transformation: [
         {
-          overlay: "Library_Of_Legendes_Logo",
+          overlay: "library_of_legendes_logo",
           width: 160,
           opacity: 70,
           gravity: "south_east",
