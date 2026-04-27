@@ -406,7 +406,7 @@ else if(/english|eng/i.test(fileName)){
 }
 
 if(audio === "Unbekannt"){
-  audio = "Englisch"; // Default
+  audio = /de/i.test(fileName) ? "Deutsch" : "Englisch";
 }
 
   // 💿 SOURCE
