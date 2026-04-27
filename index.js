@@ -181,15 +181,20 @@ async function uploadToCloudinary(url){
 }
 
 function getCover(data = {}) {
+
+  let base = "";
+
   if (data?.poster_path) {
-    return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
+    base = `https://image.tmdb.org/t/p/w500${data.poster_path}`;
+  } 
+  else if (data?.backdrop_path) {
+    base = `https://image.tmdb.org/t/p/w500${data.backdrop_path}`;
+  } 
+  else {
+    base = "https://dummyimage.com/500x750/000/fff&text=No+Image";
   }
 
-  if (data?.backdrop_path) {
-    return `https://image.tmdb.org/t/p/w500${data.backdrop_path}`;
-  }
-
-  return "https://dummyimage.com/500x750/000/fff&text=No+Image";
+  return `https://res.cloudinary.com/${process.env.CLOUD_NAME}/image/fetch/l_Library_Of_Legendes_Logo,o_70,w_160,g_south_east,x_25,y_25/${encodeURIComponent(base)}`;
 }
 
 function getBanner(data = {}) {
