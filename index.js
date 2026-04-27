@@ -168,34 +168,44 @@ function getAvailableGenres(){
 // ================= MEDIA HELPERS =================
 
 async function uploadToCloudinary(url){
+
   if(!cloudinary) return url;
 
   try{
+
     const res = await cloudinary.uploader.upload(url,{
-      folder:"library_of_legends"
+      folder:"library_of_legends",
+
+      transformation: [
+        {
+          overlay: "Library_Of_Legendes_Logo",
+          width: 160,
+          opacity: 70,
+          gravity: "south_east",
+          x: 25,
+          y: 25
+        }
+      ]
     });
+
     return res.secure_url;
-  }catch{
+
+  }catch(err){
+    console.log("❌ Cloudinary Upload Fehler:", err.message);
     return url;
   }
 }
 
 function getCover(data = {}) {
-
-  let base = "";
-
   if (data?.poster_path) {
-    base = `https://image.tmdb.org/t/p/w500${data.poster_path}`;
-  } 
-  else if (data?.backdrop_path) {
-    base = `https://image.tmdb.org/t/p/w500${data.backdrop_path}`;
-  } 
-  else {
-    return "https://dummyimage.com/500x750/000/fff&text=No+Image";
+    return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
   }
 
-  // 🔥 WICHTIG: KEIN encodeURIComponent hier!
-  return `https://res.cloudinary.com/${process.env.CLOUD_NAME}/image/fetch/l_Library_Of_Legendes_Logo,o_70,w_160,g_south_east,x_25,y_25/${base}`;
+  if (data?.backdrop_path) {
+    return `https://image.tmdb.org/t/p/w500${data.backdrop_path}`;
+  }
+
+  return "https://dummyimage.com/500x750/000/fff&text=No+Image";
 }
 
 function getBanner(data = {}) {
