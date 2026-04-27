@@ -443,7 +443,7 @@ else{
   const stars = "★".repeat(Math.round(ratingValue / 2)) +
                 "☆".repeat(5 - Math.round(ratingValue / 2));
 
-  const rating = `${stars} (${ratingValue.toFixed(1)})`;
+  const rating = `⭐ ${ratingValue.toFixed(1)} / 10`;
 
   // ⏱ LAUFZEIT
   const runtime = data.runtime ? `${data.runtime} Min` : "-";
@@ -488,14 +488,13 @@ else{
     .map(g => `#${g.name.replace(/\s/g,"")}`)
     .join(" ");
 
-  const line = "━━━━━━━━━━━━━━━━━━━━━";
+  const line = "━━━━━━━━━━━━━━━━━━";
 
   return `${line}
 🎬 ${title} (${year})
 ${collection ? `🎞 ${collection}\n` : ""}${line}
-🔥 ${quality} • ${genres}  
+🔥 ${quality} • ${source} • ${genres}  
 🎧 ${audio}  
-💿 ${source}  
 ${line}
 ${rating}
 ⏱ ${runtime} • 🔞 FSK ${fsk}  
@@ -505,7 +504,7 @@ ${line}
 📖 STORY  
 ${story}
 ${line}
-▶️ #${id}  
+▶️ ID: ${id}
 ${line}
 ${tags}
 @LibraryOfLegends`;
