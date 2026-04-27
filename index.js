@@ -399,8 +399,15 @@ async function sendFileById(chatId,item){
 // ================= CARD =================
 function buildCard(data, fileName="", id="0001", width=null, height=null){
 
-  const title = (data.title || data.name || fileName || "UNBEKANNT").toUpperCase();
+  const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
+
+  const titleStyled = title
+    .split("")
+    .map(c => "ABCDEFGHIJKLMNOPQRSTUVWXYZ".includes(c)
+      ? String.fromCharCode(c.charCodeAt(0) + 119743)
+      : c
+    ).join("");
 
   // 🎬 COLLECTION (optional erkennen)
   let collection = "";
@@ -512,7 +519,7 @@ else{
   const line = "━━━━━━━━━━━━━━━━━━";
 
   return `${line}
-🎬 ${title} (${year})
+🎬 ${titleStyled} (${year})
 ${collection ? `🎞 ${collection}\n` : ""}${line}
 🔥 ${quality} • ${source} • ${genres}  
 🎧 ${audio}  
@@ -522,7 +529,7 @@ ${rating}
 🎥 ${director}  
 👥 ${cast}  
 ${line}
-📖 STORY  
+📖 𝐒𝐓𝐎𝐑𝐘
 ${story}
 ${line}
 ▶️ ID: ${id}
