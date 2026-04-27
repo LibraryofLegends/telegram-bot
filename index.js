@@ -445,11 +445,10 @@ else{
 }
 
   // ⭐ RATING
-  const ratingValue = data.vote_average || 0;
   const stars = "★".repeat(Math.round(ratingValue / 2)) +
-                "☆".repeat(5 - Math.round(ratingValue / 2));
+              "☆".repeat(5 - Math.round(ratingValue / 2));
 
-  const rating = `⭐ ${ratingValue.toFixed(1)} / 10`;
+  const rating = `⭐ ${stars} ${ratingValue.toFixed(1)}`;
 
   // ⏱ LAUFZEIT
   const runtime = data.runtime ? `${data.runtime} Min` : "-";
