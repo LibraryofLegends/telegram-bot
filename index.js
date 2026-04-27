@@ -405,6 +405,10 @@ else if(/english|eng/i.test(fileName)){
   audio = "Englisch";
 }
 
+if(audio === "Unbekannt"){
+  audio = "Englisch"; // Default
+}
+
   // 💿 SOURCE
   const source =
   /bluray|bdrip|brrip/i.test(fileName) ? "BluRay" :
