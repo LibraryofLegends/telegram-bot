@@ -394,19 +394,22 @@ function buildCard(data, fileName="", id="0001"){
 
   // 🎧 AUDIO
   let audio = "Unbekannt";
+const name = fileName.toLowerCase();
 
-if(/multi|dual|dl/i.test(fileName)){
+// 🔥 PRIORITY 1: Datei enthält Info
+if(/multi|dual|dl/.test(name)){
   audio = "Deutsch • Englisch";
 }
-else if(/deutsch|german/i.test(fileName)){
+else if(/deutsch|german/.test(name)){
   audio = "Deutsch";
 }
-else if(/english|eng/i.test(fileName)){
+else if(/english|\beng\b/.test(name)){
   audio = "Englisch";
 }
 
+// 🔥 PRIORITY 2: FALLBACK → IMMER SINNVOLL
 if(audio === "Unbekannt"){
-  audio = /de/i.test(fileName) ? "Deutsch" : "Englisch";
+  audio = "Deutsch • Englisch"; // 🔥 besserer Default für Telegram Releases
 }
 
   // 💿 SOURCE
@@ -420,10 +423,9 @@ if(audio === "Unbekannt"){
 
   // 🎞 QUALITÄT
   const quality =
-  /2160|4k/i.test(fileName) ? "4K" :
-  /1080/i.test(fileName) ? "1080p" :
-  /720/i.test(fileName) ? "720p" :
-  /480/i.test(fileName) ? "480p" :
+  /2160|4k|3840/i.test(fileName) ? "4K" :
+  /1080|1920/i.test(fileName) ? "1080p" :
+  /720|1280/i.test(fileName) ? "720p" :
   "HD";
 
   // ⭐ RATING
