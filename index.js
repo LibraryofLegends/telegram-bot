@@ -179,11 +179,12 @@ async function uploadToCloudinary(url){
       transformation: [
   {
     overlay: "library_of_legendes_logo",
-    width: 180,
-    opacity: 80,
-    gravity: "south_east",
-    x: 30,
-    y: 30
+    flags: "Layer_apply",
+    Gravity: "south_east",
+    width: 160,
+    opacity: 70,
+    x: 25,
+    y: 25
   }
 ]
     });
