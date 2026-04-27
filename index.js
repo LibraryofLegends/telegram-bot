@@ -203,13 +203,13 @@ async function uploadToCloudinary(url, title = ""){
 
         // 🔥 LOGO
         {
-          overlay: "library_of_legendes_logo",
-          width: 180,
-          opacity: 70,
-          gravity: "north_east",
-          x: 30,
-          y: 30
-        }
+  overlay: "library_of_legendes_logo",
+  width: 80,          // viel kleiner!
+  opacity: 40,        // subtil
+  gravity: "south_east",
+  x: 20,
+  y: 20
+}
 
       ]
     });
