@@ -476,7 +476,7 @@ else{
   const stars = "★".repeat(Math.round(ratingValue / 2)) +
                 "☆".repeat(5 - Math.round(ratingValue / 2));
 
-  const rating = `⭐ ${stars} ${ratingValue.toFixed(1)}`;
+  const rating = `⭐ ${stars} • ${ratingValue.toFixed(1)}`;
 
   // ⏱ LAUFZEIT
   const runtime = data.runtime ? `${data.runtime} Min` : "-";
