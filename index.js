@@ -167,7 +167,7 @@ function getAvailableGenres(){
 
 // ================= MEDIA HELPERS =================
 
-async function uploadToCloudinary(url){
+async function uploadToCloudinary(url, title = ""){
 
   if(!cloudinary) return url;
 
@@ -177,23 +177,48 @@ async function uploadToCloudinary(url){
       folder:"library_of_legends",
 
       transformation: [
+
+        // 🔥 DUNKLER GRADIENT (Netflix Look)
+        {
+          effect: "brightness:-40"
+        },
+
+        // 🎬 TITEL IM BILD
+        {
+          overlay: {
+            font_family: "Arial",
+            font_size: 60,
+            font_weight: "bold",
+            text: title.toUpperCase()
+          },
+          color: "white",
+          gravity: "south",
+          y: 80
+        },
+
+        // 🧠 LEICHTER SHADOW
+        {
+          effect: "shadow:200"
+        },
+
+        // 🔥 LOGO
         {
           overlay: "library_of_legendes_logo",
-          width: 160,
+          width: 180,
           opacity: 70,
-          gravity: "south_east",
-          x: 25,
-          y: 25
+          gravity: "north_east",
+          x: 30,
+          y: 30
         }
+
       ]
     });
 
     return res.secure_url;
 
-  } catch(err){
+  }catch(err){
 
     console.log("❌ Cloudinary Upload Fehler:", err.message);
-
     return url;
   }
 }
