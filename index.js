@@ -177,22 +177,23 @@ async function uploadToCloudinary(url){
       folder:"library_of_legends",
 
       transformation: [
-  {
-    overlay: "library_of_legendes_logo",
-    flags: "Layer_apply",
-    Gravity: "south_east",
-    width: 160,
-    opacity: 70,
-    x: 25,
-    y: 25
-  }
-]
+        {
+          overlay: "Library_Of_Legendes_Logo",
+          width: 160,
+          opacity: 70,
+          gravity: "south_east",
+          x: 25,
+          y: 25
+        }
+      ]
     });
 
     return res.secure_url;
 
-  }catch(err){
+  } catch(err){
+
     console.log("❌ Cloudinary Upload Fehler:", err.message);
+
     return url;
   }
 }
