@@ -177,26 +177,18 @@ async function uploadToCloudinary(url, title = ""){
       folder:"library_of_legends",
 
       transformation: [
-
-  // leichte Verbesserung statt Zerstörung
   {
     effect: "brightness:-10"
   },
-
-  // Logo minimal & elegant
   {
-  overlay: "library_of_legendes_logo",
-  width: 90,
-  opacity: 50,
-  effect: "brightness:120",
-  gravity: "south_east",
-  x: 20,
-  y: 20
-}
-
+    overlay: "Library_Of_Legendes_Logo",
+    width: 80,
+    opacity: 40,
+    gravity: "south_east",
+    x: 20,
+    y: 20
+  }
 ]
-
-      ]
     });
 
     return res.secure_url;
