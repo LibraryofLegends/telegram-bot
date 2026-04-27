@@ -178,38 +178,22 @@ async function uploadToCloudinary(url, title = ""){
 
       transformation: [
 
-        // 🔥 DUNKLER GRADIENT (Netflix Look)
-        {
-          effect: "brightness:-40"
-        },
+  // leichte Verbesserung statt Zerstörung
+  {
+    effect: "brightness:-10"
+  },
 
-        // 🎬 TITEL IM BILD
-        {
-          overlay: {
-            font_family: "Arial",
-            font_size: 60,
-            font_weight: "bold",
-            text: title.toUpperCase()
-          },
-          color: "white",
-          gravity: "south",
-          y: 80
-        },
+  // Logo minimal & elegant
+  {
+    overlay: "Library_Of_Legendes_Logo",
+    width: 80,
+    opacity: 40,
+    gravity: "south_east",
+    x: 20,
+    y: 20
+  }
 
-        // 🧠 LEICHTER SHADOW
-        {
-          effect: "shadow:200"
-        },
-
-        // 🔥 LOGO
-        {
-  overlay: "library_of_legendes_logo",
-  width: 80,          // viel kleiner!
-  opacity: 40,        // subtil
-  gravity: "south_east",
-  x: 20,
-  y: 20
-}
+]
 
       ]
     });
