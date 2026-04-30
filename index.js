@@ -1880,13 +1880,45 @@ if (msg?.text?.startsWith("/delete")) {
   });
 }
 
-    if (msg?.text === "/start") {
-      return showMenu(msg.chat.id);
+
+// 🔥 HIER DEIN NEUER START BLOCK
+if (msg?.text?.startsWith("/start")) {
+
+  const param = msg.text.split(" ")[1];
+
+  if(param){
+
+    const [action, id] = param.split("_");
+
+    if(action === "play"){
+      const item = CACHE.find(x => x.display_id === id);
+      return sendFileById(msg.chat.id, item);
     }
 
-    if (msg?.document || msg?.video) {
-      return handleUpload(msg);
+    if(action === "sim"){
+      const item = CACHE.find(x => x.display_id === id);
+
+      if(!item){
+        return tg("sendMessage",{ chat_id:msg.chat.id, text:"❌ Nicht gefunden" });
+      }
+
+      const fakeData = { genres: item.genres };
+
+      const list = getSmartRecommendations(fakeData);
+
+      return sendResultsList(msg.chat.id, "🔥 Ähnliche", list, 0);
     }
+
+  }
+
+  return showMenu(msg.chat.id);
+}
+
+
+// Upload bleibt unverändert
+if (msg?.document || msg?.video) {
+  return handleUpload(msg);
+}
 
   } catch (e) {
     console.error("❌ WEBHOOK ERROR:", e.message, e.stack);
