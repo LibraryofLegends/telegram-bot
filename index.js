@@ -1172,6 +1172,22 @@ async function showNetflixHome(chatId){
 
 // ================= UI =================
 
+async function showGenres(chatId){
+
+  const buttons = buildGenreButtons();
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:"🎬 Kategorien",
+    reply_markup:{
+      inline_keyboard:[
+        ...buttons,
+        [{text:"🏠 Menü",callback_data:"menu"}]
+      ]
+    }
+  });
+}
+
 async function sendPosterRow(chatId, heading, list){
 
   if(!list || !list.length) return;
