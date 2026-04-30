@@ -1674,6 +1674,10 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   if (data === "menu") {
     return showMenu(chatId);
   }
+  
+  if (data === "open_genres") {
+    return showGenres(chatId);
+  }
 
   if (data === "continue") {
 
