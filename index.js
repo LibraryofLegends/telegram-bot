@@ -1753,8 +1753,14 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   }
 
   if (data === "browse_movies") {
-    return sendResultsList(chatId, "🎬 Filme", await getPopular(), 0);
-  }
+
+  return sendResultsList(
+    GROUP_ID,
+    "🎬 Filme",
+    CACHE,
+    0
+  );
+}
 
   if (data === "browse_series") {
 
