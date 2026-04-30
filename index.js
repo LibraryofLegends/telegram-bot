@@ -206,6 +206,59 @@ function getAvailableGenres(){
 
 // ================= MEDIA HELPERS =================
 
+function getVisualStyle(genres = [], rating = 0){
+
+  const g = genres[0];
+
+  let style = [
+    { effect: "brightness:-10" },
+    { effect: "contrast:20" },
+    { effect: "sharpen:50" }
+  ];
+
+  if([28,53].includes(g)){
+    style = [
+      { effect: "brightness:-8" },
+      { effect: "contrast:30" },
+      { effect: "saturation:25" },
+      { effect: "colorbalance:20_red:10_blue:-10" }
+    ];
+  }
+
+  if(g === 27){
+    style = [
+      { effect: "brightness:-30" },
+      { effect: "contrast:35" },
+      { effect: "saturation:-25" },
+      { effect: "colorbalance:-20_red:20_blue:30" }
+    ];
+  }
+
+  if(g === 35){
+    style = [
+      { effect: "brightness:15" },
+      { effect: "contrast:15" },
+      { effect: "saturation:35" }
+    ];
+  }
+
+  if(g === 18){
+    style = [
+      { effect: "brightness:-5" },
+      { effect: "contrast:18" },
+      { effect: "saturation:5" }
+    ];
+  }
+
+  if(rating >= 7.5){
+    style.push({ effect: "glow:20" });
+  }
+
+  style.push({ effect: "vignette:40" });
+
+  return style;
+}
+
 async function uploadToCloudinary(url, genres = []){
 
   if(!cloudinary) return url;
