@@ -538,6 +538,37 @@ function detectSource(n=""){
 }
 
 // ================= EXTRA HELPERS =================
+function detectCollection(title = ""){
+
+  const t = title.toLowerCase();
+
+  // 🔥 bekannte Reihen (kannst du jederzeit erweitern)
+  const patterns = [
+    "john wick",
+    "fast furious",
+    "harry potter",
+    "avengers",
+    "batman",
+    "spiderman",
+    "transformers",
+    "mission impossible"
+  ];
+
+  for(const p of patterns){
+    if(t.includes(p)){
+      return p.replace(/\s/g,"_");
+    }
+  }
+
+  // 🧠 fallback (automatisch erkennen bei "Teil 1/2/3")
+  const match = t.match(/^(.+?)\s(\d+)$/);
+
+  if(match){
+    return match[1].replace(/\s/g,"_");
+  }
+
+  return null;
+}
 
 function getVisualStyle(genres = []){
 
