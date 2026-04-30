@@ -488,15 +488,75 @@ function parseFileName(name = "") {
   return { type: "movie", title: clean };
 }
 
-function cleanTitleAdvanced(name = "") {
+function ultraCleanTitle(name = "") {
+
   return name
-    .replace(/\.(mp4|mkv|avi)$/i, "")
-    .replace(/\b(1080p|720p|2160p|4k|uhd)\b/gi, "")
-    .replace(/\b(x264|x265|h264|h265)\b/gi, "")
-    .replace(/\b(bluray|web|webrip|webdl)\b/gi, "")
-    .replace(/\b(german|deutsch|dual|dl)\b/gi, "")
-    .replace(/S\d{1,2}E\d{1,2}/gi, "")
+
+    // =============================
+    // 🔥 REMOVE FILE EXTENSION
+    // =============================
+    .replace(/\.(mp4|mkv|avi|mov)$/i, "")
+
+    // =============================
+    // 🔥 REMOVE TELEGRAM / TAGS
+    // =============================
+    .replace(/@[\w\d_]+/g, "")
+    .replace(/\[[^\]]+\]/g, "")
+    .replace(/\([^\)]*?(subs|dub|rip|1080|720)[^\)]*\)/gi, "")
+
+    // =============================
+    // 🔥 REMOVE DATES (ALLE FORMATE)
+    // =============================
+    .replace(/^\d{4}[.\-_ ]\d{2}[.\-_ ]\d{2}/, "")
+    .replace(/^\d{2}[.\-_ ]\d{2}[.\-_ ]\d{4}/, "")
+    .replace(/^\d{4}/, "")
+
+    // =============================
+    // 🔥 REMOVE RESOLUTION / CODECS
+    // =============================
+    .replace(/\b(2160p|1080p|720p|480p|4k|uhd)\b/gi, "")
+    .replace(/\b(x264|x265|h264|h265|hevc)\b/gi, "")
+    .replace(/\b(10bit|8bit)\b/gi, "")
+
+    // =============================
+    // 🔥 REMOVE SOURCE
+    // =============================
+    .replace(/\b(bluray|bdrip|brrip|web[-_. ]?dl|webrip|hdrip|dvdrip)\b/gi, "")
+
+    // =============================
+    // 🔥 REMOVE AUDIO
+    // =============================
+    .replace(/\b(german|deutsch|english|eng|dual|dl)\b/gi, "")
+    .replace(/\b(aac|dts|ac3|atmos|truehd)\b/gi, "")
+
+    // =============================
+    // 🔥 REMOVE SCENE TAGS
+    // =============================
+    .replace(/\b(proper|repack|extended|uncut|remastered)\b/gi, "")
+
+    // =============================
+    // 🔥 REMOVE RESOLUTION DIMENSIONS
+    // =============================
+    .replace(/\d{3,4}x\d{3,4}/g, "")
+
+    // =============================
+    // 🔥 REMOVE GROUP NAMES
+    // =============================
+    .replace(/-([A-Za-z0-9]+)$/g, "")
+
+    // =============================
+    // 🔥 NORMALIZE SEPARATORS
+    // =============================
     .replace(/[._\-]+/g, " ")
+
+    // =============================
+    // 🔥 REMOVE EXTRA NUMBERS FRONT
+    // =============================
+    .replace(/^\d+\s+/, "")
+
+    // =============================
+    // 🔥 FINAL CLEAN
+    // =============================
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -1345,7 +1405,9 @@ if(exists){
   const fileYear = yearMatch ? parseInt(yearMatch[0]) : null;
 
   // 🔥 CLEAN TITLE (weniger aggressiv)
-  const clean = parsed.title
+  const clean = ultraCleanTitle(parsed.title);
+
+  console.log("🧹 CLEAN TITLE:", clean);
 
   // 🔥 1. DATUM AM ANFANG ENTFERNEN (WICHTIG!)
   .replace(/^\d{4}[.\-_ ]\d{2}[.\-_ ]\d{2}/, "")
