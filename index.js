@@ -25,6 +25,20 @@ const TMDB_KEY = process.env.TMDB_KEY;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 const BOT_USERNAME = process.env.BOT_USERNAME || "LIBRARY_OF_LEGENDS_Bot";
 
+const BANNERS = {
+
+  main: "AgACAgIAAxkBAAIIb2nztY3EVUMNWPCNUoNwNRpZgvekAAJeGWsb94aYSzrBsWsTwbUsAQADAgADdwADOwQ",
+
+  genres: {
+    28: "ACTION_FILE_ID",
+    27: "HORROR_FILE_ID",
+    35: "COMEDY_FILE_ID",
+    18: "DRAMA_FILE_ID",
+    53: "THRILLER_FILE_ID"
+  }
+
+};
+
 const DB_FILE = "films.json";
 const HISTORY_FILE = "history.json";
 const SERIES_DB_FILE = "series.json";
