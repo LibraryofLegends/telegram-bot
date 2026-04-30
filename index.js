@@ -1500,7 +1500,7 @@ if (collectionName) {
     .replace(/[^a-z0-9_]/gi, "")
     .toLowerCase();
     
-    collectionName = collectionName?.slice(0, 40);
+    collectionName = collectionName.slice(0, 40).trim();
 }
 
 // 🔢 COLLECTION ORDER (Teil 1,2,3...)
