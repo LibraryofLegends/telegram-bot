@@ -429,6 +429,13 @@ function getLocalByGenre(genreId){
   return CACHE.filter(x => x.genres?.includes(parseInt(genreId)));
 }
 
+function getCollectionItems(collectionName){
+
+  if(!collectionName) return [];
+
+  return CACHE.filter(x => x.collection === collectionName);
+}
+
 
 // ================= FILE PARSER =================
 
