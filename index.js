@@ -1204,11 +1204,12 @@ async function sendPosterRow(chatId, heading, list){
 // 🎬 HAUPTMENÜ
 function showMenu(chatId){
 
-  return tg("sendMessage",{
+  return tg("sendPhoto",{
     chat_id:chatId,
-    text:`🎬 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
+    photo:"https://dummyimage.com/1280x720/000/fff&text=LIBRARY+OF+LEGENDS",
+    caption:`🔥 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
 
-Wähle deinen Bereich 👇`,
+Dein Streaming Hub 👇`,
     reply_markup:{
       inline_keyboard:[
 
@@ -1226,8 +1227,9 @@ Wähle deinen Bereich 👇`,
           {text:"📺 Serien",callback_data:"browse_series"}
         ],
 
-        // 🔥 DYNAMISCHE GENRES
-        ...buildGenreButtons(),
+        [
+          {text:"🔥 Kategorien",callback_data:"open_genres"}
+        ],
 
         [
           {text:"▶️ Weiter schauen",callback_data:"continue"}
