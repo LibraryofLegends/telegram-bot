@@ -1221,7 +1221,7 @@ function showMenu(chatId){
 
   return tg("sendPhoto",{
     chat_id:chatId,
-    photo:"https://dummyimage.com/1280x720/000/fff&text=LIBRARY+OF+LEGENDS",
+    photo:"AgACAgIAAxkBAAIIb2nztY3EVUMNWPCNUoNwNRpZgvekAAJeGWsb94aYSzrBsWsTwbUsAQADAgADdwADOwQ",
     caption:`🔥 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
 
 Dein Streaming Hub 👇`,
