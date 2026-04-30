@@ -1246,7 +1246,7 @@ if(!cover){
 
 cover = await uploadToCloudinary(
   cover,
-  safeData.title || safeData.name || parsed.title
+  genreIds
 );
 
 cover += "?v=" + Date.now();
