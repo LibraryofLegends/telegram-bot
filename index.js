@@ -30,6 +30,7 @@ const HISTORY_FILE = "history.json";
 const SERIES_DB_FILE = "series.json";
 
 const USER_STATE = {};
+const TMDB_CACHE = {};
 
 // ================= DB =================
 function generateCategoryId(genres=[]){
@@ -590,7 +591,14 @@ function playerUrl(mode,id){
 // ================= TMDB =================
 
 async function tmdbFetch(url){
+
   try{
+
+    // 🔥 CACHE HIT
+    if(TMDB_CACHE[url]){
+      return TMDB_CACHE[url];
+    }
+
     const res = await fetch(url);
 
     if(!res.ok){
@@ -598,7 +606,12 @@ async function tmdbFetch(url){
       return null;
     }
 
-    return await res.json();
+    const data = await res.json();
+
+    // 🔥 CACHE SAVE
+    TMDB_CACHE[url] = data;
+
+    return data;
 
   }catch(err){
     console.log("❌ TMDB FETCH FAIL:", err.message);
