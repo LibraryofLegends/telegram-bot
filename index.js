@@ -1757,10 +1757,11 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       for (const [episode, data] of Object.entries(episodes)) {
 
         list.push({
-          id: data.display_id,
-          title: `${title.replace(/_/g," ")} • S${season}E${episode}`,
-          media_type: "tv"
-        });
+  id: data.display_id,
+  display_id: data.display_id, // 🔥 FIX
+  title: `${title.replace(/_/g," ")} • S${season}E${episode}`,
+  media_type: "tv"
+});
 
       }
     }
@@ -1780,13 +1781,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     0
   );
 }
-
-    return tg("sendMessage",{
-      chat_id: chatId,
-      text: "📺 Serien",
-      reply_markup:{ inline_keyboard: buttons }
-    });
-  }
 
   if (data === "menu") {
     return showMenu(chatId);
