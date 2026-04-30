@@ -548,26 +548,33 @@ function detectCollection(title = ""){
 
   const t = title.toLowerCase();
 
-  // 🔥 bekannte Reihen (kannst du jederzeit erweitern)
   const patterns = [
-  { key:"john wick", aliases:["john wick","kapitel","chapter"] },
-  { key:"fast_furious", aliases:["fast furious","fast and furious"] },
-  { key:"harry_potter", aliases:["harry potter"] }
-];
+    { key:"john_wick", aliases:["john wick"] },
+    { key:"fast_furious", aliases:["fast furious","fast and furious"] },
+    { key:"harry_potter", aliases:["harry potter"] },
+    { key:"batman_nolan", aliases:["dark knight","batman begins"] },
+    { key:"avengers", aliases:["avengers"] }
+  ];
 
-for(const p of patterns){
-  for(const a of p.aliases){
-    if(t.includes(a)){
-      return p.key;
+  for(const p of patterns){
+    for(const a of p.aliases){
+      if(t.includes(a)){
+        return p.key;
+      }
     }
   }
-}
 
-  // 🧠 fallback (automatisch erkennen bei "Teil 1/2/3")
-  const match = t.match(/^(.+?)\s(\d+)$/);
+  let base = t.replace(/(\d+)$/, "").trim();
 
-  if(match){
-    return match[1].replace(/\s/g,"_");
+  base = base
+    .replace(/teil\s*\d+/,"")
+    .replace(/part\s*\d+/,"")
+    .replace(/chapter\s*\d+/,"")
+    .replace(/kapitel\s*\d+/,"")
+    .trim();
+
+  if(base.length > 5){
+    return base.replace(/\s+/g,"_");
   }
 
   return null;
