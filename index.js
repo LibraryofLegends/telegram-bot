@@ -265,38 +265,65 @@ async function uploadToCloudinary(url, genres = [], rating = 0){
 
   try{
 
-    const visualStyle = getVisualStyle(genres, rating);
+    // 🎬 SAFER BASE LOOK (keine riskanten Effekte)
+    const baseTransform = [
+      { effect: "brightness:-10" },
+      { effect: "contrast:18" },
+      { effect: "sharpen:40" }
+    ];
+
+    // 🎨 LEICHTE GENRE OPTIK (OHNE RISIKO)
+    const g = genres?.[0];
+
+    if([28,53].includes(g)){ // Action / Thriller
+      baseTransform.push({ effect: "saturation:15" });
+    }
+
+    if(g === 27){ // Horror
+      baseTransform.push({ effect: "saturation:-20" });
+    }
+
+    if(g === 35){ // Comedy
+      baseTransform.push({ effect: "brightness:10" });
+    }
+
+    // 👑 HIGH RATING → minimaler Boost
+    if(rating >= 7.5){
+      baseTransform.push({ effect: "contrast:25" });
+    }
 
     const res = await cloudinary.uploader.upload(url,{
       folder:"library_of_legends",
 
       transformation: [
 
-  // 🎬 STYLE (SAFE)
-  ...visualStyle,
+        // 🎬 BASIS LOOK
+        ...baseTransform,
 
-  // ❌ ENTFERNEN (macht Probleme)
-  // { effect: "radial_gradient:fade" },
+        // 🧠 LOGO STEP 1 (laden)
+        {
+          overlay: "library_of_legendes_logo"
+        },
 
-  // 🧠 LOGO IMMER ALS LETZTER STEP
-  {
-    overlay: "library_of_legendes_logo"
-  },
-  {
-    width: 120,
-    opacity: 70,
-    gravity: "south_east",
-    x: 25,
-    y: 25,
-    flags: "layer_apply"
-  }
+        // 🧠 LOGO STEP 2 (platzieren)
+        {
+          width: 120,
+          opacity: 70,
+          gravity: "south_east",
+          x: 25,
+          y: 25,
+          flags: "layer_apply"
+        }
 
-]
+      ]
     });
+
+    console.log("🖼 FINAL COVER:", res.secure_url);
 
     return res.secure_url;
 
   }catch(err){
+
     console.log("❌ Cloudinary Upload Fehler:", err.message);
     return url;
   }
