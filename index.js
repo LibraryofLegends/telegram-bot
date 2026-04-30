@@ -437,28 +437,6 @@ function getLocalByGenre(genreId){
   return CACHE.filter(x => x.genres?.includes(parseInt(genreId)));
 }
 
-function getCollectionItems(collectionName){
-
-  if(!collectionName) return [];
-
-  const items = CACHE.filter(x => x.collection === collectionName);
-
-  return items.sort((a,b) => {
-
-    const A = a.title || "";
-    const B = b.title || "";
-
-    const numA = parseInt(A.match(/\d+/)?.[0] || 0);
-    const numB = parseInt(B.match(/\d+/)?.[0] || 0);
-
-    if(numA && numB){
-      return numA - numB;
-    }
-
-    return A.localeCompare(B);
-  });
-}
-
 function getCollectionItems(name){
 
   return CACHE
@@ -1698,35 +1676,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           reply_markup: buildSwipeNav(item.id, type)
         });
       }
-      
-      if (data.startsWith("collection_")) {
-
-  const name = data.replace("collection_", "");
-
-  const items = getCollectionItems(name);
-
-  if(!items.length){
-    return tg("sendMessage",{
-      chat_id: chatId,
-      text: "❌ Keine Collection gefunden"
-    });
-  }
-
-  const buttons = items.map(x => ([{
-    text: `🎬 ${x.title}`,
-    callback_data: `play_${x.display_id}`
-  }]));
-
-  buttons.push([{ text:"🏠 Menü", callback_data:"menu" }]);
-
-  return tg("sendMessage",{
-    chat_id: chatId,
-    text: `🎞 ${name}`,
-    reply_markup:{
-      inline_keyboard: buttons
-    }
-  });
-}
 
 if (data.startsWith("collection_")) {
 
