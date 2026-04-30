@@ -1525,10 +1525,6 @@ if(safeData.belongs_to_collection?.name){
   ]);
 }
 
-reply_markup:{
-  inline_keyboard: buttons
-}
-
 await tg("sendPhoto",{
   chat_id: targetChannel,
   photo: cover,
