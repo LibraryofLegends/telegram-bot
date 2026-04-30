@@ -1100,7 +1100,7 @@ async function showNetflixHome(chatId){
       });
     }
 
-    const first = trending[0];
+    const first = trending[Math.floor(Math.random() * trending.length)];
 
     const type = first.media_type === "tv" ? "tv" : "movie";
 
