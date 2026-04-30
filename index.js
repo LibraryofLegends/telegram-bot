@@ -1410,17 +1410,19 @@ if(exists){
 const clean = ultraCleanTitle(fileName);
 console.log("🧹 CLEAN TITLE:", clean);
 
-// 🔥 SEARCH VARIANTE (stabiler als full string)
+// 🔥 SEARCH VARIANTE (Top 3 Wörter)
 const searchTitle = clean.split(" ").slice(0, 3).join(" ");
 
 // 🔍 MAIN SEARCH
-let result = await searchTMDBUltra(
+let result = null;
+
+result = await searchTMDBUltra(
   searchTitle,
   fileYear,
   parsed.type === "tv" ? "tv" : "movie"
 );
 
-// 🔁 FALLBACK 1 (FULL TITLE)
+// 🔁 FALLBACK 1 (FULL)
 if (!result) {
   result = await searchTMDBUltra(
     clean,
@@ -1429,7 +1431,7 @@ if (!result) {
   );
 }
 
-// 🔁 FALLBACK 2 (SHORT TITLE)
+// 🔁 FALLBACK 2 (SHORT)
 if (!result) {
   const short = clean.split(" ").slice(0, 2).join(" ");
   result = await searchTMDBUltra(
@@ -1439,7 +1441,7 @@ if (!result) {
   );
 }
 
-// 🔁 FALLBACK 3 (DIRECT TMDB SEARCH)
+// 🔁 FALLBACK 3 (DIRECT API)
 if (!result) {
   const search = await tmdbFetch(
     `https://api.themoviedb.org/3/search/${parsed.type}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}&language=de-DE`
@@ -1448,12 +1450,12 @@ if (!result) {
   result = search?.results?.[0] || null;
 }
 
-// ❗ FINAL FAIL SAFE (optional aber sinnvoll)
+// ❗ FINAL FAIL SAFE
 if (!result) {
   console.log("❌ FINAL FAIL:", clean);
 }
 
-// ❗ DEBUG LOGS
+// ❗ DEBUG
 console.log("🎯 FILE:", fileName);
 console.log("🔎 CLEAN:", clean);
 console.log("🎬 MATCH:", result?.title || result?.name || "NOT FOUND");
