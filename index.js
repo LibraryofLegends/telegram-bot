@@ -1183,7 +1183,7 @@ async function showNetflixHome(chatId){
         inline_keyboard:[
 
           [
-            {text:"▶️ Play",callback_data:`play_${first.id}`},
+            {text:"🔍 Details",callback_data:`search_${first.id}_${type}`}
             {text:"➕ Merken",callback_data:`fav_${first.id}`}
           ],
 
@@ -1367,38 +1367,59 @@ async function sendResultsList(chatId, heading, list, page = 0){
   const start = page * perPage;
   const slice = list.slice(start, start + perPage);
 
-  // 🧠 STATE SPEICHERN (für Swipe etc.)
   USER_STATE[chatId] = {
     list,
     heading,
     page
   };
 
-  // 🎬 ITEMS RENDERN
   const buttons = [];
 
-for (let i = 0; i < slice.length; i += 2) {
+  for (let i = 0; i < slice.length; i += 2) {
 
-  const row = [];
+    const row = [];
 
-  const a = slice[i];
-  const b = slice[i + 1];
+    const a = slice[i];
+    const b = slice[i + 1];
 
-  if (a) {
-    row.push({
-      text: `🎬 ${a.title || a.name}`,
-      callback_data: `search_${a.id}_${a.media_type || "movie"}`
-    });
+    if (a) {
+      row.push({
+        text: `🎬 ${a.title || a.name}`,
+        callback_data: `search_${a.id}_${a.media_type || "movie"}`
+      });
+    }
+
+    if (b) {
+      row.push({
+        text: `🎬 ${b.title || b.name}`,
+        callback_data: `search_${b.id}_${b.media_type || "movie"}`
+      });
+    }
+
+    buttons.push(row);
   }
 
-  if (b) {
-    row.push({
-      text: `🎬 ${b.title || b.name}`,
-      callback_data: `search_${b.id}_${b.media_type || "movie"}`
-    });
+  const navRow = [];
+
+  if(page > 0){
+    navRow.push({ text:"⬅️", callback_data:`page_${page-1}` });
   }
 
-  buttons.push(row);
+  if(page < totalPages - 1){
+    navRow.push({ text:"➡️", callback_data:`page_${page+1}` });
+  }
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:`📂 ${heading}`,
+    reply_markup:{
+      inline_keyboard:[
+        ...buttons,
+        ...(navRow.length ? [navRow] : []),
+        [{text:"🏠 Menü",callback_data:"menu"}]
+      ]
+    }
+  });
 }
 
   // ================= NAVIGATION =================
@@ -1615,6 +1636,7 @@ const order = getCollectionOrder(
 
 const item = {
   display_id: id,
+  tmdb_id: result?.id || null,
   title: safeData.title || clean,
   collection: collectionName,        // ✅ HIER WIRD ES VERWENDET
   collection_order: order,           // ✅ SORTIERUNG
@@ -1671,9 +1693,9 @@ try{
 if(item.collection){
   buttons.push([
     {
-      text:"🎞 Collection",
-      callback_data:`collection_${item.collection}`
-    }
+  text:"🎞 Collection",
+  url: playerUrl("collection", item.collection)
+}
   ]);
 }
 
@@ -1764,11 +1786,35 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   if (data === "browse_series") {
 
-  return tg("sendMessage",{
-    chat_id: GROUP_ID,
-    message_thread_id: THREADS.series,
-    text: "📺 Serien Bereich"
-  });
+  const list = [];
+
+  for (const [title, seasons] of Object.entries(SERIES_DB)) {
+    for (const [season, episodes] of Object.entries(seasons)) {
+      for (const [episode, data] of Object.entries(episodes)) {
+
+        list.push({
+          id: data.display_id,
+          title: `${title.replace(/_/g," ")} • S${season}E${episode}`,
+          media_type: "tv"
+        });
+
+      }
+    }
+  }
+
+  if(!list.length){
+    return tg("sendMessage",{
+      chat_id: chatId,
+      text: "❌ Keine Serien vorhanden"
+    });
+  }
+
+  return sendResultsList(
+    chatId,
+    "📺 Serien",
+    list,
+    0
+  );
 }
 
     const keys = Object.keys(SERIES_DB);
@@ -1806,6 +1852,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   // ⭐ FAVORITEN
 if (data === "favorites") {
+
   return sendResultsList(
     chatId,
     "⭐ Deine Favoriten",
@@ -1826,33 +1873,12 @@ if (data === "top_picks") {
     });
   }
 
-  return sendResultsList(chatId, "🧠 Für dich", picks, 0);
-}
-
-// ▶️ CONTINUE
-// ⭐ FAVORITEN
-if (data === "favorites") {
   return sendResultsList(
     chatId,
-    "⭐ Deine Favoriten",
-    getFavorites(chatId),
+    "🧠 Für dich",
+    picks,
     0
   );
-}
-
-// 🧠 TOP PICKS
-if (data === "top_picks") {
-
-  const picks = getTopPicks(chatId);
-
-  if(!picks.length){
-    return tg("sendMessage",{
-      chat_id:chatId,
-      text:"❌ Noch keine Daten"
-    });
-  }
-
-  return sendResultsList(chatId, "🧠 Für dich", picks, 0);
 }
 
 // ▶️ CONTINUE
@@ -2134,6 +2160,33 @@ if (msg?.text?.startsWith("/start")) {
   if(param){
 
     const [action, id] = param.split("_");
+    
+    if(action === "collection"){
+
+  const items = getCollectionItems(id);
+
+  if(!items.length){
+    return tg("sendMessage",{
+      chat_id: msg.chat.id,
+      text:"❌ Keine Collection gefunden"
+    });
+  }
+
+  for(const item of items){
+    await tg("sendPhoto",{
+      chat_id: msg.chat.id,
+      photo: item.cover,
+      caption:`🎬 ${item.title}`,
+      reply_markup:{
+        inline_keyboard:[
+          [{ text:"▶️ Play", callback_data:`play_${item.display_id}` }]
+        ]
+      }
+    });
+  }
+
+  return;
+}
 
     // ▶️ STREAM
     if(action === "play"){
