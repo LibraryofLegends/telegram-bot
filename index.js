@@ -1705,6 +1705,27 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           reply_markup: buildSwipeNav(item.id, type)
         });
       }
+      
+      if (data.startsWith("play_")) {
+
+  const id = data.replace("play_", "");
+  const item = CACHE.find(x => x.display_id === id);
+
+  if(!item){
+    return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
+  }
+
+  await tg("sendMessage",{
+    chat_id:chatId,
+    text:"🎬 Starte Stream..."
+  });
+
+  return sendFileById(chatId,item);
+}
+
+return;
+
+}
 
 if (data.startsWith("collection_")) {
 
@@ -1788,27 +1809,6 @@ if (data.startsWith("collection_")) {
           reply_markup: buildSwipeNav(id, type)
         });
       }
-
-      if (data.startsWith("play_")) {
-
-  const id = data.replace("play_", "");
-  const item = CACHE.find(x => x.display_id === id);
-
-  if(!item){
-    return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
-  }
-
-  await tg("sendMessage",{
-    chat_id:chatId,
-    text:"🎬 Starte Stream..."
-  });
-
-  return sendFileById(chatId,item);
-}
-
-return;
-
-}
     
   // ================= COMMANDS =================
 
