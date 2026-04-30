@@ -205,6 +205,14 @@ function getAvailableGenres(){
 
 
 // ================= MEDIA HELPERS =================
+function getCollectionHero(items){
+
+  if(!items.length) return null;
+
+  const first = items[0];
+
+  return first.cover || null;
+}
 
 function getSmartLogoSettings(genres = [], rating = 0){
 
