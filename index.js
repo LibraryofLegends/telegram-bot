@@ -1458,7 +1458,10 @@ try{
 
   return tg("sendMessage",{
     chat_id: msg.chat.id,
-    text: "✅ Upload verarbeitet & gepostet"
+    text: `✅ ${isSeries ? "Serie" : "Film"} gespeichert
+
+🎬 ${safeData.title || clean}
+🆔 ${id}`
   });
 }
 
