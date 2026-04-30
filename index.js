@@ -206,6 +206,50 @@ function getAvailableGenres(){
 
 // ================= MEDIA HELPERS =================
 
+function getSmartLogoSettings(genres = [], rating = 0){
+
+  // Default (balanced)
+  let size = 60;
+  let opacity = 35;
+  let effect = "brightness:10";
+
+  const g = genres[0];
+
+  // 🎬 ACTION / DUNKEL
+  if([28,53].includes(g)){
+    opacity = 45;
+    effect = "brightness:20";
+  }
+
+  // 👻 HORROR (sehr dunkel)
+  if(g === 27){
+    opacity = 55;
+    effect = "brightness:30";
+  }
+
+  // 😂 COMEDY (hell)
+  if(g === 35){
+    opacity = 25;
+    effect = "contrast:-20";
+  }
+
+  // 🎭 DRAMA
+  if(g === 18){
+    opacity = 30;
+  }
+
+  // 👑 HIGH RATING → minimal stärker
+  if(rating >= 7.5){
+    opacity += 5;
+  }
+
+  return {
+    width: size,
+    opacity,
+    effect
+  };
+}
+
 function getVisualStyle(genres = [], rating = 0){
 
   const g = genres[0];
