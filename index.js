@@ -516,6 +516,28 @@ function detectSource(n=""){
 }
 
 // ================= EXTRA HELPERS =================
+function getCollectionOrder(title = ""){
+
+  const t = title.toLowerCase();
+
+  let match = t.match(/(\d+)$/);
+  if(match) return parseInt(match[1]);
+
+  match = t.match(/teil\s*(\d+)/);
+  if(match) return parseInt(match[1]);
+
+  match = t.match(/part\s*(\d+)/);
+  if(match) return parseInt(match[1]);
+
+  match = t.match(/chapter\s*(\d+)/);
+  if(match) return parseInt(match[1]);
+
+  match = t.match(/kapitel\s*(\d+)/);
+  if(match) return parseInt(match[1]);
+
+  return 1;
+}
+
 function detectCollection(title = ""){
 
   const t = title.toLowerCase();
