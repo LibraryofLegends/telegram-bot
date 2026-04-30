@@ -1469,17 +1469,13 @@ cover += "?v=" + Date.now();
 
 // ✅ ITEM ERST HIER ERSTELLEN
 const item = {
-  display_id:id,
-  collection: collectionName, // 🔥 HIER
-  category_id: categoryId,
-  file_id:file.file_id,
-  media_type: isSeries ? "tv" : "movie",
-  genres: genreIds
-};
-
-  collection: safeData.belongs_to_collection?.name || null,
+  display_id: id,
   title: safeData.title || clean,
-
+  collection: safeData.belongs_to_collection?.name || collectionName || null,
+  category_id: categoryId,
+  file_id: file.file_id,
+  media_type: isSeries ? "tv" : "movie",
+  genres: genreIds,
   cover: cover
 };
 
