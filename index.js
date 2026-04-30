@@ -206,34 +206,46 @@ function getAvailableGenres(){
 
 // ================= MEDIA HELPERS =================
 
-async function uploadToCloudinary(url, title = ""){
+async function uploadToCloudinary(url){
 
   if(!cloudinary) return url;
 
   try{
-    
-    console.log("📤 Upload URL:", url);
 
     const res = await cloudinary.uploader.upload(url,{
       folder:"library_of_legends",
 
       transformation: [
-  {
-    effect: "brightness:-10"
-  },
-  {
-  overlay: "library_of_legendes_logo",
-  width: 150,
-  opacity: 80,
-  gravity: "south_east",
-  x: 40,
-  y: 40,
-  flags: "layer_apply"
-}
-]
+
+        // 🎬 CINEMATIC LOOK
+        {
+          effect: "brightness:-15"
+        },
+        {
+          effect: "contrast:20"
+        },
+        {
+          effect: "sharpen:40"
+        },
+
+        // 🌑 VIGNETTE (Rand abdunkeln)
+        {
+          effect: "vignette:40"
+        },
+
+        // 🧠 LOGO OVERLAY (DEIN BRANDING)
+        {
+          overlay: "library_of_legendes_logo",
+          width: 140,
+          opacity: 80,
+          gravity: "south_east",
+          x: 30,
+          y: 30,
+          flags: "layer_apply"
+        }
+
+      ]
     });
-    
-    console.log("🖼 RESULT:", res.secure_url);
 
     return res.secure_url;
 
