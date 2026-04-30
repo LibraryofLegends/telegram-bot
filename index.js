@@ -211,6 +211,8 @@ async function uploadToCloudinary(url, title = ""){
   if(!cloudinary) return url;
 
   try{
+    
+    console.log("📤 Upload URL:", url);
 
     const res = await cloudinary.uploader.upload(url,{
       folder:"library_of_legends",
@@ -236,6 +238,8 @@ async function uploadToCloudinary(url, title = ""){
   }
 ]
     });
+    
+    console.log("🖼 RESULT:", res.secure_url);
 
     return res.secure_url;
 
@@ -1196,11 +1200,12 @@ if(!cover){
   cover = buildStyledCover(parsed.title);
 }
 
-// 🔥 HIER KOMMT DEIN BRANDING REIN
 cover = await uploadToCloudinary(
   cover,
   safeData.title || safeData.name || parsed.title
 );
+
+cover += "?v=" + Date.now();
 
 try{
   if(!cover || cover.includes("null")){
