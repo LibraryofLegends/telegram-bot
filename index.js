@@ -1423,6 +1423,10 @@ console.log("🎬 MATCH:", result?.title || result?.name);
   genres: []
 };
 
+const collectionName = detectCollection(
+  safeData.title || clean
+);
+
   let genreIds = [];
 
 if(result?.genre_ids){
