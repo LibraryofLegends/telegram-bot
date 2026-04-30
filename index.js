@@ -222,14 +222,14 @@ async function uploadToCloudinary(url, title = ""){
     effect: "brightness:-10"
   },
   {
-    overlay: "library_of_legendes_logo",
-    width: 120,
-    opacity: 70,
-    gravity: "south_east",
-    x: 30,
-    y: 30,
-    flags: "layer_apply"
-  }
+  overlay: "library_of_legendes_logo",
+  width: 150,
+  opacity: 80,
+  gravity: "south_east",
+  x: 40,
+  y: 40,
+  flags: "layer_apply"
+}
 ]
     });
     
