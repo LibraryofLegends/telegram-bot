@@ -544,21 +544,18 @@ function detectCollection(title = ""){
 
   // 🔥 bekannte Reihen (kannst du jederzeit erweitern)
   const patterns = [
-    "john wick",
-    "fast furious",
-    "harry potter",
-    "avengers",
-    "batman",
-    "spiderman",
-    "transformers",
-    "mission impossible"
-  ];
+  { key:"john wick", aliases:["john wick","kapitel","chapter"] },
+  { key:"fast_furious", aliases:["fast furious","fast and furious"] },
+  { key:"harry_potter", aliases:["harry potter"] }
+];
 
-  for(const p of patterns){
-    if(t.includes(p)){
-      return p.replace(/\s/g,"_");
+for(const p of patterns){
+  for(const a of p.aliases){
+    if(t.includes(a)){
+      return p.key;
     }
   }
+}
 
   // 🧠 fallback (automatisch erkennen bei "Teil 1/2/3")
   const match = t.match(/^(.+?)\s(\d+)$/);
