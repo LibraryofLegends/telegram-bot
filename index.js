@@ -1161,29 +1161,17 @@ console.log("🎬 MATCH:", result?.title || result?.name);
 
   let genreIds = [];
 
-  if(result?.genre_ids){
-    genreIds = result.genre_ids;
-  }else if(details?.genres){
-    genreIds = details.genres.map(g => g.id);
-  }
+if(result?.genre_ids){
+  genreIds = result.genre_ids;
+}else if(details?.genres){
+  genreIds = details.genres.map(g => g.id);
+}
 
-  const id = String(CACHE.length + 1).padStart(4, "0");
+// 🔥 HIER MUSS ES HIN
+const id = generateNextId();
+const categoryId = generateCategoryId(genreIds);
 
-  if(parsed.type === "tv"){
-    const key = parsed.title.toLowerCase().replace(/\s/g,"_");
-
-    if(!SERIES_DB[key]) SERIES_DB[key] = {};
-    if(!SERIES_DB[key][parsed.season]) SERIES_DB[key][parsed.season] = {};
-
-    SERIES_DB[key][parsed.season][parsed.episode] = {
-      file_id:file.file_id,
-      display_id:id
-    };
-
-    saveSeriesDB(SERIES_DB);
-  }
-
-  const item = {
+const item = {
   display_id:id,
   category_id: categoryId,
   file_id:file.file_id,
