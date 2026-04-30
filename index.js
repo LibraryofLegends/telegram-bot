@@ -433,6 +433,28 @@ function getCollectionItems(collectionName){
 
   if(!collectionName) return [];
 
+  const items = CACHE.filter(x => x.collection === collectionName);
+
+  return items.sort((a,b) => {
+
+    const A = a.title || "";
+    const B = b.title || "";
+
+    const numA = parseInt(A.match(/\d+/)?.[0] || 0);
+    const numB = parseInt(B.match(/\d+/)?.[0] || 0);
+
+    if(numA && numB){
+      return numA - numB;
+    }
+
+    return A.localeCompare(B);
+  });
+}
+
+function getCollectionItems(collectionName){
+
+  if(!collectionName) return [];
+
   return CACHE.filter(x => x.collection === collectionName);
 }
 
