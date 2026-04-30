@@ -240,15 +240,12 @@ async function uploadToCloudinary(url, title = ""){
 }
 
 function getCover(data = {}) {
-  if (data?.poster_path) {
-    return `https://image.tmdb.org/t/p/w500${data.poster_path}`;
+
+  if(data?.poster_path){
+    return `https://image.tmdb.org/t/p/original${data.poster_path}`;
   }
 
-  if (data?.backdrop_path) {
-    return `https://image.tmdb.org/t/p/w500${data.backdrop_path}`;
-  }
-
-  return "https://dummyimage.com/500x750/000/fff&text=No+Image";
+  return null;
 }
 
 function getBanner(data = {}) {
@@ -1069,16 +1066,19 @@ async function handleUpload(msg){
   // 🔥 CLEAN TITLE (weniger aggressiv)
   const clean = parsed.title
   .replace(/\.(mp4|mkv|avi)$/i, "")
-  .replace(/\b(1080p|720p|2160p|4k|uhd)\b/gi, "")
+  .replace(/@.+/g, "")
+  .replace(/\b(2160p|1080p|720p|4k)\b/gi, "")
   .replace(/\b(x264|x265|h264|h265)\b/gi, "")
   .replace(/\b(bluray|web|webrip|webdl)\b/gi, "")
   .replace(/\b(german|deutsch|dual|dl)\b/gi, "")
   .replace(/\b(truehd|aac|dts|atmos)\b/gi, "")
   .replace(/\b(extended|uncut|remastered)\b/gi, "")
+  .replace(/\b(proper|repack)\b/gi, "")
+  .replace(/\d{3,4}x\d{3,4}/g, "")
   .replace(/\s+/g, " ")
   .trim();
 
-let result = await searchTMDBAdvanced(
+let result = await searchTMDBUltra(
   clean,
   fileYear,
   parsed.type === "tv" ? "tv" : "movie"
@@ -1195,10 +1195,10 @@ console.log("🎬 MATCH:", result?.title || result?.name);
 
   // ================= COVER FIX =================
   let cover = getCover(safeData);
-  cover = await uploadToCloudinary(
-  cover,
-  safeData.title || safeData.name || parsed.title
-);
+
+if(!cover){
+  cover = buildStyledCover(parsed.title);
+}
 
   try{
     if(!cover || cover.includes("null")){
@@ -1288,10 +1288,12 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           return tg("sendMessage",{ chat_id: chatId, text: "❌ Keine Serien vorhanden" });
         }
 
-        const buttons = keys.map(k => ([{
-          text: `📺 ${k.replace(/_/g, " ")}`,
-          callback_data: `tv_${k}`
-        }]));
+        const buttons = keys.map(k => ([
+  {
+    text: `📺 ${k.replace(/_/g, " ")}`,
+    callback_data: `tv_${k}`
+  }
+]));
 
         buttons.push([{ text: "🏠 Menü", callback_data: "menu" }]);
 
