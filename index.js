@@ -494,7 +494,7 @@ if(audio === "Unbekannt"){
   let quality = "HD";
 
 // 🔥 PRIORITY 1: echte Video-Daten
-if(width && height){
+if(width && height && typeof width === "number"){
   if(height >= 2160) quality = "4K";
   else if(height >= 1080) quality = "1080p";
   else if(height >= 720) quality = "720p";
