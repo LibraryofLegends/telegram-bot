@@ -1194,7 +1194,7 @@ async function sendPosterRow(chatId, heading, list){
 
   await tg("sendMessage",{
     chat_id: chatId,
-    text: `🎬 ${heading}`
+    text: `🔥 ${heading}`
   });
 
   const slice = list.slice(0,5);
@@ -1210,13 +1210,16 @@ async function sendPosterRow(chatId, heading, list){
       caption: `🎬 ${title}`,
       reply_markup:{
         inline_keyboard:[
-          [{ text:"▶️", callback_data:`search_${item.id}_${type}` }]
+          [
+            { text:"▶️", callback_data:`search_${item.id}_${type}` },
+            { text:"🔥", callback_data:`sim_${item.id}_${type}` }
+          ]
         ]
       }
     });
   }
 }
-
+ 
 // 🎬 HAUPTMENÜ
 function showMenu(chatId){
 
