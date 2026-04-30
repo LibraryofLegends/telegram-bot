@@ -1546,7 +1546,13 @@ try{
 
   try{
     const buttons = [
-  [{text:"▶️ Stream", url: playerUrl("play", id)}]
+
+  [{ text:"▶️ Stream", url: playerUrl("play", id) }],
+
+  [{ text:"🔥 Ähnliche", callback_data:`sim_${id}_${item.media_type || "movie"}` }],
+
+  [{ text:"🏠 Menü", callback_data:"menu" }]
+
 ];
 
 if(item.collection){
