@@ -1326,7 +1326,8 @@ Dein Streaming Hub 👇`,
 
   // ⭐ HIER REIN
   [
-    {text:"⭐ Favoriten",callback_data:"favorites"}
+    {text:"⭐ Favoriten",callback_data:"favorites"},
+    {text:"🧠 Top Picks",callback_data:"top_picks"}
   ],
 
   // 🔥 DYNAMISCHE GENRES
