@@ -1236,11 +1236,13 @@ for (let i = 0; i < slice.length; i += 2) {
 
 // ================= UPLOAD =================
 async function handleUpload(msg){
-  
+
   const file = msg.document || msg.video;
+const width = msg.video?.width;
+const height = msg.video?.height;
 if(!file) return;
 
-// 🔥 DUPLICATE CHECK
+// 🔥 DUPLICATE CHECK (HIER HIN!)
 const exists = CACHE.find(x => x.file_id === file.file_id);
 
 if(exists){
@@ -1249,11 +1251,6 @@ if(exists){
     text: "⚠️ Datei bereits vorhanden"
   });
 }
-
-  const file = msg.document || msg.video;
-  const width = msg.video?.width;
-  const height = msg.video?.height;
-  if(!file) return;
 
   const fileName = file.file_name || "";
 
