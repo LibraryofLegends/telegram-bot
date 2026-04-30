@@ -1106,7 +1106,7 @@ async function showNetflixHome(chatId){
 
     const details = await getDetails(first.id, type) || first;
 
-    const banner = getNetflixBannerWithBadges(details);
+    const banner = getDynamicBanner("main");
 
     // 🎬 BIG NETFLIX HERO
     await tg("sendPhoto",{
