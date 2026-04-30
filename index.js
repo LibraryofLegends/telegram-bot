@@ -630,7 +630,7 @@ async function getDetails(id, type){
   );
 }
 
-async function searchTMDBAdvanced(title, year=null, type=null){
+async function searchTMDBUltra(title, year=null, type=null){
 
   if(!title) return null;
 
@@ -654,41 +654,32 @@ async function searchTMDBAdvanced(title, year=null, type=null){
 
     for(const item of data.results){
 
+      if(type && item.media_type !== type) continue;
+
       const name = (item.title || item.name || "").toLowerCase();
       const clean = title.toLowerCase();
 
       let score = 0;
 
-      // 🎯 EXACT MATCH
-      if(name === clean) score += 120;
+      if(name === clean) score += 150;
+      if(name.includes(clean)) score += 80;
 
-      // 🔍 PARTIAL
-      if(name.includes(clean)) score += 60;
-
-      // 🧠 WORD MATCH
       const words = clean.split(" ");
       const hits = words.filter(w => name.includes(w)).length;
-      score += hits * 15;
+      score += hits * 20;
 
-      // 🎬 TYPE BOOST
-      if(type && item.media_type === type) score += 50;
-
-      // 📅 YEAR MATCH
       if(year){
         const y = parseInt((item.release_date || item.first_air_date || "").slice(0,4));
-
         if(y){
           const diff = Math.abs(y - year);
-
-          if(diff === 0) score += 60;
-          else if(diff === 1) score += 30;
+          if(diff === 0) score += 80;
+          else if(diff === 1) score += 40;
           else if(diff <= 2) score += 10;
-          else score -= 40;
+          else score -= 50;
         }
       }
 
-      // 🔥 POPULARITY
-      score += Math.min(item.popularity || 0, 50);
+      score += Math.min(item.popularity || 0, 40);
 
       if(score > bestScore){
         bestScore = score;
