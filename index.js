@@ -433,7 +433,7 @@ async function sendFileById(chatId,item){
 }
 
 // ================= CARD =================
-function buildCard(data, fileName="", id="0001", categoryId="GEN000"){
+function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null, height=null){
 
   const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
@@ -1208,7 +1208,14 @@ if(!cover){
   }
 
   const targetChannel = getTargetChannel(genreIds);
-  const caption = buildCard(safeData, fileName, id, categoryId);
+  const caption = buildCard(
+  safeData,
+  fileName,
+  id,
+  categoryId,
+  width,
+  height
+);
 
   try{
     await tg("sendPhoto",{
