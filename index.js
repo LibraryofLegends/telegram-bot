@@ -1093,6 +1093,33 @@ function getSmartRecommendations(current, limit = 10){
   return localMatches.slice(0, limit);
 }
 
+function getTopPicks(userId){
+
+  const history = readHistory(userId);
+  if(!history.length) return [];
+
+  const genreCount = {};
+
+  for(const h of history){
+    const item = CACHE.find(x => x.display_id === h.id);
+    if(!item) continue;
+
+    for(const g of item.genres || []){
+      genreCount[g] = (genreCount[g] || 0) + 1;
+    }
+  }
+
+  const sortedGenres = Object.entries(genreCount)
+    .sort((a,b)=>b[1]-a[1])
+    .map(x => parseInt(x[0]));
+
+  const picks = CACHE.filter(x =>
+    x.genres?.some(g => sortedGenres.includes(g))
+  );
+
+  return picks.slice(0,10);
+}
+
 
 // 🎬 LOKALE REIHEN (AUS DEINER DB)
 function buildLocalRows(){
