@@ -1769,6 +1769,20 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   if (data === "continue") {
     
+    if (data === "top_picks") {
+
+  const picks = getTopPicks(chatId);
+
+  if(!picks.length){
+    return tg("sendMessage",{
+      chat_id:chatId,
+      text:"❌ Noch keine Daten"
+    });
+  }
+
+  return sendResultsList(chatId, "🧠 Für dich", picks, 0);
+}
+    
     if (data === "favorites") {
   return sendResultsList(
     chatId,
