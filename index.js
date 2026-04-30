@@ -1732,9 +1732,22 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   // ================= GENRE =================
 
   if (data.startsWith("genre_") && !data.startsWith("genre_local_")) {
-    const genre = data.split("_")[1];
-    return sendResultsList(chatId, "📂 Kategorie", await getByGenre(genre), 0);
-  }
+
+  const genre = data.split("_")[1];
+
+  await tg("sendPhoto",{
+    chat_id:chatId,
+    photo:getDynamicBanner("genre", genre),
+    caption:`🔥 Kategorie`
+  });
+
+  return sendResultsList(
+    chatId,
+    "📂 Kategorie",
+    await getByGenre(genre),
+    0
+  );
+}
 
   if (data.startsWith("genre_local_")) {
 
