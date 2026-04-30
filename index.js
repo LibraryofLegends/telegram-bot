@@ -1757,10 +1757,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   return sendFileById(chatId,item);
 }
 
-return;
-
-}
-
 if (data.startsWith("collection_")) {
 
   const name = data.replace("collection_", "");
@@ -1829,6 +1825,10 @@ if (data.startsWith("collection_")) {
       ]
     }
   });
+}
+
+return;
+
 }
 
       if (data.startsWith("search_")) {
