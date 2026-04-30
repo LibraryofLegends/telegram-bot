@@ -452,9 +452,10 @@ function buildCard(data, fileName="", id="0001", categoryId="GEN000"){
 
   // 🎬 COLLECTION (optional erkennen)
   let collection = "";
-  if(data.belongs_to_collection?.name){
-    collection = data.belongs_to_collection.name.toUpperCase();
-  }
+
+if(data.belongs_to_collection?.name){
+  collection = data.belongs_to_collection.name.toUpperCase();
+}
 
   // 🎭 GENRES
   const genresArr = (data.genres || []).slice(0,2);
