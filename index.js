@@ -1196,24 +1196,25 @@ if(!cover){
   cover = buildStyledCover(parsed.title);
 }
 
+// 🔥 HIER KOMMT DEIN BRANDING REIN
 cover = await uploadToCloudinary(
   cover,
   safeData.title || safeData.name || parsed.title
 );
 
-  try{
-    if(!cover || cover.includes("null")){
-      throw new Error("Invalid cover");
-    }
-
-    const res = await fetch(cover);
-    if(!res.ok){
-      throw new Error("Cover fetch failed");
-    }
-
-  }catch{
-    cover = "https://dummyimage.com/500x750/000/fff&text=No+Image";
+try{
+  if(!cover || cover.includes("null")){
+    throw new Error("Invalid cover");
   }
+
+  const res = await fetch(cover);
+  if(!res.ok){
+    throw new Error("Cover fetch failed");
+  }
+
+}catch{
+  cover = "https://dummyimage.com/500x750/000/fff&text=No+Image";
+}
 
   if(!details && result){
     details = result;
