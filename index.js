@@ -1252,11 +1252,17 @@ async function showNetflixHome(chatId){
 
 async function showGenres(chatId){
 
+  await tg("sendPhoto",{
+    chat_id:chatId,
+    photo:getDynamicBanner("main"),
+    caption:"🎭 Kategorien"
+  });
+
   const buttons = buildGenreButtons();
 
   return tg("sendMessage",{
     chat_id:chatId,
-    text:"🎬 Kategorien",
+    text:"Wähle ein Genre 👇",
     reply_markup:{
       inline_keyboard:[
         ...buttons,
