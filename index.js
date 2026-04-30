@@ -1711,14 +1711,39 @@ if (data.startsWith("collection_")) {
     });
   }
 
-  // 🎬 HEADER
+  // 🎬 HERO
+  const hero = getCollectionHero(items);
+
+  if(hero){
+    await tg("sendPhoto",{
+      chat_id: chatId,
+      photo: hero,
+      caption: `🎞 𝐂𝐎𝐋𝐋𝐄𝐂𝐓𝐈𝐎𝐍\n${name}`
+    });
+  } else {
+    await tg("sendMessage",{
+      chat_id: chatId,
+      text: `🎞 𝐂𝐎𝐋𝐋𝐄𝐂𝐓𝐈𝐎𝐍\n${name}`
+    });
+  }
+
+  // ⭐ FEATURED
+  const featured = items[0];
+
   await tg("sendMessage",{
     chat_id: chatId,
-    text: `🎞 𝐂𝐎𝐋𝐋𝐄𝐂𝐓𝐈𝐎𝐍\n${name}`
+    text:`⭐ Highlight\n🎬 ${featured.title}`,
+    reply_markup:{
+      inline_keyboard:[
+        [{text:"▶️ Jetzt abspielen", callback_data:`play_${featured.display_id}`}]
+      ]
+    }
   });
 
-  // 🎬 POSTER LISTE
-  for(const item of items){
+  // 🎬 REST
+  for(let i = 1; i < items.length; i++){
+
+    const item = items[i];
 
     await tg("sendPhoto",{
       chat_id: chatId,
