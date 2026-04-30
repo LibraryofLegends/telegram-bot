@@ -1317,9 +1317,6 @@ if(!result){
   console.log("❌ FINAL FAIL:", clean);
 }
 
-// TYPE FILTER
-if(result && result.media_type){
-
 // FALLBACK
 if(!result){
   const short = clean.split(" ").slice(0,2).join(" ");
