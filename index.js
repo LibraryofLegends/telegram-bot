@@ -1411,20 +1411,6 @@ if(isSeries){
   saveDB(CACHE);
 
   // ================= COVER FIX =================
-  let cover = getCover(safeData);
-
-if(!cover){
-  cover = buildStyledCover(parsed.title);
-}
-
-cover = await uploadToCloudinary(
-  cover,
-  genreIds,
-  safeData.vote_average || 0
-);
-
-cover += "?v=" + Date.now();
-
 // 🎬 COVER
 let cover = getCover(safeData);
 
