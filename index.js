@@ -1322,8 +1322,19 @@ if(!result){
 
 // TYPE FILTER
 if(result && result.media_type){
-  if(parsed.type === "tv" && result.media_type !== "tv") result = null;
-  if(parsed.type === "movie" && result.media_type !== "movie") result = null;
+  if(isSeries){
+
+  const key = parsed.title.toLowerCase().replace(/\s/g,"_");
+
+  if(!SERIES_DB[key]) SERIES_DB[key] = {};
+  if(!SERIES_DB[key][parsed.season]) SERIES_DB[key][parsed.season] = {};
+
+  SERIES_DB[key][parsed.season][parsed.episode] = {
+    file_id: file.file_id,
+    display_id: id
+  };
+
+  saveSeriesDB(SERIES_DB);
 }
 
 // FALLBACK
