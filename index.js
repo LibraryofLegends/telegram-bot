@@ -42,6 +42,7 @@ const BANNERS = {
 const DB_FILE = "films.json";
 const HISTORY_FILE = "history.json";
 const SERIES_DB_FILE = "series.json";
+const FAVORITES_FILE = "favorites.json";
 
 const USER_STATE = {};
 const TMDB_CACHE = {};
@@ -126,6 +127,32 @@ function saveHistory(userId, entry) {
 function readHistory(userId) {
   if (!fs.existsSync(HISTORY_FILE)) return [];
   return JSON.parse(fs.readFileSync(HISTORY_FILE))[userId] || [];
+}
+
+function loadFavorites(){
+  if (!fs.existsSync(FAVORITES_FILE)) return {};
+  return JSON.parse(fs.readFileSync(FAVORITES_FILE));
+}
+
+function saveFavorites(data){
+  fs.writeFileSync(FAVORITES_FILE, JSON.stringify(data, null, 2));
+}
+
+function addFavorite(userId, item){
+  const fav = loadFavorites();
+  if(!fav[userId]) fav[userId] = [];
+
+  fav[userId] = [
+    item,
+    ...fav[userId].filter(x => x.display_id !== item.display_id)
+  ].slice(0,50);
+
+  saveFavorites(fav);
+}
+
+function getFavorites(userId){
+  const fav = loadFavorites();
+  return fav[userId] || [];
 }
 
 // ================= TELEGRAM =================
