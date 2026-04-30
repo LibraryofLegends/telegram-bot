@@ -319,30 +319,28 @@ async function uploadToCloudinary(url, genres = [], rating = 0){
 
     // 🎬 SAFER BASE LOOK (keine riskanten Effekte)
     const baseTransform = [
-      { effect: "brightness:-10" },
-      { effect: "contrast:18" },
-      { effect: "sharpen:40" }
-    ];
+  { effect: "brightness:-10" },
+  { effect: "contrast:18" },
+  { effect: "sharpen:40" }
+];
 
-    // 🎨 LEICHTE GENRE OPTIK (OHNE RISIKO)
-    const g = genres?.[0];
+const g = genres?.[0];
 
-    if([28,53].includes(g)){ // Action / Thriller
-      baseTransform.push({ effect: "saturation:15" });
-    }
+if ([28, 53].includes(g)) {
+  baseTransform.push({ effect: "saturation:15" });
+}
 
-    if(g === 27){ // Horror
-      baseTransform.push({ effect: "saturation:-20" });
-    }
+if (g === 27) {
+  baseTransform.push({ effect: "saturation:-20" });
+}
 
-    if(g === 35){ // Comedy
-      baseTransform.push({ effect: "brightness:10" });
-    }
+if (g === 35) {
+  baseTransform.push({ effect: "brightness:10" });
+}
 
-    // 👑 HIGH RATING → minimaler Boost
-    if(rating >= 7.5){
-      baseTransform.push({ effect: "contrast:25" });
-    }
+if (rating >= 7.5) {
+  baseTransform.push({ effect: "contrast:25" });
+}
     
     const logo = getSmartLogoSettings(genres, rating);
 
@@ -637,13 +635,6 @@ function detectCollection(title = ""){
 
   return null;
 }
-
-  // 🎬 DEFAULT
-  let style = [
-    { effect: "brightness:-12" },
-    { effect: "contrast:18" },
-    { effect: "sharpen:40" }
-  ];
 
   // 🔥 ACTION / THRILLER
   if([28, 53].includes(g)){
@@ -1457,7 +1448,10 @@ console.log("🎬 MATCH:", result?.title || result?.name || "NOT FOUND");
   let details = null;
 
   if(result?.id){
-    const type = result.media_type === "tv" ? "tv" : "movie";
+    const type =
+    result.media_type === "tv" || parsed.type === "tv"
+      ? "tv"
+      : "movie";
     details = await getDetails(result.id, type);
   }
 
@@ -1509,7 +1503,7 @@ cover = await uploadToCloudinary(
   safeData.vote_average || 0
 );
 
-cover += "?v=" + Date.now();
+cover += "?v=1";
 
 // ================= COLLECTION + ORDER =================
 
