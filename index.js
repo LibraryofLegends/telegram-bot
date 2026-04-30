@@ -1346,6 +1346,17 @@ if(exists){
 
   // 🔥 CLEAN TITLE (weniger aggressiv)
   const clean = parsed.title
+
+  // 🔥 1. DATUM AM ANFANG ENTFERNEN (WICHTIG!)
+  .replace(/^\d{4}[.\-_ ]\d{2}[.\-_ ]\d{2}/, "")
+
+  // 🔥 2. FALLBACK → nur Jahr vorne entfernen
+  .replace(/^\d{4}/, "")
+
+  // 🔥 3. ALLE ZAHLEN AM ANFANG KILLEN (ULTRA SAFE)
+  .replace(/^\d+\s+/, "")
+
+  // 🔥 4. STANDARD CLEAN
   .replace(/\.(mp4|mkv|avi)$/i, "")
   .replace(/@.+/g, "")
   .replace(/\b(2160p|1080p|720p|4k)\b/gi, "")
