@@ -442,9 +442,15 @@ function getCollectionItems(name){
   return CACHE
     .filter(x => x.collection === name)
     .sort((a,b) => {
-      const numA = parseInt(a.title?.match(/\d+/)?.[0] || 0);
-      const numB = parseInt(b.title?.match(/\d+/)?.[0] || 0);
-      return numA - numB;
+
+      const orderA = a.collection_order || 0;
+      const orderB = b.collection_order || 0;
+
+      if(orderA !== orderB){
+        return orderA - orderB;
+      }
+
+      return (a.title || "").localeCompare(b.title || "");
     });
 }
 
