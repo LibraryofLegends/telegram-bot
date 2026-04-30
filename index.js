@@ -717,6 +717,11 @@ function buildSwipeNav(id,type){
         {text:"➡️",callback_data:`next_${id}_${type}`}
       ],
 
+      // ⭐ NEU HIER
+      [
+        {text:"⭐ Favorit",callback_data:`fav_${id}`}
+      ],
+
       [
         {text:"🔥 Ähnliche",callback_data:`sim_${id}_${type}`}
       ],
