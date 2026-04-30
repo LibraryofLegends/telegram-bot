@@ -24,6 +24,14 @@ const TOKEN = process.env.TOKEN;
 const TMDB_KEY = process.env.TMDB_KEY;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 const BOT_USERNAME = process.env.BOT_USERNAME || "LIBRARY_OF_LEGENDS_Bot";
+const GROUP_ID = -1002008329218;
+
+const THREADS = {
+  movies: 609,
+  series: 611,
+  trending: 612,
+  action: 613
+};
 
 const BANNERS = {
 
