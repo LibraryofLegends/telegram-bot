@@ -1764,6 +1764,13 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   if (data === "browse_series") {
 
+  return tg("sendMessage",{
+    chat_id: GROUP_ID,
+    message_thread_id: THREADS.series,
+    text: "📺 Serien Bereich"
+  });
+}
+
     const keys = Object.keys(SERIES_DB);
 
     if (!keys.length) {
