@@ -1732,6 +1732,15 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   }
 
   if (data === "continue") {
+    
+    if (data === "favorites") {
+  return sendResultsList(
+    chatId,
+    "⭐ Deine Favoriten",
+    getFavorites(chatId),
+    0
+  );
+}
 
     const history = readHistory(chatId);
 
