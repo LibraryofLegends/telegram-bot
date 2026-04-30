@@ -1376,7 +1376,7 @@ const item = {
   display_id:id,
   category_id: categoryId,
   file_id:file.file_id,
-  media_type: result?.media_type || "movie",
+  media_type: isSeries ? "tv" : "movie",
   genres: genreIds
 };
 
