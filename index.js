@@ -1420,7 +1420,7 @@ console.log("🎬 MATCH:", result?.title || result?.name);
   genres: []
 };
 
-const collectionName = detectCollection(
+const order = getCollectionOrder(
   safeData.title || clean
 );
 
