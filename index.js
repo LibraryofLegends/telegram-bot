@@ -1731,8 +1731,22 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   }
 
   if (data === "net_trending") {
-    return sendResultsList(chatId, "🔥 Trending", await getTrending(), 0);
-  }
+
+  const list = await getTrending();
+
+  await tg("sendMessage",{
+    chat_id: GROUP_ID,
+    message_thread_id: THREADS.trending,
+    text: "🔥 Trending"
+  });
+
+  return sendResultsList(
+    GROUP_ID,
+    "🔥 Trending",
+    list,
+    0
+  );
+}
 
   if (data === "net_popular") {
     return sendResultsList(chatId, "📈 Popular", await getPopular(), 0);
