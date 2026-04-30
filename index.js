@@ -1236,6 +1236,19 @@ for (let i = 0; i < slice.length; i += 2) {
 
 // ================= UPLOAD =================
 async function handleUpload(msg){
+  
+  const file = msg.document || msg.video;
+if(!file) return;
+
+// 🔥 DUPLICATE CHECK
+const exists = CACHE.find(x => x.file_id === file.file_id);
+
+if(exists){
+  return tg("sendMessage",{
+    chat_id: msg.chat.id,
+    text: "⚠️ Datei bereits vorhanden"
+  });
+}
 
   const file = msg.document || msg.video;
   const width = msg.video?.width;
