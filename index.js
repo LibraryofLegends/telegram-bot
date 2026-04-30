@@ -1472,6 +1472,7 @@ const item = {
   display_id: id,
   title: safeData.title || clean,
   collection: safeData.belongs_to_collection?.name || collectionName || null,
+  collection_order: order, // 🔥 NEU
   category_id: categoryId,
   file_id: file.file_id,
   media_type: isSeries ? "tv" : "movie",
