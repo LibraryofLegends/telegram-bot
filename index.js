@@ -1300,7 +1300,8 @@ if(!cover){
 
 cover = await uploadToCloudinary(
   cover,
-  genreIds
+  genreIds,
+  safeData.vote_average || 0
 );
 
 cover += "?v=" + Date.now();
