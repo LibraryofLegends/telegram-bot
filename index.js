@@ -357,18 +357,16 @@ async function uploadToCloudinary(url, genres = [], rating = 0){
 
   // 🧠 LOGO LADEN
   {
-    overlay: "library_of_legendes_logo"
-  },
-
-  // 🎯 LOGO CLEAN EINSETZEN
-  {
-    width: 65,
-    opacity: 35,
-    gravity: "south_east",
-    x: 40,
-    y: 40,
-    flags: "layer_apply"
-  }
+  overlay: "library_of_legendes_logo"
+},
+{
+  width: logo.width,
+  opacity: logo.opacity,
+  gravity: "south_east",
+  x: 40,
+  y: 40,
+  flags: "layer_apply"
+}
 
 ]
     });
@@ -639,10 +637,6 @@ function detectCollection(title = ""){
 
   return null;
 }
-
-function getVisualStyle(genres = []){
-
-  const g = genres[0];
 
   // 🎬 DEFAULT
   let style = [
