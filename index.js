@@ -1196,6 +1196,11 @@ if(!cover){
   cover = buildStyledCover(parsed.title);
 }
 
+cover = await uploadToCloudinary(
+  cover,
+  safeData.title || safeData.name || parsed.title
+);
+
   try{
     if(!cover || cover.includes("null")){
       throw new Error("Invalid cover");
