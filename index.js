@@ -1425,6 +1425,22 @@ cover = await uploadToCloudinary(
 
 cover += "?v=" + Date.now();
 
+// 🎬 COVER
+let cover = getCover(safeData);
+
+if(!cover){
+  cover = buildStyledCover(parsed.title);
+}
+
+cover = await uploadToCloudinary(
+  cover,
+  genreIds,
+  safeData.vote_average || 0
+);
+
+cover += "?v=" + Date.now();
+
+// ✅ ITEM ERST HIER
 const item = {
   display_id:id,
   category_id: categoryId,
@@ -1437,6 +1453,10 @@ const item = {
 
   cover: cover
 };
+
+// ✅ DANN SPEICHERN
+CACHE.unshift(item);
+saveDB(CACHE);
 
 try{
   if(!cover || cover.includes("null")){
