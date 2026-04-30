@@ -1405,32 +1405,52 @@ if(exists){
   const fileYear = yearMatch ? parseInt(yearMatch[0]) : null;
 
   // 🔥 CLEAN TITLE (weniger aggressiv)
-  const clean = ultraCleanTitle(fileName);
+  // 🔥 CLEAN TITLE
+const clean = ultraCleanTitle(fileName);
+console.log("🧹 CLEAN TITLE:", clean);
 
-  console.log("🧹 CLEAN TITLE:", clean);
+// 🔥 SEARCH VARIANTE (stabiler)
+const searchTitle = clean.split(" ").slice(0, 3).join(" ");
 
-  // 🔥 1. DATUM AM ANFANG ENTFERNEN (WICHTIG!)
-  .replace(/^\d{4}[.\-_ ]\d{2}[.\-_ ]\d{2}/, "")
+// 🔍 MAIN SEARCH
+let result = await searchTMDBUltra(
+  searchTitle,
+  fileYear,
+  parsed.type === "tv" ? "tv" : "movie"
+);
 
-  // 🔥 2. FALLBACK → nur Jahr vorne entfernen
-  .replace(/^\d{4}/, "")
+// 🔁 FALLBACK 1 (FULL TITLE)
+if(!result){
+  result = await searchTMDBUltra(
+    clean,
+    fileYear,
+    parsed.type === "tv" ? "tv" : "movie"
+  );
+}
 
-  // 🔥 3. ALLE ZAHLEN AM ANFANG KILLEN (ULTRA SAFE)
-  .replace(/^\d+\s+/, "")
+// 🔁 FALLBACK 2 (SHORT)
+if(!result){
+  const short = clean.split(" ").slice(0,2).join(" ");
+  result = await searchTMDBUltra(
+    short,
+    fileYear,
+    parsed.type === "tv" ? "tv" : "movie"
+  );
+}
 
-  // 🔥 4. STANDARD CLEAN
-  .replace(/\.(mp4|mkv|avi)$/i, "")
-  .replace(/@.+/g, "")
-  .replace(/\b(2160p|1080p|720p|4k)\b/gi, "")
-  .replace(/\b(x264|x265|h264|h265)\b/gi, "")
-  .replace(/\b(bluray|web|webrip|webdl)\b/gi, "")
-  .replace(/\b(german|deutsch|dual|dl)\b/gi, "")
-  .replace(/\b(truehd|aac|dts|atmos)\b/gi, "")
-  .replace(/\b(extended|uncut|remastered)\b/gi, "")
-  .replace(/\b(proper|repack)\b/gi, "")
-  .replace(/\d{3,4}x\d{3,4}/g, "")
-  .replace(/\s+/g, " ")
-  .trim();
+// 🔁 FALLBACK 3 (DIRECT API)
+if(!result){
+  const search = await tmdbFetch(
+    `https://api.themoviedb.org/3/search/${parsed.type}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}&language=de-DE`
+  );
+
+  result = search?.results?.[0] || null;
+}
+
+// ❗ DEBUG
+console.log("🎯 FILE:", fileName);
+console.log("🔎 CLEAN:", clean);
+console.log("🎬 MATCH:", result?.title || result?.name);
 
 let result = await searchTMDBUltra(
   clean,
