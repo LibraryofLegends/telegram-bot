@@ -1183,7 +1183,7 @@ async function showNetflixHome(chatId){
         inline_keyboard:[
 
           [
-            {text:"🔍 Details",callback_data:`search_${first.id}_${type}`}
+            {text:"🔍 Details",callback_data:`search_${first.id}_${type}`},
             {text:"➕ Merken",callback_data:`fav_${first.id}`}
           ],
 
@@ -1420,42 +1420,6 @@ async function sendResultsList(chatId, heading, list, page = 0){
       ]
     }
   });
-}
-
-  // ================= NAVIGATION =================
-
-  const nav = [];
-
-  if(page > 0){
-    nav.push({
-      text:"⬅️ Zurück",
-      callback_data:`page_${page-1}`
-    });
-  }
-
-  if(page < totalPages - 1){
-    nav.push({
-      text:"➡️ Weiter",
-      callback_data:`page_${page+1}`
-    });
-  }
-
-  return tg("sendMessage",{
-  chat_id:chatId,
-  text:`📂 ${heading}`,
-  reply_markup:{
-    inline_keyboard:[
-      ...buttons,
-      [
-        {text:"⬅️",callback_data:`page_${page-1}`},
-        {text:"➡️",callback_data:`page_${page+1}`}
-      ],
-      [
-        {text:"🏠 Menü",callback_data:"menu"}
-      ]
-    ]
-  }
-});
 }
 
 // ================= UPLOAD =================
@@ -1816,24 +1780,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     0
   );
 }
-
-    const keys = Object.keys(SERIES_DB);
-
-    if (!keys.length) {
-      return tg("sendMessage",{
-        chat_id: chatId,
-        text: "❌ Keine Serien vorhanden"
-      });
-    }
-
-    const buttons = keys.map(k => ([
-      {
-        text: `📺 ${k.replace(/_/g, " ")}`,
-        callback_data: `tv_${k}`
-      }
-    ]));
-
-    buttons.push([{ text: "🏠 Menü", callback_data: "menu" }]);
 
     return tg("sendMessage",{
       chat_id: chatId,
