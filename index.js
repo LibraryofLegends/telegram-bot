@@ -349,22 +349,23 @@ if (rating >= 7.5) {
 
       transformation: [
 
-  // 🎬 KEIN CROP → Original behalten
-  // 🎬 KEIN BLUR → volle Schärfe
-  // 🎬 KEIN COLOR → Original Look
+  // 🎬 BASE LOOK (wird jetzt wirklich angewendet)
+  ...baseTransform,
 
-  // 🧠 LOGO LADEN
+  // 🧠 LOGO OVERLAY LADEN
   {
-  overlay: "library_of_legendes_logo"
-},
-{
-  width: logo.width,
-  opacity: logo.opacity,
-  gravity: "south_east",
-  x: 40,
-  y: 40,
-  flags: "layer_apply"
-}
+    overlay: "library_of_legendes_logo"
+  },
+
+  // 🎯 LOGO POSITION & STYLE
+  {
+    width: logo.width,
+    opacity: logo.opacity,
+    gravity: "south_east",
+    x: 40,
+    y: 40,
+    flags: "layer_apply"
+  }
 
 ]
     });
