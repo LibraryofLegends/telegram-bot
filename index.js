@@ -1414,9 +1414,10 @@ const item = {
   media_type: isSeries ? "tv" : "movie",
   genres: genreIds,
 
-  // 🎬 COLLECTION SPEICHERN
   collection: safeData.belongs_to_collection?.name || null,
-  title: safeData.title || clean
+  title: safeData.title || clean,
+
+  cover: cover
 };
 
   CACHE.unshift(item);
