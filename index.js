@@ -1404,12 +1404,13 @@ if(exists){
   const yearMatch = fileName.match(/(19|20)\d{2}/);
   const fileYear = yearMatch ? parseInt(yearMatch[0]) : null;
 
-  // 🔥 CLEAN TITLE (weniger aggressiv)
-  // 🔥 CLEAN TITLE
+  // ================= TMDB MATCHING BLOCK =================
+
+// 🔥 CLEAN TITLE
 const clean = ultraCleanTitle(fileName);
 console.log("🧹 CLEAN TITLE:", clean);
 
-// 🔥 SEARCH VARIANTE (stabiler)
+// 🔥 SEARCH VARIANTE (stabiler als full string)
 const searchTitle = clean.split(" ").slice(0, 3).join(" ");
 
 // 🔍 MAIN SEARCH
@@ -1420,7 +1421,7 @@ let result = await searchTMDBUltra(
 );
 
 // 🔁 FALLBACK 1 (FULL TITLE)
-if(!result){
+if (!result) {
   result = await searchTMDBUltra(
     clean,
     fileYear,
@@ -1428,9 +1429,9 @@ if(!result){
   );
 }
 
-// 🔁 FALLBACK 2 (SHORT)
-if(!result){
-  const short = clean.split(" ").slice(0,2).join(" ");
+// 🔁 FALLBACK 2 (SHORT TITLE)
+if (!result) {
+  const short = clean.split(" ").slice(0, 2).join(" ");
   result = await searchTMDBUltra(
     short,
     fileYear,
@@ -1438,8 +1439,8 @@ if(!result){
   );
 }
 
-// 🔁 FALLBACK 3 (DIRECT API)
-if(!result){
+// 🔁 FALLBACK 3 (DIRECT TMDB SEARCH)
+if (!result) {
   const search = await tmdbFetch(
     `https://api.themoviedb.org/3/search/${parsed.type}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}&language=de-DE`
   );
@@ -1447,70 +1448,15 @@ if(!result){
   result = search?.results?.[0] || null;
 }
 
-// ❗ DEBUG
-console.log("🎯 FILE:", fileName);
-console.log("🔎 CLEAN:", clean);
-console.log("🎬 MATCH:", result?.title || result?.name);
-
-let result = await searchTMDBUltra(
-  clean,
-  fileYear,
-  parsed.type === "tv" ? "tv" : "movie"
-);
-
-// 🔁 FALLBACK 1 (SHORT)
-if(!result){
-  const short = clean.split(" ").slice(0,2).join(" ");
-
-  result = await searchTMDBAdvanced(
-    short,
-    fileYear,
-    parsed.type === "tv" ? "tv" : "movie"
-  );
-}
-
-// 🔁 FALLBACK 2 (DIRECT API)
-if(!result){
-  const search = await tmdbFetch(
-    `https://api.themoviedb.org/3/search/${parsed.type}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}&language=de-DE`
-  );
-
-  result = search?.results?.[0] || null;
-}
-
-// 🔁 FALLBACK 3 (OHNE JAHR)
-if(!result){
-  result = await searchTMDBAdvanced(
-    clean,
-    null,
-    parsed.type === "tv" ? "tv" : "movie"
-  );
-}
-
-// ❗ FINAL FAIL SAFE
-if(!result){
+// ❗ FINAL FAIL SAFE (optional aber sinnvoll)
+if (!result) {
   console.log("❌ FINAL FAIL:", clean);
 }
 
-// FALLBACK
-if(!result){
-  const short = clean.split(" ").slice(0,2).join(" ");
-
-  result = await searchTMDBAdvanced(
-    short,
-    fileYear,
-    parsed.type === "tv" ? "tv" : "movie"
-  );
-}
-
-if(!result){
-  console.log("❌ FINAL FAIL:", clean);
-}
-
-// 🔥 HIER EINFÜGEN 👇
+// ❗ DEBUG LOGS
 console.log("🎯 FILE:", fileName);
 console.log("🔎 CLEAN:", clean);
-console.log("🎬 MATCH:", result?.title || result?.name);
+console.log("🎬 MATCH:", result?.title || result?.name || "NOT FOUND");
 
   let details = null;
 
