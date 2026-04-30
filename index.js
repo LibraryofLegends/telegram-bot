@@ -1613,6 +1613,9 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   const body = req.body;
   const msg = body.message;
 
+  // 🔥 HIER EINFÜGEN
+  console.log("MSG DEBUG:", JSON.stringify(msg, null, 2));
+
   try {
 
     // ================= CALLBACK =================
