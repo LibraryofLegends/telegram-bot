@@ -717,17 +717,14 @@ function buildSwipeNav(id,type){
         {text:"➡️",callback_data:`next_${id}_${type}`}
       ],
 
-      // ⭐ NEU HIER
       [
-        {text:"⭐ Favorit",callback_data:`fav_${id}`}
-      ],
-
-      [
+        {text:"⭐ Favorit",callback_data:`fav_${id}`},
         {text:"🔥 Ähnliche",callback_data:`sim_${id}_${type}`}
       ],
 
       [
-        {text:"🏠 Menü",callback_data:"menu"}
+        {text:"🏠 Menü",callback_data:"menu"},
+        {text:"🧠 Für dich",callback_data:"top_picks"}
       ]
     ]
   };
