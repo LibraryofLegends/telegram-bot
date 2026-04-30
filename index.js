@@ -1814,17 +1814,17 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
     const hero = getCollectionHero(items);
 
     if(hero){
-      await tg("sendPhoto",{
-        chat_id: chatId,
-        photo: hero,
-        caption: `🎞 𝐂𝐎𝐋𝐋𝐄𝐂𝐓𝐈𝐎𝐍\n${name}`
-      });
-    } else {
-      await tg("sendMessage",{
-        chat_id: chatId,
-        text: `🎞 𝐂𝐎𝐋𝐋𝐄𝐂𝐓𝐈𝐎𝐍\n${name}`
-      });
+  await tg("sendPhoto",{
+    chat_id: chatId,
+    photo: hero,
+    caption: `🎞 COLLECTION\n${name.toUpperCase()}`,
+    reply_markup:{
+      inline_keyboard:[
+        [{text:"▶️ Alle abspielen", callback_data:`play_${items[0].display_id}`}]
+      ]
     }
+  });
+}
 
     const featured = items[0];
 
