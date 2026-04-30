@@ -221,19 +221,13 @@ async function uploadToCloudinary(url, title = ""){
   {
     effect: "brightness:-10"
   },
-
-  // STEP 1: Overlay laden
   {
-    overlay: "library_of_legendes_logo"
-  },
-
-  // STEP 2: Overlay platzieren
-  {
-    width: 80,
-    opacity: 50,
+    overlay: "library_of_legendes_logo",
+    width: 120,
+    opacity: 70,
     gravity: "south_east",
-    x: 20,
-    y: 20,
+    x: 30,
+    y: 30,
     flags: "layer_apply"
   }
 ]
