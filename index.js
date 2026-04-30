@@ -259,30 +259,32 @@ function getVisualStyle(genres = [], rating = 0){
   return style;
 }
 
-async function uploadToCloudinary(url, genres = []){
+async function uploadToCloudinary(url, genres = [], rating = 0){
 
   if(!cloudinary) return url;
 
   try{
 
-    const visualStyle = getVisualStyle(genres);
+    const visualStyle = getVisualStyle(genres, rating);
 
     const res = await cloudinary.uploader.upload(url,{
       folder:"library_of_legends",
 
       transformation: [
 
-        // 🎨 DYNAMISCHER LOOK
         ...visualStyle,
 
-        // 🧠 LOGO
+        {
+          effect: "radial_gradient:fade"
+        },
+
         {
           overlay: "library_of_legendes_logo",
-          width: 120,
-          opacity: 70,
+          width: 110,
+          opacity: 80,
           gravity: "south_east",
-          x: 25,
-          y: 25,
+          x: 30,
+          y: 30,
           flags: "layer_apply"
         }
 
@@ -292,7 +294,6 @@ async function uploadToCloudinary(url, genres = []){
     return res.secure_url;
 
   }catch(err){
-
     console.log("❌ Cloudinary Upload Fehler:", err.message);
     return url;
   }
