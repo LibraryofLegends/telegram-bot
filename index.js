@@ -1405,7 +1405,7 @@ if(exists){
   const fileYear = yearMatch ? parseInt(yearMatch[0]) : null;
 
   // 🔥 CLEAN TITLE (weniger aggressiv)
-  const clean = ultraCleanTitle(parsed.title);
+  const clean = ultraCleanTitle(fileName);
 
   console.log("🧹 CLEAN TITLE:", clean);
 
