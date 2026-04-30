@@ -335,6 +335,8 @@ async function uploadToCloudinary(url, genres = [], rating = 0){
     if(rating >= 7.5){
       baseTransform.push({ effect: "contrast:25" });
     }
+    
+    const logo = getSmartLogoSettings(genres, rating);
 
     const res = await cloudinary.uploader.upload(url,{
       folder:"library_of_legends",
