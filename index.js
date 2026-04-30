@@ -663,12 +663,8 @@ function buildSwipeNav(id,type){
 
       [
         {text:"⬅️",callback_data:`prev_${id}_${type}`},
-        {text:"🎬 DETAILS",callback_data:`search_${id}_${type}`},
+        {text:"▶️ PLAY",callback_data:`play_${id}`},
         {text:"➡️",callback_data:`next_${id}_${type}`}
-      ],
-
-      [
-        {text:"▶️ SOFORT STARTEN",callback_data:`play_${id}`}
       ],
 
       [
