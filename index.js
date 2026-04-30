@@ -219,10 +219,10 @@ async function uploadToCloudinary(url){
 
         // 🎬 CINEMATIC LOOK
         {
-          effect: "brightness:-15"
+          effect: "brightness:-20"
         },
         {
-          effect: "contrast:20"
+          effect: "contrast:30"
         },
         {
           effect: "sharpen:40"
