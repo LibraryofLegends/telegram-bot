@@ -1687,6 +1687,51 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   });
 }
 
+if (data.startsWith("collection_")) {
+
+  const name = data.replace("collection_", "");
+
+  const items = getCollectionItems(name);
+
+  if(!items.length){
+    return tg("sendMessage",{
+      chat_id: chatId,
+      text: "❌ Keine Collection gefunden"
+    });
+  }
+
+  // 🎬 HEADER
+  await tg("sendMessage",{
+    chat_id: chatId,
+    text: `🎞 𝐂𝐎𝐋𝐋𝐄𝐂𝐓𝐈𝐎𝐍\n${name}`
+  });
+
+  // 🎬 POSTER LISTE
+  for(const item of items){
+
+    await tg("sendPhoto",{
+      chat_id: chatId,
+      photo: item.cover || "https://dummyimage.com/500x750/000/fff&text=No+Image",
+      caption: `🎬 ${item.title}`,
+      reply_markup:{
+        inline_keyboard:[
+          [{text:"▶️ Abspielen", callback_data:`play_${item.display_id}`}]
+        ]
+      }
+    });
+  }
+
+  return tg("sendMessage",{
+    chat_id: chatId,
+    text:"🏠 Navigation",
+    reply_markup:{
+      inline_keyboard:[
+        [{text:"🏠 Menü", callback_data:"menu"}]
+      ]
+    }
+  });
+}
+
       if (data.startsWith("search_")) {
         const [, id, type] = data.split("_");
         const details = await getDetails(id, type);
