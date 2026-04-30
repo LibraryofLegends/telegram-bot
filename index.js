@@ -1471,7 +1471,6 @@ try{
   [{text:"▶️ Stream", url: playerUrl("play", id)}]
 ];
 
-// 🎬 COLLECTION BUTTON
 if(safeData.belongs_to_collection?.name){
   buttons.push([
     {
@@ -1479,6 +1478,10 @@ if(safeData.belongs_to_collection?.name){
       callback_data:`collection_${safeData.belongs_to_collection.name}`
     }
   ]);
+}
+
+reply_markup:{
+  inline_keyboard: buttons
 }
 
 await tg("sendPhoto",{
