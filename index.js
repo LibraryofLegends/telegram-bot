@@ -219,6 +219,15 @@ function getAvailableGenres(){
 
 
 // ================= MEDIA HELPERS =================
+function getDynamicBanner(type = "main", genre = null){
+
+  if(type === "genre" && genre && BANNERS.genres[genre]){
+    return BANNERS.genres[genre];
+  }
+
+  return BANNERS.main;
+}
+
 function getCollectionHero(items){
 
   if(!items.length) return null;
