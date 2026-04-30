@@ -315,18 +315,17 @@ async function uploadToCloudinary(url, genres = [], rating = 0){
 
   // 🧠 LOGO STEP 1
   {
-    overlay: "library_of_legendes_logo"
-  },
-
-  // 🧠 LOGO STEP 2 (IMMER ALS LETZTES)
-  {
-    width: 120,
-    opacity: 70,
-    gravity: "south_east",
-    x: 25,
-    y: 25,
-    flags: "layer_apply"
-  }
+  overlay: "library_of_legendes_logo"
+},
+{
+  width: 70,              // 🔥 kleiner
+  opacity: 45,            // 🔥 dezenter
+  gravity: "south_east",
+  x: 35,
+  y: 35,
+  effect: "brightness:10", // leichtes Leuchten
+  flags: "layer_apply"
+}
 
 ]
     });
