@@ -1162,7 +1162,9 @@ async function showNetflixHome(chatId){
 
     const details = await getDetails(first.id, type) || first;
 
-    const banner = getDynamicBanner("main");
+    const banner = details?.backdrop_path
+      ? `https://image.tmdb.org/t/p/original${details.backdrop_path}`
+      : getDynamicBanner("main");
 
     // 🎬 BIG NETFLIX HERO
     await tg("sendPhoto",{
