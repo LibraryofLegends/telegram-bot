@@ -1319,20 +1319,6 @@ if(!result){
 
 // TYPE FILTER
 if(result && result.media_type){
-  if(isSeries){
-
-  const key = parsed.title.toLowerCase().replace(/\s/g,"_");
-
-  if(!SERIES_DB[key]) SERIES_DB[key] = {};
-  if(!SERIES_DB[key][parsed.season]) SERIES_DB[key][parsed.season] = {};
-
-  SERIES_DB[key][parsed.season][parsed.episode] = {
-    file_id: file.file_id,
-    display_id: id
-  };
-
-  saveSeriesDB(SERIES_DB);
-}
 
 // FALLBACK
 if(!result){
@@ -1379,6 +1365,21 @@ if(result?.genre_ids){
 // 🔥 HIER MUSS ES HIN
 const id = generateNextId();
 const categoryId = generateCategoryId(genreIds);
+
+if(isSeries){
+
+  const key = parsed.title.toLowerCase().replace(/\s/g,"_");
+
+  if(!SERIES_DB[key]) SERIES_DB[key] = {};
+  if(!SERIES_DB[key][parsed.season]) SERIES_DB[key][parsed.season] = {};
+
+  SERIES_DB[key][parsed.season][parsed.episode] = {
+    file_id: file.file_id,
+    display_id: id
+  };
+
+  saveSeriesDB(SERIES_DB);
+}
 
 const item = {
   display_id:id,
