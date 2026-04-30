@@ -32,9 +32,7 @@ const SERIES_DB_FILE = "series.json";
 const USER_STATE = {};
 
 // ================= DB =================
-function generateNextId(){
-  
-  function generateCategoryId(genres=[]){
+function generateCategoryId(genres=[]){
 
   if(!genres.length) return "GEN000";
 
@@ -50,9 +48,10 @@ function generateNextId(){
   return `${code}${String(next).padStart(3,"0")}`;
 }
 
+function generateNextId(){
+
   if(!CACHE.length) return "0001";
 
-  // höchste vorhandene ID finden
   const maxId = Math.max(
     ...CACHE.map(x => parseInt(x.display_id || "0"))
   );
@@ -175,8 +174,7 @@ function buildNetflixBanner(data){
 
 // ================= GENRE SYSTEM =================
 
-const GENRE_MAP = {
-  const GENRE_CODE = {
+const GENRE_CODE = {
   28: "ACT",
   27: "HOR",
   35: "COM",
@@ -184,6 +182,8 @@ const GENRE_MAP = {
   878: "SCI",
   53: "THR"
 };
+
+const GENRE_MAP = {
   28:"🔥 Action",
   35:"😂 Comedy",
   27:"👻 Horror",
