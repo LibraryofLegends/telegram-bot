@@ -297,25 +297,38 @@ async function uploadToCloudinary(url, genres = [], rating = 0){
 
       transformation: [
 
-        // 🎬 BASIS LOOK
-        ...baseTransform,
+  // 🎯 AUTO CROP (verhindert abgeschnittene Poster)
+  {
+    width: 500,
+    height: 750,
+    crop: "fill",
+    gravity: "auto"
+  },
 
-        // 🧠 LOGO STEP 1 (laden)
-        {
-          overlay: "library_of_legendes_logo"
-        },
+  // 🎬 CLEAN CINEMATIC LOOK
+  { effect: "brightness:-8" },
+  { effect: "contrast:18" },
+  { effect: "sharpen:40" },
 
-        // 🧠 LOGO STEP 2 (platzieren)
-        {
-          width: 120,
-          opacity: 70,
-          gravity: "south_east",
-          x: 25,
-          y: 25,
-          flags: "layer_apply"
-        }
+  // 🌫 LIGHT DEPTH (sehr subtil, kein Bug Risiko)
+  { effect: "blur:200", gravity: "south", crop: "scale" },
 
-      ]
+  // 🧠 LOGO STEP 1
+  {
+    overlay: "library_of_legendes_logo"
+  },
+
+  // 🧠 LOGO STEP 2 (IMMER ALS LETZTES)
+  {
+    width: 120,
+    opacity: 70,
+    gravity: "south_east",
+    x: 25,
+    y: 25,
+    flags: "layer_apply"
+  }
+
+]
     });
 
     console.log("🖼 FINAL COVER:", res.secure_url);
