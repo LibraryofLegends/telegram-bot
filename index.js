@@ -1549,9 +1549,9 @@ try{
 
   [{ text:"▶️ Stream", url: playerUrl("play", id) }],
 
-  [{ text:"🔥 Ähnliche", callback_data:`sim_${id}_${item.media_type || "movie"}` }],
+  [{ text:"🔥 Ähnliche", url: playerUrl("sim", id) }],
 
-  [{ text:"🏠 Menü", callback_data:"menu" }]
+  [{ text:"🏠 Menü", url: `https://t.me/${BOT_USERNAME}` }]
 
 ];
 
