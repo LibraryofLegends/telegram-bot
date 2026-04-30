@@ -272,23 +272,26 @@ async function uploadToCloudinary(url, genres = [], rating = 0){
 
       transformation: [
 
-        ...visualStyle,
+  // 🎬 STYLE (SAFE)
+  ...visualStyle,
 
-        {
-          effect: "radial_gradient:fade"
-        },
+  // ❌ ENTFERNEN (macht Probleme)
+  // { effect: "radial_gradient:fade" },
 
-        {
-          overlay: "library_of_legendes_logo",
-          width: 110,
-          opacity: 80,
-          gravity: "south_east",
-          x: 30,
-          y: 30,
-          flags: "layer_apply"
-        }
+  // 🧠 LOGO IMMER ALS LETZTER STEP
+  {
+    overlay: "library_of_legendes_logo"
+  },
+  {
+    width: 120,
+    opacity: 70,
+    gravity: "south_east",
+    x: 25,
+    y: 25,
+    flags: "layer_apply"
+  }
 
-      ]
+]
     });
 
     return res.secure_url;
