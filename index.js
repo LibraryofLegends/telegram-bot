@@ -1631,6 +1631,35 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           reply_markup: buildSwipeNav(item.id, type)
         });
       }
+      
+      if (data.startsWith("collection_")) {
+
+  const name = data.replace("collection_", "");
+
+  const items = getCollectionItems(name);
+
+  if(!items.length){
+    return tg("sendMessage",{
+      chat_id: chatId,
+      text: "❌ Keine Collection gefunden"
+    });
+  }
+
+  const buttons = items.map(x => ([{
+    text: `🎬 ${x.title}`,
+    callback_data: `play_${x.display_id}`
+  }]));
+
+  buttons.push([{ text:"🏠 Menü", callback_data:"menu" }]);
+
+  return tg("sendMessage",{
+    chat_id: chatId,
+    text: `🎞 ${name}`,
+    reply_markup:{
+      inline_keyboard: buttons
+    }
+  });
+}
 
       if (data.startsWith("search_")) {
         const [, id, type] = data.split("_");
