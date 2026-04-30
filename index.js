@@ -1484,14 +1484,27 @@ cover += "?v=" + Date.now();
 const item = {
   display_id: id,
   title: safeData.title || clean,
-  collection: safeData.belongs_to_collection?.name || collectionName || null,
-  collection_order: order, // 🔥 NEU
-  category_id: categoryId,
-  file_id: file.file_id,
-  media_type: isSeries ? "tv" : "movie",
-  genres: genreIds,
-  cover: cover
-};
+  let collectionName = null;
+
+// 1. TMDB hat Collection
+if(safeData.belongs_to_collection?.name){
+  collectionName = safeData.belongs_to_collection.name;
+}
+
+// 2. FALLBACK → eigene Detection
+if(!collectionName){
+  collectionName = detectCollection(
+    safeData.title || clean
+  );
+}
+
+// 3. CLEAN
+if(collectionName){
+  collectionName = collectionName
+    .replace(/\s+/g,"_")
+    .replace(/[^a-z0-9_]/gi,"")
+    .toLowerCase();
+}
 
 // ✅ UND JETZT ERST SPEICHERN
 CACHE.unshift(item);
