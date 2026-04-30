@@ -459,11 +459,15 @@ function getCollectionItems(collectionName){
   });
 }
 
-function getCollectionItems(collectionName){
+function getCollectionItems(name){
 
-  if(!collectionName) return [];
-
-  return CACHE.filter(x => x.collection === collectionName);
+  return CACHE
+    .filter(x => x.collection === name)
+    .sort((a,b) => {
+      const numA = parseInt(a.title?.match(/\d+/)?.[0] || 0);
+      const numB = parseInt(b.title?.match(/\d+/)?.[0] || 0);
+      return numA - numB;
+    });
 }
 
 
