@@ -1444,16 +1444,28 @@ try{
 );
 
   try{
-    await tg("sendPhoto",{
-      chat_id: targetChannel,
-      photo: cover,
-      caption: caption,
-      reply_markup:{
-        inline_keyboard:[
-          [{text:"▶️ Stream", url: playerUrl("play", id)}]
-        ]
-      }
-    });
+    const buttons = [
+  [{text:"▶️ Stream", url: playerUrl("play", id)}]
+];
+
+// 🎬 COLLECTION BUTTON
+if(safeData.belongs_to_collection?.name){
+  buttons.push([
+    {
+      text:"🎞 Collection",
+      callback_data:`collection_${safeData.belongs_to_collection.name}`
+    }
+  ]);
+}
+
+await tg("sendPhoto",{
+  chat_id: targetChannel,
+  photo: cover,
+  caption: caption,
+  reply_markup:{
+    inline_keyboard: buttons
+  }
+});
 
   }catch(err){
     await tg("sendMessage",{
