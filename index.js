@@ -1663,7 +1663,7 @@ if(item.collection){
   buttons.push([
     {
       text:"🎞 Collection",
-      url: playerUrl("collection", item.collection)
+      callback_data:`collection_${item.collection}`
     }
   ]);
 }
