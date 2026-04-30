@@ -1737,9 +1737,23 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   }
 
   if (data.startsWith("genre_local_")) {
-    const genre = data.split("_")[2];
-    return sendResultsList(chatId, "📂 Deine Filme", getLocalByGenre(genre), 0);
-  }
+
+  const genre = data.split("_")[2];
+
+  // 🔥 BANNER SENDEN
+  await tg("sendPhoto",{
+    chat_id:chatId,
+    photo:getDynamicBanner("genre", genre),
+    caption:`🎬 ${GENRE_MAP[genre] || "Kategorie"}`
+  });
+
+  return sendResultsList(
+    chatId,
+    "📂 Deine Filme",
+    getLocalByGenre(genre),
+    0
+  );
+}
 
   if (data === "movies_az") {
     return sendResultsList(chatId, "🔤 A–Z", sortAZ(await getPopular()), 0);
