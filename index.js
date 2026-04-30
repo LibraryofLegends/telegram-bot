@@ -1258,6 +1258,8 @@ if(exists){
   const fileName = file.file_name || "";
 
   const parsed = parseFileName(fileName);
+  
+  const isSeries = parsed.type === "tv";
 
   // 🔥 JAHR EXTRAHIEREN
   const yearMatch = fileName.match(/(19|20)\d{2}/);
