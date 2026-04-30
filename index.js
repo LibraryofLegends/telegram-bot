@@ -1886,31 +1886,37 @@ if (msg?.text?.startsWith("/start")) {
 
   const param = msg.text.split(" ")[1];
 
+  console.log("START PARAM:", param); // 🔥 DEBUG
+
   if(param){
 
     const [action, id] = param.split("_");
 
+    // ▶️ STREAM
     if(action === "play"){
       const item = CACHE.find(x => x.display_id === id);
       return sendFileById(msg.chat.id, item);
     }
 
+    // 🔥 ÄHNLICHE
     if(action === "sim"){
       const item = CACHE.find(x => x.display_id === id);
 
       if(!item){
-        return tg("sendMessage",{ chat_id:msg.chat.id, text:"❌ Nicht gefunden" });
+        return tg("sendMessage",{
+          chat_id:msg.chat.id,
+          text:"❌ Nicht gefunden"
+        });
       }
 
       const fakeData = { genres: item.genres };
-
       const list = getSmartRecommendations(fakeData);
 
       return sendResultsList(msg.chat.id, "🔥 Ähnliche", list, 0);
     }
-
   }
 
+  // 🏠 FALLBACK
   return showMenu(msg.chat.id);
 }
 
