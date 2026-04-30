@@ -1523,11 +1523,11 @@ try{
   [{text:"▶️ Stream", url: playerUrl("play", id)}]
 ];
 
-if(safeData.belongs_to_collection?.name){
+if(item.collection){
   buttons.push([
     {
       text:"🎞 Collection",
-      callback_data:`collection_${safeData.belongs_to_collection.name}`
+      callback_data:`collection_${item.collection}`
     }
   ]);
 }
