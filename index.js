@@ -206,40 +206,34 @@ function getAvailableGenres(){
 
 // ================= MEDIA HELPERS =================
 
-async function uploadToCloudinary(url){
+async function uploadToCloudinary(url, genres = []){
 
   if(!cloudinary) return url;
 
   try{
+
+    const visualStyle = getVisualStyle(genres);
 
     const res = await cloudinary.uploader.upload(url,{
       folder:"library_of_legends",
 
       transformation: [
 
-  // 🎬 CLEAN CINEMATIC LOOK (KEIN OVAL MEHR)
-  {
-    effect: "brightness:-12"
-  },
-  {
-    effect: "contrast:18"
-  },
-  {
-    effect: "sharpen:40"
-  },
+        // 🎨 DYNAMISCHER LOOK
+        ...visualStyle,
 
-  // 🧠 LOGO (sauber, unaufdringlich)
-  {
-    overlay: "library_of_legendes_logo",
-    width: 120,
-    opacity: 70,
-    gravity: "south_east",
-    x: 25,
-    y: 25,
-    flags: "layer_apply"
-  }
+        // 🧠 LOGO
+        {
+          overlay: "library_of_legendes_logo",
+          width: 120,
+          opacity: 70,
+          gravity: "south_east",
+          x: 25,
+          y: 25,
+          flags: "layer_apply"
+        }
 
-]
+      ]
     });
 
     return res.secure_url;
