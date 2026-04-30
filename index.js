@@ -364,12 +364,12 @@ async function uploadToCloudinary(url, genres = [], rating = 0){
   overlay: "library_of_legendes_logo"
 },
 {
-  width: 70,              // 🔥 kleiner
-  opacity: 45,            // 🔥 dezenter
+  width: logo.width,
+  opacity: logo.opacity,
   gravity: "south_east",
-  x: 35,
-  y: 35,
-  effect: "brightness:10", // leichtes Leuchten
+  x: 40,
+  y: 40,
+  effect: logo.effect,
   flags: "layer_apply"
 }
 
