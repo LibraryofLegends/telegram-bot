@@ -217,34 +217,29 @@ async function uploadToCloudinary(url){
 
       transformation: [
 
-        // 🎬 CINEMATIC LOOK
-        {
-          effect: "brightness:-20"
-        },
-        {
-          effect: "contrast:30"
-        },
-        {
-          effect: "sharpen:40"
-        },
+  // 🎬 CLEAN CINEMATIC LOOK (KEIN OVAL MEHR)
+  {
+    effect: "brightness:-12"
+  },
+  {
+    effect: "contrast:18"
+  },
+  {
+    effect: "sharpen:40"
+  },
 
-        // 🌑 VIGNETTE (Rand abdunkeln)
-        {
-          effect: "vignette:40"
-        },
+  // 🧠 LOGO (sauber, unaufdringlich)
+  {
+    overlay: "library_of_legendes_logo",
+    width: 120,
+    opacity: 70,
+    gravity: "south_east",
+    x: 25,
+    y: 25,
+    flags: "layer_apply"
+  }
 
-        // 🧠 LOGO OVERLAY (DEIN BRANDING)
-        {
-          overlay: "library_of_legendes_logo",
-          width: 140,
-          opacity: 80,
-          gravity: "south_east",
-          x: 30,
-          y: 30,
-          flags: "layer_apply"
-        }
-
-      ]
+]
     });
 
     return res.secure_url;
