@@ -1480,31 +1480,47 @@ cover = await uploadToCloudinary(
 
 cover += "?v=" + Date.now();
 
-// ✅ ITEM ERST HIER ERSTELLEN
-const item = {
-  display_id: id,
-  title: safeData.title || clean,
-  let collectionName = null;
+// ================= COLLECTION + ORDER =================
 
-// 1. TMDB hat Collection
-if(safeData.belongs_to_collection?.name){
+// 🎬 COLLECTION NAME ERMITTELN
+let collectionName = null;
+
+// 1. TMDB Collection (beste Quelle)
+if (safeData.belongs_to_collection?.name) {
   collectionName = safeData.belongs_to_collection.name;
 }
 
 // 2. FALLBACK → eigene Detection
-if(!collectionName){
+if (!collectionName) {
   collectionName = detectCollection(
     safeData.title || clean
   );
 }
 
-// 3. CLEAN
-if(collectionName){
+// 3. CLEAN (wichtig für Buttons + IDs)
+if (collectionName) {
   collectionName = collectionName
-    .replace(/\s+/g,"_")
-    .replace(/[^a-z0-9_]/gi,"")
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/gi, "")
     .toLowerCase();
 }
+
+// 🔢 COLLECTION ORDER (Teil 1,2,3...)
+const order = getCollectionOrder(
+  safeData.title || clean
+);
+
+const item = {
+  display_id: id,
+  title: safeData.title || clean,
+  collection: collectionName,        // ✅ HIER WIRD ES VERWENDET
+  collection_order: order,           // ✅ SORTIERUNG
+  category_id: categoryId,
+  file_id: file.file_id,
+  media_type: isSeries ? "tv" : "movie",
+  genres: genreIds,
+  cover: cover
+};
 
 // ✅ UND JETZT ERST SPEICHERN
 CACHE.unshift(item);
