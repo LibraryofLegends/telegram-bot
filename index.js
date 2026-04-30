@@ -1310,28 +1310,32 @@ Dein Streaming Hub 👇`,
     reply_markup:{
       inline_keyboard:[
 
-        [
-          {text:"🏠 Home",callback_data:"home"},
-          {text:"🔥 Trending",callback_data:"net_trending"}
-        ],
+  [
+    {text:"🏠 Home",callback_data:"home"},
+    {text:"🔥 Trending",callback_data:"net_trending"}
+  ],
 
-        [
-          {text:"📈 Popular",callback_data:"net_popular"}
-        ],
+  [
+    {text:"📈 Popular",callback_data:"net_popular"}
+  ],
 
-        [
-          {text:"🎬 Filme",callback_data:"browse_movies"},
-          {text:"📺 Serien",callback_data:"browse_series"}
-        ],
+  [
+    {text:"🎬 Filme",callback_data:"browse_movies"},
+    {text:"📺 Serien",callback_data:"browse_series"}
+  ],
 
-        [
-          {text:"🔥 Kategorien",callback_data:"open_genres"}
-        ],
+  // ⭐ HIER REIN
+  [
+    {text:"⭐ Favoriten",callback_data:"favorites"}
+  ],
 
-        [
-          {text:"▶️ Weiter schauen",callback_data:"continue"}
-        ]
-      ]
+  // 🔥 DYNAMISCHE GENRES
+  ...buildGenreButtons(),
+
+  [
+    {text:"▶️ Weiter schauen",callback_data:"continue"}
+  ]
+]
     }
   });
 }
@@ -1658,7 +1662,7 @@ if(item.collection){
   buttons.push([
     {
       text:"🎞 Collection",
-      callback_data:`collection_${item.collection}`
+      url: playerUrl("collection", item.collection)
     }
   ]);
 }
