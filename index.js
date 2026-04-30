@@ -1407,9 +1407,6 @@ if(isSeries){
   saveSeriesDB(SERIES_DB);
 }
 
-  CACHE.unshift(item);
-  saveDB(CACHE);
-
   // ================= COVER FIX =================
 // 🎬 COVER
 let cover = getCover(safeData);
@@ -1426,7 +1423,7 @@ cover = await uploadToCloudinary(
 
 cover += "?v=" + Date.now();
 
-// ✅ ITEM ERST HIER
+// ✅ ITEM ERST HIER ERSTELLEN
 const item = {
   display_id:id,
   category_id: categoryId,
@@ -1440,7 +1437,7 @@ const item = {
   cover: cover
 };
 
-// ✅ DANN SPEICHERN
+// ✅ UND JETZT ERST SPEICHERN
 CACHE.unshift(item);
 saveDB(CACHE);
 
