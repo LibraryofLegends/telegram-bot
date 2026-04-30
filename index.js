@@ -1860,6 +1860,23 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
   // ================= PLAY =================
 
+if (data.startsWith("fav_")) {
+
+  const id = data.replace("fav_", "");
+  const item = CACHE.find(x => x.display_id === id);
+
+  if(!item){
+    return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
+  }
+
+  addFavorite(chatId, item);
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:"⭐ Zu Favoriten hinzugefügt"
+  });
+}
+
   if (data.startsWith("play_")) {
 
     const id = data.replace("play_", "");
