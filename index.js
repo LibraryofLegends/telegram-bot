@@ -1795,6 +1795,32 @@ if (data === "top_picks") {
 }
 
 // ▶️ CONTINUE
+// ⭐ FAVORITEN
+if (data === "favorites") {
+  return sendResultsList(
+    chatId,
+    "⭐ Deine Favoriten",
+    getFavorites(chatId),
+    0
+  );
+}
+
+// 🧠 TOP PICKS
+if (data === "top_picks") {
+
+  const picks = getTopPicks(chatId);
+
+  if(!picks.length){
+    return tg("sendMessage",{
+      chat_id:chatId,
+      text:"❌ Noch keine Daten"
+    });
+  }
+
+  return sendResultsList(chatId, "🧠 Für dich", picks, 0);
+}
+
+// ▶️ CONTINUE
 if (data === "continue") {
 
   const history = readHistory(chatId);
