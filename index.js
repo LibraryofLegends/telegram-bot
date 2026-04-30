@@ -1407,19 +1407,6 @@ if(isSeries){
   saveSeriesDB(SERIES_DB);
 }
 
-const item = {
-  display_id:id,
-  category_id: categoryId,
-  file_id:file.file_id,
-  media_type: isSeries ? "tv" : "movie",
-  genres: genreIds,
-
-  collection: safeData.belongs_to_collection?.name || null,
-  title: safeData.title || clean,
-
-  cover: cover
-};
-
   CACHE.unshift(item);
   saveDB(CACHE);
 
@@ -1437,6 +1424,19 @@ cover = await uploadToCloudinary(
 );
 
 cover += "?v=" + Date.now();
+
+const item = {
+  display_id:id,
+  category_id: categoryId,
+  file_id:file.file_id,
+  media_type: isSeries ? "tv" : "movie",
+  genres: genreIds,
+
+  collection: safeData.belongs_to_collection?.name || null,
+  title: safeData.title || clean,
+
+  cover: cover
+};
 
 try{
   if(!cover || cover.includes("null")){
