@@ -1383,7 +1383,11 @@ const item = {
   category_id: categoryId,
   file_id:file.file_id,
   media_type: isSeries ? "tv" : "movie",
-  genres: genreIds
+  genres: genreIds,
+
+  // 🎬 COLLECTION SPEICHERN
+  collection: safeData.belongs_to_collection?.name || null,
+  title: safeData.title || clean
 };
 
   CACHE.unshift(item);
