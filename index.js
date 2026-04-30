@@ -637,44 +637,6 @@ function detectCollection(title = ""){
   return null;
 }
 
-  // 🔥 ACTION / THRILLER
-  if([28, 53].includes(g)){
-    style = [
-      { effect: "brightness:-10" },
-      { effect: "contrast:25" },
-      { effect: "saturation:20" }
-    ];
-  }
-
-  // 👻 HORROR
-  if(g === 27){
-    style = [
-      { effect: "brightness:-25" },
-      { effect: "contrast:30" },
-      { effect: "saturation:-20" }
-    ];
-  }
-
-  // 😂 COMEDY
-  if(g === 35){
-    style = [
-      { effect: "brightness:10" },
-      { effect: "contrast:10" },
-      { effect: "saturation:25" }
-    ];
-  }
-
-  // 🎭 DRAMA
-  if(g === 18){
-    style = [
-      { effect: "brightness:-8" },
-      { effect: "contrast:15" }
-    ];
-  }
-
-  return style;
-}
-
 // 🎬 DYNAMISCHE GENRE BUTTONS (AUS DEINER DB)
 function buildGenreButtons(){
 
