@@ -2118,10 +2118,14 @@ if (data.startsWith("fav_")) {
   // ===============================
   // ▶️ VIDEO SENDEN
   // ===============================
-  await tg("sendVideo",{
-    chat_id:chatId,
-    video:item.file_id
-  });
+  await tg("sendVideo", {
+  chat_id: chatId,
+  video: item.file_id,
+  supports_streaming: true,
+  reply_markup: {
+    inline_keyboard: buttons
+  }
+});
 
   // ===============================
   // ⏭ NEXT EPISODE
