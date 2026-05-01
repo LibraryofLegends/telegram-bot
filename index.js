@@ -1602,6 +1602,31 @@ if(result?.genre_ids){
 const id = generateNextId();
 const categoryId = generateCategoryId(genreIds);
 
+// ================= COVER =================
+let cover = getCover(safeData);
+
+if(!cover){
+  cover = buildStyledCover(parsed.title);
+}
+
+cover = await uploadToCloudinary(
+  cover,
+  genreIds,
+  safeData.vote_average || 0
+);
+
+cover += "?v=1";
+
+// ================= CAPTION =================
+const caption = buildCard(
+  safeData,
+  fileName,
+  id,
+  categoryId,
+  width,
+  height
+);
+
 if(isSeries){
 
   const cleanTitle = safeData.title || parsed.title;
@@ -1715,33 +1740,6 @@ if(!cover || cover.includes("null")){
   if(!details && result){
     details = result;
   }
-
-  const targetChannel = getTargetChannel(genreIds);
-  
-  // 🎬 COVER
-let cover = getCover(safeData);
-
-if(!cover){
-  cover = buildStyledCover(parsed.title);
-}
-
-cover = await uploadToCloudinary(
-  cover,
-  genreIds,
-  safeData.vote_average || 0
-);
-
-cover += "?v=1";
-
-// 🎬 CAPTION
-const caption = buildCard(
-  safeData,
-  fileName,
-  id,
-  categoryId,
-  width,
-  height
-);
 
 // 🎯 BUTTONS
 const buttons = [
