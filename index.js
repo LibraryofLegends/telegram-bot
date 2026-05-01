@@ -493,8 +493,9 @@ function getTargetChannel(genres=[]){
     if(CHANNELS[g]) return CHANNELS[g];
   }
   return CHANNELS.default;
-  
-  // ================= THREAD ROUTING =================
+}
+
+// ================= THREAD ROUTING =================
 function getThreadByGenre(genres=[]){
 
   if(genres.includes(28)) return THREADS.action;
