@@ -76,7 +76,7 @@ const SERIES_DB_FILE = "series.json";
 const FAVORITES_FILE = "favorites.json";
 const CONTINUE_FILE = "continue.json";
 
-const USER_STATE = {};
+const USER_STATE = {}; // { chatId: { list, index, mode } }
 const TMDB_CACHE = {};
 
 // ================= DB =================
@@ -1527,6 +1527,89 @@ async function showNetflixHome(chatId){
 
 // ================= UI =================
 
+// ================= ULTRA UI =================
+
+async function renderUltraCard(chatId, messageId, item, type, index, total){
+
+  const details = await getDetails(item.tmdb_id || item.id, type);
+  const safeData = details || item;
+
+  return tg("editMessageMedia",{
+    chat_id: chatId,
+    message_id: messageId,
+    media:{
+      type:"photo",
+      media: item.cover || getCover(safeData),
+      caption: buildCard(safeData, "", item.display_id)
+    },
+    reply_markup:{
+      inline_keyboard:[
+
+        [
+          { text:"⬅️", callback_data:`ultra_prev` },
+          { text:`${index+1}/${total}`, callback_data:"noop" },
+          { text:"➡️", callback_data:`ultra_next` }
+        ],
+
+        [
+          { text:"▶️ Play", callback_data:`play_${item.display_id}` },
+          { text:"⭐ Favorit", callback_data:`fav_${item.display_id}` }
+        ],
+
+        [
+          { text:"🔥 Ähnliche", callback_data:`sim_${item.tmdb_id}_${item.media_type}` }
+        ],
+
+        [
+          { text:"🏠 Menü", callback_data:"menu" }
+        ]
+      ]
+    }
+  });
+}
+
+async function startUltraUI(chatId, list){
+
+  USER_STATE[chatId] = {
+    list,
+    index: 0,
+    mode: "ultra"
+  };
+
+  const first = list[0];
+
+  const msg = await tg("sendPhoto",{
+    chat_id: chatId,
+    photo: first.cover,
+    caption: buildCard(first, "", first.display_id),
+    reply_markup:{
+      inline_keyboard:[
+
+        [
+          { text:"⬅️", callback_data:`ultra_prev` },
+          { text:`1/${list.length}`, callback_data:"noop" },
+          { text:"➡️", callback_data:`ultra_next` }
+        ],
+
+        [
+          { text:"▶️ Play", callback_data:`play_${first.display_id}` },
+          { text:"⭐ Favorit", callback_data:`fav_${first.display_id}` }
+        ],
+
+        [
+          { text:"🔥 Ähnliche", callback_data:`sim_${first.tmdb_id}_${first.media_type}` }
+        ],
+
+        [
+          { text:"🏠 Menü", callback_data:"menu" }
+        ]
+      ]
+    }
+  });
+
+  USER_STATE[chatId].messageId = msg?.result?.message_id;
+}
+
 async function showGenres(chatId){
 
   await tg("sendPhoto",{
@@ -1898,7 +1981,8 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
   }
 
   if(!collectionName){
-    collectionName = detectCollection(safeData.title || clean);
+    collectionName = detectCollectionSmart(safeData.title || clean)
+  || detectCollection(safeData.title || clean);
   }
 
   if(collectionName){
@@ -1983,6 +2067,32 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     // ================= CALLBACK =================
     if (body.callback_query) {
+      
+      if (data === "ultra_next" || data === "ultra_prev") {
+
+  const state = USER_STATE[chatId];
+  if(!state || state.mode !== "ultra") return;
+
+  if(data === "ultra_next"){
+    state.index++;
+  } else {
+    state.index--;
+  }
+
+  if(state.index < 0) state.index = state.list.length - 1;
+  if(state.index >= state.list.length) state.index = 0;
+
+  const item = state.list[state.index];
+
+  return renderUltraCard(
+    chatId,
+    state.messageId,
+    item,
+    item.media_type || "movie",
+    state.index,
+    state.list.length
+  );
+}
 
   const data = body.callback_query.data;
   const chatId = body.callback_query.message.chat.id;
@@ -2446,69 +2556,18 @@ if (data.startsWith("season_")) {
 
   if (data.startsWith("collection_")) {
 
-    const name = data.replace("collection_", "");
-    const items = getCollectionItems(name);
+  const name = data.replace("collection_", "");
+  const items = getCollectionItems(name);
 
-    if(!items.length){
-      return tg("sendMessage",{
-        chat_id: chatId,
-        text: "❌ Keine Collection gefunden"
-      });
-    }
-
-    const hero = getCollectionHero(items);
-
-    if(hero){
-  await tg("sendPhoto",{
-    chat_id: chatId,
-    photo: hero,
-    caption: `🎞 COLLECTION\n${name.toUpperCase()}`,
-    reply_markup:{
-      inline_keyboard:[
-        [{text:"▶️ Alle abspielen", callback_data:`play_${items[0].display_id}`}]
-      ]
-    }
-  });
-}
-
-    const featured = items[0];
-
-    await tg("sendMessage",{
-      chat_id: chatId,
-      text:`⭐ Highlight\n🎬 ${featured.title}`,
-      reply_markup:{
-        inline_keyboard:[
-          [{text:"▶️ Jetzt abspielen", callback_data:`play_${featured.display_id}`}]
-        ]
-      }
-    });
-
-    for(let i = 1; i < items.length; i++){
-
-      const item = items[i];
-
-      await tg("sendPhoto",{
-        chat_id: chatId,
-        photo: item.cover || "https://dummyimage.com/500x750/000/fff&text=No+Image",
-        caption: `🎬 ${item.title}`,
-        reply_markup:{
-          inline_keyboard:[
-            [{text:"▶️ Abspielen", callback_data:`play_${item.display_id}`}]
-          ]
-        }
-      });
-    }
-
+  if(!items.length){
     return tg("sendMessage",{
       chat_id: chatId,
-      text:"🏠 Navigation",
-      reply_markup:{
-        inline_keyboard:[
-          [{text:"🏠 Menü", callback_data:"menu"}]
-        ]
-      }
+      text: "❌ Keine Collection gefunden"
     });
   }
+
+  return startUltraUI(chatId, items);
+}
 
   // ================= SEARCH (FIXED POSITION) =================
 
@@ -2577,6 +2636,9 @@ if (msg?.text?.startsWith("/start")) {
       text:"❌ Keine Collection gefunden"
     });
   }
+
+  return startUltraUI(msg.chat.id, items);
+}
 
   for(const item of items){
     await tg("sendPhoto",{
