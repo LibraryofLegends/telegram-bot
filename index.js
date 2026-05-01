@@ -202,30 +202,34 @@ async function tg(method, body) {
 
 // ================= HELPERS =================
 
-async function ensureSeriesThread(title){
+async function ensureSeriesThread(seriesKey){
 
-  const key = title.toLowerCase().replace(/\s/g,"_");
-
-  if(SERIES_THREADS[key]){
-    return SERIES_THREADS[key];
+  if(SERIES_THREADS[seriesKey]){
+    return SERIES_THREADS[seriesKey];
   }
 
   const res = await tg("createForumTopic",{
     chat_id: GROUP_ID,
-    name: `📺 ${title}`
+    name: `📺 ${seriesKey.replace(/_/g," ")}`
   });
 
   const threadId = res.result.message_thread_id;
 
-  SERIES_THREADS[key] = {
+  SERIES_THREADS[seriesKey] = {
     main: threadId,
     seasons: {}
   };
 
-  return SERIES_THREADS[key];
+  saveSeriesThreads(SERIES_THREADS); // 🔥 WICHTIG
+
+  return SERIES_THREADS[seriesKey];
 }
 
 async function ensureSeasonThread(seriesKey, season){
+
+  if(!SERIES_THREADS[seriesKey]){
+    await ensureSeriesThread(seriesKey);
+  }
 
   const series = SERIES_THREADS[seriesKey];
 
@@ -242,7 +246,6 @@ async function ensureSeasonThread(seriesKey, season){
 
   series.seasons[season] = threadId;
 
-  // 🔥 HIER SPEICHERN (GENAU HIER!)
   saveSeriesThreads(SERIES_THREADS);
 
   return threadId;
@@ -1621,7 +1624,7 @@ async function handleUpload(msg){
       .replace(/[^a-z0-9]/g,"_");
 
     // 🔥 THREAD ERSTELLEN
-    const seriesThread = await ensureSeriesThread(cleanTitle);
+    const seriesThread = await ensureSeriesThread(seriesKey);
     const seasonThread = await ensureSeasonThread(seriesKey, parsed.season);
 
     // 🔥 DB SPEICHERN
