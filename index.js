@@ -849,10 +849,11 @@ async function sendFileById(chatId,item){
 }
 
 // ================= CARD =================
-function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null, height=null){
+function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null, height=null, isSeries=false)
 
   const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
+  const isTV = isSeries || data.first_air_date;
 
   const BOLD_MAP = {
     A:"𝐀",B:"𝐁",C:"𝐂",D:"𝐃",E:"𝐄",F:"𝐅",G:"𝐆",
@@ -946,6 +947,24 @@ else{
   // 🎥 DIRECTOR
   const director = (data.credits?.crew || [])
     .find(c => c.job === "Director")?.name || "-";
+    
+    let creator = "-";
+
+if(isTV){
+  creator = (data.created_by || [])
+    .map(c => c.name)
+    .slice(0,2)
+    .join(" • ") || "-";
+}
+
+let seasonInfo = "";
+
+if(isTV){
+  const seasons = data.number_of_seasons || "?";
+  const episodes = data.number_of_episodes || "?";
+
+  seasonInfo = `📀 ${seasons} Staffeln • ${episodes}+ Episoden`;
+}
 
   // 👥 CAST
   const cast = (data.credits?.cast || [])
@@ -977,20 +996,21 @@ else{
   const line = "━━━━━━━━━━━━━━━━━━";
 
   return `${line}
-🎬 ${titleStyled} (${year})
+${isTV ? "📺" : "🎬"} ${titleStyled} (${year}${isTV ? "–" : ""})
 ${collection ? `🎞 ${collection}\n` : ""}${line}
 🔥 ${quality} • ${source} • ${genres}  
 🎧 ${audio}  
 ${line}
 ${rating}
-⏱ ${runtime} • 🔞 FSK ${fsk}  
-🎥 ${director}  
-👥 ${cast}  
+⭐ ${stars} • ${ratingValue.toFixed(1)}
+${isTV ? seasonInfo : `⏱ ${runtime} • 🔞 FSK ${fsk}`}
+${isTV ? `🎬 Creator: ${creator}` : `🎥 ${director}`}
+👥 ${cast}
 ${line}
 📖 𝐒𝐓𝐎𝐑𝐘
 ${story}
 ${line}
-▶️ PLAY • #${categoryId} • #${id}
+${isTV ? "▶️ Staffel wählen" : `▶️ PLAY • #${categoryId} • #${id}`}
 ${line}
 ${tags}
 @LibraryOfLegends`;
@@ -1606,13 +1626,14 @@ async function handleUpload(msg){
 
   // ================= CAPTION =================
   const caption = buildCard(
-    safeData,
-    fileName,
-    id,
-    categoryId,
-    width,
-    height
-  );
+  safeData,
+  fileName,
+  id,
+  categoryId,
+  width,
+  height,
+  isSeries // 🔥 DAS IST WICHTIG
+);
 
   // ================= SERIES SYSTEM =================
   if(isSeries){
