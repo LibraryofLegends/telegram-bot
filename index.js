@@ -500,12 +500,12 @@ function getThreadByGenre(genres=[]){
   if(genres.includes(28)) return THREADS.action;
   if(genres.includes(27)) return THREADS.horror;
   if(genres.includes(35)) return THREADS.comedy;
-  if(genres.includes(18)) return THREADS.movies;
+  if(genres.includes(18)) return THREADS.drama;
+  if(genres.includes(878)) return THREADS.scifi;
+  if(genres.includes(53)) return THREADS.thriller;
 
   return THREADS.movies;
 }
-}
-
 
 // ================= LOCAL FILTER =================
 
