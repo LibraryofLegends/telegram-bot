@@ -1673,33 +1673,68 @@ async function handleUpload(msg){
 
   // ================= TMDB SEARCH =================
 
+// 🔥 1. NORMALIZE TITLE
 const fixedSearch = normalizeTitle(searchTitle);
 
-let result = await searchTMDBUltra(
-  fixedSearch,
-  fileYear,
-  isSeries ? "tv" : "movie"
-);
+// 🔥 2. VARIANTEN BAUEN
+const variants = buildSearchVariants(fixedSearch);
 
-  if(!result){
+let result = null;
 
-  const fixedClean = normalizeTitle(clean);
+// 🔥 3. HAUPT-SUCHE (ALLE VARIANTEN DURCHGEHEN)
+for(const v of variants){
+
+  console.log("🔍 TRY:", v);
 
   result = await searchTMDBUltra(
-    fixedClean,
+    v,
     fileYear,
     isSeries ? "tv" : "movie"
   );
+
+  if(result){
+    console.log("✅ MATCH VIA:", v);
+    break;
+  }
 }
 
-  if(!result){
-    const fallback = await tmdbFetch(
-      `https://api.themoviedb.org/3/search/${isSeries ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}&language=de-DE`
-    );
-    result = fallback?.results?.[0] || null;
-  }
+// 🔥 4. FALLBACK (MIT CLEAN TITLE)
+if(!result){
 
-  console.log("🎬 MATCH:", result?.title || result?.name || "NOT FOUND");
+  const fixedClean = normalizeTitle(clean);
+  const fallbackVariants = buildSearchVariants(fixedClean);
+
+  for(const v of fallbackVariants){
+
+    console.log("🆘 FALLBACK TRY:", v);
+
+    result = await searchTMDBUltra(
+      v,
+      fileYear,
+      isSeries ? "tv" : "movie"
+    );
+
+    if(result){
+      console.log("✅ FALLBACK MATCH VIA:", v);
+      break;
+    }
+  }
+}
+
+// 🔥 5. LAST RESORT (DIRECT TMDB SEARCH)
+if(!result){
+
+  console.log("⚠️ LAST RESORT SEARCH");
+
+  const fallback = await tmdbFetch(
+    `https://api.themoviedb.org/3/search/${isSeries ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}&language=de-DE`
+  );
+
+  result = fallback?.results?.[0] || null;
+}
+
+// 🔥 DEBUG OUTPUT
+console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
 
   // ================= DETAILS =================
   let details = null;
