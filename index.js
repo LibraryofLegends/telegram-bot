@@ -1655,7 +1655,10 @@ try{
   }
 
   const targetChannel = getTargetChannel(genreIds);
-const threadId = getThreadByGenre(genreIds);
+
+  const threadId = isSeries
+    ? THREADS.series
+    : getThreadByGenre(genreIds);
 
 // 📺 1. CHANNEL POST
 await tg("sendPhoto",{
@@ -1689,35 +1692,58 @@ await tg("sendPhoto",{
 });
 
   try{
-    const buttons = [
 
-  [{ text:"▶️ Stream", url: playerUrl("play", id) }],
+  const buttons = [
 
-  [{ text:"🔥 Ähnliche", url: playerUrl("sim", id) }],
+    [{ text:"▶️ Stream", url: playerUrl("play", id) }],
+    [{ text:"🔥 Ähnliche", url: playerUrl("sim", id) }],
+    [{ text:"🏠 Menü", url: `https://t.me/${BOT_USERNAME}` }]
 
-  [{ text:"🏠 Menü", url: `https://t.me/${BOT_USERNAME}` }]
+  ];
 
-];
-
-if(item.collection){
-  buttons.push([
-    {
-  text:"🎞 Collection",
-  url: playerUrl("collection", item.collection)
-}
-  ]);
-}
-
-await tg("sendPhoto",{
-  chat_id: targetChannel,
-  photo: cover,
-  caption: caption,
-  reply_markup:{
-    inline_keyboard: buttons
+  if(item.collection){
+    buttons.push([
+      {
+        text:"🎞 Collection",
+        url: playerUrl("collection", item.collection)
+      }
+    ]);
   }
-});
 
-  }catch(err){
+  // 🔥 THREAD LOGIK
+  const threadId = isSeries
+    ? THREADS.series
+    : getThreadByGenre(genreIds);
+
+  // 📺 CHANNEL POST
+  await tg("sendPhoto",{
+    chat_id: targetChannel,
+    photo: cover,
+    caption: caption,
+    reply_markup:{
+      inline_keyboard:[
+        [
+          {
+            text:"💬 Zum Hub",
+            url:"https://t.me/LibraryOfLegendsHubs"
+          }
+        ]
+      ]
+    }
+  });
+
+  // 💬 GROUP THREAD POST
+  await tg("sendPhoto",{
+    chat_id: GROUP_ID,
+    message_thread_id: threadId,
+    photo: cover,
+    caption: caption,
+    reply_markup:{
+      inline_keyboard: buttons
+    }
+  });
+
+}catch(err){
     await tg("sendMessage",{
       chat_id: targetChannel,
       text: caption
