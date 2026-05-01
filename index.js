@@ -2129,6 +2129,15 @@ if (msg?.text?.startsWith("/delete")) {
 
 // 🔥 HIER DEIN NEUER START BLOCK
 if (msg?.text?.startsWith("/start")) {
+  
+  if (msg?.text === "/test") {
+
+  return tg("sendMessage",{
+    chat_id: GROUP_ID,
+    message_thread_id: 609,
+    text: "TEST THREAD"
+  });
+}
 
   const param = msg.text.split(" ")[1];
 
