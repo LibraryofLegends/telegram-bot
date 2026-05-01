@@ -74,6 +74,7 @@ const DB_FILE = "films.json";
 const HISTORY_FILE = "history.json";
 const SERIES_DB_FILE = "series.json";
 const FAVORITES_FILE = "favorites.json";
+const CONTINUE_FILE = "continue.json";
 
 const USER_STATE = {};
 const TMDB_CACHE = {};
@@ -186,6 +187,26 @@ function getFavorites(userId){
   return fav[userId] || [];
 }
 
+function loadContinue(){
+  if (!fs.existsSync(CONTINUE_FILE)) return {};
+  return JSON.parse(fs.readFileSync(CONTINUE_FILE));
+}
+
+function saveContinue(data){
+  fs.writeFileSync(CONTINUE_FILE, JSON.stringify(data, null, 2));
+}
+
+function setContinue(userId, payload){
+  const data = loadContinue();
+  data[userId] = payload;
+  saveContinue(data);
+}
+
+function getContinue(userId){
+  const data = loadContinue();
+  return data[userId] || null;
+}
+
 // ================= TELEGRAM =================
 async function tg(method, body) {
   try {
@@ -261,7 +282,10 @@ async function ensureSeriesThread(seriesKey){
 async function ensureSeasonThread(seriesKey, season){
 
   if(!SERIES_THREADS[seriesKey]){
-    await ensureSeriesThread(seriesKey);
+    SERIES_THREADS[seriesKey] = {
+      main: null,
+      seasons: {}
+    };
   }
 
   const series = SERIES_THREADS[seriesKey];
@@ -278,7 +302,7 @@ async function ensureSeasonThread(seriesKey, season){
   const threadId = res.result.message_thread_id;
 
   series.seasons[season] = threadId;
-
+  
   saveSeriesThreads(SERIES_THREADS);
 
   return threadId;
@@ -1889,24 +1913,25 @@ if (data === "top_picks") {
 // ▶️ CONTINUE
 if (data === "continue") {
 
-  const history = readHistory(chatId);
+  const cont = getContinue(chatId);
 
-  if (!history.length) {
+  if(!cont){
     return tg("sendMessage",{
       chat_id: chatId,
-      text: "❌ Kein Verlauf vorhanden"
+      text: "❌ Kein Fortschritt vorhanden"
     });
   }
 
-  const last = history[0];
-
   return tg("sendMessage",{
     chat_id: chatId,
-    text:`▶️ Weiter schauen\n\n🎬 ${last.title || "Film"}`,
+    text:`▶️ Weiter schauen
+
+📺 ${cont.seriesKey.replace(/_/g," ")}
+📀 Staffel ${cont.season} • Folge ${cont.episode}`,
     reply_markup:{
       inline_keyboard:[
-        [{ text: "▶️ Fortsetzen", callback_data: `play_${last.id}` }],
-        [{ text: "🏠 Menü", callback_data: "menu" }]
+        [{ text:"▶️ Fortsetzen", callback_data:`play_${cont.display_id}` }],
+        [{ text:"🏠 Menü", callback_data:"menu"}]
       ]
     }
   });
@@ -2039,26 +2064,70 @@ if (data.startsWith("fav_")) {
 
   let found = null;
 
+  // ===============================
+  // 🔍 SERIES FIND
+  // ===============================
   for(const [seriesKey, seasons] of Object.entries(SERIES_DB)){
     for(const [season, episodes] of Object.entries(seasons)){
-      for(const [ep, data] of Object.entries(episodes)){
-        if(data.display_id === id){
-          found = { seriesKey, season, episode: ep };
+      for(const [ep, epData] of Object.entries(episodes)){
+        if(epData.display_id === id){
+          found = { 
+            seriesKey, 
+            season: parseInt(season), 
+            episode: parseInt(ep),
+            data: epData
+          };
         }
       }
     }
   }
 
-  const item = CACHE.find(x => x.display_id === id);
+  // ===============================
+  // 🎬 MOVIE FALLBACK
+  // ===============================
+  let item = CACHE.find(x => x.display_id === id);
+
+  // ===============================
+  // 📺 SERIES ITEM BUILD
+  // ===============================
+  if(found){
+    item = {
+      file_id: found.data.file_id,
+      display_id: id,
+      media_type: "tv"
+    };
+  }
 
   if(!item){
     return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
   }
 
-  const buttons = [];
-
-  // 🔥 NÄCHSTE FOLGE
+  // ===============================
+  // 🧠 CONTINUE SAVE
+  // ===============================
   if(found){
+    setContinue(chatId,{
+      seriesKey: found.seriesKey,
+      season: found.season,
+      episode: found.episode,
+      display_id: id,
+      timestamp: Date.now()
+    });
+  }
+
+  // ===============================
+  // ▶️ VIDEO SENDEN
+  // ===============================
+  await tg("sendVideo",{
+    chat_id:chatId,
+    video:item.file_id
+  });
+
+  // ===============================
+  // ⏭ NEXT EPISODE
+  // ===============================
+  if(found){
+
     const next = getNextEpisode(
       found.seriesKey,
       found.season,
@@ -2066,22 +2135,22 @@ if (data.startsWith("fav_")) {
     );
 
     if(next){
-      buttons.push([
-        {
-          text:`➡️ Nächste Folge (S${next.season}E${next.episode})`,
-          callback_data:`play_${next.data.display_id}`
+      await tg("sendMessage",{
+        chat_id: chatId,
+        text: `➡️ Nächste Folge (S${next.season}E${next.episode})`,
+        reply_markup:{
+          inline_keyboard:[
+            [{
+              text:"▶️ Weiter",
+              callback_data:`play_${next.data.display_id}`
+            }]
+          ]
         }
-      ]);
+      });
     }
   }
 
-  buttons.push([{text:"🏠 Menü",callback_data:"menu"}]);
-
-  return tg("sendVideo",{
-    chat_id:chatId,
-    video:item.file_id,
-    reply_markup:{ inline_keyboard: buttons }
-  });
+  return;
 }
   
   // ================= SERIES SYSTEM =================
@@ -2126,7 +2195,9 @@ if (data.startsWith("series_")) {
     chat_id:chatId,
     text:`📺 ${key.replace(/_/g," ").toUpperCase()}
 
-Wähle eine Staffel oder starte direkt 👇`,
+    🔥 ${Object.keys(series).length} Staffeln verfügbar
+
+    👇 Wähle deine Staffel`
     reply_markup:{ inline_keyboard: buttons }
   });
 }
