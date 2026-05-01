@@ -1657,11 +1657,40 @@ try{
 
   const targetChannel = getTargetChannel(genreIds);
 
-  const threadId = isSeries
-    ? THREADS.series
-    : getThreadByGenre(genreIds);
+// 🎬 CAPTION (HAT DIR GEFÄHLT!)
+const caption = buildCard(
+  safeData,
+  fileName,
+  id,
+  categoryId,
+  width,
+  height
+);
 
-// 📺 1. CHANNEL POST
+// 🎯 BUTTONS
+const buttons = [
+  [{ text:"▶️ Stream", url: playerUrl("play", id) }],
+  [{ text:"🔥 Ähnliche", url: playerUrl("sim", id) }],
+  [{ text:"🏠 Menü", url: `https://t.me/${BOT_USERNAME}` }]
+];
+
+if(item.collection){
+  buttons.push([
+    {
+      text:"🎞 Collection",
+      url: playerUrl("collection", item.collection)
+    }
+  ]);
+}
+
+// 🎯 THREAD
+const threadId = isSeries
+  ? THREADS.series
+  : getThreadByGenre(genreIds);
+
+// ================= SEND =================
+
+// 📺 CHANNEL
 await tg("sendPhoto",{
   chat_id: targetChannel,
   photo: cover,
@@ -1673,15 +1702,12 @@ await tg("sendPhoto",{
           text:"💬 Zum Hub",
           url:"https://t.me/LibraryOfLegendsHubs"
         }
-      ],
-      [
-        { text:"▶️ Stream", url: playerUrl("play", id) }
       ]
     ]
   }
 });
 
-// 💬 2. GROUP THREAD POST
+// 💬 GROUP THREAD
 await tg("sendPhoto",{
   chat_id: GROUP_ID,
   message_thread_id: threadId,
@@ -1691,65 +1717,6 @@ await tg("sendPhoto",{
     inline_keyboard: buttons
   }
 });
-
-  try{
-
-  const buttons = [
-
-    [{ text:"▶️ Stream", url: playerUrl("play", id) }],
-    [{ text:"🔥 Ähnliche", url: playerUrl("sim", id) }],
-    [{ text:"🏠 Menü", url: `https://t.me/${BOT_USERNAME}` }]
-
-  ];
-
-  if(item.collection){
-    buttons.push([
-      {
-        text:"🎞 Collection",
-        url: playerUrl("collection", item.collection)
-      }
-    ]);
-  }
-
-  // 🔥 THREAD LOGIK
-  const threadId = isSeries
-    ? THREADS.series
-    : getThreadByGenre(genreIds);
-
-  // 📺 CHANNEL POST
-  await tg("sendPhoto",{
-    chat_id: targetChannel,
-    photo: cover,
-    caption: caption,
-    reply_markup:{
-      inline_keyboard:[
-        [
-          {
-            text:"💬 Zum Hub",
-            url:"https://t.me/LibraryOfLegendsHubs"
-          }
-        ]
-      ]
-    }
-  });
-
-  // 💬 GROUP THREAD POST
-  await tg("sendPhoto",{
-    chat_id: GROUP_ID,
-    message_thread_id: threadId,
-    photo: cover,
-    caption: caption,
-    reply_markup:{
-      inline_keyboard: buttons
-    }
-  });
-
-}catch(err){
-    await tg("sendMessage",{
-      chat_id: targetChannel,
-      text: caption
-    });
-  }
 
   return tg("sendMessage",{
     chat_id: msg.chat.id,
