@@ -43,7 +43,18 @@ const THREADS = {
   popular: 625
 };
 
-const SERIES_THREADS = {};
+const SERIES_THREADS_FILE = "series_threads.json";
+
+function loadSeriesThreads(){
+  if(!fs.existsSync(SERIES_THREADS_FILE)) return {};
+  return JSON.parse(fs.readFileSync(SERIES_THREADS_FILE));
+}
+
+function saveSeriesThreads(data){
+  fs.writeFileSync(SERIES_THREADS_FILE, JSON.stringify(data, null, 2));
+}
+
+let SERIES_THREADS = loadSeriesThreads();
 
 const BANNERS = {
 
@@ -230,6 +241,9 @@ async function ensureSeasonThread(seriesKey, season){
   const threadId = res.result.message_thread_id;
 
   series.seasons[season] = threadId;
+
+  // 🔥 HIER SPEICHERN (GENAU HIER!)
+  saveSeriesThreads(SERIES_THREADS);
 
   return threadId;
 }
