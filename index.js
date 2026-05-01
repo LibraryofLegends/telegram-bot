@@ -30,7 +30,9 @@ const THREADS = {
   movies: 609,
   series: 611,
   trending: 612,
-  action: 613
+  action: 613,
+  horror: 614,     // ← anpassen!
+  comedy: 615      // ← anpassen!
 };
 
 const BANNERS = {
