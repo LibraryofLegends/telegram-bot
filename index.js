@@ -812,72 +812,6 @@ function detectCollectionSmart(title = ""){
   return null;
 }
 
-
-// 🔥 VARIANT GENERATOR (V2)
-function buildSearchVariants(title){
-
-  const variants = new Set();
-
-  const clean = title;
-
-  // ORIGINAL
-  variants.add(clean);
-
-  // REMOVE NUMBERS
-  variants.add(clean.replace(/\d+/g,"").trim());
-
-  // NUMBER DETECTION
-  const num = clean.match(/(\d+)/)?.[1];
-
-  const collection = detectCollectionSmart(clean);
-
-  if(collection){
-
-    variants.add(collection.base);
-
-    if(num){
-      variants.add(`${collection.base} ${num}`);
-      variants.add(`${collection.base} Part ${num}`);
-      variants.add(`${collection.base} ${num}:`);
-    }
-  }
-
-  // SYMBOL CLEAN
-  variants.add(clean.replace(/[^\w\s]/g,""));
-
-  // SHORT VERSIONS
-  const words = clean.split(" ");
-  if(words.length > 2){
-    variants.add(words.slice(0,2).join(" "));
-    variants.add(words.slice(0,3).join(" "));
-  }
-
-  return Array.from(variants);
-}
-
-
-function detectFranchise(title = ""){
-
-  const t = title.toLowerCase();
-
-  // FAST & FURIOUS
-  if(t.includes("fast & furious")){
-    return {
-      base: "Fast & Furious"
-    };
-  }
-
-  // HARRY POTTER
-  if(t.includes("harry potter")){
-    return {
-      base: "Harry Potter"
-    };
-  }
-
-  return null;
-}
-
-
 function buildSearchVariants(title){
 
   const variants = new Set();
@@ -1793,7 +1727,7 @@ async function handleUpload(msg){
 
   // ================= CLEAN TITLE =================
   const clean = ultraCleanTitle(fileName);
-  const searchTitle = clean.split(" ").slice(0,3).join(" ");
+  const searchTitle = clean;
 
   const yearMatch = fileName.match(/(19|20)\d{2}/);
   const fileYear = yearMatch ? parseInt(yearMatch[0]) : null;
@@ -1803,7 +1737,7 @@ async function handleUpload(msg){
   // ================= TMDB SEARCH =================
 
 // 🔥 1. NORMALIZE TITLE
-const fixedSearch = normalizeTitle(searchTitle);
+const fixedSearch = aiNormalize(searchTitle);
 
 // 🔥 2. VARIANTEN BAUEN
 const variants = buildSearchVariants(fixedSearch);
@@ -1830,7 +1764,7 @@ for(const v of variants){
 // 🔥 4. FALLBACK (MIT CLEAN TITLE)
 if(!result){
 
-  const fixedClean = normalizeTitle(clean);
+  const fixedClean = aiNormalize(clean);
   const fallbackVariants = buildSearchVariants(fixedClean);
 
   for(const v of fallbackVariants){
@@ -1996,7 +1930,7 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
     collection_order: order,
     category_id: categoryId,
     file_id: file.file_id,
-    media_type: "movie",
+    media_type: isSeries ? "tv" : "movie",
     genres: genreIds,
     cover: cover
   };
