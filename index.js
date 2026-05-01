@@ -653,21 +653,6 @@ function getCollectionItems(name){
 
 // ================= FILE PARSER =================
 
-function normalizeTitle(title = ""){
-
-  return title
-
-    // AND → &
-    .replace(/\band\b/gi, "&")
-
-    // FAST & FURIOUS FIX
-    .replace(/fast & furious/i, "Fast & Furious")
-
-    // Cleanup
-    .replace(/\s+/g," ")
-    .trim();
-}
-
 function parseFileName(name = "") {
 
   const clean = name.replace(/[._\-]+/g, " ");
@@ -697,6 +682,100 @@ function parseFileName(name = "") {
   }
 
   return { type: "movie", title: clean };
+}
+
+
+// ================= SMART TITLE SYSTEM =================
+
+function normalizeTitle(title = ""){
+
+  let t = title.toLowerCase();
+
+  // =============================
+  // BASIC FIXES
+  // =============================
+  t = t.replace(/\band\b/gi, "&");
+
+  // =============================
+  // FAST & FURIOUS
+  // =============================
+  if(t.includes("fast") && t.includes("furious")){
+    t = t.replace(/fast\s*&?\s*furious/i, "Fast & Furious");
+  }
+
+  // =============================
+  // HARRY POTTER
+  // =============================
+  if(t.includes("harry potter")){
+    t = t.replace(/harry\s*potter/i, "Harry Potter");
+  }
+
+  // =============================
+  // AVENGERS
+  // =============================
+  if(t.includes("avengers")){
+    t = t.replace(/the avengers/i, "Avengers");
+  }
+
+  // =============================
+  // FINAL CLEAN
+  // =============================
+  return t
+    .replace(/\s+/g," ")
+    .trim()
+    .replace(/\b\w/g, l => l.toUpperCase());
+}
+
+
+function detectFranchise(title = ""){
+
+  const t = title.toLowerCase();
+
+  // FAST & FURIOUS
+  if(t.includes("fast & furious")){
+    return {
+      base: "Fast & Furious"
+    };
+  }
+
+  // HARRY POTTER
+  if(t.includes("harry potter")){
+    return {
+      base: "Harry Potter"
+    };
+  }
+
+  return null;
+}
+
+
+function buildSearchVariants(title){
+
+  const variants = new Set();
+
+  // ORIGINAL
+  variants.add(title);
+
+  const franchise = detectFranchise(title);
+
+  if(franchise){
+
+    // BASE
+    variants.add(franchise.base);
+
+    // NUMBER DETECTION
+    const numMatch = title.match(/(\d+)/);
+
+    if(numMatch){
+      variants.add(`${franchise.base} ${numMatch[1]}`);
+      variants.add(`${franchise.base} Part ${numMatch[1]}`);
+    }
+  }
+
+  // CLEAN VERSION
+  variants.add(title.replace(/[^\w\s]/g,""));
+
+  return Array.from(variants);
 }
 
 function ultraCleanTitle(name = "") {
