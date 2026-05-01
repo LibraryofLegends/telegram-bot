@@ -1604,9 +1604,13 @@ const categoryId = generateCategoryId(genreIds);
 
 if(isSeries){
 
-  const seriesKey = parsed.title.toLowerCase().replace(/\s/g,"_");
+  const cleanTitle = safeData.title || parsed.title;
 
-  const seriesThread = await ensureSeriesThread(parsed.title);
+  const seriesKey = cleanTitle
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g,"_");
+
+  const seriesThread = await ensureSeriesThread(cleanTitle);
 
   const seasonThread = await ensureSeasonThread(
     seriesKey,
@@ -1713,8 +1717,23 @@ if(!cover || cover.includes("null")){
   }
 
   const targetChannel = getTargetChannel(genreIds);
+  
+  // 🎬 COVER
+let cover = getCover(safeData);
 
-// 🎬 CAPTION (HAT DIR GEFÄHLT!)
+if(!cover){
+  cover = buildStyledCover(parsed.title);
+}
+
+cover = await uploadToCloudinary(
+  cover,
+  genreIds,
+  safeData.vote_average || 0
+);
+
+cover += "?v=1";
+
+// 🎬 CAPTION
 const caption = buildCard(
   safeData,
   fileName,
