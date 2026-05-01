@@ -2248,13 +2248,6 @@ if (msg?.document || msg?.video) {
 });
 
 // ================= SERVER =================
-app.listen(process.env.PORT || 3000, async () => {
+app.listen(process.env.PORT || 3000, () => {
   console.log("🔥 FULL FINAL SYSTEM RUNNING");
-
-  // 🧪 THREAD TEST
-  await tg("sendMessage",{
-    chat_id: GROUP_ID,
-    message_thread_id: 609,
-    text: "TEST THREAD"
-  });
 });
