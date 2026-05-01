@@ -145,8 +145,13 @@ function saveSeriesDB(data) {
 // ================= HISTORY =================
 function saveHistory(userId, entry) {
   let h = {};
+  
   if (fs.existsSync(HISTORY_FILE)) {
-    try { h = JSON.parse(fs.readFileSync(HISTORY_FILE)); } catch {}
+    try {
+      h = JSON.parse(fs.readFileSync(HISTORY_FILE));
+    } catch (e) {
+      console.log("History Parse Error");
+    }
   }
 
   if (!h[userId]) h[userId] = [];
