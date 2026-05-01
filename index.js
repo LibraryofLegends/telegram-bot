@@ -1493,311 +1493,230 @@ async function sendResultsList(chatId, heading, list, page = 0){
 async function handleUpload(msg){
 
   const file = msg.document || msg.video;
-const width = msg.video?.width;
-const height = msg.video?.height;
-if(!file) return;
+  const width = msg.video?.width;
+  const height = msg.video?.height;
 
-// 🔥 DUPLICATE CHECK (HIER HIN!)
-const exists = CACHE.find(x => x.file_id === file.file_id);
+  if(!file) return;
 
-if(exists){
-  return tg("sendMessage",{
-    chat_id: msg.chat.id,
-    text: "⚠️ Datei bereits vorhanden"
-  });
-}
+  // ================= DUPLICATE =================
+  const exists = CACHE.find(x => x.file_id === file.file_id);
+
+  if(exists){
+    return tg("sendMessage",{
+      chat_id: msg.chat.id,
+      text: "⚠️ Datei bereits vorhanden"
+    });
+  }
 
   const fileName = file.file_name || "";
-
   const parsed = parseFileName(fileName);
-  
   const isSeries = parsed.type === "tv";
 
-  // 🔥 JAHR EXTRAHIEREN
+  // ================= CLEAN TITLE =================
+  const clean = ultraCleanTitle(fileName);
+  const searchTitle = clean.split(" ").slice(0,3).join(" ");
+
   const yearMatch = fileName.match(/(19|20)\d{2}/);
   const fileYear = yearMatch ? parseInt(yearMatch[0]) : null;
 
-  // ================= TMDB MATCHING BLOCK =================
+  console.log("🧹 CLEAN:", clean);
 
-// 🔥 CLEAN TITLE
-const clean = ultraCleanTitle(fileName);
-console.log("🧹 CLEAN TITLE:", clean);
-
-// 🔥 SEARCH VARIANTE (Top 3 Wörter)
-const searchTitle = clean.split(" ").slice(0, 3).join(" ");
-
-// 🔍 MAIN SEARCH
-let result = null;
-
-result = await searchTMDBUltra(
-  searchTitle,
-  fileYear,
-  parsed.type === "tv" ? "tv" : "movie"
-);
-
-// 🔁 FALLBACK 1 (FULL)
-if (!result) {
-  result = await searchTMDBUltra(
-    clean,
+  // ================= TMDB SEARCH =================
+  let result = await searchTMDBUltra(
+    searchTitle,
     fileYear,
-    parsed.type === "tv" ? "tv" : "movie"
-  );
-}
-
-// 🔁 FALLBACK 2 (SHORT)
-if (!result) {
-  const short = clean.split(" ").slice(0, 2).join(" ");
-  result = await searchTMDBUltra(
-    short,
-    fileYear,
-    parsed.type === "tv" ? "tv" : "movie"
-  );
-}
-
-// 🔁 FALLBACK 3 (DIRECT API)
-if (!result) {
-  const search = await tmdbFetch(
-    `https://api.themoviedb.org/3/search/${parsed.type}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}&language=de-DE`
+    isSeries ? "tv" : "movie"
   );
 
-  result = search?.results?.[0] || null;
-}
+  if(!result){
+    result = await searchTMDBUltra(clean, fileYear, isSeries ? "tv" : "movie");
+  }
 
-// ❗ FINAL FAIL SAFE
-if (!result) {
-  console.log("❌ FINAL FAIL:", clean);
-}
+  if(!result){
+    const fallback = await tmdbFetch(
+      `https://api.themoviedb.org/3/search/${isSeries ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}&language=de-DE`
+    );
+    result = fallback?.results?.[0] || null;
+  }
 
-// ❗ DEBUG
-console.log("🎯 FILE:", fileName);
-console.log("🔎 CLEAN:", clean);
-console.log("🎬 MATCH:", result?.title || result?.name || "NOT FOUND");
+  console.log("🎬 MATCH:", result?.title || result?.name || "NOT FOUND");
 
+  // ================= DETAILS =================
   let details = null;
 
   if(result?.id){
-    const type =
-    result.media_type === "tv" || parsed.type === "tv"
-      ? "tv"
-      : "movie";
-    details = await getDetails(result.id, type);
+    details = await getDetails(result.id, isSeries ? "tv" : "movie");
   }
 
   const safeData = details || result || {
-  title: clean,
-  overview: "Keine Beschreibung verfügbar.",
-  vote_average: 0,
-  genres: []
-};
-
-  let genreIds = [];
-
-if(result?.genre_ids){
-  genreIds = result.genre_ids;
-}else if(details?.genres){
-  genreIds = details.genres.map(g => g.id);
-}
-
-// 🔥 HIER MUSS ES HIN
-const id = generateNextId();
-const categoryId = generateCategoryId(genreIds);
-
-// ================= COVER =================
-let cover = getCover(safeData);
-
-if(!cover){
-  cover = buildStyledCover(parsed.title);
-}
-
-cover = await uploadToCloudinary(
-  cover,
-  genreIds,
-  safeData.vote_average || 0
-);
-
-cover += "?v=1";
-
-// ================= CAPTION =================
-const caption = buildCard(
-  safeData,
-  fileName,
-  id,
-  categoryId,
-  width,
-  height
-);
-
-if(isSeries){
-
-  const cleanTitle = safeData.title || parsed.title;
-
-  const seriesKey = cleanTitle
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g,"_");
-
-  const seriesThread = await ensureSeriesThread(cleanTitle);
-
-  const seasonThread = await ensureSeasonThread(
-    seriesKey,
-    parsed.season
-  );
-
-  if(!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
-  if(!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
-
-  SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
-    file_id: file.file_id,
-    display_id: id
+    title: clean,
+    overview: "Keine Beschreibung verfügbar.",
+    vote_average: 0,
+    genres: []
   };
 
-  saveSeriesDB(SERIES_DB);
+  // ================= GENRES =================
+  let genreIds = [];
+
+  if(result?.genre_ids){
+    genreIds = result.genre_ids;
+  } else if(details?.genres){
+    genreIds = details.genres.map(g => g.id);
+  }
+
+  // ================= IDS =================
+  const id = generateNextId();
+  const categoryId = generateCategoryId(genreIds);
+
+  // ================= COVER (EINMAL!) =================
+  let cover = getCover(safeData);
+
+  if(!cover){
+    cover = buildStyledCover(parsed.title);
+  }
+
+  cover = await uploadToCloudinary(
+    cover,
+    genreIds,
+    safeData.vote_average || 0
+  );
+
+  cover += "?v=1";
+
+  if(!cover || cover.includes("null")){
+    cover = "https://dummyimage.com/500x750/000/fff&text=No+Image";
+  }
+
+  // ================= CAPTION =================
+  const caption = buildCard(
+    safeData,
+    fileName,
+    id,
+    categoryId,
+    width,
+    height
+  );
+
+  // ================= SERIES SYSTEM =================
+  if(isSeries){
+
+    const cleanTitle = safeData.title || parsed.title;
+
+    const seriesKey = cleanTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g,"_");
+
+    // 🔥 THREAD ERSTELLEN
+    const seriesThread = await ensureSeriesThread(cleanTitle);
+    const seasonThread = await ensureSeasonThread(seriesKey, parsed.season);
+
+    // 🔥 DB SPEICHERN
+    if(!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
+    if(!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
+
+    SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
+      file_id: file.file_id,
+      display_id: id
+    };
+
+    saveSeriesDB(SERIES_DB);
+
+    // 🔥 SENDEN
+    await tg("sendPhoto",{
+      chat_id: GROUP_ID,
+      message_thread_id: seasonThread,
+      photo: cover,
+      caption: caption,
+      reply_markup:{
+        inline_keyboard:[
+          [{ text:"▶️ Episode", callback_data:`play_${id}` }],
+          [{ text:"📺 Serie", callback_data:`series_${seriesKey}` }]
+        ]
+      }
+    });
+
+    return tg("sendMessage",{
+      chat_id: msg.chat.id,
+      text:`✅ Episode gespeichert\n\n🎬 ${safeData.title}\n🆔 ${id}`
+    });
+  }
+
+  // ================= COLLECTION =================
+  let collectionName = null;
+
+  if(safeData.belongs_to_collection?.name){
+    collectionName = safeData.belongs_to_collection.name;
+  }
+
+  if(!collectionName){
+    collectionName = detectCollection(safeData.title || clean);
+  }
+
+  if(collectionName){
+    collectionName = collectionName
+      .replace(/\s+/g,"_")
+      .replace(/[^a-z0-9_]/gi,"")
+      .toLowerCase()
+      .slice(0,40)
+      .trim();
+  }
+
+  const order = getCollectionOrder(safeData.title || clean);
+
+  const item = {
+    display_id: id,
+    tmdb_id: result?.id || null,
+    title: safeData.title || clean,
+    collection: collectionName,
+    collection_order: order,
+    category_id: categoryId,
+    file_id: file.file_id,
+    media_type: "movie",
+    genres: genreIds,
+    cover: cover
+  };
+
+  CACHE.unshift(item);
+  saveDB(CACHE);
+
+  // ================= BUTTONS =================
+  const buttons = [
+    [{ text:"▶️ Stream", url: playerUrl("play", id) }],
+    [{ text:"🔥 Ähnliche", url: playerUrl("sim", id) }],
+    [{ text:"🏠 Menü", url: `https://t.me/${BOT_USERNAME}` }]
+  ];
+
+  if(item.collection){
+    buttons.push([
+      {
+        text:"🎞 Collection",
+        url: playerUrl("collection", item.collection)
+      }
+    ]);
+  }
+
+  const targetChannel = getTargetChannel(genreIds);
+  const threadId = getThreadByGenre(genreIds);
+
+  // ================= SEND =================
+
+  await tg("sendPhoto",{
+    chat_id: targetChannel,
+    photo: cover,
+    caption: caption
+  });
 
   await tg("sendPhoto",{
     chat_id: GROUP_ID,
-    message_thread_id: seasonThread,
+    message_thread_id: threadId,
     photo: cover,
     caption: caption,
-    reply_markup:{
-      inline_keyboard:[
-        [{ text:"▶️ Episode", callback_data:`play_${id}` }],
-        [{ text:"📺 Serie", callback_data:`series_${seriesKey}` }]
-      ]
-    }
+    reply_markup:{ inline_keyboard: buttons }
   });
-
-  return;
-}
-
-  // ================= COVER FIX =================
-// 🎬 COVER
-let cover = getCover(safeData);
-
-if(!cover){
-  cover = buildStyledCover(parsed.title);
-}
-
-cover = await uploadToCloudinary(
-  cover,
-  genreIds,
-  safeData.vote_average || 0
-);
-
-cover += "?v=1";
-
-// ================= COLLECTION + ORDER =================
-
-// 🎬 COLLECTION NAME ERMITTELN
-let collectionName = null;
-
-// 1. TMDB Collection (beste Quelle)
-if (safeData.belongs_to_collection?.name) {
-  collectionName = safeData.belongs_to_collection.name;
-}
-
-// 2. FALLBACK → eigene Detection
-if (!collectionName) {
-  collectionName = detectCollection(
-    safeData.title || clean
-  );
-}
-
-// 3. CLEAN (wichtig für Buttons + IDs)
-if (collectionName) {
-  collectionName = collectionName
-    .replace(/\s+/g, "_")
-    .replace(/[^a-z0-9_]/gi, "")
-    .toLowerCase();
-    
-    collectionName = collectionName.slice(0, 40).trim();
-}
-
-// 🔢 COLLECTION ORDER (Teil 1,2,3...)
-const order = getCollectionOrder(
-  safeData.title || clean
-);
-
-const item = {
-  display_id: id,
-  tmdb_id: result?.id || null,
-  title: safeData.title || clean,
-  collection: collectionName,        // ✅ HIER WIRD ES VERWENDET
-  collection_order: order,           // ✅ SORTIERUNG
-  category_id: categoryId,
-  file_id: file.file_id,
-  media_type: isSeries ? "tv" : "movie",
-  genres: genreIds,
-  cover: cover
-};
-
-// ✅ UND JETZT ERST SPEICHERN
-CACHE.unshift(item);
-saveDB(CACHE);
-
-if(!cover || cover.includes("null")){
-  cover = "https://dummyimage.com/500x750/000/fff&text=No+Image";
-}
-
-  if(!details && result){
-    details = result;
-  }
-
-// 🎯 BUTTONS
-const buttons = [
-  [{ text:"▶️ Stream", url: playerUrl("play", id) }],
-  [{ text:"🔥 Ähnliche", url: playerUrl("sim", id) }],
-  [{ text:"🏠 Menü", url: `https://t.me/${BOT_USERNAME}` }]
-];
-
-if(item.collection){
-  buttons.push([
-    {
-      text:"🎞 Collection",
-      url: playerUrl("collection", item.collection)
-    }
-  ]);
-}
-
-// 🎯 THREAD
-const threadId = isSeries
-  ? THREADS.series
-  : getThreadByGenre(genreIds);
-
-// ================= SEND =================
-
-// 📺 CHANNEL
-await tg("sendPhoto",{
-  chat_id: targetChannel,
-  photo: cover,
-  caption: caption,
-  reply_markup:{
-    inline_keyboard:[
-      [
-        {
-          text:"💬 Zum Hub",
-          url:"https://t.me/LibraryOfLegendsHubs"
-        }
-      ]
-    ]
-  }
-});
-
-// 💬 GROUP THREAD
-await tg("sendPhoto",{
-  chat_id: GROUP_ID,
-  message_thread_id: threadId,
-  photo: cover,
-  caption: caption,
-  reply_markup:{
-    inline_keyboard: buttons
-  }
-});
 
   return tg("sendMessage",{
     chat_id: msg.chat.id,
-    text: `✅ ${isSeries ? "Serie" : "Film"} gespeichert
-
-🎬 ${safeData.title || clean}
-🆔 ${id}`
+    text:`✅ Film gespeichert\n\n🎬 ${safeData.title}\n🆔 ${id}`
   });
 }
 
