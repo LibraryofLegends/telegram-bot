@@ -483,6 +483,17 @@ function getTargetChannel(genres=[]){
     if(CHANNELS[g]) return CHANNELS[g];
   }
   return CHANNELS.default;
+  
+  // ================= THREAD ROUTING =================
+function getThreadByGenre(genres=[]){
+
+  if(genres.includes(28)) return THREADS.action;
+  if(genres.includes(27)) return THREADS.horror;
+  if(genres.includes(35)) return THREADS.comedy;
+  if(genres.includes(18)) return THREADS.movies;
+
+  return THREADS.movies;
+}
 }
 
 
@@ -1634,14 +1645,38 @@ try{
   }
 
   const targetChannel = getTargetChannel(genreIds);
-  const caption = buildCard(
-  safeData,
-  fileName,
-  id,
-  categoryId,
-  width,
-  height
-);
+const threadId = getThreadByGenre(genreIds);
+
+// 📺 1. CHANNEL POST
+await tg("sendPhoto",{
+  chat_id: targetChannel,
+  photo: cover,
+  caption: caption,
+  reply_markup:{
+    inline_keyboard:[
+      [
+        {
+          text:"💬 Zum Hub",
+          url:"https://t.me/LibraryOfLegendsHubs"
+        }
+      ],
+      [
+        { text:"▶️ Stream", url: playerUrl("play", id) }
+      ]
+    ]
+  }
+});
+
+// 💬 2. GROUP THREAD POST
+await tg("sendPhoto",{
+  chat_id: GROUP_ID,
+  message_thread_id: threadId,
+  photo: cover,
+  caption: caption,
+  reply_markup:{
+    inline_keyboard: buttons
+  }
+});
 
   try{
     const buttons = [
