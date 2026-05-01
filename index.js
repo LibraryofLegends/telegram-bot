@@ -2116,9 +2116,16 @@ if (data.startsWith("fav_")) {
   }
 
   // ===============================
-  // ▶️ VIDEO SENDEN
-  // ===============================
-  await tg("sendVideo", {
+// 🎛 BUTTONS
+// ===============================
+const buttons = [];
+
+// NEXT BUTTON wird später ergänzt
+
+// ===============================
+// ▶️ VIDEO SENDEN
+// ===============================
+await tg("sendVideo", {
   chat_id: chatId,
   video: item.file_id,
   supports_streaming: true,
