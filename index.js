@@ -27,12 +27,20 @@ const BOT_USERNAME = process.env.BOT_USERNAME || "LIBRARY_OF_LEGENDS_Bot";
 const GROUP_ID = -1002008329218;
 
 const THREADS = {
+  home: 622,
   movies: 609,
   series: 611,
   trending: 612,
   action: 613,
-  horror: 614,     // ← anpassen!
-  comedy: 615      // ← anpassen!
+  horror: 614,
+  comedy: 615,
+  drama: 616,
+  scifi: 617,
+  thriller: 618,
+  favorites: 619,
+  picks: 620,
+  continue: 624,
+  popular: 625
 };
 
 const BANNERS = {
