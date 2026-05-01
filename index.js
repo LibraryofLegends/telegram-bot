@@ -1637,17 +1637,7 @@ const item = {
 CACHE.unshift(item);
 saveDB(CACHE);
 
-try{
-  if(!cover || cover.includes("null")){
-    throw new Error("Invalid cover");
-  }
-
-  const res = await fetch(cover);
-  if(!res.ok){
-    throw new Error("Cover fetch failed");
-  }
-
-}catch{
+if(!cover || cover.includes("null")){
   cover = "https://dummyimage.com/500x750/000/fff&text=No+Image";
 }
 
