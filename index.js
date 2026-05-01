@@ -849,12 +849,19 @@ async function sendFileById(chatId,item){
 }
 
 // ================= CARD =================
-function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null, height=null, isSeries=false)
+function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null, height=null, isSeries=false){
 
-  const title = (data.title || data.name || "UNBEKANNT").toUpperCase();
+  // ================= BASIC =================
+  const titleRaw = (data.title || data.name || "UNBEKANNT");
+  const title = titleRaw.toUpperCase();
+
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
+
   const isTV = isSeries || data.first_air_date;
 
+  const line = "━━━━━━━━━━━━━━━━━━";
+
+  // ================= STYLE TITLE =================
   const BOLD_MAP = {
     A:"𝐀",B:"𝐁",C:"𝐂",D:"𝐃",E:"𝐄",F:"𝐅",G:"𝐆",
     H:"𝐇",I:"𝐈",J:"𝐉",K:"𝐊",L:"𝐋",M:"𝐌",N:"𝐍",
@@ -867,145 +874,100 @@ function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null
     .map(c => BOLD_MAP[c] || c)
     .join("");
 
-  // 🎬 COLLECTION (optional erkennen)
-  let collection = "";
-
-if(data.belongs_to_collection?.name){
-  collection = data.belongs_to_collection.name.toUpperCase();
-}
-
-  // 🎭 GENRES
+  // ================= GENRES =================
   const genresArr = (data.genres || []).slice(0,2);
   const genres = genresArr.map(g => g.name).join(" • ") || "-";
 
-  // 🎧 AUDIO
-  let audio = "Unbekannt";
-const name = fileName.toLowerCase();
+  // ================= AUDIO =================
+  let audio = "Deutsch • Englisch";
+  const name = fileName.toLowerCase();
 
-// 🔥 PRIORITY 1: Datei enthält Info
-if(/multi|dual|dl/.test(name)){
-  audio = "Deutsch • Englisch";
-}
-else if(/deutsch|german/.test(name)){
-  audio = "Deutsch";
-}
-else if(/english|\beng\b/.test(name)){
-  audio = "Englisch";
-}
+  if(/deutsch|german/.test(name)) audio = "Deutsch";
+  if(/english|\beng\b/.test(name)) audio = "Englisch";
+  if(/multi|dual|dl/.test(name)) audio = "Deutsch • Englisch";
 
-// 🔥 PRIORITY 2: FALLBACK → IMMER SINNVOLL
-if(audio === "Unbekannt"){
-  audio = "Deutsch • Englisch"; // 🔥 besserer Default für Telegram Releases
-}
-
-  // 💿 SOURCE
+  // ================= SOURCE =================
   const source =
-  /bluray|bdrip|brrip/i.test(fileName) ? "BluRay" :
-  /web[-_. ]?dl/i.test(fileName) ? "WEB-DL" :
-  /webrip/i.test(fileName) ? "WEBRip" :
-  /hdrip/i.test(fileName) ? "HDRip" :
-  /dvdrip/i.test(fileName) ? "DVDRip" :
-  "WEB";
+    /bluray/i.test(fileName) ? "BluRay" :
+    /web[-_. ]?dl/i.test(fileName) ? "WEB-DL" :
+    /webrip/i.test(fileName) ? "WEBRip" :
+    "WEB";
 
-  // 🎞 QUALITÄT
+  // ================= QUALITY =================
   let quality = "HD";
 
-// 🔥 PRIORITY 1: echte Video-Daten
-if(width && height && typeof width === "number"){
-  if(height >= 2160) quality = "4K";
-  else if(height >= 1080) quality = "1080p";
-  else if(height >= 720) quality = "720p";
-}
+  if(width && height){
+    if(height >= 2160) quality = "4K";
+    else if(height >= 1080) quality = "1080p";
+    else if(height >= 720) quality = "720p";
+  } else {
+    if(/2160|4k/i.test(fileName)) quality = "4K";
+    else if(/1080/i.test(fileName)) quality = "1080p";
+    else if(/720/i.test(fileName)) quality = "720p";
+  }
 
-// 🔥 PRIORITY 2: Dateiname fallback
-else{
-  if(/2160|4k/i.test(fileName)) quality = "4K";
-  else if(/1080/i.test(fileName)) quality = "1080p";
-  else if(/720/i.test(fileName)) quality = "720p";
-}
-
-  // ⭐ RATING
+  // ================= RATING =================
   const ratingValue = data.vote_average || 0;
 
   const stars = "★".repeat(Math.round(ratingValue / 2)) +
                 "☆".repeat(5 - Math.round(ratingValue / 2));
 
-  const rating = `⭐ ${stars} • ${ratingValue.toFixed(1)}`;
-
-  // ⏱ LAUFZEIT
+  // ================= RUNTIME =================
   const runtime = data.runtime ? `${data.runtime} Min` : "-";
 
-  // 🔞 FSK
-  let fsk = "-";
-  try{
-    const rel = data.release_dates?.results || [];
-    const de = rel.find(r => r.iso_3166_1 === "DE");
-    const cert = de?.release_dates?.find(x => x.certification)?.certification;
-    if(cert) fsk = cert;
-  }catch{}
-
-  // 🎥 DIRECTOR
+  // ================= DIRECTOR =================
   const director = (data.credits?.crew || [])
     .find(c => c.job === "Director")?.name || "-";
-    
-    let creator = "-";
 
-if(isTV){
-  creator = (data.created_by || [])
-    .map(c => c.name)
-    .slice(0,2)
-    .join(" • ") || "-";
-}
+  // ================= CREATOR (SERIES) =================
+  let creator = "-";
 
-let seasonInfo = "";
+  if(isTV){
+    creator = (data.created_by || [])
+      .map(c => c.name)
+      .slice(0,2)
+      .join(" • ") || "-";
+  }
 
-if(isTV){
-  const seasons = data.number_of_seasons || "?";
-  const episodes = data.number_of_episodes || "?";
-
-  seasonInfo = `📀 ${seasons} Staffeln • ${episodes}+ Episoden`;
-}
-
-  // 👥 CAST
+  // ================= CAST =================
   const cast = (data.credits?.cast || [])
     .slice(0,3)
     .map(c => c.name)
     .join(" • ") || "-";
 
-  // 📖 STORY (SMART CUT + 2 Absätze)
+  // ================= STORY =================
   let story = (data.overview || "Keine Beschreibung verfügbar.").trim();
 
-  if(story.length > 180){
-    const mid = Math.floor(story.length / 2);
-    const split = story.indexOf(".", mid);
-
-    if(split !== -1){
-      story = story.slice(0, split + 1) + "\n\n" + story.slice(split + 1);
-    }
+  if(story.length > 300){
+    story = story.slice(0,300) + "...";
   }
 
-  if(story.length > 320){
-    story = story.slice(0, 320) + "...";
+  // ================= SERIES INFO =================
+  let seasonInfo = "";
+
+  if(isTV){
+    const seasons = data.number_of_seasons || "?";
+    const episodes = data.number_of_episodes || "?";
+
+    seasonInfo = `📀 ${seasons} Staffeln • ${episodes}+ Episoden`;
   }
 
-  // 🏷 TAGS
+  // ================= TAGS =================
   const tags = genresArr
     .map(g => `#${g.name.replace(/\s/g,"")}`)
     .join(" ");
 
-  const line = "━━━━━━━━━━━━━━━━━━";
-
+  // ================= FINAL =================
   return `${line}
 ${isTV ? "📺" : "🎬"} ${titleStyled} (${year}${isTV ? "–" : ""})
-${collection ? `🎞 ${collection}\n` : ""}${line}
+${line}
 🔥 ${quality} • ${source} • ${genres}  
 🎧 ${audio}  
 ${line}
-${rating}
 ⭐ ${stars} • ${ratingValue.toFixed(1)}
-${isTV ? seasonInfo : `⏱ ${runtime} • 🔞 FSK ${fsk}`}
+${isTV ? seasonInfo : `⏱ ${runtime}`}
 ${isTV ? `🎬 Creator: ${creator}` : `🎥 ${director}`}
-👥 ${cast}
+👥 ${cast}  
 ${line}
 📖 𝐒𝐓𝐎𝐑𝐘
 ${story}
@@ -1632,7 +1594,7 @@ async function handleUpload(msg){
   categoryId,
   width,
   height,
-  isSeries // 🔥 DAS IST WICHTIG
+  isSeries // 🔥 GANZ WICHTIG
 );
 
   // ================= SERIES SYSTEM =================
