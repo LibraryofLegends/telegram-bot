@@ -2203,14 +2203,17 @@ if (data.startsWith("series_")) {
   buttons.push([{text:"🏠 Menü",callback_data:"menu"}]);
 
   return tg("sendMessage",{
-    chat_id:chatId,
-    text:`📺 ${key.replace(/_/g," ").toUpperCase()}
+  chat_id:chatId,
+  text:`📺 ${key.replace(/_/g," ").toUpperCase()}
 
-    🔥 ${Object.keys(series).length} Staffeln verfügbar
+🔥 ${Object.keys(series).length} Staffeln verfügbar
 
-    👇 Wähle deine Staffel`
-    reply_markup:{ inline_keyboard: buttons }
-  });
+👇 Wähle deine Staffel`, // ✅ KOMMA HIER
+
+  reply_markup:{ 
+    inline_keyboard: buttons 
+  }
+});
 }
 
 if (data.startsWith("season_")) {
