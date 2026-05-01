@@ -43,6 +43,8 @@ const THREADS = {
   popular: 625
 };
 
+const SERIES_THREADS = {};
+
 const BANNERS = {
 
   main: "AgACAgIAAxkBAAIIb2nztY3EVUMNWPCNUoNwNRpZgvekAAJeGWsb94aYSzrBsWsTwbUsAQADAgADdwADOwQ",
@@ -188,6 +190,49 @@ async function tg(method, body) {
 }
 
 // ================= HELPERS =================
+
+async function ensureSeriesThread(title){
+
+  const key = title.toLowerCase().replace(/\s/g,"_");
+
+  if(SERIES_THREADS[key]){
+    return SERIES_THREADS[key];
+  }
+
+  const res = await tg("createForumTopic",{
+    chat_id: GROUP_ID,
+    name: `📺 ${title}`
+  });
+
+  const threadId = res.result.message_thread_id;
+
+  SERIES_THREADS[key] = {
+    main: threadId,
+    seasons: {}
+  };
+
+  return SERIES_THREADS[key];
+}
+
+async function ensureSeasonThread(seriesKey, season){
+
+  const series = SERIES_THREADS[seriesKey];
+
+  if(series.seasons[season]){
+    return series.seasons[season];
+  }
+
+  const res = await tg("createForumTopic",{
+    chat_id: GROUP_ID,
+    name: `📀 Staffel ${season}`
+  });
+
+  const threadId = res.result.message_thread_id;
+
+  series.seasons[season] = threadId;
+
+  return threadId;
+}
 
 // 🎬 NETFLIX BANNER (MIT BADGES IM BILD)
 function getNetflixBannerWithBadges(data){
@@ -1559,17 +1604,39 @@ const categoryId = generateCategoryId(genreIds);
 
 if(isSeries){
 
-  const key = parsed.title.toLowerCase().replace(/\s/g,"_");
+  const seriesKey = parsed.title.toLowerCase().replace(/\s/g,"_");
 
-  if(!SERIES_DB[key]) SERIES_DB[key] = {};
-  if(!SERIES_DB[key][parsed.season]) SERIES_DB[key][parsed.season] = {};
+  const seriesThread = await ensureSeriesThread(parsed.title);
 
-  SERIES_DB[key][parsed.season][parsed.episode] = {
+  const seasonThread = await ensureSeasonThread(
+    seriesKey,
+    parsed.season
+  );
+
+  if(!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
+  if(!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
+
+  SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
     file_id: file.file_id,
     display_id: id
   };
 
   saveSeriesDB(SERIES_DB);
+
+  await tg("sendPhoto",{
+    chat_id: GROUP_ID,
+    message_thread_id: seasonThread,
+    photo: cover,
+    caption: caption,
+    reply_markup:{
+      inline_keyboard:[
+        [{ text:"▶️ Episode", callback_data:`play_${id}` }],
+        [{ text:"📺 Serie", callback_data:`series_${seriesKey}` }]
+      ]
+    }
+  });
+
+  return;
 }
 
   // ================= COVER FIX =================
@@ -2013,6 +2080,77 @@ if (data.startsWith("fav_")) {
 
     return sendFileById(chatId,item);
   }
+  
+  // ================= SERIES SYSTEM =================
+
+if (data.startsWith("series_")) {
+
+  const key = data.replace("series_","");
+  const series = SERIES_DB[key];
+
+  if(!series){
+    return tg("sendMessage",{
+      chat_id:chatId,
+      text:"❌ Serie nicht gefunden"
+    });
+  }
+
+  const buttons = [];
+
+  for(const season of Object.keys(series)){
+    buttons.push([
+      {
+        text:`📀 Staffel ${season}`,
+        callback_data:`season_${key}_${season}`
+      }
+    ]);
+  }
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:`📺 ${key.replace(/_/g," ").toUpperCase()}`,
+    reply_markup:{
+      inline_keyboard:[
+        ...buttons,
+        [{text:"🏠 Menü",callback_data:"menu"}]
+      ]
+    }
+  });
+}
+
+if (data.startsWith("season_")) {
+
+  const [, key, season] = data.split("_");
+
+  const episodes = SERIES_DB[key]?.[season];
+
+  if(!episodes){
+    return tg("sendMessage",{
+      chat_id:chatId,
+      text:"❌ Keine Episoden"
+    });
+  }
+
+  const buttons = Object.entries(episodes)
+    .sort((a,b)=>a[0]-b[0])
+    .map(([ep,data]) => ([
+      {
+        text:`▶️ Folge ${ep}`,
+        callback_data:`play_${data.display_id}`
+      }
+    ]));
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:`📀 Staffel ${season}`,
+    reply_markup:{
+      inline_keyboard:[
+        ...buttons,
+        [{text:"🔙 Serie",callback_data:`series_${key}`}]
+      ]
+    }
+  });
+}
 
   // ================= COLLECTION =================
 
