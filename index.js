@@ -202,6 +202,39 @@ async function tg(method, body) {
 
 // ================= HELPERS =================
 
+function getNextEpisode(seriesKey, season, episode){
+
+  const eps = SERIES_DB[seriesKey]?.[season];
+  if(!eps) return null;
+
+  const nextEp = parseInt(episode) + 1;
+
+  if(eps[nextEp]){
+    return {
+      season,
+      episode: nextEp,
+      data: eps[nextEp]
+    };
+  }
+
+  const nextSeason = parseInt(season) + 1;
+  const nextSeasonData = SERIES_DB[seriesKey]?.[nextSeason];
+
+  if(nextSeasonData){
+    const firstEp = Object.keys(nextSeasonData)
+      .map(x => parseInt(x))
+      .sort((a,b)=>a-b)[0];
+
+    return {
+      season: nextSeason,
+      episode: firstEp,
+      data: nextSeasonData[firstEp]
+    };
+  }
+
+  return null;
+}
+
 async function ensureSeriesThread(seriesKey){
 
   if(SERIES_THREADS[seriesKey]){
@@ -2002,20 +2035,54 @@ if (data.startsWith("fav_")) {
 
   if (data.startsWith("play_")) {
 
-    const id = data.replace("play_", "");
-    const item = CACHE.find(x => x.display_id === id);
+  const id = data.replace("play_", "");
 
-    if(!item){
-      return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
+  let found = null;
+
+  for(const [seriesKey, seasons] of Object.entries(SERIES_DB)){
+    for(const [season, episodes] of Object.entries(seasons)){
+      for(const [ep, data] of Object.entries(episodes)){
+        if(data.display_id === id){
+          found = { seriesKey, season, episode: ep };
+        }
+      }
     }
-
-    await tg("sendMessage",{
-      chat_id:chatId,
-      text:"🎬 Starte Stream..."
-    });
-
-    return sendFileById(chatId,item);
   }
+
+  const item = CACHE.find(x => x.display_id === id);
+
+  if(!item){
+    return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
+  }
+
+  const buttons = [];
+
+  // 🔥 NÄCHSTE FOLGE
+  if(found){
+    const next = getNextEpisode(
+      found.seriesKey,
+      found.season,
+      found.episode
+    );
+
+    if(next){
+      buttons.push([
+        {
+          text:`➡️ Nächste Folge (S${next.season}E${next.episode})`,
+          callback_data:`play_${next.data.display_id}`
+        }
+      ]);
+    }
+  }
+
+  buttons.push([{text:"🏠 Menü",callback_data:"menu"}]);
+
+  return tg("sendVideo",{
+    chat_id:chatId,
+    video:item.file_id,
+    reply_markup:{ inline_keyboard: buttons }
+  });
+}
   
   // ================= SERIES SYSTEM =================
 
@@ -2031,9 +2098,20 @@ if (data.startsWith("series_")) {
     });
   }
 
+  const seasons = Object.keys(series);
   const buttons = [];
 
-  for(const season of Object.keys(series)){
+  const firstSeason = seasons[0];
+  const firstEpisode = Object.keys(series[firstSeason])[0];
+
+  buttons.push([
+    {
+      text:"▶️ Starten",
+      callback_data:`play_${series[firstSeason][firstEpisode].display_id}`
+    }
+  ]);
+
+  for(const season of seasons){
     buttons.push([
       {
         text:`📀 Staffel ${season}`,
@@ -2042,15 +2120,14 @@ if (data.startsWith("series_")) {
     ]);
   }
 
+  buttons.push([{text:"🏠 Menü",callback_data:"menu"}]);
+
   return tg("sendMessage",{
     chat_id:chatId,
-    text:`📺 ${key.replace(/_/g," ").toUpperCase()}`,
-    reply_markup:{
-      inline_keyboard:[
-        ...buttons,
-        [{text:"🏠 Menü",callback_data:"menu"}]
-      ]
-    }
+    text:`📺 ${key.replace(/_/g," ").toUpperCase()}
+
+Wähle eine Staffel oder starte direkt 👇`,
+    reply_markup:{ inline_keyboard: buttons }
   });
 }
 
@@ -2068,7 +2145,7 @@ if (data.startsWith("season_")) {
   }
 
   const buttons = Object.entries(episodes)
-    .sort((a,b)=>a[0]-b[0])
+    .sort((a,b)=>parseInt(a[0]) - parseInt(b[0]))
     .map(([ep,data]) => ([
       {
         text:`▶️ Folge ${ep}`,
