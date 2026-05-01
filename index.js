@@ -959,11 +959,14 @@ function getCollectionOrder(title = ""){
 
 function detectCollection(title = ""){
 
-  const t = title.toLowerCase();
+  const t = title
+    .toLowerCase()
+    .replace(/&/g, "and") // 🔥 WICHTIG FIX
+    .replace(/[^\w\s]/g, "") // Sonderzeichen raus
 
   const patterns = [
     { key:"john_wick", aliases:["john wick"] },
-    { key:"fast_furious", aliases:["fast furious","fast and furious"] },
+    { key:"fast_furious", aliases:["fast and furious","fast furious"] },
     { key:"harry_potter", aliases:["harry potter"] },
     { key:"batman_nolan", aliases:["dark knight","batman begins"] },
     { key:"avengers", aliases:["avengers"] }
@@ -975,19 +978,6 @@ function detectCollection(title = ""){
         return p.key;
       }
     }
-  }
-
-  let base = t.replace(/(\d+)$/, "").trim();
-
-  base = base
-    .replace(/teil\s*\d+/,"")
-    .replace(/part\s*\d+/,"")
-    .replace(/chapter\s*\d+/,"")
-    .replace(/kapitel\s*\d+/,"")
-    .trim();
-
-  if(base.length > 5){
-    return base.replace(/\s+/g,"_");
   }
 
   return null;
