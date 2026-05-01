@@ -653,6 +653,21 @@ function getCollectionItems(name){
 
 // ================= FILE PARSER =================
 
+function normalizeTitle(title = ""){
+
+  return title
+
+    // AND → &
+    .replace(/\band\b/gi, "&")
+
+    // FAST & FURIOUS FIX
+    .replace(/fast & furious/i, "Fast & Furious")
+
+    // Cleanup
+    .replace(/\s+/g," ")
+    .trim();
+}
+
 function parseFileName(name = "") {
 
   const clean = name.replace(/[._\-]+/g, " ");
@@ -1578,15 +1593,25 @@ async function handleUpload(msg){
   console.log("🧹 CLEAN:", clean);
 
   // ================= TMDB SEARCH =================
-  let result = await searchTMDBUltra(
-    searchTitle,
+
+const fixedSearch = normalizeTitle(searchTitle);
+
+let result = await searchTMDBUltra(
+  fixedSearch,
+  fileYear,
+  isSeries ? "tv" : "movie"
+);
+
+  if(!result){
+
+  const fixedClean = normalizeTitle(clean);
+
+  result = await searchTMDBUltra(
+    fixedClean,
     fileYear,
     isSeries ? "tv" : "movie"
   );
-
-  if(!result){
-    result = await searchTMDBUltra(clean, fileYear, isSeries ? "tv" : "movie");
-  }
+}
 
   if(!result){
     const fallback = await tmdbFetch(
