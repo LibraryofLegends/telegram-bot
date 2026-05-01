@@ -687,6 +687,7 @@ function parseFileName(name = "") {
 
 // ================= SMART TITLE SYSTEM =================
 
+// 🔹 BASIC NORMALIZER (V1 + verbessert)
 function normalizeTitle(title = ""){
 
   let t = title.toLowerCase();
@@ -724,6 +725,134 @@ function normalizeTitle(title = ""){
     .replace(/\s+/g," ")
     .trim()
     .replace(/\b\w/g, l => l.toUpperCase());
+}
+
+
+// 🔥 AI NORMALIZER (V2 – TYPOS + CLEANUP)
+function aiNormalize(title = ""){
+
+  let t = title.toLowerCase();
+
+  // =============================
+  // TYPO FIXES
+  // =============================
+  t = t
+    .replace(/furios/g, "furious")
+    .replace(/furius/g, "furious")
+    .replace(/avnger/g, "avenger")
+    .replace(/avngers/g, "avengers")
+    .replace(/harry poter/g, "harry potter")
+    .replace(/harry pottr/g, "harry potter");
+
+  // =============================
+  // REMOVE JUNK WORDS
+  // =============================
+  t = t.replace(/\b(fullhd|hdrip|kino|stream|film|movie|1080p|720p|4k)\b/gi, "");
+
+  // =============================
+  // REMOVE EXTRA SYMBOLS
+  // =============================
+  t = t.replace(/[^\w\s]/g, " ");
+
+  // =============================
+  // NORMALIZE SPACES
+  // =============================
+  t = t.replace(/\s+/g," ").trim();
+
+  // 👉 zurück in deinen normalen Flow
+  return normalizeTitle(t);
+}
+
+
+// 🔥 FRANCHISE DETECTION
+function detectFranchise(title = ""){
+
+  const t = title.toLowerCase();
+
+  if(t.includes("fast & furious")){
+    return { base: "Fast & Furious" };
+  }
+
+  if(t.includes("harry potter")){
+    return { base: "Harry Potter" };
+  }
+
+  if(t.includes("avengers")){
+    return { base: "Avengers" };
+  }
+
+  if(t.includes("john wick")){
+    return { base: "John Wick" };
+  }
+
+  return null;
+}
+
+
+// 🔥 AUTO COLLECTION SYSTEM (V2)
+function detectCollectionSmart(title = ""){
+
+  const t = title.toLowerCase();
+
+  const collections = [
+
+    { key:"fast_furious", base:"Fast & Furious", match:["fast","furious"] },
+    { key:"harry_potter", base:"Harry Potter", match:["harry","potter"] },
+    { key:"avengers", base:"Avengers", match:["avengers"] },
+    { key:"john_wick", base:"John Wick", match:["john","wick"] }
+
+  ];
+
+  for(const c of collections){
+    if(c.match.every(m => t.includes(m))){
+      return c;
+    }
+  }
+
+  return null;
+}
+
+
+// 🔥 VARIANT GENERATOR (V2)
+function buildSearchVariants(title){
+
+  const variants = new Set();
+
+  const clean = title;
+
+  // ORIGINAL
+  variants.add(clean);
+
+  // REMOVE NUMBERS
+  variants.add(clean.replace(/\d+/g,"").trim());
+
+  // NUMBER DETECTION
+  const num = clean.match(/(\d+)/)?.[1];
+
+  const collection = detectCollectionSmart(clean);
+
+  if(collection){
+
+    variants.add(collection.base);
+
+    if(num){
+      variants.add(`${collection.base} ${num}`);
+      variants.add(`${collection.base} Part ${num}`);
+      variants.add(`${collection.base} ${num}:`);
+    }
+  }
+
+  // SYMBOL CLEAN
+  variants.add(clean.replace(/[^\w\s]/g,""));
+
+  // SHORT VERSIONS
+  const words = clean.split(" ");
+  if(words.length > 2){
+    variants.add(words.slice(0,2).join(" "));
+    variants.add(words.slice(0,3).join(" "));
+  }
+
+  return Array.from(variants);
 }
 
 
