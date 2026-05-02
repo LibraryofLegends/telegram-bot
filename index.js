@@ -1210,6 +1210,46 @@ async function renderUltraCard(chatId, messageId, item, type, index, total){
   });
 }
 
+// ================= MENU =================
+
+function showMenu(chatId){
+
+  return tg("sendPhoto",{
+    chat_id:chatId,
+    photo:getDynamicBanner("main"),
+    caption:`🔥 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
+
+Dein Streaming Hub 👇`,
+    reply_markup:{
+      inline_keyboard:[
+
+        [
+          {text:"▶️ Weiter schauen",callback_data:"continue"}
+        ],
+
+        [
+          {text:"🔥 Trending",callback_data:"net_trending"},
+          {text:"📈 Popular",callback_data:"net_popular"}
+        ],
+
+        [
+          {text:"🧠 Für dich",callback_data:"top_picks"},
+          {text:"⭐ Favoriten",callback_data:"favorites"}
+        ],
+
+        [
+          {text:"🎬 Filme",callback_data:"browse_movies"},
+          {text:"📺 Serien",callback_data:"browse_series"}
+        ],
+
+        [
+          {text:"🎭 Kategorien",callback_data:"open_genres"}
+        ]
+      ]
+    }
+  });
+}
+
 // ================= ULTRA START =================
 
 async function startUltraUI(chatId, list){
@@ -1252,46 +1292,6 @@ async function startUltraUI(chatId, list){
   });
 
   USER_STATE[chatId].messageId = msg?.result?.message_id;
-}
-
-// ================= MENU =================
-
-function showMenu(chatId){
-
-  return tg("sendPhoto",{
-    chat_id:chatId,
-    photo:getDynamicBanner("main"),
-    caption:`🔥 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
-
-Dein Streaming Hub 👇`,
-    reply_markup:{
-      inline_keyboard:[
-
-        [
-          {text:"▶️ Weiter schauen",callback_data:"continue"}
-        ],
-
-        [
-          {text:"🔥 Trending",callback_data:"net_trending"},
-          {text:"📈 Popular",callback_data:"net_popular"}
-        ],
-
-        [
-          {text:"🧠 Für dich",callback_data:"top_picks"},
-          {text:"⭐ Favoriten",callback_data:"favorites"}
-        ],
-
-        [
-          {text:"🎬 Filme",callback_data:"browse_movies"},
-          {text:"📺 Serien",callback_data:"browse_series"}
-        ],
-
-        [
-          {text:"🎭 Kategorien",callback_data:"open_genres"}
-        ]
-      ]
-    }
-  });
 }
 
 // ================= UPLOAD =================
