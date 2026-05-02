@@ -26,6 +26,8 @@ const CHANNEL_ID = process.env.CHANNEL_ID;
 const BOT_USERNAME = process.env.BOT_USERNAME || "LIBRARY_OF_LEGENDS_Bot";
 const GROUP_ID = -1002008329218;
 
+// ================= THREADS =================
+
 const THREADS = {
   home: 622,
   movies: 609,
@@ -43,11 +45,17 @@ const THREADS = {
   popular: 625
 };
 
+// ================= SERIES THREAD FILE =================
+
 const SERIES_THREADS_FILE = "series_threads.json";
 
 function loadSeriesThreads(){
   if(!fs.existsSync(SERIES_THREADS_FILE)) return {};
-  return JSON.parse(fs.readFileSync(SERIES_THREADS_FILE));
+  try {
+    return JSON.parse(fs.readFileSync(SERIES_THREADS_FILE));
+  } catch {
+    return {};
+  }
 }
 
 function saveSeriesThreads(data){
@@ -55,6 +63,8 @@ function saveSeriesThreads(data){
 }
 
 let SERIES_THREADS = loadSeriesThreads();
+
+// ================= BANNERS =================
 
 const BANNERS = {
 
@@ -70,16 +80,21 @@ const BANNERS = {
 
 };
 
+// ================= FILES =================
+
 const DB_FILE = "films.json";
 const HISTORY_FILE = "history.json";
 const SERIES_DB_FILE = "series.json";
 const FAVORITES_FILE = "favorites.json";
 const CONTINUE_FILE = "continue.json";
 
-const USER_STATE = {}; // { chatId: { list, index, mode } }
+// ================= STATE =================
+
+const USER_STATE = {};
 const TMDB_CACHE = {};
 
 // ================= DB =================
+
 function generateCategoryId(genres=[]){
 
   if(!genres.length) return "GEN000";
@@ -125,7 +140,8 @@ function saveDB(data) {
   fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
-// ================= SERIES =================
+// ================= SERIES DB =================
+
 function loadSeriesDB() {
   if (!fs.existsSync(SERIES_DB_FILE)) return {};
   try {
@@ -143,6 +159,7 @@ function saveSeriesDB(data) {
 }
 
 // ================= HISTORY =================
+
 function saveHistory(userId, entry) {
   let h = {};
   
@@ -163,12 +180,22 @@ function saveHistory(userId, entry) {
 
 function readHistory(userId) {
   if (!fs.existsSync(HISTORY_FILE)) return [];
-  return JSON.parse(fs.readFileSync(HISTORY_FILE))[userId] || [];
+  try {
+    return JSON.parse(fs.readFileSync(HISTORY_FILE))[userId] || [];
+  } catch {
+    return [];
+  }
 }
+
+// ================= FAVORITES =================
 
 function loadFavorites(){
   if (!fs.existsSync(FAVORITES_FILE)) return {};
-  return JSON.parse(fs.readFileSync(FAVORITES_FILE));
+  try {
+    return JSON.parse(fs.readFileSync(FAVORITES_FILE));
+  } catch {
+    return {};
+  }
 }
 
 function saveFavorites(data){
@@ -192,9 +219,15 @@ function getFavorites(userId){
   return fav[userId] || [];
 }
 
+// ================= CONTINUE =================
+
 function loadContinue(){
   if (!fs.existsSync(CONTINUE_FILE)) return {};
-  return JSON.parse(fs.readFileSync(CONTINUE_FILE));
+  try {
+    return JSON.parse(fs.readFileSync(CONTINUE_FILE));
+  } catch {
+    return {};
+  }
 }
 
 function saveContinue(data){
@@ -213,6 +246,7 @@ function getContinue(userId){
 }
 
 // ================= TELEGRAM =================
+
 async function tg(method, body) {
   try {
     const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
@@ -221,7 +255,8 @@ async function tg(method, body) {
       body: JSON.stringify(body)
     });
     return await res.json();
-  } catch {
+  } catch (err) {
+    console.log("❌ TG ERROR:", err.message);
     return { ok: false };
   }
 }
@@ -261,6 +296,8 @@ function getNextEpisode(seriesKey, season, episode){
   return null;
 }
 
+// ================= SERIES THREAD SYSTEM =================
+
 async function ensureSeriesThread(seriesKey){
 
   if(SERIES_THREADS[seriesKey]){
@@ -272,6 +309,12 @@ async function ensureSeriesThread(seriesKey){
     name: `📺 ${seriesKey.replace(/_/g," ")}`
   });
 
+  // 🔥 FIX: Telegram fail safe
+  if(!res?.ok || !res?.result){
+    console.log("❌ SERIES THREAD CREATE FAIL");
+    return null;
+  }
+
   const threadId = res.result.message_thread_id;
 
   SERIES_THREADS[seriesKey] = {
@@ -279,7 +322,7 @@ async function ensureSeriesThread(seriesKey){
     seasons: {}
   };
 
-  saveSeriesThreads(SERIES_THREADS); // 🔥 WICHTIG
+  saveSeriesThreads(SERIES_THREADS);
 
   return SERIES_THREADS[seriesKey];
 }
@@ -304,6 +347,12 @@ async function ensureSeasonThread(seriesKey, season){
     name: `📀 Staffel ${season}`
   });
 
+  // 🔥 FIX: Telegram fail safe
+  if(!res?.ok || !res?.result){
+    console.log("❌ SEASON THREAD CREATE FAIL");
+    return null;
+  }
+
   const threadId = res.result.message_thread_id;
 
   series.seasons[season] = threadId;
@@ -313,7 +362,8 @@ async function ensureSeasonThread(seriesKey, season){
   return threadId;
 }
 
-// 🎬 NETFLIX BANNER (MIT BADGES IM BILD)
+// ================= NETFLIX BANNER =================
+
 function getNetflixBannerWithBadges(data){
 
   const title = encodeURIComponent((data.title || data.name || "").toUpperCase());
@@ -333,8 +383,8 @@ function getNetflixBannerWithBadges(data){
   return `https://dummyimage.com/1280x720/000/fff&text=${badgeText}%0A%0A${title}`;
 }
 
+// ================= NETFLIX TEXT =================
 
-// 🎬 NETFLIX TEXT OVERLAY (CAPTION)
 function buildNetflixBanner(data){
 
   const title = (data.title || data.name || "").toUpperCase();
@@ -354,7 +404,6 @@ function buildNetflixBanner(data){
 
   return `${badge}\n🎬 ${title} ${year}\n${rating}`;
 }
-
 
 // ================= GENRE SYSTEM =================
 
@@ -386,8 +435,8 @@ function getAvailableGenres(){
   return Array.from(found);
 }
 
-
 // ================= MEDIA HELPERS =================
+
 function getDynamicBanner(type = "main", genre = null){
 
   if(type === "genre" && genre && BANNERS.genres[genre]){
@@ -406,39 +455,35 @@ function getCollectionHero(items){
   return first.cover || null;
 }
 
+// ================= LOGO SETTINGS =================
+
 function getSmartLogoSettings(genres = [], rating = 0){
 
-  // Default (balanced)
   let size = 60;
   let opacity = 35;
   let effect = "brightness:10";
 
   const g = genres[0];
 
-  // 🎬 ACTION / DUNKEL
   if([28,53].includes(g)){
     opacity = 45;
     effect = "brightness:20";
   }
 
-  // 👻 HORROR (sehr dunkel)
   if(g === 27){
     opacity = 55;
     effect = "brightness:30";
   }
 
-  // 😂 COMEDY (hell)
   if(g === 35){
     opacity = 25;
     effect = "contrast:-20";
   }
 
-  // 🎭 DRAMA
   if(g === 18){
     opacity = 30;
   }
 
-  // 👑 HIGH RATING → minimal stärker
   if(rating >= 7.5){
     opacity += 5;
   }
@@ -449,6 +494,8 @@ function getSmartLogoSettings(genres = [], rating = 0){
     effect
   };
 }
+
+// ================= VISUAL STYLE =================
 
 function getVisualStyle(genres = [], rating = 0){
 
@@ -503,64 +550,66 @@ function getVisualStyle(genres = [], rating = 0){
   return style;
 }
 
+// ================= CLOUDINARY =================
+
 async function uploadToCloudinary(url, genres = [], rating = 0){
 
   if(!cloudinary) return url;
 
   try{
 
-    // 🎬 SAFER BASE LOOK (keine riskanten Effekte)
     const baseTransform = [
-  { effect: "brightness:-10" },
-  { effect: "contrast:18" },
-  { effect: "sharpen:40" }
-];
+      { effect: "brightness:-10" },
+      { effect: "contrast:18" },
+      { effect: "sharpen:40" }
+    ];
 
-const g = genres?.[0];
+    const g = genres?.[0];
 
-if ([28, 53].includes(g)) {
-  baseTransform.push({ effect: "saturation:15" });
-}
+    if ([28, 53].includes(g)) {
+      baseTransform.push({ effect: "saturation:15" });
+    }
 
-if (g === 27) {
-  baseTransform.push({ effect: "saturation:-20" });
-}
+    if (g === 27) {
+      baseTransform.push({ effect: "saturation:-20" });
+    }
 
-if (g === 35) {
-  baseTransform.push({ effect: "brightness:10" });
-}
+    if (g === 35) {
+      baseTransform.push({ effect: "brightness:10" });
+    }
 
-if (rating >= 7.5) {
-  baseTransform.push({ effect: "contrast:25" });
-}
+    if (rating >= 7.5) {
+      baseTransform.push({ effect: "contrast:25" });
+    }
     
     const logo = getSmartLogoSettings(genres, rating);
 
     const res = await cloudinary.uploader.upload(url,{
       folder:"library_of_legends",
-
       transformation: [
 
-  // 🎬 BASE LOOK (wird jetzt wirklich angewendet)
-  ...baseTransform,
+        ...baseTransform,
 
-  // 🧠 LOGO OVERLAY LADEN
-  {
-    overlay: "library_of_legendes_logo"
-  },
+        {
+          overlay: "library_of_legendes_logo"
+        },
 
-  // 🎯 LOGO POSITION & STYLE
-  {
-    width: logo.width,
-    opacity: logo.opacity,
-    gravity: "south_east",
-    x: 40,
-    y: 40,
-    flags: "layer_apply"
-  }
+        {
+          width: logo.width,
+          opacity: logo.opacity,
+          gravity: "south_east",
+          x: 40,
+          y: 40,
+          flags: "layer_apply"
+        }
 
-]
+      ]
     });
+
+    if(!res?.secure_url){
+      console.log("❌ CLOUDINARY NO URL");
+      return url;
+    }
 
     console.log("🖼 FINAL COVER:", res.secure_url);
 
@@ -572,6 +621,8 @@ if (rating >= 7.5) {
     return url;
   }
 }
+
+// ================= COVER =================
 
 function getCover(data = {}) {
 
@@ -602,7 +653,6 @@ function buildStyledCover(title){
   return `https://image.pollinations.ai/prompt/${t}%20movie%20poster%20cinematic%20dark%20background%20glow%20high%20contrast`;
 }
 
-
 // ================= CHANNEL ROUTING =================
 
 const CHANNELS = {
@@ -620,6 +670,7 @@ function getTargetChannel(genres=[]){
 }
 
 // ================= THREAD ROUTING =================
+
 function getThreadByGenre(genres=[]){
 
   if(genres.includes(28)) return THREADS.action;
@@ -655,14 +706,12 @@ function getCollectionItems(name){
     });
 }
 
-
 // ================= FILE PARSER =================
 
 function parseFileName(name = "") {
 
   const clean = name.replace(/[._\-]+/g, " ");
 
-  // 🔥 SxxExx
   let match = clean.match(/S(\d{1,2})E(\d{1,2})/i);
 
   if (match) {
@@ -674,7 +723,6 @@ function parseFileName(name = "") {
     };
   }
 
-  // 🔥 1x02 FORMAT
   match = clean.match(/(\d{1,2})x(\d{1,2})/i);
 
   if (match) {
@@ -689,58 +737,38 @@ function parseFileName(name = "") {
   return { type: "movie", title: clean };
 }
 
+// ================= TITLE NORMALIZER =================
 
-// ================= SMART TITLE SYSTEM =================
-
-// 🔹 BASIC NORMALIZER (V1 + verbessert)
 function normalizeTitle(title = ""){
 
   let t = title.toLowerCase();
 
-  // =============================
-  // BASIC FIXES
-  // =============================
   t = t.replace(/\band\b/gi, "&");
 
-  // =============================
-  // FAST & FURIOUS
-  // =============================
   if(t.includes("fast") && t.includes("furious")){
     t = t.replace(/fast\s*&?\s*furious/i, "Fast & Furious");
   }
 
-  // =============================
-  // HARRY POTTER
-  // =============================
   if(t.includes("harry potter")){
     t = t.replace(/harry\s*potter/i, "Harry Potter");
   }
 
-  // =============================
-  // AVENGERS
-  // =============================
   if(t.includes("avengers")){
     t = t.replace(/the avengers/i, "Avengers");
   }
 
-  // =============================
-  // FINAL CLEAN
-  // =============================
   return t
     .replace(/\s+/g," ")
     .trim()
     .replace(/\b\w/g, l => l.toUpperCase());
 }
 
+// ================= AI NORMALIZER =================
 
-// 🔥 AI NORMALIZER (V2 – TYPOS + CLEANUP)
 function aiNormalize(title = ""){
 
   let t = title.toLowerCase();
 
-  // =============================
-  // TYPO FIXES
-  // =============================
   t = t
     .replace(/furios/g, "furious")
     .replace(/furius/g, "furious")
@@ -749,27 +777,17 @@ function aiNormalize(title = ""){
     .replace(/harry poter/g, "harry potter")
     .replace(/harry pottr/g, "harry potter");
 
-  // =============================
-  // REMOVE JUNK WORDS
-  // =============================
   t = t.replace(/\b(fullhd|hdrip|kino|stream|film|movie|1080p|720p|4k)\b/gi, "");
 
-  // =============================
-  // REMOVE EXTRA SYMBOLS
-  // =============================
   t = t.replace(/[^\w\s]/g, " ");
 
-  // =============================
-  // NORMALIZE SPACES
-  // =============================
   t = t.replace(/\s+/g," ").trim();
 
-  // 👉 zurück in deinen normalen Flow
   return normalizeTitle(t);
 }
 
+// ================= FRANCHISE DETECTION =================
 
-// 🔥 FRANCHISE DETECTION
 function detectFranchise(title = ""){
 
   const t = title.toLowerCase();
@@ -793,45 +811,42 @@ function detectFranchise(title = ""){
   return null;
 }
 
+// ================= COLLECTION SMART =================
 
-// 🔥 AUTO COLLECTION SYSTEM (V2)
 function detectCollectionSmart(title = ""){
 
   const t = title.toLowerCase();
 
   const collections = [
-
     { key:"fast_furious", base:"Fast & Furious", match:["fast","furious"] },
     { key:"harry_potter", base:"Harry Potter", match:["harry","potter"] },
     { key:"avengers", base:"Avengers", match:["avengers"] },
     { key:"john_wick", base:"John Wick", match:["john","wick"] }
-
   ];
 
   for(const c of collections){
     if(c.match.every(m => t.includes(m))){
-      return c;
+      return c.base;
     }
   }
 
   return null;
 }
 
+// ================= SEARCH VARIANTS =================
+
 function buildSearchVariants(title){
 
   const variants = new Set();
 
-  // ORIGINAL
   variants.add(title);
 
   const franchise = detectFranchise(title);
 
   if(franchise){
 
-    // BASE
     variants.add(franchise.base);
 
-    // NUMBER DETECTION
     const numMatch = title.match(/(\d+)/);
 
     if(numMatch){
@@ -840,85 +855,37 @@ function buildSearchVariants(title){
     }
   }
 
-  // CLEAN VERSION
   variants.add(title.replace(/[^\w\s]/g,""));
 
   return Array.from(variants);
 }
 
+// ================= ULTRA CLEAN =================
+
 function ultraCleanTitle(name = "") {
 
   return name
-
-    // =============================
-    // 🔥 REMOVE FILE EXTENSION
-    // =============================
     .replace(/\.(mp4|mkv|avi|mov)$/i, "")
-
-    // =============================
-    // 🔥 REMOVE TELEGRAM / TAGS
-    // =============================
     .replace(/@[\w\d_]+/g, "")
     .replace(/\[[^\]]+\]/g, "")
     .replace(/\([^\)]*?(subs|dub|rip|1080|720)[^\)]*\)/gi, "")
-
-    // =============================
-    // 🔥 REMOVE DATES (ALLE FORMATE)
-    // =============================
     .replace(/^\d{4}[.\-_ ]\d{2}[.\-_ ]\d{2}/, "")
     .replace(/^\d{2}[.\-_ ]\d{2}[.\-_ ]\d{4}/, "")
     .replace(/^\d{4}/, "")
-
-    // =============================
-    // 🔥 REMOVE RESOLUTION / CODECS
-    // =============================
     .replace(/\b(2160p|1080p|720p|480p|4k|uhd)\b/gi, "")
     .replace(/\b(x264|x265|h264|h265|hevc)\b/gi, "")
     .replace(/\b(10bit|8bit)\b/gi, "")
-
-    // =============================
-    // 🔥 REMOVE SOURCE
-    // =============================
     .replace(/\b(bluray|bdrip|brrip|web[-_. ]?dl|webrip|hdrip|dvdrip)\b/gi, "")
-
-    // =============================
-    // 🔥 REMOVE AUDIO
-    // =============================
     .replace(/\b(german|deutsch|english|eng|dual|dl)\b/gi, "")
     .replace(/\b(aac|dts|ac3|atmos|truehd)\b/gi, "")
-
-    // =============================
-    // 🔥 REMOVE SCENE TAGS
-    // =============================
     .replace(/\b(proper|repack|extended|uncut|remastered)\b/gi, "")
-
-    // =============================
-    // 🔥 REMOVE RESOLUTION DIMENSIONS
-    // =============================
     .replace(/\d{3,4}x\d{3,4}/g, "")
-
-    // =============================
-    // 🔥 REMOVE GROUP NAMES
-    // =============================
     .replace(/-([A-Za-z0-9]+)$/g, "")
-
-    // =============================
-    // 🔥 NORMALIZE SEPARATORS
-    // =============================
     .replace(/[._\-]+/g, " ")
-
-    // =============================
-    // 🔥 REMOVE EXTRA NUMBERS FRONT
-    // =============================
     .replace(/^\d+\s+/, "")
-
-    // =============================
-    // 🔥 FINAL CLEAN
-    // =============================
     .replace(/\s+/g, " ")
     .trim();
 }
-
 
 // ================= META DETECTION =================
 
@@ -939,7 +906,8 @@ function detectSource(n=""){
        : "-";
 }
 
-// ================= EXTRA HELPERS =================
+// ================= COLLECTION ORDER =================
+
 function getCollectionOrder(title = ""){
 
   const t = title.toLowerCase();
@@ -962,12 +930,14 @@ function getCollectionOrder(title = ""){
   return 1;
 }
 
+// ================= LEGACY COLLECTION =================
+
 function detectCollection(title = ""){
 
   const t = title
     .toLowerCase()
-    .replace(/&/g, "and") // 🔥 WICHTIG FIX
-    .replace(/[^\w\s]/g, "") // Sonderzeichen raus
+    .replace(/&/g, "and")
+    .replace(/[^\w\s]/g, "");
 
   const patterns = [
     { key:"john_wick", aliases:["john wick"] },
@@ -988,25 +958,8 @@ function detectCollection(title = ""){
   return null;
 }
 
-// 🎬 DYNAMISCHE GENRE BUTTONS (AUS DEINER DB)
-function buildGenreButtons(){
+// ================= SWIPE NAV =================
 
-  const genres = getAvailableGenres();
-
-  if(!genres.length){
-    return [[{ text:"❌ Keine Genres", callback_data:"noop" }]];
-  }
-
-  return genres.map(id => ([
-    {
-      text: GENRE_MAP[id] || `🎬 Genre ${id}`,
-      callback_data:`genre_local_${id}`
-    }
-  ]));
-}
-
-
-// 🎬 SWIPE NAVIGATION (NETFLIX STYLE)
 function buildSwipeNav(id,type){
 
   return {
@@ -1031,8 +984,8 @@ function buildSwipeNav(id,type){
   };
 }
 
+// ================= VIDEO PLAYER =================
 
-// 🎬 VIDEO PLAYER (MIT HISTORY SAVE + SAFE CHECK)
 async function sendFileById(chatId,item){
 
   if(!item){
@@ -1042,13 +995,13 @@ async function sendFileById(chatId,item){
     });
   }
 
-  // 🧠 Verlauf speichern
+  // 🧠 HISTORY SAVE
   saveHistory(chatId,{
-  id:item.display_id,
-  type:item.media_type || "movie",
-  title:item.title || "",
-  timestamp:Date.now()
-});
+    id:item.display_id,
+    type:item.media_type || "movie",
+    title:item.title || "",
+    timestamp:Date.now()
+  });
 
   return tg("sendVideo",{
     chat_id:chatId,
@@ -1057,10 +1010,24 @@ async function sendFileById(chatId,item){
   });
 }
 
-// ================= CARD =================
-function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null, height=null, isSeries=false){
+// ================= PLAYER URL =================
 
-  // ================= BASIC =================
+function playerUrl(mode,id){
+  return `https://t.me/${BOT_USERNAME}?start=${mode}_${id}`;
+}
+
+// ================= CARD =================
+
+function buildCard(
+  data,
+  fileName="",
+  id="0001",
+  categoryId="GEN000",
+  width=null,
+  height=null,
+  isSeries=false
+){
+
   const titleRaw = (data.title || data.name || "UNBEKANNT");
   const title = titleRaw.toUpperCase();
 
@@ -1070,7 +1037,8 @@ function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null
 
   const line = "━━━━━━━━━━━━━━━━━━";
 
-  // ================= STYLE TITLE =================
+  // ================= STYLED TITLE =================
+
   const BOLD_MAP = {
     A:"𝐀",B:"𝐁",C:"𝐂",D:"𝐃",E:"𝐄",F:"𝐅",G:"𝐆",
     H:"𝐇",I:"𝐈",J:"𝐉",K:"𝐊",L:"𝐋",M:"𝐌",N:"𝐍",
@@ -1084,10 +1052,12 @@ function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null
     .join("");
 
   // ================= GENRES =================
+
   const genresArr = (data.genres || []).slice(0,2);
   const genres = genresArr.map(g => g.name).join(" • ") || "-";
 
   // ================= AUDIO =================
+
   let audio = "Deutsch • Englisch";
   const name = fileName.toLowerCase();
 
@@ -1096,6 +1066,7 @@ function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null
   if(/multi|dual|dl/.test(name)) audio = "Deutsch • Englisch";
 
   // ================= SOURCE =================
+
   const source =
     /bluray/i.test(fileName) ? "BluRay" :
     /web[-_. ]?dl/i.test(fileName) ? "WEB-DL" :
@@ -1103,6 +1074,7 @@ function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null
     "WEB";
 
   // ================= QUALITY =================
+
   let quality = "HD";
 
   if(width && height){
@@ -1116,19 +1088,24 @@ function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null
   }
 
   // ================= RATING =================
+
   const ratingValue = data.vote_average || 0;
 
-  const stars = "★".repeat(Math.round(ratingValue / 2)) +
-                "☆".repeat(5 - Math.round(ratingValue / 2));
+  const stars =
+    "★".repeat(Math.round(ratingValue / 2)) +
+    "☆".repeat(5 - Math.round(ratingValue / 2));
 
   // ================= RUNTIME =================
+
   const runtime = data.runtime ? `${data.runtime} Min` : "-";
 
   // ================= DIRECTOR =================
+
   const director = (data.credits?.crew || [])
     .find(c => c.job === "Director")?.name || "-";
 
   // ================= CREATOR (SERIES) =================
+
   let creator = "-";
 
   if(isTV){
@@ -1139,12 +1116,14 @@ function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null
   }
 
   // ================= CAST =================
+
   const cast = (data.credits?.cast || [])
     .slice(0,3)
     .map(c => c.name)
     .join(" • ") || "-";
 
   // ================= STORY =================
+
   let story = (data.overview || "Keine Beschreibung verfügbar.").trim();
 
   if(story.length > 300){
@@ -1152,6 +1131,7 @@ function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null
   }
 
   // ================= SERIES INFO =================
+
   let seasonInfo = "";
 
   if(isTV){
@@ -1162,11 +1142,13 @@ function buildCard(data, fileName="", id="0001", categoryId="GEN000", width=null
   }
 
   // ================= TAGS =================
+
   const tags = genresArr
     .map(g => `#${g.name.replace(/\s/g,"")}`)
     .join(" ");
 
   // ================= FINAL =================
+
   return `${line}
 ${isTV ? "📺" : "🎬"} ${titleStyled} (${year}${isTV ? "–" : ""})
 ${line}
@@ -1186,351 +1168,6 @@ ${line}
 ${tags}
 @LibraryOfLegends`;
 }
-
-
-// ================= PLAYER URL =================
-function playerUrl(mode,id){
-  return `https://t.me/${BOT_USERNAME}?start=${mode}_${id}`;
-}
-
-// ================= TMDB =================
-
-async function tmdbFetch(url){
-
-  try{
-
-    // 🔥 CACHE HIT
-    if(TMDB_CACHE[url]){
-      return TMDB_CACHE[url];
-    }
-
-    const res = await fetch(url);
-
-    if(!res.ok){
-      console.log("❌ TMDB ERROR:", res.status, url);
-      return null;
-    }
-
-    const data = await res.json();
-
-    // 🔥 CACHE SAVE
-    TMDB_CACHE[url] = data;
-
-    return data;
-
-  }catch(err){
-    console.log("❌ TMDB FETCH FAIL:", err.message);
-    return null;
-  }
-}
-
-async function getDetails(id, type){
-
-  if(!id) return null;
-
-  const safeType = type === "tv" ? "tv" : "movie";
-
-  return await tmdbFetch(
-    `https://api.themoviedb.org/3/${safeType}/${id}?api_key=${TMDB_KEY}&append_to_response=credits,release_dates&language=de-DE`
-  );
-}
-
-async function searchTMDBUltra(title, year=null, type=null){
-
-  if(!title) return null;
-
-  const queries = [
-    title,
-    title.split(" ").slice(0,3).join(" "),
-    title.split(" ").slice(0,2).join(" "),
-    title.split(" ")[0]
-  ].filter(Boolean);
-
-  let best = null;
-  let bestScore = -999;
-
-  for(const q of queries){
-
-    const data = await tmdbFetch(
-      `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&language=de-DE`
-    );
-
-    if(!data?.results) continue;
-
-    for(const item of data.results){
-
-      if(type && item.media_type !== type) continue;
-
-      const name = (item.title || item.name || "").toLowerCase();
-      const clean = title.toLowerCase();
-
-      let score = 0;
-
-      if(name === clean) score += 150;
-      if(name.includes(clean)) score += 80;
-
-      const words = clean.split(" ");
-      const hits = words.filter(w => name.includes(w)).length;
-      score += hits * 20;
-
-      if(year){
-        const y = parseInt((item.release_date || item.first_air_date || "").slice(0,4));
-        if(y){
-          const diff = Math.abs(y - year);
-          if(diff === 0) score += 80;
-          else if(diff === 1) score += 40;
-          else if(diff <= 2) score += 10;
-          else score -= 50;
-        }
-      }
-
-      score += Math.min(item.popularity || 0, 40);
-
-      if(score > bestScore){
-        bestScore = score;
-        best = item;
-      }
-    }
-  }
-
-  return best;
-}
-
-
-// 🔥 TRENDING
-async function getTrending(){
-  const data = await tmdbFetch(
-    `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_KEY}`
-  );
-
-  return data?.results?.slice(0,10) || [];
-}
-
-
-// 📈 POPULAR MOVIES
-async function getPopular(){
-  const data = await tmdbFetch(
-    `https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_KEY}&language=de-DE`
-  );
-
-  return data?.results?.slice(0,10) || [];
-}
-
-
-// 🎭 GENRE DISCOVERY
-async function getByGenre(genreId){
-
-  if(!genreId) return [];
-
-  const data = await tmdbFetch(
-    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=${genreId}&language=de-DE`
-  );
-
-  return data?.results?.slice(0,10) || [];
-}
-
-
-// 🔤 SORT A-Z (SAFE)
-function sortAZ(list){
-
-  if(!Array.isArray(list)) return [];
-
-  return list.sort((a,b)=>{
-
-    const A = (a.title || a.name || "").toLowerCase();
-    const B = (b.title || b.name || "").toLowerCase();
-
-    return A.localeCompare(B);
-  });
-}
-
-// ================= NETFLIX SYSTEM =================
-
-async function buildHomeRows(){
-
-  return [
-    {
-      title:"🔥 Trending",
-      data: await getTrending()
-    },
-    {
-      title:"📈 Popular",
-      data: await getPopular()
-    }
-  ];
-}
-
-function getSmartRecommendations(current, limit = 10){
-
-  if(!current?.genres) return [];
-
-  const genreIds = current.genres.map(g => g.id || g);
-
-  const localMatches = CACHE.filter(x =>
-    x.genres?.some(g => genreIds.includes(g))
-  );
-
-  return localMatches.slice(0, limit);
-}
-
-function getTopPicks(userId){
-
-  const history = readHistory(userId);
-  if(!history.length) return [];
-
-  const genreCount = {};
-
-  for(const h of history){
-    const item = CACHE.find(x => x.display_id === h.id);
-    if(!item) continue;
-
-    for(const g of item.genres || []){
-      genreCount[g] = (genreCount[g] || 0) + 1;
-    }
-  }
-
-  const sortedGenres = Object.entries(genreCount)
-    .sort((a,b)=>b[1]-a[1])
-    .map(x => parseInt(x[0]));
-
-  const picks = CACHE.filter(x =>
-    x.genres?.some(g => sortedGenres.includes(g))
-  );
-
-  return picks.slice(0,10);
-}
-
-
-// 🎬 LOKALE REIHEN (AUS DEINER DB)
-function buildLocalRows(){
-
-  const genres = getAvailableGenres();
-  const rows = [];
-
-  for(const genreId of genres){
-
-    const list = getLocalByGenre(genreId);
-
-    // 🔥 nur anzeigen wenn sinnvoll
-    if(!list || list.length < 2) continue;
-
-    rows.push({
-      title: GENRE_MAP[genreId] || `🎬 Genre ${genreId}`,
-      data: list.slice(0, 10) // max 10 für Performance
-    });
-  }
-
-  return rows;
-}
-
-
-// 🎬 NETFLIX HOME SCREEN
-async function showNetflixHome(chatId){
-
-  try{
-
-    // ================= HERO =================
-    const trending = await getTrending();
-
-    if(!trending || !trending.length){
-      return tg("sendMessage",{
-        chat_id:chatId,
-        text:"❌ Keine Inhalte verfügbar"
-      });
-    }
-
-    const first = trending[Math.floor(Math.random() * trending.length)];
-
-    const type = first.media_type === "tv" ? "tv" : "movie";
-
-    const details = await getDetails(first.id, type) || first;
-
-    const banner = details?.backdrop_path
-      ? `https://image.tmdb.org/t/p/original${details.backdrop_path}`
-      : getDynamicBanner("main");
-
-    // 🎬 BIG NETFLIX HERO
-    await tg("sendPhoto",{
-      chat_id:chatId,
-      photo:banner,
-      caption: buildNetflixBanner(details),
-      reply_markup:{
-        inline_keyboard:[
-
-          [
-            {text:"🔍 Details",callback_data:`search_${first.id}_${type}`},
-            {text:"➕ Merken",callback_data:`fav_${first.id}`}
-          ],
-
-          [
-            {text:"🔥 Ähnliche",callback_data:`sim_${first.id}_${type}`}
-          ],
-
-          [
-            {text:"🏠 Menü",callback_data:"menu"}
-          ]
-        ]
-      }
-    });
-
-
-    // ================= TMDB REIHEN =================
-    const rows = await buildHomeRows();
-
-    if(rows && rows.length){
-      for(const row of rows){
-        if(row?.data?.length){
-          await sendPosterRow(chatId,row.title,row.data);
-        }
-      }
-    }
-
-
-    // ================= DEINE FILME =================
-    const localRows = buildLocalRows();
-
-    if(localRows.length){
-
-      for(const row of localRows){
-        await sendPosterRow(chatId,row.title,row.data);
-      }
-
-    }else{
-
-      await tg("sendMessage",{
-        chat_id:chatId,
-        text:"📂 Noch keine eigenen Filme einsortiert"
-      });
-
-    }
-
-
-    // ================= FOOTER =================
-    return tg("sendMessage",{
-      chat_id:chatId,
-      text:"🏠 Home",
-      reply_markup:{
-        inline_keyboard:[
-          [
-            {text:"🔄 Refresh",callback_data:"home"},
-            {text:"🎬 Menü",callback_data:"menu"}
-          ]
-        ]
-      }
-    });
-
-  }catch(err){
-
-    console.log("❌ NETFLIX HOME ERROR:", err.message);
-
-    return tg("sendMessage",{
-      chat_id:chatId,
-      text:"❌ Fehler beim Laden der Startseite"
-    });
-  }
-}
-
-// ================= UI =================
 
 // ================= ULTRA UI =================
 
@@ -1572,6 +1209,8 @@ async function renderUltraCard(chatId, messageId, item, type, index, total){
     }
   });
 }
+
+// ================= ULTRA START =================
 
 async function startUltraUI(chatId, list){
 
@@ -1615,172 +1254,8 @@ async function startUltraUI(chatId, list){
   USER_STATE[chatId].messageId = msg?.result?.message_id;
 }
 
-async function showGenres(chatId){
-
-  await tg("sendPhoto",{
-    chat_id:chatId,
-    photo:getDynamicBanner("main"),
-    caption:"🎭 Kategorien"
-  });
-
-  const buttons = buildGenreButtons();
-
-  return tg("sendMessage",{
-    chat_id:chatId,
-    text:"Wähle ein Genre 👇",
-    reply_markup:{
-      inline_keyboard:[
-        ...buttons,
-        [{text:"🏠 Menü",callback_data:"menu"}]
-      ]
-    }
-  });
-}
-
-async function sendPosterRow(chatId, heading, list){
-
-  if(!list || !list.length) return;
-
-  await tg("sendMessage",{
-    chat_id: chatId,
-    text: `🔥 ${heading}`
-  });
-
-  const slice = list.slice(0,5);
-
-  for(const item of slice){
-
-    const title = item.title || item.name || "Film";
-    const type = item.media_type || "movie";
-
-    await tg("sendPhoto",{
-      chat_id: chatId,
-      photo: getCover(item),
-      caption: `🎬 ${title}`,
-      reply_markup:{
-        inline_keyboard:[
-          [
-            { text:"▶️", callback_data:`search_${item.id}_${type}` },
-            { text:"🔥", callback_data:`sim_${item.id}_${type}` }
-          ]
-        ]
-      }
-    });
-  }
-}
- 
-// 🎬 HAUPTMENÜ
-function showMenu(chatId){
-
-  return tg("sendPhoto",{
-    chat_id:chatId,
-    photo:getDynamicBanner("main"),
-    caption:`🔥 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒
-
-Dein Streaming Hub 👇`,
-    reply_markup:{
-      inline_keyboard:[
-
-        [
-          {text:"▶️ Weiter schauen",callback_data:"continue"}
-        ],
-
-        [
-          {text:"🔥 Trending",callback_data:"net_trending"},
-          {text:"📈 Popular",callback_data:"net_popular"}
-        ],
-
-        [
-          {text:"🧠 Für dich",callback_data:"top_picks"},
-          {text:"⭐ Favoriten",callback_data:"favorites"}
-        ],
-
-        [
-          {text:"🎬 Filme",callback_data:"browse_movies"},
-          {text:"📺 Serien",callback_data:"browse_series"}
-        ],
-
-        [
-          {text:"🎭 Kategorien",callback_data:"open_genres"}
-        ]
-      ]
-    }
-  });
-}
-
-
-// 🎬 LISTEN VIEW (NETFLIX STYLE)
-async function sendResultsList(chatId, heading, list, page = 0){
-
-  if(!list || !list.length){
-    return tg("sendMessage",{
-      chat_id:chatId,
-      text:"❌ Keine Ergebnisse"
-    });
-  }
-
-  const perPage = 4;
-  const totalPages = Math.ceil(list.length / perPage);
-
-  const start = page * perPage;
-  const slice = list.slice(start, start + perPage);
-
-  USER_STATE[chatId] = {
-    list,
-    heading,
-    page
-  };
-
-  const buttons = [];
-
-  for (let i = 0; i < slice.length; i += 2) {
-
-    const row = [];
-
-    const a = slice[i];
-    const b = slice[i + 1];
-
-    if (a) {
-      row.push({
-        text: `🎬 ${a.title || a.name}`,
-        callback_data: `search_${a.id}_${a.media_type || "movie"}`
-      });
-    }
-
-    if (b) {
-      row.push({
-        text: `🎬 ${b.title || b.name}`,
-        callback_data: `search_${b.id}_${b.media_type || "movie"}`
-      });
-    }
-
-    buttons.push(row);
-  }
-
-  const navRow = [];
-
-  if(page > 0){
-    navRow.push({ text:"⬅️", callback_data:`page_${page-1}` });
-  }
-
-  if(page < totalPages - 1){
-    navRow.push({ text:"➡️", callback_data:`page_${page+1}` });
-  }
-
-  return tg("sendMessage",{
-    chat_id:chatId,
-    text:`📂 ${heading}`,
-    reply_markup:{
-      inline_keyboard:[
-        ...buttons,
-        ...(navRow.length ? [navRow] : []),
-        [{text:"🏠 Menü",callback_data:"menu"}]
-      ]
-    }
-  });
-}
-
 // ================= UPLOAD =================
+
 async function handleUpload(msg){
 
   const file = msg.document || msg.video;
@@ -1789,7 +1264,8 @@ async function handleUpload(msg){
 
   if(!file) return;
 
-  // ================= DUPLICATE =================
+  // ================= DUPLICATE CHECK =================
+
   const exists = CACHE.find(x => x.file_id === file.file_id);
 
   if(exists){
@@ -1804,6 +1280,7 @@ async function handleUpload(msg){
   const isSeries = parsed.type === "tv";
 
   // ================= CLEAN TITLE =================
+
   const clean = ultraCleanTitle(fileName);
   const searchTitle = clean;
 
@@ -1814,40 +1291,15 @@ async function handleUpload(msg){
 
   // ================= TMDB SEARCH =================
 
-// 🔥 1. NORMALIZE TITLE
-const fixedSearch = aiNormalize(searchTitle);
+  const fixedSearch = aiNormalize(searchTitle);
+  const variants = buildSearchVariants(fixedSearch);
 
-// 🔥 2. VARIANTEN BAUEN
-const variants = buildSearchVariants(fixedSearch);
+  let result = null;
 
-let result = null;
+  // 🔍 PRIMARY SEARCH LOOP
+  for(const v of variants){
 
-// 🔥 3. HAUPT-SUCHE (ALLE VARIANTEN DURCHGEHEN)
-for(const v of variants){
-
-  console.log("🔍 TRY:", v);
-
-  result = await searchTMDBUltra(
-    v,
-    fileYear,
-    isSeries ? "tv" : "movie"
-  );
-
-  if(result){
-    console.log("✅ MATCH VIA:", v);
-    break;
-  }
-}
-
-// 🔥 4. FALLBACK (MIT CLEAN TITLE)
-if(!result){
-
-  const fixedClean = aiNormalize(clean);
-  const fallbackVariants = buildSearchVariants(fixedClean);
-
-  for(const v of fallbackVariants){
-
-    console.log("🆘 FALLBACK TRY:", v);
+    console.log("🔍 TRY:", v);
 
     result = await searchTMDBUltra(
       v,
@@ -1856,28 +1308,50 @@ if(!result){
     );
 
     if(result){
-      console.log("✅ FALLBACK MATCH VIA:", v);
+      console.log("✅ MATCH VIA:", v);
       break;
     }
   }
-}
 
-// 🔥 5. LAST RESORT (DIRECT TMDB SEARCH)
-if(!result){
+  // 🆘 FALLBACK SEARCH
+  if(!result){
 
-  console.log("⚠️ LAST RESORT SEARCH");
+    const fixedClean = aiNormalize(clean);
+    const fallbackVariants = buildSearchVariants(fixedClean);
 
-  const fallback = await tmdbFetch(
-    `https://api.themoviedb.org/3/search/${isSeries ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}&language=de-DE`
-  );
+    for(const v of fallbackVariants){
 
-  result = fallback?.results?.[0] || null;
-}
+      console.log("🆘 FALLBACK TRY:", v);
 
-// 🔥 DEBUG OUTPUT
-console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
+      result = await searchTMDBUltra(
+        v,
+        fileYear,
+        isSeries ? "tv" : "movie"
+      );
+
+      if(result){
+        console.log("✅ FALLBACK MATCH VIA:", v);
+        break;
+      }
+    }
+  }
+
+  // ⚠️ LAST RESORT
+  if(!result){
+
+    console.log("⚠️ LAST RESORT SEARCH");
+
+    const fallback = await tmdbFetch(
+      `https://api.themoviedb.org/3/search/${isSeries ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(clean)}&language=de-DE`
+    );
+
+    result = fallback?.results?.[0] || null;
+  }
+
+  console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
 
   // ================= DETAILS =================
+
   let details = null;
 
   if(result?.id){
@@ -1892,6 +1366,7 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
   };
 
   // ================= GENRES =================
+
   let genreIds = [];
 
   if(result?.genre_ids){
@@ -1901,10 +1376,12 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
   }
 
   // ================= IDS =================
+
   const id = generateNextId();
   const categoryId = generateCategoryId(genreIds);
 
-  // ================= COVER (EINMAL!) =================
+  // ================= COVER =================
+
   let cover = getCover(safeData);
 
   if(!cover){
@@ -1924,17 +1401,19 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
   }
 
   // ================= CAPTION =================
+
   const caption = buildCard(
-  safeData,
-  fileName,
-  id,
-  categoryId,
-  width,
-  height,
-  isSeries // 🔥 GANZ WICHTIG
-);
+    safeData,
+    fileName,
+    id,
+    categoryId,
+    width,
+    height,
+    isSeries
+  );
 
   // ================= SERIES SYSTEM =================
+
   if(isSeries){
 
     const cleanTitle = safeData.title || parsed.title;
@@ -1943,11 +1422,10 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
       .toLowerCase()
       .replace(/[^a-z0-9]/g,"_");
 
-    // 🔥 THREAD ERSTELLEN
     const seriesThread = await ensureSeriesThread(seriesKey);
     const seasonThread = await ensureSeasonThread(seriesKey, parsed.season);
 
-    // 🔥 DB SPEICHERN
+    // 🔥 FIX: Safe Init
     if(!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
     if(!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
 
@@ -1958,7 +1436,6 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
 
     saveSeriesDB(SERIES_DB);
 
-    // 🔥 SENDEN
     await tg("sendPhoto",{
       chat_id: GROUP_ID,
       message_thread_id: seasonThread,
@@ -1979,6 +1456,7 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
   }
 
   // ================= COLLECTION =================
+
   let collectionName = null;
 
   if(safeData.belongs_to_collection?.name){
@@ -1986,8 +1464,9 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
   }
 
   if(!collectionName){
-    collectionName = detectCollectionSmart(safeData.title || clean)
-  || detectCollection(safeData.title || clean);
+    collectionName =
+      detectCollectionSmart(safeData.title || clean)
+      || detectCollection(safeData.title || clean);
   }
 
   if(collectionName){
@@ -2009,7 +1488,7 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
     collection_order: order,
     category_id: categoryId,
     file_id: file.file_id,
-    media_type: isSeries ? "tv" : "movie",
+    media_type: "movie",
     genres: genreIds,
     cover: cover
   };
@@ -2018,6 +1497,7 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
   saveDB(CACHE);
 
   // ================= BUTTONS =================
+
   const buttons = [
     [{ text:"▶️ Stream", url: playerUrl("play", id) }],
     [{ text:"🔥 Ähnliche", url: playerUrl("sim", id) }],
@@ -2059,648 +1539,609 @@ console.log("🎬 FINAL MATCH:", result?.title || result?.name || "NOT FOUND");
 }
 
 // ================= WEBHOOK =================
+
 app.post(`/bot${TOKEN}`, async (req, res) => {
   res.sendStatus(200);
 
   const body = req.body;
   const msg = body.message;
 
-  // 🔥 HIER EINFÜGEN
   console.log("MSG DEBUG:", JSON.stringify(msg, null, 2));
 
   try {
 
     // ================= CALLBACK =================
+
     if (body.callback_query) {
-      
+
+      const data = body.callback_query.data; // ✅ FIX: MUSS OBEN STEHEN
+      const chatId = body.callback_query.message.chat.id;
+
+      await tg("answerCallbackQuery", {
+        callback_query_id: body.callback_query.id
+      });
+
+      // ================= ULTRA NAV =================
+
       if (data === "ultra_next" || data === "ultra_prev") {
 
-  const state = USER_STATE[chatId];
-  if(!state || state.mode !== "ultra") return;
+        const state = USER_STATE[chatId];
+        if(!state || state.mode !== "ultra") return;
 
-  if(data === "ultra_next"){
-    state.index++;
-  } else {
-    state.index--;
-  }
+        if(data === "ultra_next"){
+          state.index++;
+        } else {
+          state.index--;
+        }
 
-  if(state.index < 0) state.index = state.list.length - 1;
-  if(state.index >= state.list.length) state.index = 0;
+        if(state.index < 0) state.index = state.list.length - 1;
+        if(state.index >= state.list.length) state.index = 0;
 
-  const item = state.list[state.index];
+        const item = state.list[state.index];
 
-  return renderUltraCard(
-    chatId,
-    state.messageId,
-    item,
-    item.media_type || "movie",
-    state.index,
-    state.list.length
-  );
-}
-
-  const data = body.callback_query.data;
-  const chatId = body.callback_query.message.chat.id;
-
-  await tg("answerCallbackQuery", {
-    callback_query_id: body.callback_query.id
-  });
-
-  // ================= BASIC NAV =================
-
-  if (data === "home") {
-    return showNetflixHome(chatId);
-  }
-
-  if (data === "net_trending") {
-
-  const list = await getTrending();
-
-  await tg("sendMessage",{
-    chat_id: GROUP_ID,
-    message_thread_id: THREADS.trending,
-    text: "🔥 Trending"
-  });
-
-  return sendResultsList(
-    GROUP_ID,
-    "🔥 Trending",
-    list,
-    0
-  );
-}
-
-  if (data === "net_popular") {
-    return sendResultsList(chatId, "📈 Popular", await getPopular(), 0);
-  }
-
-  if (data === "browse_movies") {
-
-  return sendResultsList(
-    GROUP_ID,
-    "🎬 Filme",
-    CACHE,
-    0
-  );
-}
-
-  if (data === "browse_series") {
-
-  const list = [];
-
-  for (const [title, seasons] of Object.entries(SERIES_DB)) {
-    for (const [season, episodes] of Object.entries(seasons)) {
-      for (const [episode, data] of Object.entries(episodes)) {
-
-        list.push({
-  id: data.display_id,
-  display_id: data.display_id, // 🔥 FIX
-  title: `${title.replace(/_/g," ")} • S${season}E${episode}`,
-  media_type: "tv"
-});
-
+        return renderUltraCard(
+          chatId,
+          state.messageId,
+          item,
+          item.media_type || "movie",
+          state.index,
+          state.list.length
+        );
       }
-    }
-  }
 
-  if(!list.length){
-    return tg("sendMessage",{
-      chat_id: chatId,
-      text: "❌ Keine Serien vorhanden"
-    });
-  }
+      // ================= BASIC NAV =================
 
-  return sendResultsList(
-    chatId,
-    "📺 Serien",
-    list,
-    0
-  );
-}
+      if (data === "home") return showNetflixHome(chatId);
 
-  if (data === "menu") {
-    return showMenu(chatId);
-  }
-  
-  if (data === "open_genres") {
-    return showGenres(chatId);
-  }
+      if (data === "menu") return showMenu(chatId);
 
-  // ⭐ FAVORITEN
-if (data === "favorites") {
+      if (data === "open_genres") return showGenres(chatId);
 
-  return sendResultsList(
-    chatId,
-    "⭐ Deine Favoriten",
-    getFavorites(chatId),
-    0
-  );
-}
+      // ================= TRENDING =================
 
-// 🧠 TOP PICKS
-if (data === "top_picks") {
+      if (data === "net_trending") {
 
-  const picks = getTopPicks(chatId);
+        const list = await getTrending();
 
-  if(!picks.length){
-    return tg("sendMessage",{
-      chat_id:chatId,
-      text:"❌ Noch keine Daten"
-    });
-  }
+        await tg("sendMessage",{
+          chat_id: GROUP_ID,
+          message_thread_id: THREADS.trending,
+          text: "🔥 Trending"
+        });
 
-  return sendResultsList(
-    chatId,
-    "🧠 Für dich",
-    picks,
-    0
-  );
-}
+        return sendResultsList(
+          GROUP_ID,
+          "🔥 Trending",
+          list,
+          0
+        );
+      }
 
-// ▶️ CONTINUE
-if (data === "continue") {
+      if (data === "net_popular") {
+        return sendResultsList(chatId, "📈 Popular", await getPopular(), 0);
+      }
 
-  const cont = getContinue(chatId);
+      // ================= BROWSE =================
 
-  if(!cont){
-    return tg("sendMessage",{
-      chat_id: chatId,
-      text: "❌ Kein Fortschritt vorhanden"
-    });
-  }
+      if (data === "browse_movies") {
+        return sendResultsList(
+          GROUP_ID,
+          "🎬 Filme",
+          CACHE,
+          0
+        );
+      }
 
-  return tg("sendMessage",{
-    chat_id: chatId,
-    text:`▶️ Weiter schauen
+      if (data === "browse_series") {
+
+        const list = [];
+
+        for (const [title, seasons] of Object.entries(SERIES_DB)) {
+          for (const [season, episodes] of Object.entries(seasons)) {
+            for (const [episode, epData] of Object.entries(episodes)) {
+
+              list.push({
+                id: epData.display_id,
+                display_id: epData.display_id,
+                title: `${title.replace(/_/g," ")} • S${season}E${episode}`,
+                media_type: "tv"
+              });
+
+            }
+          }
+        }
+
+        if(!list.length){
+          return tg("sendMessage",{
+            chat_id: chatId,
+            text: "❌ Keine Serien vorhanden"
+          });
+        }
+
+        return sendResultsList(chatId, "📺 Serien", list, 0);
+      }
+
+      // ================= FAVORITES =================
+
+      if (data === "favorites") {
+
+        return sendResultsList(
+          chatId,
+          "⭐ Deine Favoriten",
+          getFavorites(chatId),
+          0
+        );
+      }
+
+      // ================= TOP PICKS =================
+
+      if (data === "top_picks") {
+
+        const picks = getTopPicks(chatId);
+
+        if(!picks.length){
+          return tg("sendMessage",{
+            chat_id:chatId,
+            text:"❌ Noch keine Daten"
+          });
+        }
+
+        return sendResultsList(chatId, "🧠 Für dich", picks, 0);
+      }
+
+      // ================= CONTINUE =================
+
+      if (data === "continue") {
+
+        const cont = getContinue(chatId);
+
+        if(!cont){
+          return tg("sendMessage",{
+            chat_id: chatId,
+            text: "❌ Kein Fortschritt vorhanden"
+          });
+        }
+
+        return tg("sendMessage",{
+          chat_id: chatId,
+          text:`▶️ Weiter schauen
 
 📺 ${cont.seriesKey.replace(/_/g," ")}
 📀 Staffel ${cont.season} • Folge ${cont.episode}`,
-    reply_markup:{
-      inline_keyboard:[
-        [{ text:"▶️ Fortsetzen", callback_data:`play_${cont.display_id}` }],
-        [{ text:"🏠 Menü", callback_data:"menu"}]
-      ]
-    }
-  });
-}
-
-  // ================= GENRE =================
-
-  if (data.startsWith("genre_") && !data.startsWith("genre_local_")) {
-
-  const genre = data.split("_")[1];
-
-  await tg("sendPhoto",{
-    chat_id:chatId,
-    photo:getDynamicBanner("genre", genre),
-    caption:`🔥 Kategorie`
-  });
-
-  return sendResultsList(
-    chatId,
-    "📂 Kategorie",
-    await getByGenre(genre),
-    0
-  );
-}
-
-  if (data.startsWith("genre_local_")) {
-
-  const genre = data.split("_")[2];
-
-  // 🔥 BANNER SENDEN
-  await tg("sendPhoto",{
-    chat_id:chatId,
-    photo:getDynamicBanner("genre", genre),
-    caption:`🎬 ${GENRE_MAP[genre] || "Kategorie"}`
-  });
-
-  return sendResultsList(
-    chatId,
-    "📂 Deine Filme",
-    getLocalByGenre(genre),
-    0
-  );
-}
-
-  if (data === "movies_az") {
-    return sendResultsList(chatId, "🔤 A–Z", sortAZ(await getPopular()), 0);
-  }
-
-  // ================= PAGINATION =================
-
-  if (data.startsWith("page_")) {
-    const page = parseInt(data.split("_")[1]);
-    const state = USER_STATE[chatId];
-    if (!state) return;
-
-    return sendResultsList(chatId, state.heading, state.list, page);
-  }
-
-  // ================= SIMILAR =================
-
-  if (data.startsWith("sim_")) {
-
-    const [, id, type] = data.split("_");
-
-    const details = await getDetails(id, type);
-    const safeData = details || {};
-
-    const smart = getSmartRecommendations(safeData);
-
-    if(smart.length){
-      return sendResultsList(chatId, "🔥 Für dich", smart, 0);
-    }
-
-    const res = await tmdbFetch(
-      `https://api.themoviedb.org/3/${type}/${id}/similar?api_key=${TMDB_KEY}`
-    );
-
-    return sendResultsList(chatId, "🔥 Ähnliche", res?.results || [], 0);
-  }
-
-  // ================= SWIPE =================
-
-  if (data.startsWith("next_") || data.startsWith("prev_")) {
-
-    const [dir, id, type] = data.split("_");
-    const state = USER_STATE[chatId];
-    if (!state) return;
-
-    const list = state.list;
-    const index = list.findIndex(x => String(x.id) === id);
-    if (index === -1) return;
-
-    const newIndex = dir === "next" ? index + 1 : index - 1;
-    if (!list[newIndex]) return;
-
-    const item = list[newIndex];
-    const details = await getDetails(item.id, type);
-    const safeData = details || item || {};
-
-    return tg("sendPhoto",{
-      chat_id: chatId,
-      photo: getCover(safeData),
-      caption: buildCard(safeData, "", item.id),
-      reply_markup: buildSwipeNav(item.id, type)
-    });
-  }
-
-  // ================= PLAY =================
-
-if (data.startsWith("fav_")) {
-
-  const id = data.replace("fav_", "");
-  const item = CACHE.find(x => x.display_id === id);
-
-  if(!item){
-    return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
-  }
-
-  addFavorite(chatId, item);
-
-  return tg("sendMessage",{
-    chat_id:chatId,
-    text:"⭐ Zu Favoriten hinzugefügt"
-  });
-}
-
-  if (data.startsWith("play_")) {
-
-  const id = data.replace("play_", "");
-
-  let found = null;
-
-  // ===============================
-  // 🔍 SERIES FIND
-  // ===============================
-  for(const [seriesKey, seasons] of Object.entries(SERIES_DB)){
-    for(const [season, episodes] of Object.entries(seasons)){
-      for(const [ep, epData] of Object.entries(episodes)){
-        if(epData.display_id === id){
-          found = { 
-            seriesKey, 
-            season: parseInt(season), 
-            episode: parseInt(ep),
-            data: epData
-          };
-        }
-      }
-    }
-  }
-
-  // ===============================
-  // 🎬 MOVIE FALLBACK
-  // ===============================
-  let item = CACHE.find(x => x.display_id === id);
-
-  // ===============================
-  // 📺 SERIES ITEM BUILD
-  // ===============================
-  if(found){
-    item = {
-      file_id: found.data.file_id,
-      display_id: id,
-      media_type: "tv"
-    };
-  }
-
-  if(!item){
-    return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
-  }
-
-  // ===============================
-  // 🧠 CONTINUE SAVE
-  // ===============================
-  if(found){
-    setContinue(chatId,{
-      seriesKey: found.seriesKey,
-      season: found.season,
-      episode: found.episode,
-      display_id: id,
-      timestamp: Date.now()
-    });
-  }
-
-  // ===============================
-// 🎛 BUTTONS
-// ===============================
-const buttons = [];
-
-// NEXT BUTTON wird später ergänzt
-
-// ===============================
-// ▶️ VIDEO SENDEN
-// ===============================
-await tg("sendVideo", {
-  chat_id: chatId,
-  video: item.file_id,
-  supports_streaming: true,
-  reply_markup: {
-    inline_keyboard: buttons
-  }
-});
-
-  // ===============================
-  // ⏭ NEXT EPISODE
-  // ===============================
-  if(found){
-
-    const next = getNextEpisode(
-      found.seriesKey,
-      found.season,
-      found.episode
-    );
-
-    if(next){
-      await tg("sendMessage",{
-        chat_id: chatId,
-        text: `➡️ Nächste Folge (S${next.season}E${next.episode})`,
-        reply_markup:{
-          inline_keyboard:[
-            [{
-              text:"▶️ Weiter",
-              callback_data:`play_${next.data.display_id}`
-            }]
-          ]
-        }
-      });
-    }
-  }
-
-  return;
-}
-  
-  // ================= SERIES SYSTEM =================
-
-if (data.startsWith("series_")) {
-
-  const key = data.replace("series_","");
-  const series = SERIES_DB[key];
-
-  if(!series){
-    return tg("sendMessage",{
-      chat_id:chatId,
-      text:"❌ Serie nicht gefunden"
-    });
-  }
-
-  const seasons = Object.keys(series);
-  const buttons = [];
-
-  const firstSeason = seasons[0];
-  const firstEpisode = Object.keys(series[firstSeason])[0];
-
-  buttons.push([
-    {
-      text:"▶️ Starten",
-      callback_data:`play_${series[firstSeason][firstEpisode].display_id}`
-    }
-  ]);
-
-  for(const season of seasons){
-    buttons.push([
-      {
-        text:`📀 Staffel ${season}`,
-        callback_data:`season_${key}_${season}`
-      }
-    ]);
-  }
-
-  buttons.push([{text:"🏠 Menü",callback_data:"menu"}]);
-
-  return tg("sendMessage",{
-  chat_id:chatId,
-  text:`📺 ${key.replace(/_/g," ").toUpperCase()}
-
-🔥 ${Object.keys(series).length} Staffeln verfügbar
-
-👇 Wähle deine Staffel`, // ✅ KOMMA HIER
-
-  reply_markup:{ 
-    inline_keyboard: buttons 
-  }
-});
-}
-
-if (data.startsWith("season_")) {
-
-  const [, key, season] = data.split("_");
-
-  const episodes = SERIES_DB[key]?.[season];
-
-  if(!episodes){
-    return tg("sendMessage",{
-      chat_id:chatId,
-      text:"❌ Keine Episoden"
-    });
-  }
-
-  const buttons = Object.entries(episodes)
-    .sort((a,b)=>parseInt(a[0]) - parseInt(b[0]))
-    .map(([ep,data]) => ([
-      {
-        text:`▶️ Folge ${ep}`,
-        callback_data:`play_${data.display_id}`
-      }
-    ]));
-
-  return tg("sendMessage",{
-    chat_id:chatId,
-    text:`📀 Staffel ${season}`,
-    reply_markup:{
-      inline_keyboard:[
-        ...buttons,
-        [{text:"🔙 Serie",callback_data:`series_${key}`}]
-      ]
-    }
-  });
-}
-
-  // ================= COLLECTION =================
-
-  if (data.startsWith("collection_")) {
-
-  const name = data.replace("collection_", "");
-  const items = getCollectionItems(name);
-
-  if(!items.length){
-    return tg("sendMessage",{
-      chat_id: chatId,
-      text: "❌ Keine Collection gefunden"
-    });
-  }
-
-  return startUltraUI(chatId, items);
-}
-
-  // ================= SEARCH (FIXED POSITION) =================
-
-  if (data.startsWith("search_")) {
-
-    const [, id, type] = data.split("_");
-
-    const details = await getDetails(id, type);
-    const safeData = details || {};
-
-    return tg("sendPhoto",{
-      chat_id: chatId,
-      photo: getBanner(safeData),
-      caption: buildNetflixBanner(safeData),
-      reply_markup: buildSwipeNav(id, type)
-    });
-  }
-
-  // ✅ GANZ WICHTIG → verhindert Folgefehler
-  return;
-}
-    
-  // ================= COMMANDS =================
-
-if (msg?.text?.startsWith("/delete")) {
-
-  const id = msg.text.split(" ")[1];
-
-  CACHE = CACHE.filter(x => x.display_id !== id);
-  saveDB(CACHE);
-
-  return tg("sendMessage",{
-    chat_id: msg.chat.id,
-    text:`🗑 Gelöscht: ${id}`
-  });
-}
-
-
-// 🔥 HIER DEIN NEUER START BLOCK
-if (msg?.text?.startsWith("/start")) {
-  
-  if (msg?.text === "/test") {
-
-  return tg("sendMessage",{
-    chat_id: GROUP_ID,
-    message_thread_id: 609,
-    text: "TEST THREAD"
-  });
-}
-
-  const param = msg.text.split(" ")[1];
-
-  console.log("START PARAM:", param); // 🔥 DEBUG
-
-  if(param){
-
-    const [action, id] = param.split("_");
-    
-    if(action === "collection"){
-
-  const items = getCollectionItems(id);
-
-  if(!items.length){
-    return tg("sendMessage",{
-      chat_id: msg.chat.id,
-      text:"❌ Keine Collection gefunden"
-    });
-  }
-
-  return startUltraUI(msg.chat.id, items);
-}
-
-  for(const item of items){
-    await tg("sendPhoto",{
-      chat_id: msg.chat.id,
-      photo: item.cover,
-      caption:`🎬 ${item.title}`,
-      reply_markup:{
-        inline_keyboard:[
-          [{ text:"▶️ Play", callback_data:`play_${item.display_id}` }]
-        ]
-      }
-    });
-  }
-
-  return;
-}
-
-    // ▶️ STREAM
-    if(action === "play"){
-      const item = CACHE.find(x => x.display_id === id);
-      return sendFileById(msg.chat.id, item);
-    }
-
-    // 🔥 ÄHNLICHE
-    if(action === "sim"){
-      const item = CACHE.find(x => x.display_id === id);
-
-      if(!item){
-        return tg("sendMessage",{
-          chat_id:msg.chat.id,
-          text:"❌ Nicht gefunden"
+          reply_markup:{
+            inline_keyboard:[
+              [{ text:"▶️ Fortsetzen", callback_data:`play_${cont.display_id}` }],
+              [{ text:"🏠 Menü", callback_data:"menu"}]
+            ]
+          }
         });
       }
 
-      const fakeData = { genres: item.genres };
-      const list = getSmartRecommendations(fakeData);
+      // ================= GENRES =================
 
-      return sendResultsList(msg.chat.id, "🔥 Ähnliche", list, 0);
+      if (data.startsWith("genre_") && !data.startsWith("genre_local_")) {
+
+        const genre = data.split("_")[1];
+
+        await tg("sendPhoto",{
+          chat_id:chatId,
+          photo:getDynamicBanner("genre", genre),
+          caption:`🔥 Kategorie`
+        });
+
+        return sendResultsList(
+          chatId,
+          "📂 Kategorie",
+          await getByGenre(genre),
+          0
+        );
+      }
+
+      if (data.startsWith("genre_local_")) {
+
+        const genre = data.split("_")[2];
+
+        await tg("sendPhoto",{
+          chat_id:chatId,
+          photo:getDynamicBanner("genre", genre),
+          caption:`🎬 ${GENRE_MAP[genre] || "Kategorie"}`
+        });
+
+        return sendResultsList(
+          chatId,
+          "📂 Deine Filme",
+          getLocalByGenre(genre),
+          0
+        );
+      }
+
+      // ================= PAGINATION =================
+
+      if (data.startsWith("page_")) {
+
+        const page = parseInt(data.split("_")[1]);
+        const state = USER_STATE[chatId];
+        if (!state) return;
+
+        return sendResultsList(chatId, state.heading, state.list, page);
+      }
+
+      // ================= SIMILAR =================
+
+      if (data.startsWith("sim_")) {
+
+        const [, id, type] = data.split("_");
+
+        const details = await getDetails(id, type);
+        const safeData = details || {};
+
+        const smart = getSmartRecommendations(safeData);
+
+        if(smart.length){
+          return sendResultsList(chatId, "🔥 Für dich", smart, 0);
+        }
+
+        const res = await tmdbFetch(
+          `https://api.themoviedb.org/3/${type}/${id}/similar?api_key=${TMDB_KEY}`
+        );
+
+        return sendResultsList(chatId, "🔥 Ähnliche", res?.results || [], 0);
+      }
+
+      // ================= FAVORITE ADD =================
+
+      if (data.startsWith("fav_")) {
+
+        const id = data.replace("fav_", "");
+        const item = CACHE.find(x => x.display_id === id);
+
+        if(!item){
+          return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
+        }
+
+        addFavorite(chatId, item);
+
+        return tg("sendMessage",{
+          chat_id:chatId,
+          text:"⭐ Zu Favoriten hinzugefügt"
+        });
+      }
+
+      // ================= PLAY =================
+
+      if (data.startsWith("play_")) {
+
+        const id = data.replace("play_", "");
+
+        let found = null;
+
+        // 🔍 SERIES SEARCH
+        for(const [seriesKey, seasons] of Object.entries(SERIES_DB)){
+          for(const [season, episodes] of Object.entries(seasons)){
+            for(const [ep, epData] of Object.entries(episodes)){
+              if(epData.display_id === id){
+                found = {
+                  seriesKey,
+                  season: parseInt(season),
+                  episode: parseInt(ep),
+                  data: epData
+                };
+              }
+            }
+          }
+        }
+
+        let item = CACHE.find(x => x.display_id === id);
+
+        if(found){
+          item = {
+            file_id: found.data.file_id,
+            display_id: id,
+            media_type: "tv"
+          };
+        }
+
+        if(!item){
+          return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
+        }
+
+        // 🧠 CONTINUE SAVE
+        if(found){
+          setContinue(chatId,{
+            seriesKey: found.seriesKey,
+            season: found.season,
+            episode: found.episode,
+            display_id: id,
+            timestamp: Date.now()
+          });
+        }
+
+        // ▶️ PLAY
+        await tg("sendVideo",{
+          chat_id: chatId,
+          video: item.file_id,
+          supports_streaming:true
+        });
+
+        // ⏭ NEXT EP
+        if(found){
+
+          const next = getNextEpisode(
+            found.seriesKey,
+            found.season,
+            found.episode
+          );
+
+          if(next){
+            await tg("sendMessage",{
+              chat_id: chatId,
+              text:`➡️ Nächste Folge (S${next.season}E${next.episode})`,
+              reply_markup:{
+                inline_keyboard:[
+                  [{
+                    text:"▶️ Weiter",
+                    callback_data:`play_${next.data.display_id}`
+                  }]
+                ]
+              }
+            });
+          }
+        }
+
+        return;
+      }
+
+      // ================= SERIES =================
+
+      if (data.startsWith("series_")) {
+
+        const key = data.replace("series_","");
+        const series = SERIES_DB[key];
+
+        if(!series){
+          return tg("sendMessage",{
+            chat_id:chatId,
+            text:"❌ Serie nicht gefunden"
+          });
+        }
+
+        const seasons = Object.keys(series);
+        const buttons = [];
+
+        const firstSeason = seasons[0];
+        const firstEpisode = Object.keys(series[firstSeason])[0];
+
+        buttons.push([
+          {
+            text:"▶️ Starten",
+            callback_data:`play_${series[firstSeason][firstEpisode].display_id}`
+          }
+        ]);
+
+        for(const season of seasons){
+          buttons.push([
+            {
+              text:`📀 Staffel ${season}`,
+              callback_data:`season_${key}_${season}`
+            }
+          ]);
+        }
+
+        buttons.push([{text:"🏠 Menü",callback_data:"menu"}]);
+
+        return tg("sendMessage",{
+          chat_id:chatId,
+          text:`📺 ${key.replace(/_/g," ").toUpperCase()}
+
+🔥 ${Object.keys(series).length} Staffeln verfügbar
+
+👇 Wähle deine Staffel`,
+          reply_markup:{ inline_keyboard: buttons }
+        });
+      }
+
+      // ================= SEASON =================
+
+      if (data.startsWith("season_")) {
+
+        const [, key, season] = data.split("_");
+
+        const episodes = SERIES_DB[key]?.[season];
+
+        if(!episodes){
+          return tg("sendMessage",{
+            chat_id:chatId,
+            text:"❌ Keine Episoden"
+          });
+        }
+
+        const buttons = Object.entries(episodes)
+          .sort((a,b)=>parseInt(a[0]) - parseInt(b[0]))
+          .map(([ep,data]) => ([
+            {
+              text:`▶️ Folge ${ep}`,
+              callback_data:`play_${data.display_id}`
+            }
+          ]));
+
+        return tg("sendMessage",{
+          chat_id:chatId,
+          text:`📀 Staffel ${season}`,
+          reply_markup:{
+            inline_keyboard:[
+              ...buttons,
+              [{text:"🔙 Serie",callback_data:`series_${key}`}]
+            ]
+          }
+        });
+      }
+
+      // ================= COLLECTION =================
+
+      if (data.startsWith("collection_")) {
+
+        const name = data.replace("collection_", "");
+        const items = getCollectionItems(name);
+
+        if(!items.length){
+          return tg("sendMessage",{
+            chat_id: chatId,
+            text: "❌ Keine Collection gefunden"
+          });
+        }
+
+        return startUltraUI(chatId, items);
+      }
+
+      // ================= SEARCH =================
+
+      if (data.startsWith("search_")) {
+
+        const [, id, type] = data.split("_");
+
+        const details = await getDetails(id, type);
+        const safeData = details || {};
+
+        return tg("sendPhoto",{
+          chat_id: chatId,
+          photo: getBanner(safeData),
+          caption: buildNetflixBanner(safeData),
+          reply_markup: buildSwipeNav(id, type)
+        });
+      }
+
+      return;
     }
-  }
 
-  // 🏠 FALLBACK
-  return showMenu(msg.chat.id);
-}
+    // ================= COMMANDS =================
 
+    if (msg?.text?.startsWith("/delete")) {
 
-// Upload bleibt unverändert
-if (msg?.document || msg?.video) {
-  return handleUpload(msg);
-}
+      const id = msg.text.split(" ")[1];
+
+      CACHE = CACHE.filter(x => x.display_id !== id);
+      saveDB(CACHE);
+
+      return tg("sendMessage",{
+        chat_id: msg.chat.id,
+        text:`🗑 Gelöscht: ${id}`
+      });
+    }
+
+    // ================= START =================
+
+    if (msg?.text?.startsWith("/start")) {
+
+      const param = msg.text.split(" ")[1];
+
+      if(param){
+
+        const [action, id] = param.split("_");
+
+        if(action === "collection"){
+
+          const items = getCollectionItems(id);
+
+          if(!items.length){
+            return tg("sendMessage",{
+              chat_id: msg.chat.id,
+              text:"❌ Keine Collection gefunden"
+            });
+          }
+
+          return startUltraUI(msg.chat.id, items);
+        }
+
+        if(action === "play"){
+          const item = CACHE.find(x => x.display_id === id);
+          return sendFileById(msg.chat.id, item);
+        }
+
+        if(action === "sim"){
+          const item = CACHE.find(x => x.display_id === id);
+
+          if(!item){
+            return tg("sendMessage",{
+              chat_id:msg.chat.id,
+              text:"❌ Nicht gefunden"
+            });
+          }
+
+          const fakeData = { genres: item.genres };
+          const list = getSmartRecommendations(fakeData);
+
+          return sendResultsList(msg.chat.id, "🔥 Ähnliche", list, 0);
+        }
+      }
+
+      return showMenu(msg.chat.id);
+    }
+
+    // ================= UPLOAD =================
+
+    if (msg?.document || msg?.video) {
+      return handleUpload(msg);
+    }
 
   } catch (e) {
     console.error("❌ WEBHOOK ERROR:", e.message, e.stack);
   }
 });
 
-// ================= SERVER =================
-app.listen(process.env.PORT || 3000, () => {
-  console.log("🔥 FULL FINAL SYSTEM RUNNING");
+// ================= GLOBAL ERROR SAFETY =================
+
+// ❌ Unhandled Promise Errors verhindern Crash
+process.on("unhandledRejection", (err) => {
+  console.error("🔥 UNHANDLED REJECTION:", err);
 });
+
+// ❌ Sync Errors verhindern Crash
+process.on("uncaughtException", (err) => {
+  console.error("🔥 UNCAUGHT EXCEPTION:", err);
+});
+
+// ================= HEALTH CHECK =================
+
+app.get("/", (req, res) => {
+  res.send("🔥 Library Of Legends läuft stabil");
+});
+
+// ================= START SERVER =================
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`
+🔥 =====================================
+🔥 LIBRARY OF LEGENDS ONLINE
+🔥 PORT: ${PORT}
+🔥 MODE: ULTRA STABLE
+🔥 =====================================
+`);
+});
+
+// ================= OPTIONAL DEBUG =================
+
+// 🔍 Zeigt ENV Probleme sofort
+if (!TOKEN) {
+  console.error("❌ TOKEN fehlt!");
+}
+
+if (!TMDB_KEY) {
+  console.error("❌ TMDB_KEY fehlt!");
+}
+
+if (!CHANNEL_ID) {
+  console.error("⚠️ CHANNEL_ID fehlt (optional je nach Setup)");
+}
+
+// ================= START MESSAGE =================
+
+(async () => {
+  try {
+    await tg("getMe"); // Bot alive check
+    console.log("🤖 Bot Verbindung erfolgreich");
+  } catch (err) {
+    console.error("❌ Bot Verbindung fehlgeschlagen:", err.message);
+  }
+})();
