@@ -1373,10 +1373,10 @@ if(isSeries){
   return `${line}
 ${isTV ? "📺" : "🎬"} ${titleStyled}${data.episode_code || ""}${episodeTitle} (${year}${isTV ? "–" : ""})
 ${line}
-🔥 ${quality} • ${source} • ${genres}  
-🎧 ${audio}  
+🔥 ${quality} • ${source} • ${genres}
+🎧 ${audio}
 ${line}
-⭐ ${stars} • ${ratingValue.toFixed(1)} • ${isTV ? `${seasonInfo}` : `${runtime}`}
+⭐ ${stars} • ${ratingValue.toFixed(1)} • ${isTV ? `${data.number_of_seasons || "?"} Staffeln` : runtime}
 ${isTV ? `🎬 ${creator}` : `🎥 ${director}`}
 👥 ${cast}
 ${line}
