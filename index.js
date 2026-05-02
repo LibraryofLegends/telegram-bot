@@ -1371,8 +1371,7 @@ if(isSeries){
   // ================= FINAL =================
 
   return `${line}
-${isTV ? "📺" : "🎬"} ${titleStyled}
-${data.episode_code || ""}${episodeTitle}
+${isTV ? "📺" : "🎬"} ${titleStyled}${data.episode_code || ""}${episodeTitle} (${year}${isTV ? "–" : ""})
 ${line}
 🔥 ${quality} • ${source} • ${genres}  
 🎧 ${audio}  
