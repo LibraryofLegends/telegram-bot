@@ -513,9 +513,16 @@ async function ensureSeriesThread(seriesKey){
   }
 
   const res = await tg("createForumTopic",{
-  chat_id: SERIES_GROUP_ID, // 🔥 HIER IST DER FIX
+  chat_id: SERIES_GROUP_ID,
   name: `📺 ${seriesKey.replace(/_/g," ")}`
 });
+
+if(!res?.ok || !res?.result){
+  console.log("❌ SERIES THREAD CREATE FAIL");
+  return null;
+}
+
+console.log("📺 THREAD CREATED:", seriesKey);
 
   // 🔥 FIX: Telegram fail safe
   if(!res?.ok || !res?.result){
