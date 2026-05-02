@@ -1373,30 +1373,35 @@ if(isSeries){
 
   // ================= SERIES INFO =================
 
-  let seasonInfo = "";
+let seasonInfo = "";
 
-  if(isTV){
-    const seasons = data.number_of_seasons || "?";
-    const episodes = data.number_of_episodes || "?";
+if(isTV){
 
-    seasonInfo = `📀 ${seasons} Staffeln • ${episodes}+ Episoden`;
-  }
+  const seasonNumber = data.season_number || "?";
+  const totalSeasons = data.number_of_seasons || "?";
 
-  // ================= TAGS =================
+  // 🔥 Netflix Style Staffel Header
+  seasonInfo = `📀 𝐒𝐓𝐀𝐅𝐅𝐄𝐋 ${seasonNumber}`;
+}
 
-  const tags = genresArr
-    .map(g => `#${g.name.replace(/\s/g,"")}`)
-    .join(" ");
 
-  // ================= FINAL =================
+// ================= TAGS =================
 
-  return `${line}
-${isTV ? "📺" : "🎬"} ${titleStyled}${data.episode_code || ""}${episodeTitle} (${year}${isTV ? "–" : ""})
+const tags = genresArr
+  .map(g => `#${g.name.replace(/\s/g,"")}`)
+  .join(" ");
+
+
+// ================= FINAL =================
+
+return `${line}
+${isTV ? "📺" : "🎬"} ${titleStyled}${data.episode_code || ""}${episodeTitle}
+${isTV ? seasonInfo : `(${year})`}
 ${line}
 🔥 ${quality} • ${source} • ${genres}
 🎧 ${audio}
 ${line}
-⭐ ${stars} • ${ratingValue.toFixed(1)} • ${isTV ? `${data.number_of_seasons || "?"} Staffeln` : runtime}
+⭐ ${stars} • ${ratingValue.toFixed(1)}
 ${isTV ? `🎬 ${creator}` : `🎥 ${director}`}
 👥 ${cast}
 ${line}
