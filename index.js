@@ -320,6 +320,15 @@ async function tmdbFetch(url){
 }
 
 async function getDetails(id, type){
+  
+  async function getEpisodeDetails(tvId, season, episode){
+
+  if(!tvId || !season || !episode) return null;
+
+  return await tmdbFetch(
+    `https://api.themoviedb.org/3/tv/${tvId}/season/${season}/episode/${episode}?api_key=${TMDB_KEY}&language=de-DE`
+  );
+}
 
   if(!id) return null;
 
@@ -1216,6 +1225,12 @@ function buildCard(
 ){
 
   const titleRaw = (data.title || data.name || "UNBEKANNT");
+  
+  let episodeTitle = "";
+
+if(isSeries && data.episode_name){
+  episodeTitle = ` • ${data.episode_name}`;
+}
   const title = titleRaw.toUpperCase();
 
   const year = (data.release_date || data.first_air_date || "").slice(0,4);
@@ -1276,7 +1291,7 @@ function buildCard(
 
   // ================= RATING =================
 
-  const ratingValue = data.vote_average || 0;
+  const ratingValue = data.episode_rating || data.vote_average || 0;
 
   const stars =
     "★".repeat(Math.round(ratingValue / 2)) +
@@ -1311,7 +1326,11 @@ function buildCard(
 
   // ================= STORY =================
 
-  let story = (data.overview || "Keine Beschreibung verfügbar.").trim();
+  let story = (
+  data.episode_overview ||
+  data.overview ||
+  "Keine Beschreibung verfügbar."
+).trim();
 
   if(story.length > 300){
     story = story.slice(0,300) + "...";
@@ -1337,7 +1356,7 @@ function buildCard(
   // ================= FINAL =================
 
   return `${line}
-${isTV ? "📺" : "🎬"} ${titleStyled} (${year}${isTV ? "–" : ""})
+${isTV ? "📺" : "🎬"} ${titleStyled}${data.episode_code || ""}${episodeTitle} (${year}${isTV ? "–" : ""})
 ${line}
 🔥 ${quality} • ${source} • ${genres}  
 🎧 ${audio}  
@@ -1599,6 +1618,19 @@ if(result?.id){
   details = await getDetails(result.id, isSeries ? "tv" : "movie");
 }
 
+let episodeDetails = null;
+
+if(isSeries && result?.id && parsed.season && parsed.episode){
+
+  episodeDetails = await getEpisodeDetails(
+    result.id,
+    parsed.season,
+    parsed.episode
+  );
+
+  console.log("📺 EPISODE:", episodeDetails?.name);
+}
+
 // 🔥 FAILSAFE (WICHTIG FÜR SERIEN)
 if(!details && isSeries){
 
@@ -1658,15 +1690,29 @@ const safeData = details || result || {
 
   // ================= CAPTION =================
 
-  const caption = buildCard(
-    safeData,
-    fileName,
-    id,
-    categoryId,
-    width,
-    height,
-    isSeries
-  );
+  const mergedData = {
+  ...safeData,
+
+  // 🔥 EPISODE DATA
+  episode_name: episodeDetails?.name,
+  episode_overview: episodeDetails?.overview,
+  episode_rating: episodeDetails?.vote_average,
+
+  // 🔥 S01E01 FORMAT
+  episode_code: isSeries
+    ? ` S${String(parsed.season).padStart(2,"0")}E${String(parsed.episode).padStart(2,"0")}`
+    : ""
+};
+
+const caption = buildCard(
+  mergedData,
+  fileName,
+  id,
+  categoryId,
+  width,
+  height,
+  isSeries
+);
 
   // ================= SERIES SYSTEM =================
 
