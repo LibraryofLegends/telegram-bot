@@ -1377,10 +1377,9 @@ ${line}
 🔥 ${quality} • ${source} • ${genres}  
 🎧 ${audio}  
 ${line}
-⭐ ${stars} • ${ratingValue.toFixed(1)}
-${isTV ? "" : `⏱ ${runtime}`}
-${isTV ? "" : `🎥 ${director}`}
-👥 ${cast}  
+⭐ ${stars} • ${ratingValue.toFixed(1)} • ${isTV ? `${seasonInfo}` : `${runtime}`}
+${isTV ? `🎬 ${creator}` : `🎥 ${director}`}
+👥 ${cast}
 ${line}
 📖 𝐒𝐓𝐎𝐑𝐘
 ${story}
