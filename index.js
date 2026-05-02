@@ -513,9 +513,9 @@ async function ensureSeriesThread(seriesKey){
   }
 
   const res = await tg("createForumTopic",{
-    chat_id: GROUP_ID,
-    name: `📺 ${seriesKey.replace(/_/g," ")}`
-  });
+  chat_id: SERIES_GROUP_ID, // 🔥 HIER IST DER FIX
+  name: `📺 ${seriesKey.replace(/_/g," ")}`
+});
 
   // 🔥 FIX: Telegram fail safe
   if(!res?.ok || !res?.result){
