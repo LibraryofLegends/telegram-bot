@@ -264,37 +264,84 @@ async function tg(method, body) {
 
 // ================= HELPERS =================
 
+// 🔥 NEXT EPISODE (smart + stabil)
 function getNextEpisode(seriesKey, season, episode){
 
-  const eps = SERIES_DB[seriesKey]?.[season];
-  if(!eps) return null;
+  if(!seriesKey) return null;
 
-  const nextEp = parseInt(episode) + 1;
+  const s = parseInt(season);
+  const e = parseInt(episode);
 
-  if(eps[nextEp]){
-    return {
-      season,
-      episode: nextEp,
-      data: eps[nextEp]
-    };
+  const series = SERIES_DB[seriesKey];
+  if(!series) return null;
+
+  // ================= SAME SEASON =================
+  const currentSeason = series[s];
+  if(currentSeason){
+
+    const nextEp = e + 1;
+
+    if(currentSeason[nextEp]){
+      return {
+        season: s,
+        episode: nextEp,
+        data: currentSeason[nextEp]
+      };
+    }
   }
 
-  const nextSeason = parseInt(season) + 1;
-  const nextSeasonData = SERIES_DB[seriesKey]?.[nextSeason];
+  // ================= NEXT SEASON =================
+  const nextSeason = s + 1;
+  const nextSeasonData = series[nextSeason];
 
   if(nextSeasonData){
+
     const firstEp = Object.keys(nextSeasonData)
       .map(x => parseInt(x))
       .sort((a,b)=>a-b)[0];
 
-    return {
-      season: nextSeason,
-      episode: firstEp,
-      data: nextSeasonData[firstEp]
-    };
+    if(firstEp){
+      return {
+        season: nextSeason,
+        episode: firstEp,
+        data: nextSeasonData[firstEp]
+      };
+    }
   }
 
   return null;
+}
+
+
+// 🔥 SORT ALL EPISODES (für später / optional)
+function getSortedEpisodes(seriesKey){
+
+  const series = SERIES_DB[seriesKey];
+  if(!series) return [];
+
+  const result = [];
+
+  Object.keys(series)
+    .map(s => parseInt(s))
+    .sort((a,b)=>a-b)
+    .forEach(season => {
+
+      Object.keys(series[season])
+        .map(e => parseInt(e))
+        .sort((a,b)=>a-b)
+        .forEach(ep => {
+
+          result.push({
+            season,
+            episode: ep,
+            data: series[season][ep]
+          });
+
+        });
+
+    });
+
+  return result;
 }
 
 // ================= TMDB =================
@@ -2119,87 +2166,104 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       // ================= PLAY =================
 
-      if (data.startsWith("play_")) {
+if (data.startsWith("play_")) {
 
-        const id = data.replace("play_", "");
+  const id = data.replace("play_", "");
 
-        let found = null;
+  let found = null;
 
-        // 🔍 SERIES SEARCH
-        for(const [seriesKey, seasons] of Object.entries(SERIES_DB)){
-          for(const [season, episodes] of Object.entries(seasons)){
-            for(const [ep, epData] of Object.entries(episodes)){
-              if(epData.display_id === id){
-                found = {
-                  seriesKey,
-                  season: parseInt(season),
-                  episode: parseInt(ep),
-                  data: epData
-                };
-              }
-            }
-          }
-        }
-
-        let item = CACHE.find(x => x.display_id === id);
-
-        if(found){
-          item = {
-            file_id: found.data.file_id,
-            display_id: id,
-            media_type: "tv"
+  // ================= SERIES SEARCH =================
+  outer:
+  for(const [seriesKey, seasons] of Object.entries(SERIES_DB)){
+    for(const [season, episodes] of Object.entries(seasons)){
+      for(const [ep, epData] of Object.entries(episodes)){
+        if(epData.display_id === id){
+          found = {
+            seriesKey,
+            season: parseInt(season),
+            episode: parseInt(ep),
+            data: epData
           };
+          break outer; // 🔥 sofort stoppen (Performance)
         }
-
-        if(!item){
-          return tg("sendMessage",{ chat_id:chatId, text:"❌ Nicht gefunden" });
-        }
-
-        // 🧠 CONTINUE SAVE
-        if(found){
-          setContinue(chatId,{
-            seriesKey: found.seriesKey,
-            season: found.season,
-            episode: found.episode,
-            display_id: id,
-            timestamp: Date.now()
-          });
-        }
-
-        // ▶️ PLAY
-        await tg("sendVideo",{
-          chat_id: chatId,
-          video: item.file_id,
-          supports_streaming:true
-        });
-
-        // ⏭ NEXT EP
-        if(found){
-
-          const next = getNextEpisode(
-            found.seriesKey,
-            found.season,
-            found.episode
-          );
-
-          if(next){
-            await tg("sendMessage",{
-              chat_id: chatId,
-              text:`➡️ Nächste Folge (S${next.season}E${next.episode})`,
-              reply_markup:{
-                inline_keyboard:[
-                  [{
-                    text:"▶️ Weiter",
-                    callback_data:`play_${next.data.display_id}`
-                  }]
-                ]
-              }
-            });
-          }
-        }
-
-        return;
       }
+    }
+  }
+
+  // ================= ITEM RESOLVE =================
+  let item = CACHE.find(x => x.display_id === id);
+
+  if(found){
+    item = {
+      file_id: found.data.file_id,
+      display_id: id,
+      media_type: "tv"
+    };
+  }
+
+  if(!item){
+    return tg("sendMessage",{
+      chat_id: chatId,
+      text:"❌ Datei nicht gefunden"
+    });
+  }
+
+  // ================= CONTINUE SAVE =================
+  if(found){
+    setContinue(chatId,{
+      seriesKey: found.seriesKey,
+      season: found.season,
+      episode: found.episode,
+      display_id: id,
+      timestamp: Date.now()
+    });
+  }
+
+  // ================= PLAY =================
+  await tg("sendVideo",{
+    chat_id: chatId,
+    video: item.file_id,
+    supports_streaming:true
+  });
+
+  // ================= AUTO NEXT =================
+  if(found){
+
+    const next = getNextEpisode(
+      found.seriesKey,
+      found.season,
+      found.episode
+    );
+
+    if(next){
+
+      const nextLabel = `S${String(next.season).padStart(2,"0")}E${String(next.episode).padStart(2,"0")}`;
+
+      await tg("sendMessage",{
+        chat_id: chatId,
+        text:`➡️ Nächste Folge (${nextLabel})`,
+        reply_markup:{
+          inline_keyboard:[
+            [{
+              text:"▶️ Weiter",
+              callback_data:`play_${next.data.display_id}`
+            }]
+          ]
+        }
+      });
+
+    } else {
+
+      await tg("sendMessage",{
+        chat_id: chatId,
+        text:`✅ Staffel abgeschlossen`
+      });
+
+    }
+  }
+
+  return;
+}
 
       // ================= SERIES =================
 
