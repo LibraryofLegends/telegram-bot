@@ -319,16 +319,9 @@ async function tmdbFetch(url){
   }
 }
 
+// ================= DETAILS =================
+
 async function getDetails(id, type){
-  
-  async function getEpisodeDetails(tvId, season, episode){
-
-  if(!tvId || !season || !episode) return null;
-
-  return await tmdbFetch(
-    `https://api.themoviedb.org/3/tv/${tvId}/season/${season}/episode/${episode}?api_key=${TMDB_KEY}&language=de-DE`
-  );
-}
 
   if(!id) return null;
 
@@ -338,6 +331,24 @@ async function getDetails(id, type){
     `https://api.themoviedb.org/3/${safeType}/${id}?api_key=${TMDB_KEY}&append_to_response=credits&language=de-DE`
   );
 }
+
+// ================= EPISODE DETAILS =================
+
+async function getEpisodeDetails(tvId, season, episode){
+
+  if(!tvId || !season || !episode) return null;
+
+  try {
+    return await tmdbFetch(
+      `https://api.themoviedb.org/3/tv/${tvId}/season/${season}/episode/${episode}?api_key=${TMDB_KEY}&language=de-DE`
+    );
+  } catch (err) {
+    console.log("❌ EPISODE FETCH ERROR:", err.message);
+    return null;
+  }
+}
+
+// ================= SEARCH =================
 
 async function searchTMDBUltra(title, year=null, type=null){
 
@@ -1502,6 +1513,21 @@ async function startUltraUI(chatId, list){
 
 // ================= UPLOAD =================
 
+// ================= EPISODE DETAILS =================
+async function getEpisodeDetails(tvId, season, episode){
+
+  if(!tvId || !season || !episode) return null;
+
+  try {
+    return await tmdbFetch(
+      `https://api.themoviedb.org/3/tv/${tvId}/season/${season}/episode/${episode}?api_key=${TMDB_KEY}&language=de-DE`
+    );
+  } catch (err) {
+    console.log("❌ EPISODE FETCH ERROR:", err.message);
+    return null;
+  }
+}
+
 async function handleUpload(msg){
 
   const file = msg.document || msg.video;
@@ -1612,15 +1638,10 @@ console.log("🆔 TMDB ID:", result?.id);
 
   // ================= DETAILS =================
 
-let details = null;
-
-if(result?.id){
-  details = await getDetails(result.id, isSeries ? "tv" : "movie");
-}
-
 let episodeDetails = null;
 
-if(isSeries && result?.id && parsed.season && parsed.episode){
+// 🔥 EPISODE FETCH (NUR BEI SERIEN)
+if(isSeries && result?.id){
 
   episodeDetails = await getEpisodeDetails(
     result.id,
@@ -1628,7 +1649,13 @@ if(isSeries && result?.id && parsed.season && parsed.episode){
     parsed.episode
   );
 
-  console.log("📺 EPISODE:", episodeDetails?.name);
+  console.log("📺 EPISODE:", episodeDetails?.name || "NOT FOUND");
+}
+
+let details = null;
+
+if(result?.id){
+  details = await getDetails(result.id, isSeries ? "tv" : "movie");
 }
 
 // 🔥 FAILSAFE (WICHTIG FÜR SERIEN)
