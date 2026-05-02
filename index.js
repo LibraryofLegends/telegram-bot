@@ -24,7 +24,8 @@ const TOKEN = process.env.TOKEN;
 const TMDB_KEY = process.env.TMDB_KEY;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 const BOT_USERNAME = process.env.BOT_USERNAME || "LIBRARY_OF_LEGENDS_Bot";
-const GROUP_ID = -1002008329218;
+const MOVIE_GROUP_ID = -1002352553086;   // 🎬 deine Filmgruppe
+const SERIES_GROUP_ID = -1002008329218;  // 📺 deine Seriengruppe
 
 // ================= THREADS =================
 
@@ -532,41 +533,6 @@ async function ensureSeriesThread(seriesKey){
   saveSeriesThreads(SERIES_THREADS);
 
   return SERIES_THREADS[seriesKey];
-}
-
-async function ensureSeasonThread(seriesKey, season){
-
-  if(!SERIES_THREADS[seriesKey]){
-    SERIES_THREADS[seriesKey] = {
-      main: null,
-      seasons: {}
-    };
-  }
-
-  const series = SERIES_THREADS[seriesKey];
-
-  if(series.seasons[season]){
-    return series.seasons[season];
-  }
-
-  const res = await tg("createForumTopic",{
-    chat_id: GROUP_ID,
-    name: `📀 Staffel ${season}`
-  });
-
-  // 🔥 FIX: Telegram fail safe
-  if(!res?.ok || !res?.result){
-    console.log("❌ SEASON THREAD CREATE FAIL");
-    return null;
-  }
-
-  const threadId = res.result.message_thread_id;
-
-  series.seasons[season] = threadId;
-  
-  saveSeriesThreads(SERIES_THREADS);
-
-  return threadId;
 }
 
 // ================= NETFLIX BANNER =================
@@ -1754,8 +1720,8 @@ if(isSeries){
     .toLowerCase()
     .replace(/[^a-z0-9]/g,"_");
 
+  // 🔥 NUR EIN THREAD (Serie)
   const seriesThread = await ensureSeriesThread(seriesKey);
-  const seasonThread = await ensureSeasonThread(seriesKey, parsed.season);
 
   // 🔥 SAFE INIT
   if(!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
@@ -1768,36 +1734,22 @@ if(isSeries){
 
   saveSeriesDB(SERIES_DB);
 
-  // ================= EPISODE IMAGE =================
+  // ================= EPISODE IMAGE (optional für später) =================
 
   const episodeStill = episodeDetails?.still_path
     ? `https://image.tmdb.org/t/p/original${episodeDetails.still_path}`
-    : cover;
+    : null;
 
-  // ================= NEXT EPISODE =================
+  // ================= SEND (🔥 NEUES SYSTEM) =================
 
-  const next = getNextEpisode(seriesKey, parsed.season, parsed.episode);
+  await tg("sendVideo",{
+    chat_id: SERIES_GROUP_ID,
+    message_thread_id: seriesThread.main, // 🔥 nur EIN Thread
 
-  // ================= SEND =================
-
-  await tg("sendPhoto",{
-    chat_id: GROUP_ID,
-    message_thread_id: seasonThread,
-    photo: episodeStill,
+    video: file.file_id, // 🔥 MP4 direkt
     caption: caption,
-    reply_markup:{
-      inline_keyboard:[
 
-        [{ text:"▶️ Jetzt ansehen", callback_data:`play_${id}` }],
-
-        ...(next ? [[{
-          text:`➡️ Nächste Folge (S${next.season}E${next.episode})`,
-          callback_data:`play_${next.data.display_id}`
-        }]] : []),
-
-        [{ text:"📺 Serie", callback_data:`series_${seriesKey}` }]
-      ]
-    }
+    supports_streaming: true
   });
 
   return tg("sendMessage",{
