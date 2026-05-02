@@ -1239,8 +1239,10 @@ function buildCard(
   
   let episodeTitle = "";
 
-if(isSeries && data.episode_name){
-  episodeTitle = ` • ${data.episode_name}`;
+if(isSeries){
+  episodeTitle = data.episode_name
+    ? ` • ${data.episode_name}`
+    : "";
 }
   const title = titleRaw.toUpperCase();
 
@@ -1302,7 +1304,9 @@ if(isSeries && data.episode_name){
 
   // ================= RATING =================
 
-  const ratingValue = data.episode_rating || data.vote_average || 0;
+  const ratingValue = Number(
+    data.episode_rating ?? data.vote_average ?? 0
+  );
 
   const stars =
     "★".repeat(Math.round(ratingValue / 2)) +
@@ -1367,14 +1371,15 @@ if(isSeries && data.episode_name){
   // ================= FINAL =================
 
   return `${line}
-${isTV ? "📺" : "🎬"} ${titleStyled}${data.episode_code || ""}${episodeTitle} (${year}${isTV ? "–" : ""})
+${isTV ? "📺" : "🎬"} ${titleStyled}
+${data.episode_code || ""}${episodeTitle}
 ${line}
 🔥 ${quality} • ${source} • ${genres}  
 🎧 ${audio}  
 ${line}
 ⭐ ${stars} • ${ratingValue.toFixed(1)}
-${isTV ? seasonInfo : `⏱ ${runtime}`}
-${isTV ? `🎬 Creator: ${creator}` : `🎥 ${director}`}
+${isTV ? "" : `⏱ ${runtime}`}
+${isTV ? "" : `🎥 ${director}`}
 👥 ${cast}  
 ${line}
 📖 𝐒𝐓𝐎𝐑𝐘
@@ -1743,46 +1748,65 @@ const caption = buildCard(
 
   // ================= SERIES SYSTEM =================
 
-  if(isSeries){
+if(isSeries){
 
-    const cleanTitle = safeData.title || parsed.title;
+  const cleanTitle = safeData.name || safeData.title || parsed.title;
 
-    const seriesKey = cleanTitle
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g,"_");
+  const seriesKey = cleanTitle
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g,"_");
 
-    const seriesThread = await ensureSeriesThread(seriesKey);
-    const seasonThread = await ensureSeasonThread(seriesKey, parsed.season);
+  const seriesThread = await ensureSeriesThread(seriesKey);
+  const seasonThread = await ensureSeasonThread(seriesKey, parsed.season);
 
-    // 🔥 FIX: Safe Init
-    if(!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
-    if(!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
+  // 🔥 SAFE INIT
+  if(!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
+  if(!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
 
-    SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
-      file_id: file.file_id,
-      display_id: id
-    };
+  SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
+    file_id: file.file_id,
+    display_id: id
+  };
 
-    saveSeriesDB(SERIES_DB);
+  saveSeriesDB(SERIES_DB);
 
-    await tg("sendPhoto",{
-      chat_id: GROUP_ID,
-      message_thread_id: seasonThread,
-      photo: cover,
-      caption: caption,
-      reply_markup:{
-        inline_keyboard:[
-          [{ text:"▶️ Episode", callback_data:`play_${id}` }],
-          [{ text:"📺 Serie", callback_data:`series_${seriesKey}` }]
-        ]
-      }
-    });
+  // ================= EPISODE IMAGE =================
 
-    return tg("sendMessage",{
-      chat_id: msg.chat.id,
-      text:`✅ Episode gespeichert\n\n🎬 ${safeData.title}\n🆔 ${id}`
-    });
-  }
+  const episodeStill = episodeDetails?.still_path
+    ? `https://image.tmdb.org/t/p/original${episodeDetails.still_path}`
+    : cover;
+
+  // ================= NEXT EPISODE =================
+
+  const next = getNextEpisode(seriesKey, parsed.season, parsed.episode);
+
+  // ================= SEND =================
+
+  await tg("sendPhoto",{
+    chat_id: GROUP_ID,
+    message_thread_id: seasonThread,
+    photo: episodeStill,
+    caption: caption,
+    reply_markup:{
+      inline_keyboard:[
+
+        [{ text:"▶️ Jetzt ansehen", callback_data:`play_${id}` }],
+
+        ...(next ? [[{
+          text:`➡️ Nächste Folge (S${next.season}E${next.episode})`,
+          callback_data:`play_${next.data.display_id}`
+        }]] : []),
+
+        [{ text:"📺 Serie", callback_data:`series_${seriesKey}` }]
+      ]
+    }
+  });
+
+  return tg("sendMessage",{
+    chat_id: msg.chat.id,
+    text:`✅ Episode gespeichert\n\n📺 ${cleanTitle}\n🆔 ${id}`
+  });
+}
 
   // ================= COLLECTION =================
 
