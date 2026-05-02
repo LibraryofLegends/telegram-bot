@@ -296,6 +296,193 @@ function getNextEpisode(seriesKey, season, episode){
   return null;
 }
 
+// ================= TMDB =================
+
+async function tmdbFetch(url){
+
+  if(TMDB_CACHE[url]){
+    return TMDB_CACHE[url];
+  }
+
+  try{
+    const res = await fetch(url);
+    if(!res.ok) return null;
+
+    const data = await res.json();
+    TMDB_CACHE[url] = data;
+
+    return data;
+
+  }catch(err){
+    console.log("TMDB ERROR:", err.message);
+    return null;
+  }
+}
+
+async function getDetails(id, type){
+
+  if(!id) return null;
+
+  const safeType = type === "tv" ? "tv" : "movie";
+
+  return await tmdbFetch(
+    `https://api.themoviedb.org/3/${safeType}/${id}?api_key=${TMDB_KEY}&append_to_response=credits&language=de-DE`
+  );
+}
+
+async function searchTMDBUltra(title, year=null, type=null){
+
+  const res = await tmdbFetch(
+    `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&language=de-DE`
+  );
+
+  if(!res?.results) return null;
+
+  return res.results.find(x =>
+    (!type || x.media_type === type)
+  ) || res.results[0];
+}
+
+// ================= DISCOVERY =================
+
+async function getTrending(){
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_KEY}`
+  );
+  return data?.results?.slice(0,10) || [];
+}
+
+async function getPopular(){
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_KEY}&language=de-DE`
+  );
+  return data?.results?.slice(0,10) || [];
+}
+
+async function getByGenre(genreId){
+  const data = await tmdbFetch(
+    `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=${genreId}`
+  );
+  return data?.results?.slice(0,10) || [];
+}
+
+// ================= RECOMMENDATION =================
+
+function getSmartRecommendations(current, limit = 10){
+
+  if(!current?.genres) return [];
+
+  const genreIds = current.genres.map(g => g.id || g);
+
+  return CACHE.filter(x =>
+    x.genres?.some(g => genreIds.includes(g))
+  ).slice(0, limit);
+}
+
+function getTopPicks(userId){
+
+  const history = readHistory(userId);
+  if(!history.length) return [];
+
+  const genres = {};
+
+  for(const h of history){
+    const item = CACHE.find(x => x.display_id === h.id);
+    if(!item) continue;
+
+    for(const g of item.genres || []){
+      genres[g] = (genres[g] || 0) + 1;
+    }
+  }
+
+  const sorted = Object.entries(genres)
+    .sort((a,b)=>b[1]-a[1])
+    .map(x => parseInt(x[0]));
+
+  return CACHE.filter(x =>
+    x.genres?.some(g => sorted.includes(g))
+  ).slice(0,10);
+}
+
+// ================= UI LIST =================
+
+async function sendResultsList(chatId, heading, list, page = 0){
+
+  if(!list.length){
+    return tg("sendMessage",{
+      chat_id:chatId,
+      text:"❌ Keine Ergebnisse"
+    });
+  }
+
+  const perPage = 4;
+  const start = page * perPage;
+  const slice = list.slice(start, start + perPage);
+
+  USER_STATE[chatId] = {
+    list,
+    heading,
+    page
+  };
+
+  const buttons = slice.map(item => ([
+    {
+      text:`🎬 ${item.title || item.name}`,
+      callback_data:`search_${item.id}_${item.media_type || "movie"}`
+    }
+  ]));
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:`📂 ${heading}`,
+    reply_markup:{
+      inline_keyboard:[
+        ...buttons,
+        [{text:"🏠 Menü",callback_data:"menu"}]
+      ]
+    }
+  });
+}
+
+// ================= GENRES =================
+
+async function showGenres(chatId){
+
+  return tg("sendMessage",{
+    chat_id:chatId,
+    text:"🎭 Wähle Genre",
+    reply_markup:{
+      inline_keyboard:[
+        [{text:"🔥 Action",callback_data:"genre_28"}],
+        [{text:"👻 Horror",callback_data:"genre_27"}],
+        [{text:"😂 Comedy",callback_data:"genre_35"}],
+        [{text:"🎭 Drama",callback_data:"genre_18"}],
+        [{text:"🏠 Menü",callback_data:"menu"}]
+      ]
+    }
+  });
+}
+
+// ================= HOME =================
+
+async function showNetflixHome(chatId){
+
+  const list = await getTrending();
+
+  if(!list.length){
+    return tg("sendMessage",{ chat_id:chatId, text:"❌ Kein Content" });
+  }
+
+  const first = list[0];
+
+  return tg("sendPhoto",{
+    chat_id:chatId,
+    photo:getBanner(first),
+    caption: buildNetflixBanner(first),
+    reply_markup: buildSwipeNav(first.id, first.media_type)
+  });
+}
+
 // ================= SERIES THREAD SYSTEM =================
 
 async function ensureSeriesThread(seriesKey){
