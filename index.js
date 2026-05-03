@@ -1882,21 +1882,32 @@ if(item.collection){
 
 // ================= TARGET =================
 
-const targetChannel = getTargetChannel(genreIds);
-const threadId = getThreadByGenre(genreIds);
+async function sendToChannel({
+  cover,
+  caption,
+  buttons,
+  genreIds
+}) {
 
-// 🔒 SAFETY FALLBACK (falls kein Thread gefunden wird)
-const safeThreadId = threadId || STATIC_THREADS.movies;
+  try {
 
-await tg("sendPhoto", {
-  chat_id: targetChannel,
-  message_thread_id: safeThreadId,
-  photo: cover,
-  caption: caption,
-  reply_markup: {
-    inline_keyboard: buttons
+    const targetChannel = getTargetChannel(genreIds);
+    const threadId = getThreadByGenre(genreIds);
+
+    return await tg("sendPhoto", {
+      chat_id: targetChannel,
+      message_thread_id: threadId,
+      photo: cover,
+      caption: caption,
+      reply_markup: {
+        inline_keyboard: buttons
+      }
+    });
+
+  } catch (err) {
+    console.log("❌ SEND CHANNEL ERROR:", err.message);
   }
-});
+}
 
 // ================= WEBHOOK =================
 
@@ -1951,8 +1962,6 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           state.list.length
         );
       }
-
-      // ================= BASIC NAV =================
 
       // ================= BASIC NAV =================
 
