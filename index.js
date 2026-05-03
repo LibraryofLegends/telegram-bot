@@ -1405,41 +1405,102 @@ ${tags}
 
 async function renderUltraCard(chatId, messageId, item, type, index, total){
 
-  const details = await getDetails(item.tmdb_id || item.id, type);
-  const safeData = details || item;
+  try {
 
-  return tg("editMessageMedia",{
-    chat_id: chatId,
-    message_id: messageId,
-    media:{
-      type:"photo",
-      media: item.cover || getCover(safeData),
-      caption: buildCard(safeData, "", item.display_id)
-    },
-    reply_markup:{
-      inline_keyboard:[
-
-        [
-          { text:"⬅️", callback_data:`ultra_prev` },
-          { text:`${index+1}/${total}`, callback_data:"noop" },
-          { text:"➡️", callback_data:`ultra_next` }
-        ],
-
-        [
-          { text:"▶️ Play", callback_data:`play_${item.display_id}` },
-          { text:"⭐ Favorit", callback_data:`fav_${item.display_id}` }
-        ],
-
-        [
-          { text:"🔥 Ähnliche", callback_data:`sim_${item.tmdb_id}_${item.media_type}` }
-        ],
-
-        [
-          { text:"🏠 Menü", callback_data:"menu" }
-        ]
-      ]
+    if(!item){
+      return tg("sendMessage",{
+        chat_id: chatId,
+        text: "❌ Item nicht gefunden"
+      });
     }
-  });
+
+    // ================= DETAILS =================
+
+    const details = await getDetails(
+      item.tmdb_id || item.id,
+      type || item.media_type || "movie"
+    );
+
+    const safeData = details || item || {};
+
+    // ================= COVER FALLBACK =================
+
+    const cover =
+      item.cover ||
+      getCover(safeData) ||
+      "https://dummyimage.com/1280x720/000/fff&text=No+Image";
+
+    // ================= CAPTION SAFE =================
+
+    const caption = buildCard(
+      safeData,
+      "",
+      item.display_id || "0000"
+    ) || "❌ Keine Daten verfügbar";
+
+    // ================= MESSAGE UPDATE =================
+
+    return tg("editMessageMedia",{
+      chat_id: chatId,
+      message_id: messageId,
+
+      media:{
+        type: "photo",
+        media: cover,
+        caption: caption
+      },
+
+      reply_markup:{
+        inline_keyboard:[
+
+          // ================= NAV =================
+          [
+            { text:"⬅️", callback_data:`ultra_prev` },
+            {
+              text:`${(index ?? 0) + 1}/${total || 1}`,
+              callback_data:"noop"
+            },
+            { text:"➡️", callback_data:`ultra_next` }
+          ],
+
+          // ================= ACTIONS =================
+          [
+            {
+              text:"▶️ Play",
+              callback_data:`play_${item.display_id}`
+            },
+            {
+              text:"⭐ Favorit",
+              callback_data:`fav_${item.display_id}`
+            }
+          ],
+
+          // ================= SIMILAR =================
+          [
+            {
+              text:"🔥 Ähnliche",
+              callback_data:`sim_${item.tmdb_id || item.id || ""}_${item.media_type || type || "movie"}`
+            }
+          ],
+
+          // ================= MENU =================
+          [
+            { text:"🏠 Menü", callback_data:"menu" }
+          ]
+        ]
+      }
+
+    });
+
+  } catch (err) {
+
+    console.log("❌ ULTRA UI ERROR:", err.message);
+
+    return tg("sendMessage",{
+      chat_id: chatId,
+      text: "❌ Fehler beim Laden der Karte"
+    });
+  }
 }
 
 // ================= MENU =================
