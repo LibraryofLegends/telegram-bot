@@ -1646,6 +1646,7 @@ async function handleUpload(msg){
   const height = msg.video?.height;
 
   if(!file) return;
+  }
 
   // ================= DUPLICATE CHECK =================
 
