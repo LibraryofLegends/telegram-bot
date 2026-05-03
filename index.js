@@ -2,6 +2,9 @@ const fetch = global.fetch || require("node-fetch");
 const express = require("express");
 const fs = require("fs");
 
+// 🔥 HIER EINFÜGEN
+process.env.NODE_OPTIONS = "--max-old-space-size=512";
+
 let cloudinary;
 
 try {
