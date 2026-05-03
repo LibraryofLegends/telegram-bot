@@ -255,9 +255,17 @@ async function tg(method, body) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
-    return await res.json();
+
+    const data = await res.json();
+
+    if(!data.ok){
+      console.log("❌ TG API ERROR:", data);
+    }
+
+    return data;
+
   } catch (err) {
-    console.log("❌ TG ERROR:", err.message);
+    console.log("❌ TG FETCH ERROR:", err.message);
     return { ok: false };
   }
 }
@@ -862,16 +870,22 @@ function getTargetChannel(genres=[]){
 
 function getThreadByGenre(genres = []) {
 
-  if (!Array.isArray(genres) || !genres.length) {
+  if (!Array.isArray(genres) || genres.length === 0) {
     return STATIC_THREADS.movies;
   }
 
-  if (genres.includes(28)) return STATIC_THREADS.action;
-  if (genres.includes(27)) return STATIC_THREADS.horror;
-  if (genres.includes(35)) return STATIC_THREADS.comedy;
-  if (genres.includes(18)) return STATIC_THREADS.drama;
-  if (genres.includes(878)) return STATIC_THREADS.scifi;
-  if (genres.includes(53)) return STATIC_THREADS.thriller;
+  const map = {
+    28: STATIC_THREADS.action,
+    27: STATIC_THREADS.horror,
+    35: STATIC_THREADS.comedy,
+    18: STATIC_THREADS.drama,
+    878: STATIC_THREADS.scifi,
+    53: STATIC_THREADS.thriller
+  };
+
+  for (const g of genres) {
+    if (map[g]) return map[g];
+  }
 
   return STATIC_THREADS.movies;
 }
@@ -1724,24 +1738,24 @@ const caption = buildCard(
 
 async function ensureSeriesThread(seriesKey){
 
-  if(!THREADS) THREADS = {};
-
-  // 🔥 existiert schon?
-  if(THREADS[seriesKey]){
-    return THREADS[seriesKey];
+  if(SERIES_THREADS[seriesKey]){
+    return SERIES_THREADS[seriesKey];
   }
 
-  // 🔥 neuen Thread erstellen
   const res = await tg("createForumTopic",{
     chat_id: SERIES_GROUP_ID,
     name: `📺 ${seriesKey.replace(/_/g," ")}`
   });
 
-  const threadId = res.result.message_thread_id;
+  const threadId = res?.result?.message_thread_id;
 
-  // 🔥 speichern
-  THREADS[seriesKey] = threadId;
-  saveThreads(THREADS);
+  if(!threadId){
+  console.log("⚠️ Kein Thread → fallback movies");
+  threadId = STATIC_THREADS.movies;
+}
+
+  SERIES_THREADS[seriesKey] = threadId;
+  saveSeriesThreads(SERIES_THREADS);
 
   console.log("📺 THREAD CREATED:", seriesKey);
 
@@ -1871,8 +1885,6 @@ if(item.collection){
 const targetChannel = getTargetChannel(genreIds);
 const threadId = getThreadByGenre(genreIds);
 
-// ================= SEND =================
-
 await tg("sendPhoto",{
   chat_id: targetChannel,
   message_thread_id: threadId,
@@ -1971,13 +1983,16 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       // ================= BROWSE =================
 
       if (data === "browse_movies") {
-        return sendResultsList(
-          GROUP_ID,
-          "🎬 Filme",
-          CACHE,
-          0
-        );
-      }
+
+  const GROUP_ID = MOVIE_GROUP_ID;
+
+  return sendResultsList(
+    GROUP_ID,
+    "🎬 Filme",
+    CACHE,
+    0
+  );
+}
 
       if (data === "browse_series") {
 
