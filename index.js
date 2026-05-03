@@ -551,43 +551,7 @@ async function showNetflixHome(chatId){
   });
 }
 
-// ================= SERIES THREAD SYSTEM =================
-
-async function ensureSeriesThread(seriesKey){
-
-  if(SERIES_THREADS[seriesKey]){
-    return SERIES_THREADS[seriesKey];
-  }
-
-  const res = await tg("createForumTopic",{
-  chat_id: SERIES_GROUP_ID,
-  name: `📺 ${seriesKey.replace(/_/g," ")}`
-});
-
-if(!res?.ok || !res?.result){
-  console.log("❌ SERIES THREAD CREATE FAIL");
-  return null;
-}
-
-console.log("📺 THREAD CREATED:", seriesKey);
-
-  // 🔥 FIX: Telegram fail safe
-  if(!res?.ok || !res?.result){
-    console.log("❌ SERIES THREAD CREATE FAIL");
-    return null;
-  }
-
-  const threadId = res.result.message_thread_id;
-
-  SERIES_THREADS[seriesKey] = {
-    main: threadId,
-    seasons: {}
-  };
-
-  saveSeriesThreads(SERIES_THREADS);
-
-  return SERIES_THREADS[seriesKey];
-}
+i
 
 // ================= NETFLIX BANNER =================
 
@@ -1769,6 +1733,34 @@ const caption = buildCard(
   isSeries
 );
 
+// ================= SERIES THREAD =================
+
+async function ensureSeriesThread(seriesKey){
+
+  if(!THREADS) THREADS = {};
+
+  // 🔥 existiert schon?
+  if(THREADS[seriesKey]){
+    return THREADS[seriesKey];
+  }
+
+  // 🔥 neuen Thread erstellen
+  const res = await tg("createForumTopic",{
+    chat_id: SERIES_GROUP_ID,
+    name: `📺 ${seriesKey.replace(/_/g," ")}`
+  });
+
+  const threadId = res.result.message_thread_id;
+
+  // 🔥 speichern
+  THREADS[seriesKey] = threadId;
+  saveThreads(THREADS);
+
+  console.log("📺 THREAD CREATED:", seriesKey);
+
+  return threadId;
+}
+
   // ================= SERIES SYSTEM =================
 
 if(isSeries){
@@ -1779,13 +1771,14 @@ if(isSeries){
     .toLowerCase()
     .replace(/[^a-z0-9]/g,"_");
 
-  // 🔥 NUR EIN THREAD (Serie)
+  // 🔥 THREAD
   const seriesThread = await ensureSeriesThread(seriesKey);
 
-  // 🔥 SAFE INIT
+  // 🔥 SAFE INIT DB
   if(!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
   if(!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
 
+  // 🔥 SPEICHERN
   SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
     file_id: file.file_id,
     display_id: id
@@ -1793,19 +1786,27 @@ if(isSeries){
 
   saveSeriesDB(SERIES_DB);
 
-  // ================= EPISODE IMAGE (optional für später) =================
+  // ================= OPTIONAL STAFFEL HEADER =================
 
-  const episodeStill = episodeDetails?.still_path
-    ? `https://image.tmdb.org/t/p/original${episodeDetails.still_path}`
-    : null;
+  if(!SERIES_DB[seriesKey][parsed.season]._headerSent){
 
-  // ================= SEND (🔥 NEUES SYSTEM) =================
+    await tg("sendMessage",{
+      chat_id: SERIES_GROUP_ID,
+      message_thread_id: seriesThread,
+      text:`📀 𝐒𝐓𝐀𝐅𝐅𝐄𝐋 ${parsed.season}\n━━━━━━━━━━`
+    });
+
+    SERIES_DB[seriesKey][parsed.season]._headerSent = true;
+    saveSeriesDB(SERIES_DB);
+  }
+
+  // ================= SEND VIDEO =================
 
   await tg("sendVideo",{
     chat_id: SERIES_GROUP_ID,
-    message_thread_id: seriesThread.main, // 🔥 nur EIN Thread
+    message_thread_id: seriesThread,
 
-    video: file.file_id, // 🔥 MP4 direkt
+    video: file.file_id,
     caption: caption,
 
     supports_streaming: true
@@ -1817,88 +1818,83 @@ if(isSeries){
   });
 }
 
-  // ================= COLLECTION =================
+// ================= COLLECTION =================
 
-  let collectionName = null;
+let collectionName = null;
 
-  if(safeData.belongs_to_collection?.name){
-    collectionName = safeData.belongs_to_collection.name;
-  }
-
-  if(!collectionName){
-    collectionName =
-      detectCollectionSmart(safeData.title || clean)
-      || detectCollection(safeData.title || clean);
-  }
-
-  if(collectionName){
-    collectionName = collectionName
-      .replace(/\s+/g,"_")
-      .replace(/[^a-z0-9_]/gi,"")
-      .toLowerCase()
-      .slice(0,40)
-      .trim();
-  }
-
-  const order = getCollectionOrder(safeData.title || clean);
-
-  const item = {
-    display_id: id,
-    tmdb_id: result?.id || null,
-    title: safeData.title || clean,
-    collection: collectionName,
-    collection_order: order,
-    category_id: categoryId,
-    file_id: file.file_id,
-    media_type: "movie",
-    genres: genreIds,
-    cover: cover
-  };
-
-  CACHE.unshift(item);
-  saveDB(CACHE);
-
-  // ================= BUTTONS =================
-
-  const buttons = [
-    [{ text:"▶️ Stream", url: playerUrl("play", id) }],
-    [{ text:"🔥 Ähnliche", url: playerUrl("sim", id) }],
-    [{ text:"🏠 Menü", url: `https://t.me/${BOT_USERNAME}` }]
-  ];
-
-  if(item.collection){
-    buttons.push([
-      {
-        text:"🎞 Collection",
-        url: playerUrl("collection", item.collection)
-      }
-    ]);
-  }
-
-  const targetChannel = getTargetChannel(genreIds);
-  const threadId = getThreadByGenre(genreIds);
-
-  // ================= SEND =================
-
-  await tg("sendPhoto",{
-    chat_id: targetChannel,
-    photo: cover,
-    caption: caption
-  });
-
-  await tg("sendPhoto",{
-    chat_id: GROUP_ID,
-    message_thread_id: threadId,
-    photo: cover,
-    caption: caption,
-    reply_markup:{ inline_keyboard: buttons }
-  });
-
-  return tg("sendMessage",{
-    chat_id: msg.chat.id,
-    text:`✅ Film gespeichert\n\n🎬 ${safeData.title}\n🆔 ${id}`
-  });
+if(safeData.belongs_to_collection?.name){
+  collectionName = safeData.belongs_to_collection.name;
 }
+
+if(!collectionName){
+  collectionName =
+    detectCollectionSmart(safeData.title || clean)
+    || detectCollection(safeData.title || clean);
+}
+
+// 🔥 CLEAN NAME
+if(collectionName){
+  collectionName = collectionName
+    .replace(/\s+/g,"_")
+    .replace(/[^a-z0-9_]/gi,"")
+    .toLowerCase()
+    .slice(0,40)
+    .trim();
+}
+
+// 🔢 ORDER
+const order = getCollectionOrder(safeData.title || clean);
+
+// 🎬 ITEM
+const item = {
+  display_id: id,
+  tmdb_id: result?.id || null,
+  title: safeData.title || clean,
+  collection: collectionName,
+  collection_order: order,
+  category_id: categoryId,
+  file_id: file.file_id,
+  media_type: "movie",
+  genres: genreIds,
+  cover: cover
+};
+
+CACHE.unshift(item);
+saveDB(CACHE);
+
+// ================= BUTTONS =================
+
+const buttons = [
+  [{ text:"▶️ Stream", url: playerUrl("play", id) }],
+  [{ text:"🔥 Ähnliche", url: playerUrl("sim", id) }],
+  [{ text:"🏠 Menü", url: `https://t.me/${BOT_USERNAME}` }]
+];
+
+if(item.collection){
+  buttons.push([
+    {
+      text:"🎞 Collection",
+      url: playerUrl("collection", item.collection)
+    }
+  ]);
+}
+
+// ================= TARGET =================
+
+const targetChannel = getTargetChannel(genreIds);
+const threadId = getThreadByGenre(genreIds);
+
+// ================= SEND =================
+
+await tg("sendPhoto",{
+  chat_id: targetChannel,
+  message_thread_id: threadId,
+  photo: cover,
+  caption: caption,
+  reply_markup:{
+    inline_keyboard: buttons
+  }
+});
 
 // ================= WEBHOOK =================
 
