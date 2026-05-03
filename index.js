@@ -2648,38 +2648,34 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`
+function startServer() {
+
+  const server = app.listen(PORT, () => {
+    console.log(`
 🔥 =====================================
 🔥 LIBRARY OF LEGENDS ONLINE
 🔥 PORT: ${PORT}
 🔥 MODE: ULTRA STABLE
 🔥 =====================================
 `);
+  });
+
+  server.keepAliveTimeout = 120000;
+  server.headersTimeout = 120000;
+
+  return server;
+}
+
+// ================= GLOBAL SAFETY =================
+
+process.on("unhandledRejection", (err) => {
+  console.error("🔥 UNHANDLED REJECTION:", err);
 });
 
-// ================= OPTIONAL DEBUG =================
+process.on("uncaughtException", (err) => {
+  console.error("🔥 UNCAUGHT EXCEPTION:", err);
+});
 
-// 🔍 Zeigt ENV Probleme sofort
-if (!TOKEN) {
-  console.error("❌ TOKEN fehlt!");
-}
+// ================= SAFE START =================
 
-if (!TMDB_KEY) {
-  console.error("❌ TMDB_KEY fehlt!");
-}
-
-if (!CHANNEL_ID) {
-  console.error("⚠️ CHANNEL_ID fehlt (optional je nach Setup)");
-}
-
-// ================= START MESSAGE =================
-
-(async () => {
-  try {
-    await tg("getMe"); // Bot alive check
-    console.log("🤖 Bot Verbindung erfolgreich");
-  } catch (err) {
-    console.error("❌ Bot Verbindung fehlgeschlagen:", err.message);
-  }
-})();
+startServer();
