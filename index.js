@@ -145,19 +145,64 @@ function saveDB(data) {
 // ================= SERIES DB =================
 
 function loadSeriesDB() {
-  if (!fs.existsSync(SERIES_DB_FILE)) return {};
   try {
-    return JSON.parse(fs.readFileSync(SERIES_DB_FILE, "utf8") || "{}");
-  } catch {
+
+    if (!fs.existsSync(SERIES_DB_FILE)) {
+      console.log("📦 SERIES_DB_FILE nicht gefunden → erstelle neue DB");
+      return {};
+    }
+
+    const raw = fs.readFileSync(SERIES_DB_FILE, "utf8");
+
+    if (!raw || raw.trim() === "") {
+      console.log("⚠️ SERIES_DB leer → starte mit leerem Objekt");
+      return {};
+    }
+
+    const parsed = JSON.parse(raw);
+
+    // Safety: nur Objekt erlauben
+    if (typeof parsed !== "object" || Array.isArray(parsed)) {
+      console.log("❌ SERIES_DB beschädigt → Reset");
+      return {};
+    }
+
+    return parsed;
+
+  } catch (err) {
+    console.log("❌ SERIES_DB LOAD ERROR:", err.message);
     return {};
   }
 }
 
+// ================= MEMORY CACHE =================
+
 let SERIES_DB = loadSeriesDB();
 
+// ================= SAVE =================
+
 function saveSeriesDB(data) {
-  SERIES_DB = data;
-  fs.writeFileSync(SERIES_DB_FILE, JSON.stringify(data, null, 2));
+  try {
+
+    if (!data || typeof data !== "object") {
+      console.log("❌ SERIES_DB SAVE BLOCKED (invalid data)");
+      return false;
+    }
+
+    SERIES_DB = data;
+
+    fs.writeFileSync(
+      SERIES_DB_FILE,
+      JSON.stringify(data, null, 2),
+      "utf8"
+    );
+
+    return true;
+
+  } catch (err) {
+    console.log("❌ SERIES_DB SAVE ERROR:", err.message);
+    return false;
+  }
 }
 
 // ================= HISTORY =================
