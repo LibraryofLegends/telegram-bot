@@ -29,7 +29,7 @@ const SERIES_GROUP_ID = -1002008329218;  // 📺 deine Seriengruppe
 
 // ================= THREADS =================
 
-const THREADS = {
+const STATIC_THREADS = {
   home: 622,
   movies: 609,
   series: 611,
@@ -862,16 +862,20 @@ function getTargetChannel(genres=[]){
 
 // ================= THREAD ROUTING =================
 
-function getThreadByGenre(genres=[]){
+function getThreadByGenre(genres = []) {
 
-  if(genres.includes(28)) return THREADS.action;
-  if(genres.includes(27)) return THREADS.horror;
-  if(genres.includes(35)) return THREADS.comedy;
-  if(genres.includes(18)) return THREADS.drama;
-  if(genres.includes(878)) return THREADS.scifi;
-  if(genres.includes(53)) return THREADS.thriller;
+  if (!Array.isArray(genres) || !genres.length) {
+    return STATIC_THREADS.movies;
+  }
 
-  return THREADS.movies;
+  if (genres.includes(28)) return STATIC_THREADS.action;
+  if (genres.includes(27)) return STATIC_THREADS.horror;
+  if (genres.includes(35)) return STATIC_THREADS.comedy;
+  if (genres.includes(18)) return STATIC_THREADS.drama;
+  if (genres.includes(878)) return STATIC_THREADS.scifi;
+  if (genres.includes(53)) return STATIC_THREADS.thriller;
+
+  return STATIC_THREADS.movies;
 }
 
 // ================= LOCAL FILTER =================
