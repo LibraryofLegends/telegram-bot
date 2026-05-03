@@ -1641,12 +1641,46 @@ async function startUltraUI(chatId, list){
 
 async function handleUpload(msg){
 
-  const file = msg.document || msg.video;
-  const width = msg.video?.width;
-  const height = msg.video?.height;
+  try {
 
-  if(!file) return;
+    const file = msg.document || msg.video;
+    if(!file) return;
+
+    const width = msg.video?.width;
+    const height = msg.video?.height;
+
+    // ================= DUPLICATE CHECK =================
+
+    const exists = CACHE.find(x => x.file_id === file.file_id);
+
+    if(exists){
+      return tg("sendMessage",{
+        chat_id: msg.chat.id,
+        text: "⚠️ Datei bereits vorhanden"
+      });
+    }
+
+    const fileName = file.file_name || "";
+    const parsed = parseFileName(fileName);
+
+    const clean = ultraCleanTitle(fileName);
+    console.log("🧹 CLEAN:", clean);
+
+    let result = null;
+
+    try {
+      result = await searchTMDBUltra(clean);
+    } catch(err){
+      console.error("TMDB ERROR:", err);
+    }
+
+    console.log("🎬 RESULT:", result);
+
+  } catch (e) {
+    console.error("❌ UPLOAD ERROR:", e);
   }
+
+}
 
   // ================= DUPLICATE CHECK =================
 
