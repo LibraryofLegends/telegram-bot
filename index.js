@@ -1505,21 +1505,6 @@ async function startUltraUI(chatId, list){
 
 // ================= UPLOAD =================
 
-// ================= EPISODE DETAILS =================
-async function getEpisodeDetails(tvId, season, episode){
-
-  if(!tvId || !season || !episode) return null;
-
-  try {
-    return await tmdbFetch(
-      `https://api.themoviedb.org/3/tv/${tvId}/season/${season}/episode/${episode}?api_key=${TMDB_KEY}&language=de-DE`
-    );
-  } catch (err) {
-    console.log("❌ EPISODE FETCH ERROR:", err.message);
-    return null;
-  }
-}
-
 async function handleUpload(msg){
 
   const file = msg.document || msg.video;
@@ -1962,7 +1947,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
         const list = await getTrending();
 
         await tg("sendMessage",{
-          chat_id: GROUP_ID,
+          const GROUP_ID = MOVIE_GROUP_ID;,
           message_thread_id: THREADS.trending,
           text: "🔥 Trending"
         });
