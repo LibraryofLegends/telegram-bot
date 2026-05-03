@@ -1885,12 +1885,15 @@ if(item.collection){
 const targetChannel = getTargetChannel(genreIds);
 const threadId = getThreadByGenre(genreIds);
 
-await tg("sendPhoto",{
+// 🔒 SAFETY FALLBACK (falls kein Thread gefunden wird)
+const safeThreadId = threadId || STATIC_THREADS.movies;
+
+await tg("sendPhoto", {
   chat_id: targetChannel,
-  message_thread_id: threadId,
+  message_thread_id: safeThreadId,
   photo: cover,
   caption: caption,
-  reply_markup:{
+  reply_markup: {
     inline_keyboard: buttons
   }
 });
@@ -1903,7 +1906,7 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
   const body = req.body;
   const msg = body.message;
 
-  console.log("MSG DEBUG:", JSON.stringify(msg, null, 2));
+  console.log("📩 MSG DEBUG:", JSON.stringify(body, null, 2));
 
   try {
 
@@ -1911,9 +1914,10 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
     if (body.callback_query) {
 
-      const data = body.callback_query.data; // ✅ FIX: MUSS OBEN STEHEN
+      const data = body.callback_query.data;
       const chatId = body.callback_query.message.chat.id;
 
+      // 🔥 ACK (wichtig für Telegram UI)
       await tg("answerCallbackQuery", {
         callback_query_id: body.callback_query.id
       });
@@ -1923,16 +1927,18 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
       if (data === "ultra_next" || data === "ultra_prev") {
 
         const state = USER_STATE[chatId];
-        if(!state || state.mode !== "ultra") return;
 
-        if(data === "ultra_next"){
+        if (!state || state.mode !== "ultra") return;
+
+        if (data === "ultra_next") {
           state.index++;
         } else {
           state.index--;
         }
 
-        if(state.index < 0) state.index = state.list.length - 1;
-        if(state.index >= state.list.length) state.index = 0;
+        // 🔁 LOOP SAFE
+        if (state.index < 0) state.index = state.list.length - 1;
+        if (state.index >= state.list.length) state.index = 0;
 
         const item = state.list[state.index];
 
@@ -1945,6 +1951,8 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
           state.list.length
         );
       }
+
+      // ================= BASIC NAV =================
 
       // ================= BASIC NAV =================
 
