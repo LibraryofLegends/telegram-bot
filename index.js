@@ -95,8 +95,10 @@ const CONTINUE_FILE = "continue.json";
 // ================= STATE =================
 
 const USER_STATE = {};
+const THREAD_LOCK = {};   // 🔥 HIER EINZUFÜGEN
+
 const TMDB_CACHE = new Map();
-const TMDB_TTL = 1000 * 60 * 60; // 1 Stunde
+const TMDB_TTL = 1000 * 60 * 60;
 
 // ================= DB =================
 
