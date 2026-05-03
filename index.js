@@ -2034,14 +2034,34 @@ async function sendToChannel({
 // ================= WEBHOOK =================
 
 app.post(`/bot${TOKEN}`, async (req, res) => {
+
+  // 🔥 sofort ACK an Telegram (wichtig für Speed & Retry-Vermeidung)
   res.sendStatus(200);
 
-  const body = req.body;
-  const msg = body.message;
-
-  console.log("📩 MSG DEBUG:", JSON.stringify(body, null, 2));
-
   try {
+
+    const body = req.body || {};
+    const msg = body.message;
+    const callback = body.callback_query;
+
+    // ================= DEBUG =================
+
+    console.log("📩 UPDATE RECEIVED:");
+    console.log(JSON.stringify(body, null, 2));
+
+    // ================= BASIC VALIDATION =================
+
+    if (!body) {
+      console.log("⚠️ EMPTY BODY RECEIVED");
+      return;
+    }
+
+    // ================= STATE INIT =================
+
+    if (!msg && !callback) {
+      console.log("⚠️ NO MESSAGE OR CALLBACK");
+      return;
+    }
 
     // ================= CALLBACK =================
 
