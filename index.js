@@ -92,7 +92,8 @@ const CONTINUE_FILE = "continue.json";
 // ================= STATE =================
 
 const USER_STATE = {};
-const TMDB_CACHE = {};
+const TMDB_CACHE = new Map();
+const TMDB_TTL = 1000 * 60 * 60; // 1 Stunde
 
 // ================= DB =================
 
