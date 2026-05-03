@@ -1639,12 +1639,11 @@ async function startUltraUI(chatId, list){
 
 // ================= UPLOAD =================
 
-async function handleUpload(msg){
-
+async function handleUpload(msg) {
   try {
 
     const file = msg.document || msg.video;
-    if(!file) return;
+    if (!file) return;
 
     const width = msg.video?.width;
     const height = msg.video?.height;
@@ -1653,139 +1652,246 @@ async function handleUpload(msg){
 
     const exists = CACHE.find(x => x.file_id === file.file_id);
 
-    if(exists){
-      return tg("sendMessage",{
+    if (exists) {
+      return tg("sendMessage", {
         chat_id: msg.chat.id,
         text: "⚠️ Datei bereits vorhanden"
       });
     }
 
+    // ================= FILE PARSE =================
+
     const fileName = file.file_name || "";
     const parsed = parseFileName(fileName);
+    const isSeries = parsed.type === "tv";
 
     const clean = ultraCleanTitle(fileName);
+    const yearMatch = fileName.match(/(19|20)\d{2}/);
+    const fileYear = yearMatch ? parseInt(yearMatch[0]) : null;
+
     console.log("🧹 CLEAN:", clean);
+
+    // ================= SEARCH PREP =================
+
+    let fixedSearch = aiNormalize(clean)
+      .replace(/s\d{1,2}e\d{1,2}/gi, "")
+      .replace(/\d{1,2}x\d{1,2}/gi, "")
+      .trim();
+
+    const variants = buildSearchVariants(fixedSearch);
 
     let result = null;
 
-    try {
-      result = await searchTMDBUltra(clean);
-    } catch(err){
-      console.error("TMDB ERROR:", err);
+    // ================= PRIMARY SEARCH =================
+
+    for (const v of variants) {
+
+      console.log("🔍 TRY:", v);
+
+      result = await searchTMDBUltra(
+        v,
+        fileYear,
+        isSeries ? "tv" : null
+      );
+
+      if (result) {
+        console.log("✅ MATCH VIA:", v);
+        break;
+      }
     }
 
-    console.log("🎬 RESULT:", result);
+    // ================= FALLBACK =================
+
+    if (!result) {
+
+      console.log("🆘 FALLBACK SEARCH");
+
+      for (const v of variants) {
+
+        result = await searchTMDBUltra(
+          v,
+          fileYear,
+          isSeries ? "tv" : null
+        );
+
+        if (result) break;
+      }
+    }
+
+    // ================= LAST RESORT =================
+
+    if (!result) {
+
+      console.log("⚠️ LAST RESORT");
+
+      const fallback = await tmdbFetch(
+        `https://api.themoviedb.org/3/search/${isSeries ? "tv" : "movie"}?api_key=${TMDB_KEY}&query=${encodeURIComponent(fixedSearch)}&language=de-DE`
+      );
+
+      result = fallback?.results?.[0] || null;
+    }
+
+    console.log("🎬 FINAL:", result?.title || result?.name || "NOT FOUND");
+
+    // ================= DETAILS =================
+
+    let details = null;
+    let episodeDetails = null;
+
+    if (result?.id) {
+      details = await getDetails(result.id, isSeries ? "tv" : "movie");
+    }
+
+    // ================= EPISODE =================
+
+    if (isSeries && result?.id) {
+
+      episodeDetails = await getEpisodeDetails(
+        result.id,
+        parsed.season,
+        parsed.episode
+      );
+
+      console.log("📺 EP:", episodeDetails?.name || "N/A");
+    }
+
+    // ================= SAFE DATA =================
+
+    const safeData = details || result || {
+      title: clean,
+      overview: "Keine Beschreibung verfügbar.",
+      vote_average: 0,
+      genres: []
+    };
+
+    // ================= GENRES =================
+
+    let genreIds = [];
+
+    if (result?.genre_ids) {
+      genreIds = result.genre_ids;
+    } else if (details?.genres) {
+      genreIds = details.genres.map(g => g.id);
+    }
+
+    // ================= IDS =================
+
+    const id = generateNextId();
+    const categoryId = generateCategoryId(genreIds);
+
+    // ================= COVER =================
+
+    let cover = getCover(safeData);
+
+    if (!cover) {
+      cover = buildStyledCover(parsed.title);
+    }
+
+    cover = await uploadToCloudinary(
+      cover,
+      genreIds,
+      safeData.vote_average || 0
+    );
+
+    if (!cover || cover.includes("null")) {
+      cover = "https://dummyimage.com/500x750/000/fff&text=No+Image";
+    }
+
+    // ================= CAPTION =================
+
+    const mergedData = {
+      ...safeData,
+      episode_name: episodeDetails?.name,
+      episode_overview: episodeDetails?.overview,
+      episode_rating: episodeDetails?.vote_average,
+      episode_code: isSeries
+        ? ` S${String(parsed.season).padStart(2, "0")}E${String(parsed.episode).padStart(2, "0")}`
+        : ""
+    };
+
+    const caption = buildCard(
+      mergedData,
+      fileName,
+      id,
+      categoryId,
+      width,
+      height,
+      isSeries
+    );
+
+    // ================= SERIES =================
+
+    if (isSeries) {
+
+      const cleanTitle = safeData.name || safeData.title || parsed.title;
+
+      const seriesKey = cleanTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "_");
+
+      const threadId = await ensureSeriesThread(seriesKey);
+
+      if (!SERIES_DB[seriesKey]) SERIES_DB[seriesKey] = {};
+      if (!SERIES_DB[seriesKey][parsed.season]) SERIES_DB[seriesKey][parsed.season] = {};
+
+      SERIES_DB[seriesKey][parsed.season][parsed.episode] = {
+        file_id: file.file_id,
+        display_id: id
+      };
+
+      saveSeriesDB(SERIES_DB);
+
+      await tg("sendVideo", {
+        chat_id: SERIES_GROUP_ID,
+        message_thread_id: threadId,
+        video: file.file_id,
+        caption: caption,
+        supports_streaming: true
+      });
+
+      return tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text: `✅ Episode gespeichert\n\n📺 ${cleanTitle}\n🆔 ${id}`
+      });
+    }
+
+    // ================= MOVIE =================
+
+    const item = {
+      display_id: id,
+      tmdb_id: result?.id || null,
+      title: safeData.title || clean,
+      category_id: categoryId,
+      file_id: file.file_id,
+      media_type: "movie",
+      genres: genreIds,
+      cover: cover
+    };
+
+    CACHE.unshift(item);
+    saveDB(CACHE);
+
+    // ================= SEND =================
+
+    await sendToChannel({
+      cover,
+      caption,
+      buttons: [
+        [{ text: "▶️ Stream", url: playerUrl("play", id) }],
+        [{ text: "🔥 Ähnliche", url: playerUrl("sim", id) }]
+      ],
+      genreIds
+    });
+
+    return tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: `✅ Film gespeichert\n\n🎬 ${item.title}\n🆔 ${id}`
+    });
 
   } catch (e) {
     console.error("❌ UPLOAD ERROR:", e);
   }
-
 }
-
-  // ================= DETAILS =================
-
-let episodeDetails = null;
-
-// 🔥 EPISODE FETCH (NUR BEI SERIEN)
-if(isSeries && result?.id){
-
-  episodeDetails = await getEpisodeDetails(
-    result.id,
-    parsed.season,
-    parsed.episode
-  );
-
-  console.log("📺 EPISODE:", episodeDetails?.name || "NOT FOUND");
-}
-
-let details = null;
-
-if(result?.id){
-  details = await getDetails(result.id, isSeries ? "tv" : "movie");
-}
-
-// 🔥 FAILSAFE (WICHTIG FÜR SERIEN)
-if(!details && isSeries){
-
-  console.log("❌ DETAILS FAIL → RETRY TV SEARCH");
-
-  const retry = await tmdbFetch(
-    `https://api.themoviedb.org/3/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(fixedSearch)}&language=de-DE`
-  );
-
-  if(retry?.results?.length){
-    details = await getDetails(retry.results[0].id, "tv");
-  }
-}
-
-// 🔥 SAFE DATA (unverändert – aber jetzt sauber)
-const safeData = details || result || {
-  title: clean,
-  overview: "Keine Beschreibung verfügbar.",
-  vote_average: 0,
-  genres: []
-};
-
-// ================= GENRES =================
-
-  let genreIds = [];
-
-  if(result?.genre_ids){
-    genreIds = result.genre_ids;
-  } else if(details?.genres){
-    genreIds = details.genres.map(g => g.id);
-  }
-
-  // ================= IDS =================
-
-  const id = generateNextId();
-  const categoryId = generateCategoryId(genreIds);
-
-  // ================= COVER =================
-
-  let cover = getCover(safeData);
-
-  if(!cover){
-    cover = buildStyledCover(parsed.title);
-  }
-
-  cover = await uploadToCloudinary(
-    cover,
-    genreIds,
-    safeData.vote_average || 0
-  );
-
-  cover += "?v=1";
-
-  if(!cover || cover.includes("null")){
-    cover = "https://dummyimage.com/500x750/000/fff&text=No+Image";
-  }
-
-  // ================= CAPTION =================
-
-  const mergedData = {
-  ...safeData,
-
-  // 🔥 EPISODE DATA
-  episode_name: episodeDetails?.name,
-  episode_overview: episodeDetails?.overview,
-  episode_rating: episodeDetails?.vote_average,
-
-  // 🔥 S01E01 FORMAT
-  episode_code: isSeries
-    ? ` S${String(parsed.season).padStart(2,"0")}E${String(parsed.episode).padStart(2,"0")}`
-    : ""
-};
-
-const caption = buildCard(
-  mergedData,
-  fileName,
-  id,
-  categoryId,
-  width,
-  height,
-  isSeries
-);
 
 // ================= SERIES THREAD =================
 
