@@ -551,8 +551,6 @@ async function showNetflixHome(chatId){
   });
 }
 
-i
-
 // ================= NETFLIX BANNER =================
 
 function getNetflixBannerWithBadges(data){
@@ -1948,21 +1946,23 @@ app.post(`/bot${TOKEN}`, async (req, res) => {
 
       if (data === "net_trending") {
 
-        const list = await getTrending();
+  const list = await getTrending();
 
-        await tg("sendMessage",{
-          const GROUP_ID = MOVIE_GROUP_ID;,
-          message_thread_id: THREADS.trending,
-          text: "🔥 Trending"
-        });
+  const GROUP_ID = MOVIE_GROUP_ID;
 
-        return sendResultsList(
-          GROUP_ID,
-          "🔥 Trending",
-          list,
-          0
-        );
-      }
+  await tg("sendMessage",{
+    chat_id: GROUP_ID,
+    message_thread_id: STATIC_THREADS.trending,
+    text: "🔥 Trending"
+  });
+
+  return sendResultsList(
+    GROUP_ID,
+    "🔥 Trending",
+    list,
+    0
+  );
+}
 
       if (data === "net_popular") {
         return sendResultsList(chatId, "📈 Popular", await getPopular(), 0);
