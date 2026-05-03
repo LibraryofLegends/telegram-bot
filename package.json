@@ -15,3 +15,9 @@
     "prestart": "node tools/safe-check.js"
   }
 }
+
+{
+  "scripts": {
+    "start": "node tools/self-heal.js && node index.js"
+  }
+}
