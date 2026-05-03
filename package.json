@@ -8,3 +8,10 @@
     "cloudinary": "^1.41.0"
   }
 }
+
+{
+  "scripts": {
+    "start": "node index.js",
+    "prestart": "node tools/safe-check.js"
+  }
+}
