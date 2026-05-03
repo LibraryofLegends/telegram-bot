@@ -1747,9 +1747,9 @@ async function ensureSeriesThread(seriesKey){
     name: `📺 ${seriesKey.replace(/_/g," ")}`
   });
 
-  const threadId = res?.result?.message_thread_id;
+  let threadId = res?.result?.message_thread_id;
 
-  if(!threadId){
+if(!threadId){
   console.log("⚠️ Kein Thread → fallback movies");
   threadId = STATIC_THREADS.movies;
 }
