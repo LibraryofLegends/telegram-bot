@@ -1742,24 +1742,33 @@ async function ensureSeriesThread(seriesKey){
     return SERIES_THREADS[seriesKey];
   }
 
-  const res = await tg("createForumTopic",{
-    chat_id: SERIES_GROUP_ID,
-    name: `📺 ${seriesKey.replace(/_/g," ")}`
-  });
+  if(THREAD_LOCK[seriesKey]){
+    return THREAD_LOCK[seriesKey];
+  }
 
-  let threadId = res?.result?.message_thread_id;
+  THREAD_LOCK[seriesKey] = (async () => {
 
-if(!threadId){
-  console.log("⚠️ Kein Thread → fallback movies");
-  threadId = STATIC_THREADS.movies;
-}
+    const res = await tg("createForumTopic",{
+      chat_id: SERIES_GROUP_ID,
+      name: `📺 ${seriesKey.replace(/_/g," ")}`
+    });
 
-  SERIES_THREADS[seriesKey] = threadId;
-  saveSeriesThreads(SERIES_THREADS);
+    let threadId = res?.result?.message_thread_id;
 
-  console.log("📺 THREAD CREATED:", seriesKey);
+    if(!threadId){
+      console.log("⚠️ Thread fallback aktiv");
+      threadId = STATIC_THREADS.movies;
+    }
 
-  return threadId;
+    SERIES_THREADS[seriesKey] = threadId;
+    saveSeriesThreads(SERIES_THREADS);
+
+    delete THREAD_LOCK[seriesKey];
+
+    return threadId;
+  })();
+
+  return THREAD_LOCK[seriesKey];
 }
 
   // ================= SERIES SYSTEM =================
