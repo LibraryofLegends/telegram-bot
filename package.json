@@ -2,22 +2,14 @@
   "name": "telegram-bot",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
-    "express": "^4.18.2",
-    "node-fetch": "^2.6.7",
-    "cloudinary": "^1.41.0"
-  }
-}
-
-{
-  "scripts": {
-    "start": "node index.js",
-    "prestart": "node tools/safe-check.js"
-  }
-}
-
-{
-  "scripts": {
-    "start": "node tools/self-heal.js && node index.js"
+    "express": "^4.18.2"
   }
 }
