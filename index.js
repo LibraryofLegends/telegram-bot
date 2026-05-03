@@ -357,8 +357,10 @@ function getSortedEpisodes(seriesKey){
 
 async function tmdbFetch(url){
 
-  if(TMDB_CACHE[url]){
-    return TMDB_CACHE[url];
+  const cached = TMDB_CACHE.get(url);
+
+  if(cached && (Date.now() - cached.time < TMDB_TTL)){
+    return cached.data;
   }
 
   try{
@@ -366,7 +368,11 @@ async function tmdbFetch(url){
     if(!res.ok) return null;
 
     const data = await res.json();
-    TMDB_CACHE[url] = data;
+
+    TMDB_CACHE.set(url, {
+      data,
+      time: Date.now()
+    });
 
     return data;
 
