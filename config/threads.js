@@ -1,24 +1,29 @@
-const SERIES_GROUP_ID = process.env.SERIES_GROUP_ID || "";
+const { SERIES_GROUP_ID } = require("./env");
+const { mapGenres } = require("./genres");
 
-// Beispiel Threads Mapping
+// 🔥 feste Threads (optional)
 const STATIC_THREADS = {
   action: null,
   drama: null,
-  comedy: null
+  comedy: null,
+  horror: null,
+  sci_fi: null
 };
 
-// 🎯 Ziel Channel bestimmen
-function getTargetChannel(genres = []) {
-  return process.env.MAIN_CHANNEL_ID;
-}
+// 🎯 Thread Auswahl basierend auf Genre
+function getThreadByGenre(genreIds = []) {
+  const names = mapGenres(genreIds);
 
-// 🎯 Thread nach Genre
-function getThreadByGenre(genres = []) {
-  return null; // optional später erweitern
+  for (const g of names) {
+    if (STATIC_THREADS[g]) {
+      return STATIC_THREADS[g];
+    }
+  }
+
+  return null;
 }
 
 module.exports = {
-  getTargetChannel,
   getThreadByGenre,
   SERIES_GROUP_ID,
   STATIC_THREADS
