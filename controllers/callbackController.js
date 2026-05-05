@@ -1,5 +1,5 @@
 const { tg, sendFileById, answerCallback } = require("../services/telegramService");
-const { getRecommendations } = require("../services/recommendationAI");
+const { getRecommendations } = require("../services/recommendationService");
 const { loadDB } = require("../db/database");
 const { loadSeriesDB, getNextEpisode } = require("../db/seriesDB");
 const { setContinue } = require("../db/continueDB");
