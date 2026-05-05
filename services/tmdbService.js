@@ -2,25 +2,29 @@ const fetch = global.fetch || require("node-fetch");
 
 const TMDB_KEY = process.env.TMDB_KEY;
 
+// ================= CONFIG =================
+
+const BASE_URL = "https://api.themoviedb.org/3";
+const LANGUAGE = "de-DE";
+const CACHE_TTL = 1000 * 60 * 60; // 1h
+const MAX_RETRIES = 2;
+
 // ================= CACHE =================
 
 const CACHE = new Map();
-const TTL = 1000 * 60 * 60; // 1h
 
-function getCache(url) {
-  const entry = CACHE.get(url);
+function getCache(key) {
+  const entry = CACHE.get(key);
+
   if (!entry) return null;
 
-  if (Date.now() - entry.time > TTL) {
-    CACHE.delete(url);
-    return null;
-  }
+  const valid = (Date.now() - entry.time) < CACHE_TTL;
 
-  return entry.data;
+  return valid ? entry.data : null;
 }
 
-function setCache(url, data) {
-  CACHE.set(url, {
+function setCache(key, data) {
+  CACHE.set(key, {
     data,
     time: Date.now()
   });
@@ -28,16 +32,22 @@ function setCache(url, data) {
 
 // ================= CORE FETCH =================
 
-async function tmdbFetch(url) {
+async function tmdbFetch(url, retries = MAX_RETRIES) {
 
   const cached = getCache(url);
   if (cached) return cached;
 
   try {
+
     const res = await fetch(url);
 
     if (!res.ok) {
-      console.error("❌ TMDB ERROR:", res.status, url);
+      console.log("❌ TMDB HTTP ERROR:", res.status);
+
+      if (retries > 0) {
+        return tmdbFetch(url, retries - 1);
+      }
+
       return null;
     }
 
@@ -48,9 +58,32 @@ async function tmdbFetch(url) {
     return data;
 
   } catch (err) {
-    console.error("❌ TMDB FETCH ERROR:", err.message);
+
+    console.log("❌ TMDB FETCH ERROR:", err.message);
+
+    if (retries > 0) {
+      return tmdbFetch(url, retries - 1);
+    }
+
     return null;
   }
+}
+
+// ================= HELPERS =================
+
+function buildUrl(path, params = {}) {
+
+  const query = new URLSearchParams({
+    api_key: TMDB_KEY,
+    language: LANGUAGE,
+    ...params
+  });
+
+  return `${BASE_URL}${path}?${query}`;
+}
+
+function extractYear(item) {
+  return (item.release_date || item.first_air_date || "").slice(0, 4);
 }
 
 // ================= DETAILS =================
@@ -61,71 +94,77 @@ async function getDetails(id, type = "movie") {
 
   const safeType = type === "tv" ? "tv" : "movie";
 
-  const url = `https://api.themoviedb.org/3/${safeType}/${id}?api_key=${TMDB_KEY}&language=de-DE&append_to_response=credits,videos`;
+  const url = buildUrl(`/${safeType}/${id}`, {
+    append_to_response: "credits"
+  });
 
-  return tmdbFetch(url);
+  return await tmdbFetch(url);
 }
 
-// ================= EPISODE DETAILS =================
+// ================= EPISODE =================
 
 async function getEpisodeDetails(tvId, season, episode) {
 
   if (!tvId || !season || !episode) return null;
 
-  const url = `https://api.themoviedb.org/3/tv/${tvId}/season/${season}/episode/${episode}?api_key=${TMDB_KEY}&language=de-DE`;
+  const url = buildUrl(
+    `/tv/${tvId}/season/${season}/episode/${episode}`
+  );
 
-  return tmdbFetch(url);
+  return await tmdbFetch(url);
 }
 
-// ================= SMART SEARCH =================
+// ================= SEARCH ULTRA =================
 
-async function searchTMDBUltra(query, year = null, type = null) {
+async function searchTMDBUltra(title, year = null, type = null) {
 
-  if (!query) return null;
+  if (!title) return null;
 
-  const url = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&language=de-DE`;
+  const url = buildUrl("/search/multi", {
+    query: title
+  });
 
-  const res = await tmdbFetch(url);
+  const data = await tmdbFetch(url);
 
-  if (!res?.results?.length) return null;
+  if (!data?.results?.length) return null;
 
-  let results = res.results;
+  let results = data.results;
 
-  // ================= FILTER TYPE =================
-
+  // 🎯 FILTER TYPE
   if (type) {
-    results = results.filter(r => r.media_type === type);
+    results = results.filter(x => x.media_type === type);
   }
 
-  // ================= YEAR SCORING =================
+  // 🎯 REMOVE PEOPLE RESULTS
+  results = results.filter(x => x.media_type !== "person");
 
-  if (year) {
-    results = results
-      .map(item => {
-        const itemYear = parseInt(
-          (item.release_date || item.first_air_date || "").slice(0, 4)
-        ) || 0;
+  // 🎯 SORT BY RELEVANCE
+  results = results.sort((a, b) => {
 
-        const diff = Math.abs(itemYear - year);
+    let scoreA = a.popularity || 0;
+    let scoreB = b.popularity || 0;
 
-        return {
-          ...item,
-          score: diff
-        };
-      })
-      .sort((a, b) => a.score - b.score);
-  }
+    // YEAR MATCH BOOST
+    if (year) {
 
-  // ================= BEST MATCH =================
+      const yA = extractYear(a);
+      const yB = extractYear(b);
 
-  return results[0] || res.results[0];
+      if (yA == year) scoreA += 50;
+      if (yB == year) scoreB += 50;
+    }
+
+    return scoreB - scoreA;
+  });
+
+  return results[0] || null;
 }
 
 // ================= TRENDING =================
 
 async function getTrending(limit = 10) {
 
-  const url = `https://api.themoviedb.org/3/trending/all/week?api_key=${TMDB_KEY}&language=de-DE`;
+  const url = buildUrl("/trending/all/week");
 
   const data = await tmdbFetch(url);
 
@@ -136,20 +175,22 @@ async function getTrending(limit = 10) {
 
 async function getPopular(limit = 10) {
 
-  const url = `https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_KEY}&language=de-DE`;
+  const url = buildUrl("/movie/popular");
 
   const data = await tmdbFetch(url);
 
   return data?.results?.slice(0, limit) || [];
 }
 
-// ================= DISCOVER BY GENRE =================
+// ================= GENRE =================
 
 async function getByGenre(genreId, limit = 10) {
 
   if (!genreId) return [];
 
-  const url = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&with_genres=${genreId}&language=de-DE`;
+  const url = buildUrl("/discover/movie", {
+    with_genres: genreId
+  });
 
   const data = await tmdbFetch(url);
 
@@ -164,7 +205,7 @@ async function getSimilar(id, type = "movie", limit = 10) {
 
   const safeType = type === "tv" ? "tv" : "movie";
 
-  const url = `https://api.themoviedb.org/3/${safeType}/${id}/similar?api_key=${TMDB_KEY}&language=de-DE`;
+  const url = buildUrl(`/${safeType}/${id}/similar`);
 
   const data = await tmdbFetch(url);
 
