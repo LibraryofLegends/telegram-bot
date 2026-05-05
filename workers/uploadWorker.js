@@ -33,7 +33,7 @@ const {
   getTargetChannel,
   getThreadByGenre,
   SERIES_GROUP_ID
-} = require("../config/threads");
+} = require("../config");
 
 const {
   ensureSeriesThread
