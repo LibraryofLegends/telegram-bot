@@ -1,191 +1,104 @@
-const fs = require("fs");
+const MAX_CONCURRENT = 2;     // parallel jobs
+const RETRY_LIMIT = 2;        // retries bei Fehlern
 
-const FILE = "queue.json";
+let queue = [];
+let activeCount = 0;
 
-// ================= STATE =================
+// ================= ADD JOB =================
 
-function loadQueue() {
-  if (!fs.existsSync(FILE)) return {};
-  return JSON.parse(fs.readFileSync(FILE, "utf8") || "{}");
+function addToQueue(job) {
+
+  return new Promise((resolve, reject) => {
+
+    queue.push({
+      job,
+      resolve,
+      reject,
+      retries: 0
+    });
+
+    processQueue();
+  });
 }
 
-function saveQueue(data) {
-  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
-}
+// ================= PROCESS =================
 
-// In-memory cache (speed boost)
-let QUEUE_DB = loadQueue();
+async function processQueue() {
 
-// ================= QUEUE CORE =================
+  if (activeCount >= MAX_CONCURRENT) return;
+  if (!queue.length) return;
 
-function getUserQueue(userId) {
-  if (!QUEUE_DB[userId]) QUEUE_DB[userId] = [];
-  return QUEUE_DB[userId];
-}
+  const item = queue.shift();
 
-// ================= ADD ITEM =================
+  activeCount++;
 
-function addToQueue(userId, item) {
+  try {
 
-  if (!QUEUE_DB[userId]) QUEUE_DB[userId] = [];
+    console.log("📦 START JOB | Active:", activeCount);
 
-  // Prevent duplicates
-  QUEUE_DB[userId] = [
-    item,
-    ...QUEUE_DB[userId].filter(x => x.display_id !== item.display_id)
-  ];
+    const result = await item.job();
 
-  saveQueue(QUEUE_DB);
+    item.resolve(result);
 
-  return QUEUE_DB[userId];
-}
+    console.log("✅ JOB DONE");
 
-// ================= REMOVE ITEM =================
+  } catch (err) {
 
-function removeFromQueue(userId, display_id) {
+    console.log("❌ JOB ERROR:", err.message);
 
-  if (!QUEUE_DB[userId]) return [];
+    // 🔁 Retry Logic
+    if (item.retries < RETRY_LIMIT) {
 
-  QUEUE_DB[userId] = QUEUE_DB[userId]
-    .filter(x => x.display_id !== display_id);
+      item.retries++;
 
-  saveQueue(QUEUE_DB);
+      console.log("🔁 RETRY:", item.retries);
 
-  return QUEUE_DB[userId];
-}
+      queue.push(item);
 
-// ================= CLEAR QUEUE =================
+    } else {
 
-function clearQueue(userId) {
-  QUEUE_DB[userId] = [];
-  saveQueue(QUEUE_DB);
-  return true;
-}
+      console.log("🚫 JOB FAILED FINAL");
 
-// ================= GET NEXT =================
+      item.reject(err);
+    }
 
-function getNextInQueue(userId) {
+  } finally {
 
-  const queue = getUserQueue(userId);
+    activeCount--;
 
-  if (!queue.length) return null;
-
-  // FIFO (first item = next play)
-  return queue[0];
-}
-
-// ================= POP NEXT (PLAY FLOW) =================
-
-function popNext(userId) {
-
-  const queue = getUserQueue(userId);
-
-  if (!queue.length) return null;
-
-  const next = queue.shift();
-
-  saveQueue(QUEUE_DB);
-
-  return next;
-}
-
-// ================= MOVE TO TOP =================
-
-function prioritizeItem(userId, display_id) {
-
-  const queue = getUserQueue(userId);
-
-  const index = queue.findIndex(x => x.display_id === display_id);
-
-  if (index === -1) return queue;
-
-  const [item] = queue.splice(index, 1);
-
-  queue.unshift(item);
-
-  saveQueue(QUEUE_DB);
-
-  return queue;
-}
-
-// ================= REORDER =================
-
-function reorderQueue(userId, newOrder) {
-
-  if (!Array.isArray(newOrder)) return [];
-
-  QUEUE_DB[userId] = newOrder;
-
-  saveQueue(QUEUE_DB);
-
-  return QUEUE_DB[userId];
-}
-
-// ================= SMART INSERT (AI HOOK READY) =================
-
-function smartAdd(userId, item, mode = "auto") {
-
-  const queue = getUserQueue(userId);
-
-  // MODE 1: auto → append
-  if (mode === "auto") {
-    return addToQueue(userId, item);
+    processQueue(); // next job
   }
-
-  // MODE 2: next → push after current
-  if (mode === "next") {
-    queue.splice(1, 0, item);
-    saveQueue(QUEUE_DB);
-    return queue;
-  }
-
-  // MODE 3: top → force next play
-  if (mode === "top") {
-    queue.unshift(item);
-    saveQueue(QUEUE_DB);
-    return queue;
-  }
-
-  return addToQueue(userId, item);
 }
 
-// ================= SERIES AUTO QUEUE =================
+// ================= BULK =================
 
-function queueSeriesEpisode(userId, seriesKey, season, episode, display_id) {
+async function addBulk(jobs = []) {
 
-  return smartAdd(userId, {
-    type: "series",
-    seriesKey,
-    season,
-    episode,
-    display_id
-  }, "auto");
+  const promises = jobs.map(job => addToQueue(job));
+
+  return Promise.allSettled(promises);
 }
 
-// ================= MOVIE QUEUE =================
+// ================= CLEAR =================
 
-function queueMovie(userId, item) {
+function clearQueue() {
+  queue = [];
+}
 
-  return smartAdd(userId, {
-    type: "movie",
-    display_id: item.display_id,
-    title: item.title,
-    file_id: item.file_id
-  }, "auto");
+// ================= STATUS =================
+
+function getQueueStatus() {
+  return {
+    pending: queue.length,
+    active: activeCount
+  };
 }
 
 // ================= EXPORT =================
 
 module.exports = {
-  getUserQueue,
   addToQueue,
-  removeFromQueue,
+  addBulk,
   clearQueue,
-  getNextInQueue,
-  popNext,
-  prioritizeItem,
-  reorderQueue,
-  smartAdd,
-  queueSeriesEpisode,
-  queueMovie
+  getQueueStatus
 };
