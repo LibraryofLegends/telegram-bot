@@ -1,202 +1,118 @@
-const {
-  tg
-} = require("./telegramService");
+const fs = require("fs");
+const path = require("path");
 
-const {
-  loadSeriesDB,
-  saveSeriesDB
-} = require("../db/seriesDB");
+const { tg } = require("./telegramService");
+const { SERIES_GROUP_ID } = require("../config");
 
-const {
-  SERIES_GROUP_ID
-} = require("../config/threads");
+// ================= CONFIG =================
 
-// ================= STATE =================
+const FILE = path.join(__dirname, "../data/seriesThreads.json");
 
-let SERIES_DB = loadSeriesDB();
+// In-Memory Cache
+let THREAD_CACHE = loadCache();
 
-// ================= HELPERS =================
+// ================= CACHE =================
 
-function normalizeKey(title = "") {
-  return title
+function loadCache() {
+  try {
+    if (!fs.existsSync(FILE)) return {};
+    return JSON.parse(fs.readFileSync(FILE, "utf8") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveCache() {
+  try {
+    fs.writeFileSync(FILE, JSON.stringify(THREAD_CACHE, null, 2));
+  } catch (err) {
+    console.log("❌ THREAD CACHE SAVE ERROR:", err.message);
+  }
+}
+
+// ================= KEY NORMALIZER =================
+
+function normalizeKey(name = "") {
+  return name
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "_")
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "");
 }
 
-// ================= THREAD SYSTEM =================
+// ================= THREAD CREATE =================
 
-async function ensureSeriesThread(seriesKey) {
+async function createThread(title) {
 
-  // später erweiterbar: dynamische Thread-Erstellung via Telegram Forum Topics
-  // aktuell: stable mapping
+  try {
 
-  const db = loadSeriesDB();
+    const res = await tg("createForumTopic", {
+      chat_id: SERIES_GROUP_ID,
+      name: title
+    });
 
-  if (!db._threads) db._threads = {};
+    if (!res?.ok) {
+      console.log("❌ THREAD CREATE FAILED:", res);
+      return null;
+    }
 
-  if (db._threads[seriesKey]) {
-    return db._threads[seriesKey];
+    return res.result.message_thread_id;
+
+  } catch (err) {
+    console.log("❌ THREAD CREATE ERROR:", err.message);
+    return null;
+  }
+}
+
+// ================= MAIN =================
+
+async function ensureSeriesThread(seriesName) {
+
+  const key = normalizeKey(seriesName);
+
+  // 🔥 CACHE HIT
+  if (THREAD_CACHE[key]) {
+    return THREAD_CACHE[key];
   }
 
-  // Default Thread fallback = main series group
-  const threadId = SERIES_GROUP_ID;
+  console.log("🧵 CREATE NEW THREAD:", seriesName);
 
-  db._threads[seriesKey] = threadId;
+  const threadId = await createThread(seriesName);
 
-  saveSeriesDB(db);
+  if (!threadId) {
+    console.log("❌ FAILED TO CREATE THREAD");
+    return null;
+  }
+
+  THREAD_CACHE[key] = threadId;
+
+  saveCache();
 
   return threadId;
 }
 
-// ================= EPISODE SAVE =================
+// ================= OPTIONAL =================
 
-async function saveEpisode(seriesKey, season, episode, payload) {
+// Falls du Threads manuell entfernen willst
+function removeThread(seriesName) {
 
-  const db = loadSeriesDB();
+  const key = normalizeKey(seriesName);
 
-  if (!db[seriesKey]) db[seriesKey] = {};
-  if (!db[seriesKey][season]) db[seriesKey][season] = {};
-
-  db[seriesKey][season][episode] = {
-    file_id: payload.file_id,
-    display_id: payload.display_id || payload.id || null,
-    created_at: Date.now()
-  };
-
-  saveSeriesDB(db);
-
-  return true;
-}
-
-// ================= GET EPISODE =================
-
-function getEpisode(seriesKey, season, episode) {
-  const db = loadSeriesDB();
-  return db?.[seriesKey]?.[season]?.[episode] || null;
-}
-
-// ================= NEXT EPISODE ENGINE =================
-
-function getNextEpisode(seriesKey, season, episode) {
-
-  const db = loadSeriesDB();
-
-  const s = parseInt(season);
-  const e = parseInt(episode);
-
-  if (!db?.[seriesKey]) return null;
-
-  // 🔥 gleiche Staffel nächstes Episode
-  if (db[seriesKey]?.[s]?.[e + 1]) {
-    return {
-      seriesKey,
-      season: s,
-      episode: e + 1,
-      data: db[seriesKey][s][e + 1]
-    };
+  if (THREAD_CACHE[key]) {
+    delete THREAD_CACHE[key];
+    saveCache();
   }
-
-  // 🔥 nächste Staffel
-  if (db[seriesKey]?.[s + 1]) {
-    const nextSeason = db[seriesKey][s + 1];
-    const firstEp = Object.keys(nextSeason)[0];
-
-    return {
-      seriesKey,
-      season: s + 1,
-      episode: parseInt(firstEp),
-      data: nextSeason[firstEp]
-    };
-  }
-
-  return null;
 }
 
-// ================= SERIES OVERVIEW =================
-
-function getSeriesOverview(seriesKey) {
-
-  const db = loadSeriesDB();
-  const series = db[seriesKey];
-
-  if (!series) return null;
-
-  const overview = {
-    seriesKey,
-    seasons: Object.keys(series)
-      .filter(k => k !== "_headerSent")
-      .map(season => ({
-        season: parseInt(season),
-        episodes: Object.keys(series[season]).filter(e => e !== "_headerSent").length
-      }))
-  };
-
-  return overview;
-}
-
-// ================= LAST WATCHED UPDATE =================
-
-function updateLastWatched(userId, seriesKey, season, episode) {
-
-  const db = loadSeriesDB();
-
-  if (!db._lastWatched) db._lastWatched = {};
-
-  db._lastWatched[userId] = {
-    seriesKey,
-    season,
-    episode,
-    timestamp: Date.now()
-  };
-
-  saveSeriesDB(db);
-}
-
-// ================= CONTINUE FUNCTION =================
-
-function getContinueWatching(userId) {
-
-  const db = loadSeriesDB();
-
-  return db._lastWatched?.[userId] || null;
-}
-
-// ================= AUTO CLEANUP =================
-
-function cleanupEmptySeries() {
-
-  const db = loadSeriesDB();
-
-  for (const key of Object.keys(db)) {
-
-    if (key.startsWith("_")) continue;
-
-    const seasons = db[key];
-
-    const hasEpisodes = Object.values(seasons || {}).some(season =>
-      Object.keys(season || {}).length > 1
-    );
-
-    if (!hasEpisodes) {
-      delete db[key];
-    }
-  }
-
-  saveSeriesDB(db);
+// Debug / Übersicht
+function getAllThreads() {
+  return THREAD_CACHE;
 }
 
 // ================= EXPORT =================
 
 module.exports = {
-  normalizeKey,
   ensureSeriesThread,
-  saveEpisode,
-  getEpisode,
-  getNextEpisode,
-  getSeriesOverview,
-  updateLastWatched,
-  getContinueWatching,
-  cleanupEmptySeries
+  removeThread,
+  getAllThreads
 };
