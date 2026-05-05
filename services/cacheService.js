@@ -1,200 +1,104 @@
-const fs = require("fs");
+const DEFAULT_TTL = 1000 * 60 * 60; // 1 Stunde
 
-// ================= CONFIG =================
+// ================= STORAGE =================
 
-const CACHE_FILE = "cache.json";
-const DEFAULT_TTL = 1000 * 60 * 60; // 1h
+const CACHE = new Map();
 
-// In-memory cache (FAST LAYER)
-const MEMORY_CACHE = new Map();
-
-// ================= FILE CACHE =================
-
-function loadFileCache() {
-  if (!fs.existsSync(CACHE_FILE)) return {};
-  return JSON.parse(fs.readFileSync(CACHE_FILE, "utf8") || "{}");
-}
-
-function saveFileCache(data) {
-  fs.writeFileSync(CACHE_FILE, JSON.stringify(data, null, 2));
-}
-
-// Persistent fallback cache
-let FILE_CACHE = loadFileCache();
-
-// ================= CORE GET =================
-
-function get(key) {
-
-  // 1. MEMORY LAYER (ultra fast)
-  const mem = MEMORY_CACHE.get(key);
-
-  if (mem && (Date.now() - mem.time) < DEFAULT_TTL) {
-    return mem.value;
-  }
-
-  // 2. FILE LAYER
-  const file = FILE_CACHE[key];
-
-  if (file && (Date.now() - file.time) < DEFAULT_TTL) {
-    return file.value;
-  }
-
-  return null;
-}
-
-// ================= CORE SET =================
+// ================= CORE =================
 
 function set(key, value, ttl = DEFAULT_TTL) {
 
-  const entry = {
+  CACHE.set(key, {
     value,
-    time: Date.now(),
-    ttl
-  };
-
-  // memory
-  MEMORY_CACHE.set(key, entry);
-
-  // file
-  FILE_CACHE[key] = entry;
-
-  saveFileCache(FILE_CACHE);
-
-  return value;
+    expires: Date.now() + ttl
+  });
 }
 
-// ================= HAS =================
+function get(key) {
 
-function has(key) {
-  return get(key) !== null;
+  const entry = CACHE.get(key);
+
+  if (!entry) return null;
+
+  const isValid = Date.now() < entry.expires;
+
+  if (!isValid) {
+    CACHE.delete(key);
+    return null;
+  }
+
+  return entry.value;
 }
-
-// ================= DELETE =================
 
 function del(key) {
-
-  MEMORY_CACHE.delete(key);
-  delete FILE_CACHE[key];
-
-  saveFileCache(FILE_CACHE);
+  CACHE.delete(key);
 }
-
-// ================= CLEAR =================
 
 function clear() {
-  MEMORY_CACHE.clear();
-  FILE_CACHE = {};
-  saveFileCache(FILE_CACHE);
+  CACHE.clear();
 }
 
-// ================= CLEANUP EXPIRED =================
+// ================= WRAPPER =================
+
+async function remember(key, fn, ttl = DEFAULT_TTL) {
+
+  const cached = get(key);
+
+  if (cached !== null) return cached;
+
+  const result = await fn();
+
+  if (result !== null && result !== undefined) {
+    set(key, result, ttl);
+  }
+
+  return result;
+}
+
+// ================= STATS =================
+
+function stats() {
+
+  let valid = 0;
+  let expired = 0;
+
+  const now = Date.now();
+
+  for (const [, entry] of CACHE) {
+    if (entry.expires > now) valid++;
+    else expired++;
+  }
+
+  return {
+    size: CACHE.size,
+    valid,
+    expired
+  };
+}
+
+// ================= CLEANUP =================
 
 function cleanup() {
 
   const now = Date.now();
 
-  for (const [key, value] of Object.entries(FILE_CACHE)) {
-    if ((now - value.time) > value.ttl) {
-      delete FILE_CACHE[key];
+  for (const [key, entry] of CACHE) {
+    if (entry.expires < now) {
+      CACHE.delete(key);
     }
   }
-
-  saveFileCache(FILE_CACHE);
 }
 
-// ================= CACHE WRAPPERS =================
-
-// TMDB cache helper
-function cacheTMDB(key, fetchFn, ttl = DEFAULT_TTL) {
-
-  return async function () {
-
-    const cached = get(key);
-
-    if (cached) return cached;
-
-    const data = await fetchFn();
-
-    if (data) set(key, data, ttl);
-
-    return data;
-  };
-}
-
-// ================= SMART CACHE KEY =================
-
-function buildKey(prefix, ...parts) {
-  return `${prefix}:${parts.join(":")}`;
-}
-
-// ================= SERIES CACHE =================
-
-function cacheSeries(seriesKey, season, episode, data) {
-
-  const key = buildKey("series", seriesKey, season, episode);
-
-  set(key, data);
-
-  return data;
-}
-
-function getSeries(seriesKey, season, episode) {
-
-  const key = buildKey("series", seriesKey, season, episode);
-
-  return get(key);
-}
-
-// ================= USER CACHE =================
-
-function cacheUser(userId, data) {
-
-  const key = buildKey("user", userId);
-
-  set(key, data, 1000 * 60 * 10); // 10 min
-
-  return data;
-}
-
-function getUser(userId) {
-
-  const key = buildKey("user", userId);
-
-  return get(key);
-}
-
-// ================= SEARCH CACHE =================
-
-function cacheSearch(query, results) {
-
-  const key = buildKey("search", query.toLowerCase());
-
-  return set(key, results, 1000 * 60 * 30); // 30 min
-}
-
-function getSearch(query) {
-
-  const key = buildKey("search", query.toLowerCase());
-
-  return get(key);
-}
+// Auto Cleanup alle 10 Minuten
+setInterval(cleanup, 1000 * 60 * 10);
 
 // ================= EXPORT =================
 
 module.exports = {
-  get,
   set,
-  has,
+  get,
   del,
   clear,
-  cleanup,
-  cacheTMDB,
-  buildKey,
-  cacheSeries,
-  getSeries,
-  cacheUser,
-  getUser,
-  cacheSearch,
-  getSearch
+  remember,
+  stats
 };
