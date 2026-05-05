@@ -1,43 +1,137 @@
-function buildCaption(data = {}, id) {
+const fetch = global.fetch || require("node-fetch");
+
+// OPTIONAL CLOUDINARY (falls genutzt)
+let cloudinary = null;
+try {
+  cloudinary = require("cloudinary").v2;
+} catch {}
+
+// ================= HELPERS =================
+
+function formatRating(rating) {
+  if (!rating) return "⭐ 0.0";
+  return `⭐ ${rating.toFixed(1)}`;
+}
+
+function formatYear(data) {
+  return (data.release_date || data.first_air_date || "").slice(0, 4);
+}
+
+function formatGenres(genres = []) {
+  if (!genres.length) return "—";
+
+  return genres
+    .map(g => g.name || g)
+    .slice(0, 3)
+    .join(" • ");
+}
+
+function cleanOverview(text = "") {
+  if (!text) return "Keine Beschreibung verfügbar.";
+
+  return text.length > 300
+    ? text.slice(0, 300) + "..."
+    : text;
+}
+
+// ================= CARD BUILDER =================
+
+function buildCard(
+  data,
+  fileName,
+  id,
+  categoryId,
+  width,
+  height,
+  isSeries = false
+) {
+
   const title = (data.title || data.name || "Unbekannt").toUpperCase();
 
-  const yearRaw = data.release_date || data.first_air_date || "";
-  const year = yearRaw ? yearRaw.slice(0, 4) : "----";
+  const year = formatYear(data);
+  const rating = formatRating(data.vote_average);
 
-  const rating = Number(data.vote_average || 0);
-  const votes = data.vote_count || 0;
+  const genres = formatGenres(data.genres || []);
 
-  const isSeries = !!data.first_air_date;
+  const overview = cleanOverview(
+    isSeries
+      ? data.episode_overview || data.overview
+      : data.overview
+  );
 
-  const typeLabel = isSeries ? "📺 SERIE" : "🎬 FILM";
+  const episodeLine = isSeries
+    ? `📺 ${data.episode_code || ""} ${data.episode_name || ""}\n`
+    : "";
+
+  const quality =
+    width >= 3800 ? "4K" :
+    width >= 1900 ? "1080p" :
+    width >= 1200 ? "720p" : "SD";
+
+  const sizeInfo = fileName?.includes("GB")
+    ? fileName.match(/\d+(\.\d+)?\s?GB/i)?.[0] || ""
+    : "";
 
   return `
-${typeLabel}
+🎬 ${title} ${year ? `(${year})` : ""}
 
-🎞️ ${title} (${year})
-⭐ ${rating.toFixed(1)} / 10   👥 ${votes}
+${episodeLine}${rating}
+🎭 ${genres}
 
-▶️ PLAY ID: #${id}
-`.trim();
+📝 ${overview}
+
+📀 ${quality} ${sizeInfo}
+
+▶️ STREAM • #${id}
+`;
 }
 
 // ================= COVER =================
 
-function getCover(data = {}) {
-  if (data?.poster_path) {
+function getBestImage(data = {}) {
+
+  if (data.poster_path) {
     return `https://image.tmdb.org/t/p/original${data.poster_path}`;
   }
 
-  if (data?.backdrop_path) {
+  if (data.backdrop_path) {
     return `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
   }
 
   return "https://dummyimage.com/500x750/000/fff&text=No+Image";
 }
 
+// ================= CLOUDINARY =================
+
+async function uploadToCloudinary(url, genres = [], rating = 0) {
+
+  if (!cloudinary) return url;
+
+  try {
+
+    const publicId = `media/${Date.now()}`;
+
+    const result = await cloudinary.uploader.upload(url, {
+      public_id: publicId,
+      transformation: [
+        { width: 500, height: 750, crop: "fill" }
+      ]
+    });
+
+    return result.secure_url;
+
+  } catch (err) {
+
+    console.log("❌ CLOUDINARY ERROR:", err.message);
+
+    return url;
+  }
+}
+
 // ================= EXPORT =================
 
 module.exports = {
-  buildCaption,
-  getCover
+  buildCard,
+  getBestImage,
+  uploadToCloudinary
 };
