@@ -1,30 +1,59 @@
-const { SERIES_GROUP_ID } = require("./env");
-const { mapGenres } = require("./genres");
+const { ENV } = require("./env");
 
-// 🔥 feste Threads (optional)
+// ================= CORE =================
+
+// 📺 Serien Gruppe (Forum!)
+const SERIES_GROUP_ID = ENV.SERIES_GROUP_ID;
+
+// ================= STATIC THREADS =================
+// (Optional: feste Threads für Navigation, Menü etc.)
+
 const STATIC_THREADS = {
-  action: null,
-  drama: null,
-  comedy: null,
-  horror: null,
-  sci_fi: null
+  MAIN: 1,
+  TRENDING: 2,
+  TOP: 3
 };
 
-// 🎯 Thread Auswahl basierend auf Genre
-function getThreadByGenre(genreIds = []) {
-  const names = mapGenres(genreIds);
+// ================= GENRE THREAD MAP =================
+// 👉 Nur wenn dein Channel ein Forum ist!
 
-  for (const g of names) {
-    if (STATIC_THREADS[g]) {
-      return STATIC_THREADS[g];
+const GENRE_THREAD_MAP = {
+  28: 101, // Action
+  12: 102, // Abenteuer
+  16: 103, // Animation
+  35: 104, // Comedy
+  80: 105, // Crime
+  18: 106, // Drama
+  27: 107, // Horror
+  878: 108, // Sci-Fi
+  53: 109  // Thriller
+};
+
+// ================= CORE FUNCTIONS =================
+
+// 🎯 Thread nach Genre bestimmen
+function getThreadByGenre(genreIds = []) {
+
+  for (const g of genreIds) {
+    if (GENRE_THREAD_MAP[g]) {
+      return GENRE_THREAD_MAP[g];
     }
   }
 
-  return null;
+  return null; // fallback → kein Thread
 }
 
+// 📺 Serien Thread (dynamisch)
+function buildSeriesThreadName(seriesKey) {
+  return `📺 ${seriesKey.replace(/_/g, " ").toUpperCase()}`;
+}
+
+// ================= EXPORT =================
+
 module.exports = {
-  getThreadByGenre,
   SERIES_GROUP_ID,
-  STATIC_THREADS
+  STATIC_THREADS,
+  GENRE_THREAD_MAP,
+  getThreadByGenre,
+  buildSeriesThreadName
 };
