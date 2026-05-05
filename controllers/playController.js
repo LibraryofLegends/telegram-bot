@@ -1,121 +1,134 @@
-const { tg, sendFileById } = require("../services/telegramService");
+const { tg } = require("../services/telegramService");
 
-const { loadDB } = require("../db/database");
-const { loadSeriesDB, getNextEpisode } = require("../db/seriesDB");
-const { setContinue } = require("../db/continueDB");
+const {
+  loadSeriesDB,
+  getNextEpisode
+} = require("../db/seriesDB");
 
-// ================= PLAY CONTROLLER =================
+const {
+  setContinue
+} = require("../db/continueDB");
 
-async function handlePlay(chatId, id, userId = null) {
+const {
+  saveHistory
+} = require("../db/historyDB");
 
-  try {
+// ================= FIND EPISODE =================
 
-    const db = loadDB();
-    const seriesDB = loadSeriesDB();
+function findEpisodeById(seriesDB, id) {
 
-    // ================= FIND ITEM (MOVIE OR EPISODE) =================
+  for (const [seriesKey, seasons] of Object.entries(seriesDB)) {
 
-    let found = null;
-    let type = "movie";
+    for (const [season, episodes] of Object.entries(seasons)) {
 
-    // 🔍 MOVIE SEARCH
-    const movie = db.find(x => x.display_id === id);
+      for (const [episode, data] of Object.entries(episodes)) {
 
-    if (movie) {
-      found = movie;
-      type = "movie";
-    }
-
-    // 🔍 SERIES SEARCH (fallback)
-    if (!found) {
-
-      outer:
-      for (const [seriesKey, seasons] of Object.entries(seriesDB)) {
-        for (const [season, episodes] of Object.entries(seasons)) {
-          for (const [episode, data] of Object.entries(episodes)) {
-
-            if (data.display_id === id || data.id === id) {
-              found = {
-                ...data,
-                seriesKey,
-                season: parseInt(season),
-                episode: parseInt(episode)
-              };
-              type = "series";
-              break outer;
-            }
-          }
+        // 🔥 kompatibel alt + neu
+        if ((data.display_id || data.id) == id) {
+          return {
+            seriesKey,
+            season: parseInt(season),
+            episode: parseInt(episode),
+            data
+          };
         }
       }
     }
+  }
+
+  return null;
+}
+
+// ================= MAIN =================
+
+async function handlePlay(chatId, id) {
+
+  try {
+
+    console.log("▶️ PLAY REQUEST:", id);
+
+    const seriesDB = loadSeriesDB();
+
+    const found = findEpisodeById(seriesDB, id);
 
     // ================= NOT FOUND =================
 
     if (!found) {
+
+      console.log("❌ EPISODE NOT FOUND:", id);
+
       return tg("sendMessage", {
         chat_id: chatId,
-        text: "❌ Inhalt nicht gefunden"
+        text: "❌ Episode nicht gefunden"
       });
     }
 
-    // ================= SEND VIDEO =================
+    console.log("✅ FOUND:", found.seriesKey, "S", found.season, "E", found.episode);
 
-    await sendFileById(chatId, found);
+    // ================= PLAY =================
 
-    // ================= CONTINUE SAVE =================
-
-    if (userId) {
-      setContinue(userId, {
-        id,
-        type
-      });
-    }
-
-    // ================= AUTO NEXT (SERIES ONLY) =================
-
-    if (type === "series") {
-
-      const next = getNextEpisode(
-        found.seriesKey,
-        found.season,
-        found.episode
-      );
-
-      if (next) {
-
-        return tg("sendMessage", {
-          chat_id: chatId,
-          text: `➡️ Nächste Folge verfügbar: S${next.season}E${next.episode}`,
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "▶️ Weiter",
-                  callback_data: `play_${next.data.display_id}`
-                }
-              ]
-            ]
-          }
-        });
-
-      } else {
-
-        return tg("sendMessage", {
-          chat_id: chatId,
-          text: "✅ Staffel abgeschlossen"
-        });
-      }
-    }
-
-    // ================= MOVIE RESPONSE =================
-
-    return tg("sendMessage", {
+    await tg("sendVideo", {
       chat_id: chatId,
-      text: `🎬 Film gestartet`
+      video: found.data.file_id,
+      supports_streaming: true
     });
 
+    // ================= SAVE HISTORY =================
+
+    saveHistory(chatId, {
+      id: found.data.display_id || id,
+      type: "episode",
+      seriesKey: found.seriesKey,
+      season: found.season,
+      episode: found.episode
+    });
+
+    // ================= SAVE CONTINUE =================
+
+    setContinue(chatId, {
+      seriesKey: found.seriesKey,
+      season: found.season,
+      episode: found.episode,
+      id: found.data.display_id || id
+    });
+
+    // ================= NEXT EPISODE =================
+
+    const next = getNextEpisode(
+      found.seriesKey,
+      found.season,
+      found.episode
+    );
+
+    if (next) {
+
+      const nextId = next.data.display_id || next.data.id;
+
+      await tg("sendMessage", {
+        chat_id: chatId,
+        text: `➡️ Nächste Folge: S${next.season}E${next.episode}`,
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "▶️ Weiter",
+                callback_data: `play_${nextId}`
+              }
+            ]
+          ]
+        }
+      });
+
+    } else {
+
+      await tg("sendMessage", {
+        chat_id: chatId,
+        text: "✅ Staffel abgeschlossen"
+      });
+    }
+
   } catch (err) {
-    console.error("❌ PLAY CONTROLLER ERROR:", err.message);
+    console.error("❌ PLAY ERROR:", err);
   }
 }
 
