@@ -1,137 +1,60 @@
-const { tg, sendFileById, answerCallback } = require("../services/telegramService");
+const { tg, answerCallback } = require("../services/telegramService");
+const { handlePlay } = require("./playController");
 const { getRecommendations } = require("../services/recommendationService");
 const { loadDB } = require("../db/database");
-const { loadSeriesDB, getNextEpisode } = require("../db/seriesDB");
-const { setContinue } = require("../db/continueDB");
-const { playerUrl } = require("../services/telegramService");
 
-// ================= MAIN HANDLER =================
+// ================= MAIN =================
 
-async function handleCallback(callback) {
+async function handleCallback(query) {
+
   try {
 
-    const data = callback.data;
-    const chatId = callback.message.chat.id;
-    const messageId = callback.message.message_id;
-    const userId = callback.from.id;
+    const data = query.data;
+    const chatId = query.message.chat.id;
+    const messageId = query.message.message_id;
 
-    await answerCallback(callback.id);
+    console.log("⚡ CALLBACK:", data);
+
+    // ✅ Telegram Loading entfernen
+    await answerCallback(query.id);
 
     // ================= PLAY =================
 
     if (data.startsWith("play_")) {
+
       const id = data.replace("play_", "");
 
-      const db = loadDB();
-      const item = db.find(x => x.display_id === id);
-
-      if (!item) {
-        return tg("sendMessage", {
-          chat_id: chatId,
-          text: "❌ Film nicht gefunden"
-        });
-      }
-
-      await sendFileById(chatId, item);
-
-      setContinue(userId, {
-        id: item.display_id,
-        type: item.media_type
-      });
-
-      return;
+      return handlePlay(chatId, id);
     }
 
-    // ================= NEXT =================
+    // ================= NEXT / PREV (optional Navigation) =================
 
-    if (data.startsWith("next_")) {
+    if (data.startsWith("next_") || data.startsWith("prev_")) {
 
-      const [, id] = data.split("_");
-
-      const seriesDB = loadSeriesDB();
-
-      let found = null;
-
-      outer:
-      for (const [key, seasons] of Object.entries(seriesDB)) {
-        for (const [season, episodes] of Object.entries(seasons)) {
-          for (const [ep, epData] of Object.entries(episodes)) {
-            if (epData.display_id === id) {
-              found = { key, season, episode: parseInt(ep), data: epData };
-              break outer;
-            }
-          }
-        }
-      }
-
-      if (!found) {
-        return tg("sendMessage", {
-          chat_id: chatId,
-          text: "❌ Folge nicht gefunden"
-        });
-      }
-
-      const next = getNextEpisode(found.key, found.season, found.episode);
-
-      if (!next) {
-        return tg("sendMessage", {
-          chat_id: chatId,
-          text: "✅ Ende der Staffel"
-        });
-      }
-
-      const item = next.data;
-
-      await sendFileById(chatId, item);
-
-      return;
-    }
-
-    // ================= PREV =================
-
-    if (data.startsWith("prev_")) {
+      // 👉 kannst du später erweitern
       return tg("sendMessage", {
         chat_id: chatId,
-        text: "⏪ Zurück-Funktion (optional erweiterbar)"
+        text: "⚠️ Navigation kommt bald"
       });
     }
 
-    // ================= SIMILAR =================
+    // ================= SIMILAR (Placeholder) =================
 
     if (data.startsWith("sim_")) {
 
-      const id = data.split("_")[1];
-
-      const db = loadDB();
-      const item = db.find(x => x.display_id === id);
-
-      if (!item) return;
-
-      const recs = getRecommendations(userId, 5);
-
-      const text = recs.map(r => `🎬 ${r.title}`).join("\n");
-
       return tg("sendMessage", {
         chat_id: chatId,
-        text: `🔥 Ähnliche Inhalte:\n\n${text}`
+        text: "🔥 Ähnliche Inhalte kommen bald"
       });
     }
 
-    // ================= FAVORITE =================
+    // ================= FAVORITE (Placeholder) =================
 
     if (data.startsWith("fav_")) {
+
       return tg("sendMessage", {
         chat_id: chatId,
-        text: "⭐ Favorit gespeichert (Feature Hook)"
-      });
-    }
-
-    // ================= MENU =================
-
-    if (data === "menu") {
-      return tg("sendMessage", {
-        chat_id: chatId,
-        text: "🏠 Hauptmenü"
+        text: "⭐ Favoriten Feature kommt bald"
       });
     }
 
@@ -139,13 +62,67 @@ async function handleCallback(callback) {
 
     if (data === "top_picks") {
 
-      const recs = getRecommendations(userId, 10);
+      const recommendations = getRecommendations(chatId, 10);
 
-      const text = recs.map(r => `🎬 ${r.title}`).join("\n");
+      if (!recommendations.length) {
+        return tg("sendMessage", {
+          chat_id: chatId,
+          text: "🤖 Noch keine Empfehlungen verfügbar"
+        });
+      }
+
+      let text = "🧠 Empfehlungen für dich:\n\n";
+
+      recommendations.forEach((item, i) => {
+        text += `${i + 1}. ${item.title}\n`;
+      });
 
       return tg("sendMessage", {
         chat_id: chatId,
-        text: `🧠 Für dich empfohlen:\n\n${text}`
+        text
+      });
+    }
+
+    // ================= MENU =================
+
+    if (data === "menu") {
+
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text: "🏠 Hauptmenü",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🧠 Für dich", callback_data: "top_picks" }],
+            [{ text: "🔥 Trending", callback_data: "trending" }]
+          ]
+        }
+      });
+    }
+
+    // ================= TRENDING =================
+
+    if (data === "trending") {
+
+      const db = loadDB();
+
+      if (!db.length) {
+        return tg("sendMessage", {
+          chat_id: chatId,
+          text: "❌ Keine Inhalte vorhanden"
+        });
+      }
+
+      const top = db.slice(0, 10);
+
+      let text = "🔥 Trending:\n\n";
+
+      top.forEach((item, i) => {
+        text += `${i + 1}. ${item.title}\n`;
+      });
+
+      return tg("sendMessage", {
+        chat_id: chatId,
+        text
       });
     }
 
@@ -157,7 +134,13 @@ async function handleCallback(callback) {
     });
 
   } catch (err) {
-    console.error("❌ CALLBACK ERROR:", err.message);
+
+    console.error("❌ CALLBACK ERROR:", err);
+
+    return tg("sendMessage", {
+      chat_id: query.message.chat.id,
+      text: "❌ Fehler bei der Verarbeitung"
+    });
   }
 }
 
