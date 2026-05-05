@@ -1,115 +1,126 @@
 const fetch = global.fetch || require("node-fetch");
 
 const TOKEN = process.env.TOKEN;
-const BOT_USERNAME = process.env.BOT_USERNAME || "BOT";
+const BOT_USERNAME = process.env.BOT_USERNAME || "YOUR_BOT_USERNAME";
 
-// ================= CORE REQUEST =================
+// ================= CORE =================
 
-async function tg(method, payload) {
+async function tg(method, body = {}) {
+
   try {
 
-    const res = await fetch(
-      `https://api.telegram.org/bot${TOKEN}/${method}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      }
-    );
+    const url = `https://api.telegram.org/bot${TOKEN}/${method}`;
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
 
     const data = await res.json();
 
     if (!data.ok) {
-      console.error("❌ TG ERROR:", data);
+      console.log("❌ TELEGRAM API ERROR:", method, data);
     }
 
     return data;
 
   } catch (err) {
-    console.error("❌ TG FETCH ERROR:", err.message);
+
+    console.log("❌ TELEGRAM FETCH ERROR:", err.message);
+
     return { ok: false };
   }
 }
 
-// ================= PLAYER URL =================
+// ================= BASIC =================
 
 function playerUrl(mode, id) {
   return `https://t.me/${BOT_USERNAME}?start=${mode}_${id}`;
 }
 
-// ================= INLINE SWIPE =================
+// ================= MESSAGE =================
 
-function buildSwipeNav(id, type = "movie") {
-  return {
-    inline_keyboard: [
+async function sendMessage({
+  chatId,
+  text,
+  reply_markup = null,
+  threadId = null
+}) {
 
-      [
-        { text: "⬅️ Prev", callback_data: `prev_${id}_${type}` },
-        { text: "▶️ Play", callback_data: `play_${id}` },
-        { text: "➡️ Next", callback_data: `next_${id}_${type}` }
-      ],
-
-      [
-        { text: "⭐ Fav", callback_data: `fav_${id}` },
-        { text: "🔥 Similar", callback_data: `sim_${id}` }
-      ],
-
-      [
-        { text: "🏠 Menu", callback_data: "menu" },
-        { text: "🧠 For You", callback_data: "top_picks" }
-      ]
-    ]
-  };
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text,
+    reply_markup,
+    message_thread_id: threadId
+  });
 }
 
-// ================= SEND VIDEO =================
+// ================= VIDEO =================
 
-async function sendFileById(chatId, item, options = {}) {
-
-  if (!item?.file_id) {
-    return tg("sendMessage", {
-      chat_id: chatId,
-      text: "❌ Datei nicht gefunden"
-    });
-  }
+async function sendVideo({
+  chatId,
+  video,
+  caption = null,
+  reply_markup = null,
+  threadId = null
+}) {
 
   return tg("sendVideo", {
     chat_id: chatId,
-    video: item.file_id,
-    supports_streaming: true,
-    caption: options.caption || undefined,
-    reply_markup: options.reply_markup || undefined
+    video,
+    caption,
+    reply_markup,
+    message_thread_id: threadId,
+    supports_streaming: true
   });
 }
 
-// ================= SEND PHOTO =================
+// ================= PHOTO =================
 
-async function sendPhoto({ chatId, photo, caption, reply_markup, threadId }) {
+async function sendPhoto({
+  chatId,
+  photo,
+  caption = null,
+  reply_markup = null,
+  threadId = null
+}) {
+
   return tg("sendPhoto", {
     chat_id: chatId,
-    message_thread_id: threadId,
     photo,
     caption,
-    reply_markup
+    reply_markup,
+    message_thread_id: threadId
   });
 }
 
-// ================= SEND MESSAGE =================
+// ================= EDIT =================
 
-async function sendMessage({ chatId, text, reply_markup, threadId }) {
-  return tg("sendMessage", {
+async function editMessage({
+  chatId,
+  messageId,
+  text,
+  reply_markup = null
+}) {
+
+  return tg("editMessageText", {
     chat_id: chatId,
-    message_thread_id: threadId,
+    message_id: messageId,
     text,
     reply_markup
   });
 }
 
-// ================= EDIT MESSAGE MEDIA =================
+async function editMedia({
+  chatId,
+  messageId,
+  media,
+  reply_markup = null
+}) {
 
-async function editMedia({ chatId, messageId, media, reply_markup }) {
   return tg("editMessageMedia", {
     chat_id: chatId,
     message_id: messageId,
@@ -118,23 +129,74 @@ async function editMedia({ chatId, messageId, media, reply_markup }) {
   });
 }
 
-// ================= CALLBACK ANSWER =================
+// ================= CALLBACK =================
 
-async function answerCallback(callbackId) {
+async function answerCallback(callbackId, text = null) {
+
   return tg("answerCallbackQuery", {
-    callback_query_id: callbackId
+    callback_query_id: callbackId,
+    text
   });
 }
 
-// ================= SEND TO CHANNEL =================
+// ================= FILE =================
 
-function createSendToChannel({ getTargetChannel, getThreadByGenre }) {
+async function sendFileById(chatId, item, options = {}) {
+
+  if (!item || !item.file_id) {
+
+    return sendMessage({
+      chatId,
+      text: "❌ Datei nicht gefunden"
+    });
+  }
+
+  return sendVideo({
+    chatId,
+    video: item.file_id,
+    caption: options.caption,
+    reply_markup: options.reply_markup
+  });
+}
+
+// ================= NAV UI =================
+
+function buildSwipeNav(id, type = "movie") {
+
+  return {
+    inline_keyboard: [
+
+      [
+        { text: "⬅️", callback_data: `prev_${id}_${type}` },
+        { text: "▶️ PLAY", callback_data: `play_${id}` },
+        { text: "➡️", callback_data: `next_${id}_${type}` }
+      ],
+
+      [
+        { text: "⭐ Favorit", callback_data: `fav_${id}` },
+        { text: "🔥 Ähnliche", callback_data: `sim_${id}_${type}` }
+      ],
+
+      [
+        { text: "🏠 Menü", callback_data: "menu" },
+        { text: "🧠 Für dich", callback_data: "top_picks" }
+      ]
+    ]
+  };
+}
+
+// ================= CHANNEL SENDER =================
+
+function createSendToChannel({
+  getTargetChannel,
+  getThreadByGenre
+}) {
 
   return async function sendToChannel({
     cover,
     caption,
     buttons,
-    genreIds = []
+    genreIds
   }) {
 
     try {
@@ -142,18 +204,19 @@ function createSendToChannel({ getTargetChannel, getThreadByGenre }) {
       const chatId = getTargetChannel(genreIds);
       const threadId = getThreadByGenre(genreIds);
 
-      return await tg("sendPhoto", {
-        chat_id: chatId,
-        message_thread_id: threadId,
+      return await sendPhoto({
+        chatId,
+        threadId,
         photo: cover,
         caption,
         reply_markup: {
-          inline_keyboard: buttons || []
+          inline_keyboard: buttons
         }
       });
 
     } catch (err) {
-      console.error("❌ CHANNEL SEND ERROR:", err.message);
+
+      console.log("❌ CHANNEL SEND ERROR:", err.message);
     }
   };
 }
@@ -163,11 +226,13 @@ function createSendToChannel({ getTargetChannel, getThreadByGenre }) {
 module.exports = {
   tg,
   playerUrl,
-  buildSwipeNav,
-  sendFileById,
-  sendPhoto,
   sendMessage,
+  sendVideo,
+  sendPhoto,
+  editMessage,
   editMedia,
   answerCallback,
+  sendFileById,
+  buildSwipeNav,
   createSendToChannel
 };
