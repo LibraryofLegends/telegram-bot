@@ -1,114 +1,142 @@
-// services/scoring.js
-
 // ================= CONFIG =================
 
-const WEIGHTS = {
-  GENRE_MATCH: 4,
-  RATING: 1.5,
-  RECENCY_PENALTY: 40,
+const DEFAULT_WEIGHTS = {
+  GENRE_MATCH: 5,
+  RATING: 1,
   POPULARITY: 0.5,
-  DIVERSITY_PENALTY: 10
+  TRENDING: 3,
+  RECENT_PENALTY: -50,
+  FRESHNESS: 2,
+  RANDOM_BOOST: 0.5
 };
 
 // ================= HELPERS =================
 
-function normalizeRating(rating = 0) {
-  // TMDB ist 0–10 → normalisieren
-  return rating / 10;
-}
+// 🎯 Genre Score
+function scoreGenres(itemGenres = [], favGenres = [], weights) {
 
-function normalizePopularity(popularity = 0) {
-  // einfache logarithmische Dämpfung
-  return Math.log10(popularity + 1);
-}
-
-// ================= GENRE SCORE =================
-
-function scoreGenres(item, userProfile) {
   let score = 0;
 
-  for (const g of item.genres || []) {
-    if (userProfile.genreScore[g]) {
-      score += userProfile.genreScore[g] * WEIGHTS.GENRE_MATCH;
+  for (const g of itemGenres) {
+    if (favGenres.includes(g)) {
+      score += weights.GENRE_MATCH;
     }
   }
 
   return score;
 }
 
-// ================= RATING SCORE =================
+// ⭐ Rating Score
+function scoreRating(item, weights) {
 
-function scoreRating(item) {
-  return normalizeRating(item.rating || item.vote_average || 0) * WEIGHTS.RATING;
+  const rating = item.rating || item.vote_average || 0;
+
+  return rating * weights.RATING;
 }
 
-// ================= POPULARITY SCORE =================
+// 🔥 Popularity (TMDB)
+function scorePopularity(item, weights) {
 
-function scorePopularity(item) {
-  return normalizePopularity(item.popularity || 0) * WEIGHTS.POPULARITY;
+  if (!item.popularity) return 0;
+
+  return item.popularity * weights.POPULARITY;
 }
 
-// ================= RECENCY PENALTY =================
+// 🚫 Already seen
+function scoreRecency(itemId, recentIds = [], weights) {
 
-function scoreRecency(item, userProfile) {
-  if (userProfile.recentIds.includes(item.display_id)) {
-    return -WEIGHTS.RECENCY_PENALTY;
+  if (recentIds.includes(itemId)) {
+    return weights.RECENT_PENALTY;
   }
+
   return 0;
 }
 
-// ================= DIVERSITY PENALTY =================
-
-function scoreDiversity(item, topGenres) {
-  // verhindert monotone Empfehlungen
-  const match = (item.genres || []).some(g => topGenres.includes(g));
-
-  return match ? 0 : -WEIGHTS.DIVERSITY_PENALTY;
+// 🚀 Trending Boost
+function scoreTrending(isTrending, weights) {
+  return isTrending ? weights.TRENDING : 0;
 }
 
-// ================= MAIN SCORE =================
+// 🆕 Freshness
+function scoreFreshness(item, weights) {
 
-function calculateScore(item, userProfile) {
+  if (!item?.addedAt) return 0;
+
+  const age = Date.now() - item.addedAt;
+
+  const oneDay = 1000 * 60 * 60 * 24;
+
+  if (age < oneDay) return weights.FRESHNESS;
+  if (age < oneDay * 3) return weights.FRESHNESS / 2;
+
+  return 0;
+}
+
+// 🎲 Random (für Vielfalt)
+function scoreRandom(weights) {
+  return Math.random() * weights.RANDOM_BOOST;
+}
+
+// ================= MAIN =================
+
+function calculateScore(item, context = {}, customWeights = {}) {
+
+  const weights = { ...DEFAULT_WEIGHTS, ...customWeights };
+
+  const {
+    favGenres = [],
+    recentIds = [],
+    isTrending = false
+  } = context;
 
   let score = 0;
 
-  // 🎯 Genre Match
-  score += scoreGenres(item, userProfile);
-
-  // ⭐ Bewertung
-  score += scoreRating(item);
-
-  // 🔥 Popularität
-  score += scorePopularity(item);
-
-  // 🚫 Bereits gesehen
-  score += scoreRecency(item, userProfile);
-
-  // 🧠 Diversity Control
-  const topGenres = Object.keys(userProfile.genreScore)
-    .sort((a, b) => userProfile.genreScore[b] - userProfile.genreScore[a])
-    .slice(0, 3);
-
-  score += scoreDiversity(item, topGenres);
+  score += scoreGenres(item.genres || [], favGenres, weights);
+  score += scoreRating(item, weights);
+  score += scorePopularity(item, weights);
+  score += scoreRecency(item.display_id, recentIds, weights);
+  score += scoreTrending(isTrending, weights);
+  score += scoreFreshness(item, weights);
+  score += scoreRandom(weights);
 
   return score;
 }
 
-// ================= BULK SCORING =================
+// ================= BATCH =================
 
-function rankItems(items = [], userProfile) {
+function scoreItems(items = [], context = {}, weights = {}) {
 
-  return items
-    .map(item => ({
-      ...item,
-      score: calculateScore(item, userProfile)
-    }))
-    .sort((a, b) => b.score - a.score);
+  return items.map(item => ({
+    ...item,
+    score: calculateScore(item, context, weights)
+  }));
+}
+
+// ================= NORMALIZE =================
+
+// skaliert Scores zwischen 0–1
+function normalizeScores(items = []) {
+
+  if (!items.length) return items;
+
+  const scores = items.map(x => x.score);
+
+  const min = Math.min(...scores);
+  const max = Math.max(...scores);
+
+  if (min === max) return items;
+
+  return items.map(item => ({
+    ...item,
+    normalizedScore: (item.score - min) / (max - min)
+  }));
 }
 
 // ================= EXPORT =================
 
 module.exports = {
   calculateScore,
-  rankItems
+  scoreItems,
+  normalizeScores,
+  DEFAULT_WEIGHTS
 };
