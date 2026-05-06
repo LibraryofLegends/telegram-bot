@@ -1,167 +1,133 @@
-const { loadDB } = require("../db/database");
-const { readHistory } = require("../db/historyDB");
-const { getUserProfile } = require("../db/userProfileDB");
-const { loadSeriesDB } = require("../db/seriesDB");
-
 // ================= CONFIG =================
 
 const WEIGHTS = {
-  genre: 3.0,
-  rating: 1.2,
-  recency: 2.0,
-  continuation: 5.0,
-  popularity: 1.5,
-  penaltySeen: -100,
-  dislikePenalty: -80
+  GENRE_MATCH: 5,
+  RATING: 1,
+  TRENDING: 3,
+  RECENT_PENALTY: -50,
+  FRESHNESS: 2
 };
 
 // ================= HELPERS =================
 
-function getYear(item) {
-  const date = item.release_date || item.first_air_date;
-  if (!date) return null;
-  return parseInt(date.slice(0, 4));
-}
+// 🎯 Genre Match Score
+function scoreGenres(itemGenres = [], favGenres = []) {
 
-function getRecencyBoost(item) {
-  const year = getYear(item);
-  if (!year) return 0;
-
-  const diff = new Date().getFullYear() - year;
-
-  if (diff <= 1) return 5;
-  if (diff <= 3) return 3;
-  if (diff <= 7) return 1;
-  return 0;
-}
-
-function normalizeGenres(item) {
-  return item.genres || [];
-}
-
-// ================= CORE SCORING =================
-
-function scoreItem(item, userProfile, historyIds) {
   let score = 0;
 
-  const userGenres = userProfile.genres || {};
-  const liked = userProfile.liked || {};
-  const disliked = userProfile.disliked || {};
-
-  // 🎯 GENRE MATCH
-  for (const g of normalizeGenres(item)) {
-    if (userGenres[g]) {
-      score += userGenres[g] * WEIGHTS.genre;
+  for (const g of itemGenres) {
+    if (favGenres.includes(g)) {
+      score += WEIGHTS.GENRE_MATCH;
     }
-  }
-
-  // ⭐ RATING BOOST
-  if (item.vote_average) {
-    score += item.vote_average * WEIGHTS.rating;
-  }
-
-  // 🔥 RECENCY BOOST
-  score += getRecencyBoost(item) * WEIGHTS.recency;
-
-  // ❤️ LIKE BOOST
-  if (liked[item.display_id]) {
-    score += 20;
-  }
-
-  // 💀 DISLIKE PENALTY
-  if (disliked[item.display_id]) {
-    score += WEIGHTS.dislikePenalty;
-  }
-
-  // 🚫 ALREADY SEEN
-  if (historyIds.includes(item.display_id)) {
-    score += WEIGHTS.penaltySeen;
   }
 
   return score;
 }
 
-// ================= SERIES CONTINUATION BOOST =================
+// ⭐ Rating Score
+function scoreRating(rating = 0) {
+  return rating * WEIGHTS.RATING;
+}
 
-function getSeriesContinuationBoost(item, userContinue) {
-  if (!userContinue) return 0;
-
-  if (!item.media_type || item.media_type !== "tv") return 0;
-
-  if (item.seriesKey === userContinue.seriesKey) {
-    return WEIGHTS.continuation;
+// 🚫 Already watched
+function scoreRecency(itemId, recentIds = []) {
+  if (recentIds.includes(itemId)) {
+    return WEIGHTS.RECENT_PENALTY;
   }
+  return 0;
+}
+
+// 🔥 Trending Boost
+function scoreTrending(isTrending) {
+  return isTrending ? WEIGHTS.TRENDING : 0;
+}
+
+// 🆕 Fresh Content (optional)
+function scoreFreshness(item) {
+
+  if (!item?.addedAt) return 0;
+
+  const age = Date.now() - item.addedAt;
+
+  const oneDay = 1000 * 60 * 60 * 24;
+
+  if (age < oneDay) return WEIGHTS.FRESHNESS;
+  if (age < oneDay * 3) return WEIGHTS.FRESHNESS / 2;
 
   return 0;
 }
 
-// ================= MAIN ENGINE =================
+// ================= MAIN SCORE =================
 
-function getRankedRecommendations(userId, limit = 10) {
+function calculateScore(item, context = {}) {
 
-  const db = loadDB();
-  const history = readHistory(userId) || [];
-  const userProfile = getUserProfile(userId);
+  const {
+    favGenres = [],
+    recentIds = [],
+    isTrending = false
+  } = context;
 
-  const historyIds = history.map(h => h.id || h.display_id);
+  let score = 0;
 
-  const seriesDB = loadSeriesDB();
-  const userContinue = require("../db/continueDB").getContinue(userId);
+  score += scoreGenres(item.genres, favGenres);
+  score += scoreRating(item.rating || item.vote_average || 0);
+  score += scoreRecency(item.display_id, recentIds);
+  score += scoreTrending(isTrending);
+  score += scoreFreshness(item);
 
-  if (!db.length) return [];
-
-  const ranked = db.map(item => {
-
-    let score = scoreItem(item, userProfile, historyIds);
-
-    // 🎬 CONTINUATION BOOST (Netflix-style)
-    score += getSeriesContinuationBoost(item, userContinue);
-
-    // 📈 POPULARITY BONUS (light heuristic)
-    if (item.vote_average > 7.5) {
-      score += WEIGHTS.popularity;
-    }
-
-    return {
-      ...item,
-      score
-    };
-  });
-
-  return ranked
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+  return score;
 }
 
-// ================= EXPLANATION ENGINE =================
+// ================= RANK =================
 
-function explainRecommendation(item, userProfile) {
+function rankItems(items = [], context = {}) {
 
-  const reasons = [];
+  return items
+    .map(item => ({
+      ...item,
+      score: calculateScore(item, context)
+    }))
+    .sort((a, b) => b.score - a.score);
+}
 
-  const userGenres = userProfile.genres || {};
+// ================= FILTER DUPLICATES =================
 
-  for (const g of item.genres || []) {
-    if (userGenres[g]) {
-      reasons.push("🎯 Genre Match");
-    }
-  }
+function uniqueItems(items = []) {
 
-  if (item.vote_average > 7) {
-    reasons.push("⭐ High Rating");
-  }
+  const seen = new Set();
 
-  if (item.media_type === "tv") {
-    reasons.push("📺 Series Match");
-  }
+  return items.filter(item => {
 
-  return reasons;
+    const key = item.display_id || item.id;
+
+    if (seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
+}
+
+// ================= LIMIT =================
+
+function limitItems(items = [], limit = 10) {
+  return items.slice(0, limit);
+}
+
+// ================= PIPELINE =================
+
+function rankPipeline(items = [], context = {}, limit = 10) {
+
+  const ranked = rankItems(items, context);
+  const unique = uniqueItems(ranked);
+
+  return limitItems(unique, limit);
 }
 
 // ================= EXPORT =================
 
 module.exports = {
-  getRankedRecommendations,
-  scoreItem,
-  explainRecommendation
+  calculateScore,
+  rankItems,
+  rankPipeline,
+  uniqueItems
 };
