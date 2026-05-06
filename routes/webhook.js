@@ -1,16 +1,11 @@
-const router = require("express").Router();
-
-// ================= CONTROLLERS =================
+const express = require("express");
+const router = express.Router();
 
 const { handleUpload } = require("../controllers/uploadController");
-const { handleCallback } = require("../controllers/callbackController");
 
-// ================= WEBHOOK =================
+// ================= MAIN =================
 
-router.post("/:token", async (req, res) => {
-
-  // ⚡ Telegram braucht sofort Antwort
-  res.sendStatus(200);
+router.post("/", async (req, res) => {
 
   try {
 
@@ -18,93 +13,38 @@ router.post("/:token", async (req, res) => {
 
     console.log("📩 Incoming Update");
 
-    // ================= CALLBACK =================
-
-    if (update.callback_query) {
-
-      console.log("👉 Callback:", update.callback_query.data);
-
-      return await handleCallback(update.callback_query);
-    }
-
-    // ================= MESSAGE =================
-
+    // 🔥 MESSAGE
     if (update.message) {
 
       const msg = update.message;
 
-      // 🔍 Debug
-      console.log("👉 Message Type:", {
-        text: !!msg.text,
-        video: !!msg.video,
-        document: !!msg.document
-      });
+      // 👉 DEBUG
+      console.log("📦 Message Type:", Object.keys(msg));
 
-      // ================= COMMANDS =================
-
-      if (msg.text) {
-
-        const text = msg.text.toLowerCase();
-
-        // /start
-        if (text.startsWith("/start")) {
-          return handleStart(msg);
-        }
-
-        // /debug
-        if (text === "/debug") {
-          return handleDebug(msg);
-        }
-      }
-
-      // ================= UPLOAD =================
-
+      // 🎬 VIDEO / FILE
       if (msg.video || msg.document) {
+        console.log("🎥 Upload erkannt");
 
-        console.log("🎬 Upload erkannt");
-
-        return await handleUpload(msg);
+        await handleUpload(msg);
       }
+
     }
 
+    // 🔥 CALLBACK (Buttons)
+    if (update.callback_query) {
+
+      console.log("🔘 Callback erkannt");
+
+      // optional später
+    }
+
+    res.sendStatus(200);
+
   } catch (err) {
-
     console.error("❌ WEBHOOK ERROR:", err.message);
-
+    res.sendStatus(500);
   }
 
 });
-
-
-// ================= COMMAND HANDLERS =================
-
-const { tg } = require("../services/telegramService");
-
-// 👉 /start
-async function handleStart(msg) {
-
-  return tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: `👋 Willkommen!
-
-🎬 Sende einfach einen Film oder eine Episode
-und ich kümmere mich um den Rest 🚀`
-  });
-}
-
-// 👉 /debug
-async function handleDebug(msg) {
-
-  return tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: `🧪 DEBUG INFO
-
-ID: ${msg.chat.id}
-Video: ${!!msg.video}
-Document: ${!!msg.document}`
-  });
-}
-
-// ================= EXPORT =================
 
 module.exports = router;
