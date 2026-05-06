@@ -1,117 +1,138 @@
-// utils/parser.js
+ // ================= CLEANING =================
 
-// ================= CLEAN TITLE =================
-
-function cleanTitle(name = "") {
+// entfernt typische Release Tags
+function stripTags(name = "") {
   return name
     .replace(/\.(mp4|mkv|avi|mov)$/i, "")
+    .replace(/\b(1080p|720p|2160p|4k|bluray|web|dl|hdrip|x264|x265|hevc|aac|dts)\b/gi, "")
     .replace(/[._\-]+/g, " ")
-    .replace(/\b(1080p|720p|4k|2160p|bluray|web|webrip|hdrip|x264|x265|dl)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-// ================= NORMALIZATION =================
+// ================= AI NORMALIZE =================
 
 function aiNormalize(text = "") {
   return text
     .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
+    .replace(/[^\w\s]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-// ================= FILE PARSER =================
+// ================= SERIES DETECTION =================
 
-function parseFileName(fileName = "") {
-  const clean = fileName.replace(/[._\-]+/g, " ");
+function detectEpisode(name = "") {
 
-  // 🎬 SERIES: S01E01
-  let match = clean.match(/S(\d{1,2})E(\d{1,2})/i);
-
-  if (!match) {
-    // 🎬 SERIES: 1x01 fallback
-    match = clean.match(/(\d{1,2})x(\d{1,2})/i);
-  }
+  // S01E01
+  let match = name.match(/S(\d{1,2})E(\d{1,2})/i);
 
   if (match) {
     return {
-      type: "tv",
-      title: clean
-        .replace(match[0], "")
-        .replace(/\s+/g, " ")
-        .trim(),
       season: parseInt(match[1]),
       episode: parseInt(match[2])
     };
   }
 
+  // 1x01
+  match = name.match(/(\d{1,2})x(\d{1,2})/i);
+
+  if (match) {
+    return {
+      season: parseInt(match[1]),
+      episode: parseInt(match[2])
+    };
+  }
+
+  return null;
+}
+
+// ================= YEAR =================
+
+function extractYear(name = "") {
+  const match = name.match(/(19|20)\d{2}/);
+  return match ? parseInt(match[0]) : null;
+}
+
+// ================= MAIN PARSE =================
+
+function parseFileName(fileName = "") {
+
+  const cleaned = stripTags(fileName);
+
+  const episodeData = detectEpisode(cleaned);
+
+  const year = extractYear(cleaned);
+
+  if (episodeData) {
+
+    const title = cleaned
+      .replace(/S\d{1,2}E\d{1,2}/i, "")
+      .replace(/\d{1,2}x\d{1,2}/i, "")
+      .trim();
+
+    return {
+      type: "tv",
+      title,
+      season: episodeData.season,
+      episode: episodeData.episode,
+      year
+    };
+  }
+
   return {
     type: "movie",
-    title: clean.trim()
+    title: cleaned,
+    year
   };
+}
+
+// ================= CLEAN TITLE =================
+
+function ultraCleanTitle(name = "") {
+
+  return stripTags(name)
+    .replace(/S\d{1,2}E\d{1,2}/gi, "")
+    .replace(/\d{1,2}x\d{1,2}/gi, "")
+    .replace(/\b(extended|uncut|remastered)\b/gi, "")
+    .trim();
 }
 
 // ================= SEARCH VARIANTS =================
 
 function buildSearchVariants(title = "") {
-  const base = aiNormalize(title);
 
-  const variants = [
-    base,
-    base.replace(/\bthe\b/g, ""),
-    base.replace(/\b(a|an|the)\b/g, "").trim(),
-    base.split(" ").slice(0, -1).join(" "),
-    base.split(" ").slice(0, 3).join(" ")
-  ];
+  if (!title) return [];
 
-  return [...new Set(variants)].filter(Boolean);
-}
+  const base = title.trim();
 
-// ================= SERIES KEY BUILDER =================
+  const variants = new Set();
 
-function buildSeriesKey(title = "") {
-  return aiNormalize(title)
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "_")
-    .replace(/_+/g, "_")
-    .replace(/^_|_$/g, "");
-}
+  variants.add(base);
 
-// ================= EPISODE FORMAT =================
+  // ohne Zahlen
+  variants.add(base.replace(/\d+/g, "").trim());
 
-function formatEpisode(season, episode) {
-  return `S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}`;
-}
+  // nur erstes Wort
+  const words = base.split(" ");
+  if (words.length > 1) {
+    variants.add(words.slice(0, 2).join(" "));
+  }
 
-// ================= EXTRACT YEAR =================
+  // ohne Sonderzeichen
+  variants.add(
+    base.replace(/[^\w\s]/g, "")
+  );
 
-function extractYear(text = "") {
-  const match = text.match(/(19|20)\d{2}/);
-  return match ? parseInt(match[0]) : null;
-}
-
-// ================= FILE QUALITY DETECTOR =================
-
-function detectQuality(fileName = "") {
-  const lower = fileName.toLowerCase();
-
-  if (lower.includes("2160p") || lower.includes("4k")) return "4K";
-  if (lower.includes("1080p")) return "1080p";
-  if (lower.includes("720p")) return "720p";
-
-  return "SD";
+  return [...variants].filter(Boolean);
 }
 
 // ================= EXPORT =================
 
 module.exports = {
-  cleanTitle,
-  aiNormalize,
   parseFileName,
+  ultraCleanTitle,
+  aiNormalize,
   buildSearchVariants,
-  buildSeriesKey,
-  formatEpisode,
-  extractYear,
-  detectQuality
+  extractYear
 };
