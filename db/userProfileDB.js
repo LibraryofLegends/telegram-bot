@@ -1,118 +1,156 @@
 const fs = require("fs");
+const path = require("path");
 
-const FILE = "userProfile.json";
+// ================= CONFIG =================
 
-// ================= CORE LOAD / SAVE =================
+const FILE = path.join(__dirname, "userProfiles.json");
 
-function loadUserProfiles() {
-  if (!fs.existsSync(FILE)) return {};
-  return JSON.parse(fs.readFileSync(FILE, "utf8") || "{}");
+// ================= CORE =================
+
+function safeParse(data) {
+  try {
+    return JSON.parse(data);
+  } catch {
+    console.error("❌ PROFILE PARSE ERROR → reset");
+    return {};
+  }
 }
 
-function saveUserProfiles(data) {
-  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+function load() {
+  try {
+    if (!fs.existsSync(FILE)) return {};
+
+    const raw = fs.readFileSync(FILE, "utf8") || "{}";
+    return safeParse(raw);
+
+  } catch (err) {
+    console.error("❌ PROFILE LOAD ERROR:", err.message);
+    return {};
+  }
 }
 
-// ================= INIT USER =================
+function save(data) {
+  try {
+    const tmp = FILE + ".tmp";
+
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, FILE);
+
+  } catch (err) {
+    console.error("❌ PROFILE SAVE ERROR:", err.message);
+  }
+}
+
+// ================= INIT =================
 
 function ensureUser(db, userId) {
+
   if (!db[userId]) {
     db[userId] = {
-      genres: {},        // Genre weight system
-      liked: {},         // liked movies/series
-      disliked: {},      // disliked items
-      watched: {},       // watch counter
-      lastSeen: null,
-      updatedAt: Date.now()
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+
+      stats: {
+        totalWatched: 0,
+        movies: 0,
+        series: 0
+      },
+
+      genres: {}, // { 28: 5, 35: 2 }
+
+      lastWatched: null
     };
   }
-  return db[userId];
 }
 
-// ================= UPDATE WATCH EVENT =================
+// ================= UPDATE =================
 
-function trackWatch(userId, item) {
-  const db = loadUserProfiles();
-  const user = ensureUser(db, userId);
+/**
+ * payload:
+ * {
+ *   id: "0001",
+ *   type: "movie" | "series",
+ *   genres: [28, 12]
+ * }
+ */
+function updateUserProfile(userId, payload) {
 
-  const genres = item.genres || [];
+  if (!userId || !payload) return;
 
-  // 📊 Genre Learning
-  for (const g of genres) {
+  const db = load();
+
+  ensureUser(db, userId);
+
+  const user = db[userId];
+
+  // 📊 Stats
+  user.stats.totalWatched += 1;
+
+  if (payload.type === "movie") {
+    user.stats.movies += 1;
+  }
+
+  if (payload.type === "series") {
+    user.stats.series += 1;
+  }
+
+  // 🎯 Genres
+  for (const g of payload.genres || []) {
     user.genres[g] = (user.genres[g] || 0) + 1;
   }
 
-  // 👁 Watch Tracking
-  user.watched[item.display_id] = (user.watched[item.display_id] || 0) + 1;
+  // 🕒 Last watched
+  user.lastWatched = {
+    id: payload.id,
+    timestamp: Date.now()
+  };
 
-  user.lastSeen = item.display_id;
   user.updatedAt = Date.now();
 
-  saveUserProfiles(db);
+  save(db);
 }
 
-// ================= LIKE / DISLIKE =================
-
-function likeItem(userId, itemId) {
-  const db = loadUserProfiles();
-  const user = ensureUser(db, userId);
-
-  user.liked[itemId] = true;
-  delete user.disliked[itemId];
-
-  saveUserProfiles(db);
-}
-
-function dislikeItem(userId, itemId) {
-  const db = loadUserProfiles();
-  const user = ensureUser(db, userId);
-
-  user.disliked[itemId] = true;
-  delete user.liked[itemId];
-
-  saveUserProfiles(db);
-}
-
-// ================= GET PROFILE =================
+// ================= GET =================
 
 function getUserProfile(userId) {
-  const db = loadUserProfiles();
-  return ensureUser(db, userId);
+
+  if (!userId) return null;
+
+  const db = load();
+
+  return db[userId] || null;
 }
 
-// ================= BUILD AI WEIGHTS =================
+// ================= TOP GENRES =================
 
-function buildPreferenceVector(userId) {
+function getTopGenres(userId, limit = 5) {
+
   const user = getUserProfile(userId);
 
-  const vector = {};
+  if (!user) return [];
 
-  // 🎯 Genres
-  for (const [genre, score] of Object.entries(user.genres)) {
-    vector[genre] = score * 3;
-  }
+  return Object.entries(user.genres)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id]) => parseInt(id));
+}
 
-  // ❤️ Likes boost
-  for (const id of Object.keys(user.liked)) {
-    vector[`like:${id}`] = 50;
-  }
+// ================= RESET =================
 
-  // 💀 Dislikes penalty
-  for (const id of Object.keys(user.disliked)) {
-    vector[`dislike:${id}`] = -100;
-  }
+function resetUserProfile(userId) {
 
-  return vector;
+  const db = load();
+
+  delete db[userId];
+
+  save(db);
 }
 
 // ================= EXPORT =================
 
 module.exports = {
-  loadUserProfiles,
-  saveUserProfiles,
-  trackWatch,
-  likeItem,
-  dislikeItem,
+  updateUserProfile,
   getUserProfile,
-  buildPreferenceVector
+  getTopGenres,
+  resetUserProfile
 };
