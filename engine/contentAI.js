@@ -1,217 +1,148 @@
 const { loadDB } = require("../db/database");
 const { readHistory } = require("../db/historyDB");
-const { getUserProfile } = require("../db/userProfileDB");
-const { getSimilarRanked } = require("../services/similarityEngine");
+const { getTopGenres } = require("../db/userProfileDB");
 
-// ================= CONFIG =================
+const {
+  getTrending,
+  getSimilar
+} = require("./tmdbService");
 
-const AI_WEIGHTS = {
-  similarity: 4.0,
-  personal: 3.5,
-  recency: 2.0,
-  seriesBoost: 5.0,
-  diversityPenalty: -1.5
-};
+// ================= SCORE ENGINE =================
 
-// ================= HELPERS =================
-
-function getGenreVector(item) {
-  const vec = {};
-  for (const g of item.genres || []) {
-    vec[g] = (vec[g] || 0) + 1;
-  }
-  return vec;
-}
-
-function cosineSimilarity(vecA, vecB) {
-
-  const keys = new Set([...Object.keys(vecA), ...Object.keys(vecB)]);
-
-  let dot = 0;
-  let magA = 0;
-  let magB = 0;
-
-  for (const k of keys) {
-    const a = vecA[k] || 0;
-    const b = vecB[k] || 0;
-
-    dot += a * b;
-    magA += a * a;
-    magB += b * b;
-  }
-
-  if (magA === 0 || magB === 0) return 0;
-
-  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
-}
-
-function getRecencyBoost(history) {
-
-  if (!history.length) return 0;
-
-  const last = history[0];
-
-  const diff = Date.now() - (last.timestamp || 0);
-
-  const hours = diff / (1000 * 60 * 60);
-
-  if (hours < 12) return 3;
-  if (hours < 48) return 2;
-  if (hours < 168) return 1;
-
-  return 0;
-}
-
-// ================= CORE AI SCORING =================
-
-function scoreContent(item, userProfile, history) {
+function calculateScore(item, ctx) {
 
   let score = 0;
 
-  const userGenres = userProfile.genres || {};
-  const liked = userProfile.liked || {};
-  const disliked = userProfile.disliked || {};
+  const {
+    favGenres,
+    recentIds,
+    boostTrending = false
+  } = ctx;
 
-  const historyIds = history.map(h => h.id);
-
-  // 🎯 PERSONAL PROFILE MATCH
+  // 🎯 Genre Match (sehr wichtig)
   for (const g of item.genres || []) {
-    if (userGenres[g]) {
-      score += userGenres[g] * AI_WEIGHTS.personal;
+    if (favGenres.includes(g)) {
+      score += 5;
     }
   }
 
-  // ❤️ Likes boost
-  if (liked[item.display_id]) {
-    score += 25;
+  // 🔥 Bewertung Bonus
+  if (item.rating) {
+    score += item.rating;
   }
 
-  // 💀 Dislikes penalty
-  if (disliked[item.display_id]) {
-    score -= 100;
+  // 🚫 Schon gesehen
+  if (recentIds.includes(item.display_id)) {
+    score -= 50;
   }
 
-  // 🚫 Already seen penalty
-  if (historyIds.includes(item.display_id)) {
-    score -= 80;
-  }
-
-  // 📺 Series continuation boost
-  if (item.media_type === "tv") {
-    score += AI_WEIGHTS.seriesBoost;
+  // 🚀 Trending Boost
+  if (boostTrending) {
+    score += 3;
   }
 
   return score;
 }
 
-// ================= CONTENT AI ENGINE =================
+// ================= CONTEXT =================
 
-async function getPersonalizedFeed(userId, limit = 10) {
+function buildContext(userId) {
+
+  const history = readHistory(userId) || [];
+
+  const recentIds = history.map(x => x.id);
+
+  const favGenres = getTopGenres(userId) || [];
+
+  return {
+    favGenres,
+    recentIds
+  };
+}
+
+// ================= LOCAL RECOMMENDATIONS =================
+
+function getLocalRecommendations(userId, limit = 10) {
 
   const db = loadDB();
-  const history = readHistory(userId) || [];
-  const userProfile = getUserProfile(userId);
-
   if (!db.length) return [];
 
-  const userVector = getGenreVector(userProfile);
+  const ctx = buildContext(userId);
 
-  const scored = [];
-
-  for (const item of db) {
-
-    const itemVector = getGenreVector(item);
-
-    // 🧠 similarity between user & content
-    const similarity = cosineSimilarity(userVector, itemVector);
-
-    let score = 0;
-
-    // base AI scoring
-    score += scoreContent(item, userProfile, history);
-
-    // similarity boost
-    score += similarity * AI_WEIGHTS.similarity;
-
-    // recency boost
-    score += getRecencyBoost(history) * AI_WEIGHTS.recency;
-
-    scored.push({
-      ...item,
-      score,
-      similarity
-    });
-  }
+  const scored = db.map(item => ({
+    ...item,
+    score: calculateScore(item, ctx)
+  }));
 
   return scored
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 }
 
-// ================= “BECAUSE YOU WATCHED” =================
+// ================= TRENDING MIX =================
 
-async function getBecauseYouWatched(userId, limit = 5) {
+async function getTrendingMix(userId, limit = 10) {
 
-  const history = readHistory(userId);
+  const ctx = buildContext(userId);
 
-  if (!history.length) return [];
+  const trending = await getTrending(limit);
 
-  const lastWatched = history[0];
+  return trending.map(item => ({
+    ...item,
+    score: calculateScore(item, {
+      ...ctx,
+      boostTrending: true
+    })
+  }));
+}
 
-  const similar = await getSimilarRanked(
-    lastWatched,
-    userId,
-    limit * 2
+// ================= SIMILAR =================
+
+async function getSimilarContent(item, limit = 10) {
+
+  if (!item?.tmdb_id) return [];
+
+  return await getSimilar(
+    item.tmdb_id,
+    item.media_type || "movie",
+    limit
   );
-
-  return similar.slice(0, limit);
 }
 
-// ================= TREND MIX =================
+// ================= HYBRID AI =================
 
-function getTrendMix(limit = 10) {
+async function getSmartRecommendations(userId, limit = 10) {
 
-  const db = loadDB();
+  const local = getLocalRecommendations(userId, limit);
 
-  const sorted = db
-    .sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0))
-    .slice(0, limit);
+  const trending = await getTrendingMix(userId, limit);
 
-  return sorted;
-}
+  const combined = [...local, ...trending];
 
-// ================= HYBRID FEED =================
-
-async function getHybridFeed(userId, limit = 10) {
-
-  const personalized = await getPersonalizedFeed(userId, limit);
-  const because = await getBecauseYouWatched(userId, 5);
-  const trending = getTrendMix(5);
-
-  const mix = [
-    ...personalized,
-    ...because,
-    ...trending
-  ];
-
-  // remove duplicates
+  // ❌ Duplikate entfernen
+  const unique = [];
   const seen = new Set();
 
-  const final = mix.filter(item => {
-    if (seen.has(item.display_id)) return false;
-    seen.add(item.display_id);
-    return true;
-  });
+  for (const item of combined) {
 
-  return final.slice(0, limit);
+    const key = item.id || item.display_id;
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(item);
+    }
+  }
+
+  return unique
+    .sort((a, b) => (b.score || 0) - (a.score || 0))
+    .slice(0, limit);
 }
 
 // ================= EXPORT =================
 
 module.exports = {
-  getPersonalizedFeed,
-  getBecauseYouWatched,
-  getTrendMix,
-  getHybridFeed,
-  scoreContent
+  getLocalRecommendations,
+  getTrendingMix,
+  getSimilarContent,
+  getSmartRecommendations
 };
