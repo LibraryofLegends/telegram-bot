@@ -1,31 +1,66 @@
 const fs = require("fs");
+const path = require("path");
 
-const FILE = "series.json";
+// ================= CONFIG =================
 
-// ================= CORE LOAD / SAVE =================
+const FILE = path.join(__dirname, "series.json");
+
+// ================= CORE =================
+
+function safeParse(data) {
+  try {
+    return JSON.parse(data);
+  } catch {
+    console.error("❌ SERIES PARSE ERROR → reset");
+    return {};
+  }
+}
 
 function loadSeriesDB() {
-  if (!fs.existsSync(FILE)) return {};
-  return JSON.parse(fs.readFileSync(FILE, "utf8") || "{}");
-}
+  try {
+    if (!fs.existsSync(FILE)) return {};
 
-function saveSeriesDB(data) {
-  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
-}
+    const raw = fs.readFileSync(FILE, "utf8") || "{}";
+    return safeParse(raw);
 
-// In-memory cache (speed boost)
-let SERIES_CACHE = loadSeriesDB();
-
-// ================= ENSURE STRUCTURE =================
-
-function ensureStructure(seriesKey, season) {
-
-  if (!SERIES_CACHE[seriesKey]) {
-    SERIES_CACHE[seriesKey] = {};
+  } catch (err) {
+    console.error("❌ SERIES LOAD ERROR:", err.message);
+    return {};
   }
+}
 
-  if (!SERIES_CACHE[seriesKey][season]) {
-    SERIES_CACHE[seriesKey][season] = {};
+// atomisches speichern
+function saveSeriesDB(data) {
+  try {
+    const tmp = FILE + ".tmp";
+
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, FILE);
+
+  } catch (err) {
+    console.error("❌ SERIES SAVE ERROR:", err.message);
+  }
+}
+
+// ================= HELPERS =================
+
+function ensureSeries(db, seriesKey) {
+  if (!db[seriesKey]) {
+    db[seriesKey] = {
+      meta: {
+        createdAt: Date.now()
+      },
+      seasons: {}
+    };
+  }
+}
+
+function ensureSeason(db, seriesKey, season) {
+  if (!db[seriesKey].seasons[season]) {
+    db[seriesKey].seasons[season] = {
+      episodes: {},
+      _headerSent: false
+    };
   }
 }
 
@@ -33,29 +68,35 @@ function ensureStructure(seriesKey, season) {
 
 function saveEpisode(seriesKey, season, episode, payload) {
 
-  ensureStructure(seriesKey, season);
+  if (!seriesKey || !season || !episode || !payload?.file_id) {
+    return null;
+  }
 
-  SERIES_CACHE[seriesKey][season][episode] = {
-    file_id: payload.file_id,
-    display_id: payload.display_id || payload.id || null,
-    created_at: Date.now()
+  const db = loadSeriesDB();
+
+  ensureSeries(db, seriesKey);
+  ensureSeason(db, seriesKey, season);
+
+  db[seriesKey].seasons[season].episodes[episode] = {
+    ...payload,
+    addedAt: Date.now()
   };
 
-  saveSeriesDB(SERIES_CACHE);
+  saveSeriesDB(db);
 
-  return SERIES_CACHE[seriesKey][season][episode];
+  return true;
 }
 
-// ================= GET EPISODE =================
+// ================= GET =================
 
 function getEpisode(seriesKey, season, episode) {
 
   const db = loadSeriesDB();
 
-  return db?.[seriesKey]?.[season]?.[episode] || null;
+  return db?.[seriesKey]?.seasons?.[season]?.episodes?.[episode] || null;
 }
 
-// ================= NEXT EPISODE ENGINE =================
+// ================= NEXT EPISODE =================
 
 function getNextEpisode(seriesKey, season, episode) {
 
@@ -64,149 +105,86 @@ function getNextEpisode(seriesKey, season, episode) {
   const s = parseInt(season);
   const e = parseInt(episode);
 
-  if (!db?.[seriesKey]) return null;
+  const seasons = db?.[seriesKey]?.seasons;
+  if (!seasons) return null;
 
-  // 🔥 same season next episode
-  if (db?.[seriesKey]?.[s]?.[e + 1]) {
+  // 🔥 gleiche Staffel
+  if (seasons[s]?.episodes?.[e + 1]) {
     return {
-      seriesKey,
       season: s,
       episode: e + 1,
-      data: db[seriesKey][s][e + 1]
+      data: seasons[s].episodes[e + 1]
     };
   }
 
-  // 🔥 next season first episode
-  if (db?.[seriesKey]?.[s + 1]) {
+  // 🔥 nächste Staffel
+  const nextSeason = seasons[s + 1];
 
-    const nextSeason = db[seriesKey][s + 1];
-    const firstEp = Object.keys(nextSeason)
-      .filter(k => k !== "_meta")
+  if (nextSeason) {
+    const episodes = nextSeason.episodes;
+
+    const firstEp = Object.keys(episodes)
+      .map(Number)
       .sort((a, b) => a - b)[0];
 
-    return {
-      seriesKey,
-      season: s + 1,
-      episode: parseInt(firstEp),
-      data: nextSeason[firstEp]
-    };
+    if (firstEp) {
+      return {
+        season: s + 1,
+        episode: firstEp,
+        data: episodes[firstEp]
+      };
+    }
   }
 
   return null;
 }
 
-// ================= SERIES OVERVIEW =================
+// ================= HEADER =================
 
-function getSeriesOverview(seriesKey) {
+function isHeaderSent(seriesKey, season) {
+  const db = loadSeriesDB();
+  return db?.[seriesKey]?.seasons?.[season]?._headerSent || false;
+}
+
+function markHeaderSent(seriesKey, season) {
 
   const db = loadSeriesDB();
 
-  const series = db[seriesKey];
+  ensureSeries(db, seriesKey);
+  ensureSeason(db, seriesKey, season);
 
-  if (!series) return null;
+  db[seriesKey].seasons[season]._headerSent = true;
 
-  const seasons = Object.keys(series)
-    .filter(k => k !== "_meta");
+  saveSeriesDB(db);
+}
 
-  return {
-    seriesKey,
-    totalSeasons: seasons.length,
-    seasons: seasons.map(season => ({
-      season: parseInt(season),
-      episodes: Object.keys(series[season]).length
+// ================= LIST =================
+
+// alle Episoden einer Staffel
+function getSeasonEpisodes(seriesKey, season) {
+
+  const db = loadSeriesDB();
+
+  const eps = db?.[seriesKey]?.seasons?.[season]?.episodes || {};
+
+  return Object.entries(eps)
+    .map(([ep, data]) => ({
+      episode: parseInt(ep),
+      ...data
     }))
-  };
+    .sort((a, b) => a.episode - b.episode);
 }
 
-// ================= FIND EPISODE BY DISPLAY ID =================
-
-function findEpisodeByDisplayId(display_id) {
+// alle Staffeln
+function getSeasons(seriesKey) {
 
   const db = loadSeriesDB();
 
-  for (const [seriesKey, seasons] of Object.entries(db)) {
+  const seasons = db?.[seriesKey]?.seasons || {};
 
-    for (const [season, episodes] of Object.entries(seasons)) {
-
-      for (const [episode, data] of Object.entries(episodes)) {
-
-        if (data?.display_id === display_id) {
-          return {
-            seriesKey,
-            season: parseInt(season),
-            episode: parseInt(episode),
-            data
-          };
-        }
-      }
-    }
-  }
-
-  return null;
-}
-
-// ================= LAST WATCHED =================
-
-function setLastWatched(userId, payload) {
-
-  const db = loadSeriesDB();
-
-  if (!db._lastWatched) db._lastWatched = {};
-
-  db._lastWatched[userId] = {
-    ...payload,
-    timestamp: Date.now()
-  };
-
-  saveSeriesDB(db);
-}
-
-// ================= CONTINUE WATCHING =================
-
-function getContinueWatching(userId) {
-
-  const db = loadSeriesDB();
-
-  return db._lastWatched?.[userId] || null;
-}
-
-// ================= DELETE EPISODE =================
-
-function deleteEpisode(seriesKey, season, episode) {
-
-  const db = loadSeriesDB();
-
-  if (db?.[seriesKey]?.[season]?.[episode]) {
-    delete db[seriesKey][season][episode];
-  }
-
-  saveSeriesDB(db);
-
-  return true;
-}
-
-// ================= CLEAN EMPTY SERIES =================
-
-function cleanEmptySeries() {
-
-  const db = loadSeriesDB();
-
-  for (const seriesKey of Object.keys(db)) {
-
-    if (seriesKey.startsWith("_")) continue;
-
-    const seasons = db[seriesKey];
-
-    const hasAnyEpisodes = Object.values(seasons || {}).some(season =>
-      Object.keys(season || {}).length > 0
-    );
-
-    if (!hasAnyEpisodes) {
-      delete db[seriesKey];
-    }
-  }
-
-  saveSeriesDB(db);
+  return Object.keys(seasons)
+    .map(Number)
+    .sort((a, b) => a - b);
 }
 
 // ================= EXPORT =================
@@ -214,13 +192,14 @@ function cleanEmptySeries() {
 module.exports = {
   loadSeriesDB,
   saveSeriesDB,
+
   saveEpisode,
   getEpisode,
   getNextEpisode,
-  getSeriesOverview,
-  findEpisodeByDisplayId,
-  setLastWatched,
-  getContinueWatching,
-  deleteEpisode,
-  cleanEmptySeries
+
+  isHeaderSent,
+  markHeaderSent,
+
+  getSeasonEpisodes,
+  getSeasons
 };
