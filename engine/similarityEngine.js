@@ -1,180 +1,134 @@
-const { getSimilar } = require("../services/tmdbService");
-const { loadDB } = require("../db/database");
-const { readHistory } = require("../db/historyDB");
-
 // ================= CONFIG =================
 
 const WEIGHTS = {
-  genre: 3.5,
-  rating: 1.5,
-  keyword: 2.0,
-  popularity: 1.2,
-  penaltySeen: -80
+  GENRE: 5,
+  RATING: 1,
+  TITLE_MATCH: 2
 };
 
 // ================= HELPERS =================
 
-function normalizeGenres(item) {
-  return item.genres || [];
-}
+// 🎯 Genre Similarity
+function genreSimilarity(a = [], b = []) {
 
-function extractKeywords(item) {
-  const text = `${item.title || ""} ${item.overview || ""}`.toLowerCase();
+  if (!a.length || !b.length) return 0;
 
-  const keywords = [];
+  let matches = 0;
 
-  const map = [
-    ["crime", "crime"],
-    ["detective", "crime"],
-    ["love", "romance"],
-    ["war", "war"],
-    ["alien", "sci-fi"],
-    ["space", "sci-fi"],
-    ["zombie", "horror"],
-    ["killer", "thriller"],
-    ["mafia", "crime"],
-    ["school", "drama"]
-  ];
-
-  for (const [key, tag] of map) {
-    if (text.includes(key)) {
-      keywords.push(tag);
-    }
+  for (const g of a) {
+    if (b.includes(g)) matches++;
   }
 
-  return keywords;
+  return matches * WEIGHTS.GENRE;
 }
 
-function getYear(item) {
-  const date = item.release_date || item.first_air_date;
-  return date ? parseInt(date.slice(0, 4)) : null;
+// ⭐ Rating Similarity
+function ratingSimilarity(a = 0, b = 0) {
+
+  const diff = Math.abs(a - b);
+
+  // je näher, desto besser
+  return Math.max(0, (10 - diff)) * WEIGHTS.RATING;
 }
 
-// ================= CORE SIMILARITY SCORE =================
+// 🔤 Title Similarity (einfach)
+function titleSimilarity(a = "", b = "") {
 
-function scoreSimilarity(baseItem, candidate, historyIds) {
+  const wordsA = a.toLowerCase().split(" ");
+  const wordsB = b.toLowerCase().split(" ");
+
+  let matches = 0;
+
+  for (const w of wordsA) {
+    if (wordsB.includes(w)) matches++;
+  }
+
+  return matches * WEIGHTS.TITLE_MATCH;
+}
+
+// ================= MAIN =================
+
+function calculateSimilarity(base, candidate) {
+
+  if (!base || !candidate) return 0;
 
   let score = 0;
 
-  // 🎯 Genre Match
-  const baseGenres = normalizeGenres(baseItem);
-  const candidateGenres = normalizeGenres(candidate);
+  score += genreSimilarity(base.genres, candidate.genres);
 
-  for (const g of candidateGenres) {
-    if (baseGenres.includes(g)) {
-      score += WEIGHTS.genre;
-    }
-  }
+  score += ratingSimilarity(
+    base.rating || base.vote_average || 0,
+    candidate.rating || candidate.vote_average || 0
+  );
 
-  // 🔑 Keyword Match
-  const baseKeywords = extractKeywords(baseItem);
-  const candidateKeywords = extractKeywords(candidate);
-
-  for (const k of candidateKeywords) {
-    if (baseKeywords.includes(k)) {
-      score += WEIGHTS.keyword;
-    }
-  }
-
-  // ⭐ Rating Boost
-  if (candidate.vote_average) {
-    score += candidate.vote_average * WEIGHTS.rating;
-  }
-
-  // 📈 Popularity Bias
-  if (candidate.popularity) {
-    score += Math.min(candidate.popularity / 10, 10) * WEIGHTS.popularity;
-  }
-
-  // 🚫 Already seen penalty
-  if (historyIds.includes(candidate.id)) {
-    score += WEIGHTS.penaltySeen;
-  }
+  score += titleSimilarity(
+    base.title || "",
+    candidate.title || ""
+  );
 
   return score;
 }
 
-// ================= MAIN SIMILARITY ENGINE =================
+// ================= FIND =================
 
-async function getSimilarRanked(item, userId, limit = 10) {
+function findSimilar(baseItem, items = [], limit = 10) {
 
-  if (!item || !item.id) return [];
+  if (!baseItem) return [];
 
-  const db = loadDB();
-  const history = readHistory(userId) || [];
-  const historyIds = history.map(h => h.id || h.display_id);
+  const scored = items
+    .filter(item => item.display_id !== baseItem.display_id)
+    .map(item => ({
+      ...item,
+      similarity: calculateSimilarity(baseItem, item)
+    }));
 
-  // 🎬 TMDB Similar fetch
-  const similar = await getSimilar(
-    item.tmdb_id || item.id,
-    item.media_type || "movie",
-    20
-  );
-
-  if (!similar.length) return [];
-
-  // 🔥 Merge local DB context
-  const enriched = similar.map(s => {
-    const local = db.find(x => x.tmdb_id === s.id);
-
-    return {
-      ...s,
-      display_id: local?.display_id || s.id,
-      file_id: local?.file_id || null,
-      genres: s.genre_ids || [],
-      media_type: s.media_type || item.media_type
-    };
-  });
-
-  const ranked = enriched.map(candidate => ({
-    ...candidate,
-    score: scoreSimilarity(item, candidate, historyIds)
-  }));
-
-  return ranked
-    .sort((a, b) => b.score - a.score)
+  return scored
+    .sort((a, b) => b.similarity - a.similarity)
     .slice(0, limit);
 }
 
-// ================= FAST LOCAL SIMILARITY =================
+// ================= HYBRID (LOCAL + TMDB) =================
 
-function getLocalSimilarity(item, limit = 10) {
+async function findHybridSimilar(baseItem, localItems, tmdbFn, limit = 10) {
 
-  const db = loadDB();
+  const local = findSimilar(baseItem, localItems, limit);
 
-  if (!db.length) return [];
+  let external = [];
 
-  const baseGenres = item.genres || [];
-
-  const scored = db.map(candidate => {
-
-    let score = 0;
-
-    for (const g of candidate.genres || []) {
-      if (baseGenres.includes(g)) {
-        score += 4;
-      }
+  try {
+    if (baseItem?.tmdb_id && tmdbFn) {
+      external = await tmdbFn(
+        baseItem.tmdb_id,
+        baseItem.media_type || "movie",
+        limit
+      );
     }
+  } catch (err) {
+    console.error("❌ TMDB SIMILAR ERROR:", err.message);
+  }
 
-    if (candidate.vote_average > 7) {
-      score += 2;
-    }
+  // 🔥 merge + dedupe
+  const combined = [...local, ...external];
 
-    return {
-      ...candidate,
-      score
-    };
+  const seen = new Set();
+
+  const unique = combined.filter(item => {
+
+    const key = item.display_id || item.id;
+
+    if (seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
   });
 
-  return scored
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+  return unique.slice(0, limit);
 }
 
 // ================= EXPORT =================
 
 module.exports = {
-  getSimilarRanked,
-  getLocalSimilarity,
-  scoreSimilarity
+  calculateSimilarity,
+  findSimilar,
+  findHybridSimilar
 };
