@@ -1,55 +1,77 @@
-// server.js
-
 require("dotenv").config();
 
 const express = require("express");
-const webhook = require("./routes/webhook");
+const fs = require("fs");
+const path = require("path");
+
+// ================= INIT =================
 
 const app = express();
+app.use(express.json({ limit: "50mb" }));
 
 // ================= CONFIG =================
 
-const PORT = process.env.PORT || 3000;
-const TOKEN = process.env.TOKEN;
+const PORT = process.env.PORT || 10000;
 
-// ================= MIDDLEWARE =================
+// ================= LOGGING =================
 
-// JSON Parser (Telegram sendet JSON)
-app.use(express.json({
-  limit: "10mb"
-}));
+function log(...args) {
+  console.log("📩", ...args);
+}
 
-// OPTIONAL: Logging Middleware
-app.use((req, res, next) => {
-  if (req.method === "POST") {
-    console.log("📩 Incoming Update");
-  }
-  next();
-});
+// ================= HEALTH =================
 
-// ================= ROUTES =================
-
-// 🔥 Telegram Webhook
-app.use("/bot", webhook);
-
-// 🧪 Health Check
 app.get("/", (req, res) => {
-  res.send("🤖 Bot Server läuft");
+  return res.send("🚀 Telegram Bot Server läuft");
 });
+
+app.get("/health", (req, res) => {
+  return res.json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: Date.now()
+  });
+});
+
+// ================= WEBHOOK =================
+
+let webhook;
+
+try {
+  webhook = require("./routes/webhook");
+} catch (err) {
+  console.error("❌ WEBHOOK LOAD ERROR:", err.message);
+}
+
+// nur laden wenn vorhanden
+if (webhook) {
+  app.use("/bot", webhook);
+} else {
+  console.error("❌ Webhook Route fehlt!");
+}
 
 // ================= ERROR HANDLER =================
 
 app.use((err, req, res, next) => {
-  console.error("❌ GLOBAL ERROR:", err.message);
-  res.sendStatus(500);
+  console.error("❌ SERVER ERROR:", err.stack);
+  res.status(500).json({ error: "Internal Server Error" });
 });
 
-// ================= START SERVER =================
+// ================= START =================
 
 app.listen(PORT, () => {
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log(`🚀 Server läuft auf Port ${PORT}`);
+  console.log(`🌐 Mode: ${process.env.NODE_ENV || "development"}`);
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━");
+});
 
-  if (!TOKEN) {
-    console.log("⚠️ WARNUNG: TOKEN nicht gesetzt!");
-  }
+// ================= SAFE EXIT =================
+
+process.on("uncaughtException", err => {
+  console.error("❌ UNCAUGHT EXCEPTION:", err);
+});
+
+process.on("unhandledRejection", err => {
+  console.error("❌ UNHANDLED REJECTION:", err);
 });
