@@ -1,196 +1,117 @@
 const fs = require("fs");
+const path = require("path");
 
 // ================= CONFIG =================
 
-const DB_FILE = "films.json";
+const FILE = path.join(__dirname, "films.json");
 
-// ================= CORE LOAD / SAVE =================
+// ================= CORE =================
+
+function safeParse(data) {
+  try {
+    return JSON.parse(data);
+  } catch {
+    console.error("❌ DB PARSE ERROR → Datei wird zurückgesetzt");
+    return [];
+  }
+}
 
 function loadDB() {
-  if (!fs.existsSync(DB_FILE)) return [];
-  return JSON.parse(fs.readFileSync(DB_FILE, "utf8") || "[]");
+  try {
+    if (!fs.existsSync(FILE)) return [];
+
+    const raw = fs.readFileSync(FILE, "utf8") || "[]";
+    return safeParse(raw);
+
+  } catch (err) {
+    console.error("❌ DB LOAD ERROR:", err.message);
+    return [];
+  }
 }
 
-function saveDB(data) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+// atomisches Speichern (verhindert kaputte Dateien)
+function saveDB(data = []) {
+  try {
+    const tempFile = FILE + ".tmp";
+
+    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+    fs.renameSync(tempFile, FILE);
+
+  } catch (err) {
+    console.error("❌ DB SAVE ERROR:", err.message);
+  }
 }
 
-// ================= ID GENERATION =================
+// ================= ID SYSTEM =================
 
-function generateNextId(data = null) {
+function generateNextId(data = []) {
 
-  const db = data || loadDB();
-
-  if (!db.length) return "0001";
+  if (!data.length) return "0001";
 
   const max = Math.max(
-    ...db
-      .map(x => parseInt(x.display_id || x.id || 0))
-      .filter(n => !isNaN(n))
+    ...data.map(x => parseInt(x.display_id) || 0)
   );
 
   return String(max + 1).padStart(4, "0");
 }
 
-// ================= CATEGORY SYSTEM =================
+// optional: Kategorie-ID (für UI / Routing)
+function generateCategoryId(genres = []) {
 
-function generateCategoryId(genreIds = []) {
+  if (!genres.length) return "000";
 
-  if (!Array.isArray(genreIds) || genreIds.length === 0) {
-    return "uncategorized";
-  }
+  // einfache Hash-Logik
+  const base = genres.reduce((acc, g) => acc + g, 0);
 
-  // stable deterministic category hash
-  return genreIds
-    .slice()
-    .sort((a, b) => a - b)
-    .join("-");
+  return String(base).slice(0, 3);
 }
 
-// ================= FIND ITEM =================
+// ================= INDEX HELPERS =================
 
+// 🔍 nach ID finden
 function findById(id) {
-
   const db = loadDB();
-
-  return db.find(
-    x =>
-      x.display_id === id ||
-      x.id === id
-  ) || null;
+  return db.find(x => x.display_id === id) || null;
 }
 
-// ================= UPSERT ITEM =================
+// 🔍 nach TMDB ID
+function findByTMDB(tmdbId) {
+  const db = loadDB();
+  return db.find(x => x.tmdb_id === tmdbId) || null;
+}
 
-function upsertItem(item) {
+// 🔍 nach File ID (Duplikate vermeiden)
+function findByFileId(fileId) {
+  const db = loadDB();
+  return db.find(x => x.file_id === fileId) || null;
+}
+
+// ➕ neuen Film speichern
+function insertItem(item) {
+
+  if (!item?.display_id) return;
 
   const db = loadDB();
 
-  const index = db.findIndex(x =>
-    x.display_id === item.display_id
-  );
+  // Duplikat Check
+  const exists = db.find(x => x.file_id === item.file_id);
+  if (exists) return exists;
 
-  if (index !== -1) {
-    db[index] = {
-      ...db[index],
-      ...item,
-      updated_at: Date.now()
-    };
-  } else {
-    db.unshift({
-      ...item,
-      created_at: Date.now()
-    });
-  }
+  db.unshift(item);
 
   saveDB(db);
 
   return item;
 }
 
-// ================= DELETE ITEM =================
-
-function deleteItem(id) {
-
-  let db = loadDB();
-
-  db = db.filter(x =>
-    x.display_id !== id &&
-    x.id !== id
-  );
-
-  saveDB(db);
-
-  return true;
-}
-
-// ================= BULK INSERT =================
-
-function insertMany(items = []) {
+// 🗑 löschen
+function removeItem(id) {
 
   const db = loadDB();
 
-  const cleaned = items.map(item => ({
-    ...item,
-    created_at: Date.now()
-  }));
+  const filtered = db.filter(x => x.display_id !== id);
 
-  const merged = [...cleaned, ...db];
-
-  saveDB(merged);
-
-  return merged;
-}
-
-// ================= SEARCH =================
-
-function searchDB(query = "") {
-
-  const db = loadDB();
-
-  const q = query.toLowerCase();
-
-  return db.filter(item => {
-
-    const title = (item.title || "").toLowerCase();
-
-    return title.includes(q);
-  });
-}
-
-// ================= GENRE FILTER =================
-
-function getByGenre(genreId) {
-
-  const db = loadDB();
-
-  return db.filter(item =>
-    (item.genres || []).includes(genreId)
-  );
-}
-
-// ================= STATS =================
-
-function getStats() {
-
-  const db = loadDB();
-
-  const total = db.length;
-
-  const movies = db.filter(x => x.media_type === "movie").length;
-  const series = db.filter(x => x.media_type === "tv").length;
-
-  const genres = {};
-
-  for (const item of db) {
-    for (const g of item.genres || []) {
-      genres[g] = (genres[g] || 0) + 1;
-    }
-  }
-
-  return {
-    total,
-    movies,
-    series,
-    genres
-  };
-}
-
-// ================= CLEAN INVALID =================
-
-function cleanInvalid() {
-
-  let db = loadDB();
-
-  db = db.filter(item =>
-    item &&
-    item.file_id &&
-    item.display_id
-  );
-
-  saveDB(db);
-
-  return db;
+  saveDB(filtered);
 }
 
 // ================= EXPORT =================
@@ -200,12 +121,11 @@ module.exports = {
   saveDB,
   generateNextId,
   generateCategoryId,
+
+  // helpers
   findById,
-  upsertItem,
-  deleteItem,
-  insertMany,
-  searchDB,
-  getByGenre,
-  getStats,
-  cleanInvalid
+  findByTMDB,
+  findByFileId,
+  insertItem,
+  removeItem
 };
