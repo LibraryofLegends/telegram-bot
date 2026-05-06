@@ -1,86 +1,108 @@
-// utils/idGenerator.js
-
 const fs = require("fs");
+const path = require("path");
 
-const FILE = "ids.json";
+// ================= CONFIG =================
 
-// ================= LOAD / SAVE =================
+const FILE = path.join(__dirname, "ids.json");
+
+// ================= CORE =================
+
+function safeParse(data) {
+  try {
+    return JSON.parse(data);
+  } catch {
+    console.error("❌ ID PARSE ERROR → reset");
+    return {};
+  }
+}
 
 function load() {
-  if (!fs.existsSync(FILE)) {
-    return {
-      global: 0,
-      categories: {},
-      series: {}
-    };
-  }
+  try {
+    if (!fs.existsSync(FILE)) return {};
 
-  return JSON.parse(fs.readFileSync(FILE, "utf8") || "{}");
+    const raw = fs.readFileSync(FILE, "utf8") || "{}";
+    return safeParse(raw);
+
+  } catch (err) {
+    console.error("❌ ID LOAD ERROR:", err.message);
+    return {};
+  }
 }
 
 function save(data) {
-  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+  try {
+    const tmp = FILE + ".tmp";
+
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, FILE);
+
+  } catch (err) {
+    console.error("❌ ID SAVE ERROR:", err.message);
+  }
 }
 
-// ================= GLOBAL ID =================
+// ================= GENERATOR =================
 
-function generateNextId() {
+function nextId(type = "global", options = {}) {
+
+  const {
+    prefix = "",
+    pad = 4
+  } = options;
+
   const db = load();
 
-  db.global = (db.global || 0) + 1;
+  if (!db[type]) {
+    db[type] = 0;
+  }
+
+  db[type] += 1;
 
   save(db);
 
-  return String(db.global).padStart(4, "0");
+  const num = String(db[type]).padStart(pad, "0");
+
+  return prefix ? `${prefix}${num}` : num;
 }
 
-// ================= CATEGORY ID =================
+// ================= BULK =================
 
-function generateCategoryId(genreIds = []) {
-  const db = load();
+function nextBatch(type = "global", count = 10, options = {}) {
 
-  const key = (genreIds || [])
-    .sort((a, b) => a - b)
-    .join("_") || "default";
+  const ids = [];
 
-  if (!db.categories[key]) {
-    db.categories[key] = Object.keys(db.categories).length + 1;
-    save(db);
+  for (let i = 0; i < count; i++) {
+    ids.push(nextId(type, options));
   }
 
-  return String(db.categories[key]).padStart(3, "0");
+  return ids;
 }
 
-// ================= SERIES ID =================
+// ================= RESET =================
 
-function generateSeriesId(seriesKey) {
+function reset(type = "global") {
+
   const db = load();
 
-  if (!db.series[seriesKey]) {
-    db.series[seriesKey] = Object.keys(db.series).length + 1;
-    save(db);
-  }
+  db[type] = 0;
 
-  return String(db.series[seriesKey]).padStart(3, "0");
+  save(db);
 }
 
-// ================= SAFE RESET (DEV ONLY) =================
+// ================= GET CURRENT =================
 
-function resetIds() {
-  const empty = {
-    global: 0,
-    categories: {},
-    series: {}
-  };
+function getCurrent(type = "global") {
 
-  save(empty);
+  const db = load();
+
+  return db[type] || 0;
 }
 
 // ================= EXPORT =================
 
 module.exports = {
-  generateNextId,
-  generateCategoryId,
-  generateSeriesId,
-  resetIds
+  nextId,
+  nextBatch,
+  reset,
+  getCurrent
 };
