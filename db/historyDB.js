@@ -1,153 +1,136 @@
 const fs = require("fs");
+const path = require("path");
 
-const FILE = "history.json";
+// ================= CONFIG =================
 
-// ================= CORE LOAD / SAVE =================
+const FILE = path.join(__dirname, "history.json");
+const MAX_ITEMS = 20; // pro User
 
-function loadHistoryDB() {
-  if (!fs.existsSync(FILE)) return {};
-  return JSON.parse(fs.readFileSync(FILE, "utf8") || "{}");
+// ================= CORE =================
+
+function safeParse(data) {
+  try {
+    return JSON.parse(data);
+  } catch {
+    console.error("❌ HISTORY PARSE ERROR → reset");
+    return {};
+  }
 }
 
-function saveHistoryDB(data) {
-  fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
+function load() {
+  try {
+    if (!fs.existsSync(FILE)) return {};
+
+    const raw = fs.readFileSync(FILE, "utf8") || "{}";
+    return safeParse(raw);
+
+  } catch (err) {
+    console.error("❌ HISTORY LOAD ERROR:", err.message);
+    return {};
+  }
 }
 
-// In-memory cache (performance boost)
-let HISTORY_DB = loadHistoryDB();
+function save(data) {
+  try {
+    const tmp = FILE + ".tmp";
 
-// ================= ADD HISTORY ENTRY =================
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, FILE);
 
+  } catch (err) {
+    console.error("❌ HISTORY SAVE ERROR:", err.message);
+  }
+}
+
+// ================= ADD =================
+
+/**
+ * entry:
+ * {
+ *   id: "0001",
+ *   type: "movie" | "series",
+ *   title: "...",
+ *   genres: [28, 12],
+ *   timestamp?: number
+ * }
+ */
 function saveHistory(userId, entry) {
 
-  if (!HISTORY_DB[userId]) {
-    HISTORY_DB[userId] = [];
-  }
+  if (!userId || !entry?.id) return;
 
-  const normalizedEntry = {
-    id: entry.id,
-    type: entry.type || "movie",
-    seriesKey: entry.seriesKey || null,
-    season: entry.season || null,
-    episode: entry.episode || null,
-    timestamp: Date.now()
-  };
+  const db = load();
 
-  // Remove duplicates
-  HISTORY_DB[userId] = [
-    normalizedEntry,
-    ...HISTORY_DB[userId].filter(x => x.id !== entry.id)
-  ];
+  if (!db[userId]) db[userId] = [];
 
-  // Limit history size (performance + AI relevance)
-  HISTORY_DB[userId] = HISTORY_DB[userId].slice(0, 50);
+  const now = Date.now();
 
-  saveHistoryDB(HISTORY_DB);
+  // ❌ Duplikat entfernen
+  const filtered = db[userId].filter(x => x.id !== entry.id);
 
-  return HISTORY_DB[userId];
+  // ✅ neu vorne einfügen
+  db[userId] = [
+    {
+      ...entry,
+      timestamp: now
+    },
+    ...filtered
+  ].slice(0, MAX_ITEMS);
+
+  save(db);
 }
 
-// ================= GET HISTORY =================
+// ================= GET =================
 
 function readHistory(userId) {
-  return HISTORY_DB[userId] || [];
+
+  if (!userId) return [];
+
+  const db = load();
+
+  return db[userId] || [];
 }
 
-// ================= CLEAR HISTORY =================
+// ================= CLEAR =================
 
 function clearHistory(userId) {
-  HISTORY_DB[userId] = [];
-  saveHistoryDB(HISTORY_DB);
-  return true;
+
+  if (!userId) return;
+
+  const db = load();
+
+  delete db[userId];
+
+  save(db);
 }
 
-// ================= REMOVE ENTRY =================
+// ================= STATS =================
 
-function removeHistoryItem(userId, id) {
-
-  if (!HISTORY_DB[userId]) return [];
-
-  HISTORY_DB[userId] = HISTORY_DB[userId]
-    .filter(x => x.id !== id);
-
-  saveHistoryDB(HISTORY_DB);
-
-  return HISTORY_DB[userId];
-}
-
-// ================= GET LAST WATCHED =================
-
-function getLastWatched(userId) {
+// 🔥 Top Genres eines Users
+function getTopGenres(userId) {
 
   const history = readHistory(userId);
 
-  return history.length ? history[0] : null;
-}
-
-// ================= SERIES FILTER =================
-
-function getSeriesHistory(userId, seriesKey) {
-
-  const history = readHistory(userId);
-
-  return history.filter(x =>
-    x.seriesKey === seriesKey
-  );
-}
-
-// ================= MOVIE FILTER =================
-
-function getMovieHistory(userId) {
-
-  const history = readHistory(userId);
-
-  return history.filter(x =>
-    !x.seriesKey
-  );
-}
-
-// ================= WATCH TIME ANALYTICS =================
-
-function getWatchStats(userId) {
-
-  const history = readHistory(userId);
-
-  const stats = {
-    total: history.length,
-    movies: 0,
-    series: 0,
-    episodes: 0
-  };
+  const score = {};
 
   for (const item of history) {
-
-    if (item.type === "movie") {
-      stats.movies++;
-    }
-
-    if (item.type === "series") {
-      stats.series++;
-      stats.episodes++;
+    for (const g of item.genres || []) {
+      score[g] = (score[g] || 0) + 1;
     }
   }
 
-  return stats;
+  return Object.entries(score)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id]) => parseInt(id));
 }
 
-// ================= CLEAN OLD HISTORY =================
+// 🔥 zuletzt gesehen IDs
+function getRecentIds(userId, limit = 10) {
 
-function cleanupOldHistory(days = 30) {
+  const history = readHistory(userId);
 
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-
-  for (const userId of Object.keys(HISTORY_DB)) {
-
-    HISTORY_DB[userId] = HISTORY_DB[userId].filter(item =>
-      item.timestamp > cutoff
-    );
-  }
-
-  saveHistoryDB(HISTORY_DB);
+  return history
+    .slice(0, limit)
+    .map(x => x.id);
 }
 
 // ================= EXPORT =================
@@ -156,10 +139,6 @@ module.exports = {
   saveHistory,
   readHistory,
   clearHistory,
-  removeHistoryItem,
-  getLastWatched,
-  getSeriesHistory,
-  getMovieHistory,
-  getWatchStats,
-  cleanupOldHistory
+  getTopGenres,
+  getRecentIds
 };
