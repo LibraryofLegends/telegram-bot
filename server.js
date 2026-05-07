@@ -188,6 +188,128 @@ function saveSeries(data) {
 }
 
 // =============================
+// PARSER / ERKENNUNG
+// =============================
+
+function cleanFileName(fileName = "") {
+  return String(fileName)
+    .replace(/\.[a-z0-9]{2,5}$/i, "") // Endung entfernen
+    .replace(/@[\w\d_]+/gi, "") // Telegram Tags entfernen
+    .replace(/\b(german|deutsch|english|eng|multi|dubbed|subbed|dl|dts|ddp|aac|ac3|x264|x265|h264|h265|hevc|bluray|brrip|webrip|webdl|web-dl|hdrip|dvdrip|remux|uhd|4k|2160p|1080p|720p|480p)\b/gi, "")
+    .replace(/\b(amzn|nf|netflix|disney|hulu|apple|itunes|max|sky|paramount)\b/gi, "")
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeTitle(title = "") {
+  return String(title)
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function makeKey(value = "") {
+  return String(value)
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function extractYear(text = "") {
+  const match = String(text).match(/\b(19\d{2}|20\d{2})\b/);
+  return match ? match[1] : "";
+}
+
+function detectSeries(fileName = "") {
+  const raw = String(fileName);
+
+  const patterns = [
+    /\bS(\d{1,2})E(\d{1,3})\b/i,
+    /\bS(\d{1,2})\.?E(\d{1,3})\b/i,
+    /\b(\d{1,2})x(\d{1,3})\b/i,
+    /\bStaffel\s*(\d{1,2})\s*Folge\s*(\d{1,3})\b/i,
+    /\bSeason\s*(\d{1,2})\s*Episode\s*(\d{1,3})\b/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = raw.match(pattern);
+    if (!match) continue;
+
+    const season = parseInt(match[1], 10);
+    const episode = parseInt(match[2], 10);
+
+    const beforeCode = raw.slice(0, match.index);
+    const titleClean = cleanFileName(beforeCode);
+
+    return {
+      isSeries: true,
+      seriesTitle: normalizeTitle(titleClean),
+      season,
+      episode,
+      seasonText: String(season).padStart(2, "0"),
+      episodeText: String(episode).padStart(2, "0")
+    };
+  }
+
+  return {
+    isSeries: false
+  };
+}
+
+function detectMovie(fileName = "") {
+  const cleaned = cleanFileName(fileName);
+  const year = extractYear(cleaned);
+
+  let title = cleaned;
+
+  if (year) {
+    title = cleaned.replace(new RegExp(`\\b${year}\\b`, "g"), "");
+  }
+
+  title = title
+    .replace(/\bPart\s*\d+\b/gi, "")
+    .replace(/\bCD\s*\d+\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return {
+    isMovie: true,
+    title: normalizeTitle(title),
+    year
+  };
+}
+
+function parseMedia(fileName = "") {
+  const series = detectSeries(fileName);
+
+  if (series.isSeries) {
+    const uniqueKey = makeKey(
+      `${series.seriesTitle}-s${series.seasonText}-e${series.episodeText}`
+    );
+
+    return {
+      type: "series",
+      ...series,
+      uniqueKey
+    };
+  }
+
+  const movie = detectMovie(fileName);
+  const uniqueKey = makeKey(`${movie.title}-${movie.year || "unknown"}`);
+
+  return {
+    type: "movie",
+    ...movie,
+    uniqueKey
+  };
+}
+
+// =============================
 // TELEGRAM API HELPER
 // =============================
 async function tg(method, data = {}) {
@@ -323,16 +445,77 @@ async function handleUpload(msg) {
     msg.caption ||
     "Unbekannte Datei";
 
+  const fileId =
+    msg.video?.file_id ||
+    msg.document?.file_id ||
+    "";
+
   console.log("🚀 HANDLE UPLOAD TRIGGERED");
   console.log("📁 Datei:", fileName);
 
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "✅ Datei erkannt:\n\n" +
-      fileName +
-      "\n\n➡️ Verarbeitung kommt ab BLOCK 3."
-  });
+  const media = parseMedia(fileName);
+
+  console.log("🧠 Parsed:", media);
+
+  if (media.type === "series") {
+    const exists = seriesExists(media.uniqueKey);
+
+    if (exists) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "⚠️ Serie/Episode ist bereits gespeichert:\n\n" +
+          `📺 ${media.seriesTitle} S${media.seasonText}E${media.episodeText}`
+      });
+      return;
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "📺 Serie erkannt:\n\n" +
+        `Titel: ${media.seriesTitle}\n` +
+        `Staffel: ${media.seasonText}\n` +
+        `Episode: ${media.episodeText}\n\n` +
+        `Key: ${media.uniqueKey}\n\n` +
+        "➡️ TMDB-Daten & Themen kommen ab BLOCK 4/5."
+    });
+
+    logToDb(
+      "series_detected",
+      `${media.seriesTitle} S${media.seasonText}E${media.episodeText}`
+    );
+
+    return;
+  }
+
+  if (media.type === "movie") {
+    const exists = movieExists(media.uniqueKey);
+
+    if (exists) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "⚠️ Film ist bereits gespeichert:\n\n" +
+          `🎬 ${media.title} ${media.year || ""}`
+      });
+      return;
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "🎬 Film erkannt:\n\n" +
+        `Titel: ${media.title}\n` +
+        `Jahr: ${media.year || "Unbekannt"}\n\n` +
+        `Key: ${media.uniqueKey}\n\n` +
+        "➡️ TMDB-Daten & Genre-Themen kommen ab BLOCK 4/5."
+    });
+
+    logToDb("movie_detected", `${media.title} ${media.year || ""}`);
+
+    return;
+  }
 }
 
 // =============================
