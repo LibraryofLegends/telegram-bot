@@ -423,6 +423,66 @@ async function searchSeriesTMDB(title, season, episode) {
 }
 
 // =============================
+// PREMIUM LAYOUTS
+// =============================
+function makeHashtags(text = "") {
+  return String(text)
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .map((g) => "#" + g.replace(/\s+/g, ""))
+    .join(" ");
+}
+
+function movieCaption(tmdb) {
+  return (
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 𝐓𝐈𝐓𝐄𝐋: ${tmdb.title}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `📅 𝐉𝐀𝐇𝐑: ${tmdb.year || "Unbekannt"}\n` +
+    `🎭 𝐆𝐄𝐍𝐑𝐄: ${tmdb.genre || "Sonstige"}\n` +
+    `⭐ 𝐁𝐄𝐖𝐄𝐑𝐓𝐔𝐍𝐆: ${tmdb.rating || "Unbekannt"}\n` +
+    `⏱ 𝐋𝐀𝐔𝐅𝐙𝐄𝐈𝐓: ${tmdb.runtime || "Unbekannt"}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📖 𝐒𝐓𝐎𝐑𝐘\n" +
+    `${tmdb.overview || "Keine Beschreibung verfügbar."}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${makeHashtags(tmdb.genre)}\n` +
+    "@LibraryOfLegends"
+  );
+}
+
+function seriesCaption(tmdb, media) {
+  return (
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `📺 𝐓𝐈𝐓𝐄𝐋: ${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}\n` +
+    `${tmdb.episodeTitle ? `🎞 𝐅𝐎𝐋𝐆𝐄: ${tmdb.episodeTitle}\n` : ""}` +
+    `📀 𝐒𝐓𝐀𝐅𝐅𝐄𝐋: ${media.seasonText}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎭 𝐆𝐄𝐍𝐑𝐄: ${tmdb.genre || "Sonstige"}\n` +
+    `⭐ 𝐁𝐄𝐖𝐄𝐑𝐓𝐔𝐍𝐆: ${tmdb.rating || "Unbekannt"}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📖 𝐒𝐓𝐎𝐑𝐘\n" +
+    `${tmdb.overview || "Keine Beschreibung verfügbar."}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `#${tmdb.seriesTitle.replace(/\s+/g, "")} ${makeHashtags(tmdb.genre)}\n` +
+    "@LibraryOfLegends"
+  );
+}
+
+// =============================
+// COPY MEDIA TO TARGET GROUP
+// =============================
+async function copyOriginalMedia({ fromChatId, messageId, targetChatId, topicId }) {
+  return await tg("copyMessage", {
+    chat_id: targetChatId,
+    from_chat_id: fromChatId,
+    message_id: messageId,
+    message_thread_id: topicId
+  });
+}
+
+// =============================
 // TELEGRAM API HELPER
 // =============================
 async function tg(method, data = {}) {
@@ -663,30 +723,174 @@ async function handleUpload(msg) {
         chat_id: msg.chat.id,
         text:
           "❌ Serien-Thema konnte nicht erstellt werden.\n\n" +
-          "Prüfe bitte, ob der Bot Admin ist und Themen verwalten darf."
+          "Prüfe SERIES_GROUP_ID, Bot-Adminrechte und Forum-Themen."
       });
       return;
     }
 
-    await tg("sendPhoto", {
-      chat_id: msg.chat.id,
+    const card = await tg("sendPhoto", {
+      chat_id: SERIES_GROUP_ID,
+      message_thread_id: topicId,
       photo:
         tmdb.posterUrl ||
         "https://via.placeholder.com/500x750.png?text=No+Cover",
-      caption:
-        "✅ Serien-Thema bereit:\n\n" +
-        `📺 ${tmdb.seriesTitle}\n` +
-        `🧵 Topic ID: ${topicId}\n\n` +
-        "➡️ Posten in Gruppe kommt in BLOCK 6."
+      caption: seriesCaption(tmdb, media)
+    });
+
+    const copied = await copyOriginalMedia({
+      fromChatId: msg.chat.id,
+      messageId: msg.message_id,
+      targetChatId: SERIES_GROUP_ID,
+      topicId
+    });
+
+    if (!copied?.message_id) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "⚠️ Serien-Karte wurde gepostet, aber Datei konnte nicht kopiert werden."
+      });
+      return;
+    }
+
+    saveSeries({
+      seriesTitle: tmdb.seriesTitle,
+      season: media.season,
+      episode: media.episode,
+      episodeTitle: tmdb.episodeTitle || "",
+      genre: tmdb.genre,
+      rating: tmdb.rating,
+      overview: tmdb.overview,
+      posterUrl: tmdb.posterUrl,
+      fileName,
+      fileId,
+      uniqueKey: media.uniqueKey,
+      telegramMessageId: copied.message_id,
+      topicId
+    });
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "✅ Serie erfolgreich einsortiert:\n\n" +
+        `📺 ${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}\n` +
+        `🧵 Thema: ${tmdb.seriesTitle}`
     });
 
     logToDb(
-      "series_topic_ready",
+      "series_saved",
       `${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}`
     );
 
     return;
   }
+
+  // =============================
+  // MOVIE
+  // =============================
+  if (media.type === "movie") {
+    const exists = movieExists(media.uniqueKey);
+
+    if (exists) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "⚠️ Film ist bereits gespeichert:\n\n" +
+          `🎬 ${media.title} ${media.year || ""}`
+      });
+      return;
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "🔎 Film erkannt — suche TMDB-Daten...\n\n" +
+        `🎬 ${media.title} ${media.year || ""}`
+    });
+
+    const tmdb = await searchMovieTMDB(media.title, media.year);
+
+    if (!tmdb) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Keine TMDB-Daten gefunden:\n\n" +
+          `🎬 ${media.title}`
+      });
+      return;
+    }
+
+    const genreTopicName = tmdb.mainGenre || "Sonstige";
+
+    const topicId = await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: genreTopicName,
+      type: "movie_genre"
+    });
+
+    if (!topicId) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Film-Genre-Thema konnte nicht erstellt werden.\n\n" +
+          "Prüfe MOVIE_GROUP_ID, Bot-Adminrechte und Forum-Themen."
+      });
+      return;
+    }
+
+    const card = await tg("sendPhoto", {
+      chat_id: MOVIE_GROUP_ID,
+      message_thread_id: topicId,
+      photo:
+        tmdb.posterUrl ||
+        "https://via.placeholder.com/500x750.png?text=No+Cover",
+      caption: movieCaption(tmdb)
+    });
+
+    const copied = await copyOriginalMedia({
+      fromChatId: msg.chat.id,
+      messageId: msg.message_id,
+      targetChatId: MOVIE_GROUP_ID,
+      topicId
+    });
+
+    if (!copied?.message_id) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "⚠️ Film-Karte wurde gepostet, aber Datei konnte nicht kopiert werden."
+      });
+      return;
+    }
+
+    saveMovie({
+      title: tmdb.title,
+      year: tmdb.year,
+      genre: tmdb.genre,
+      rating: tmdb.rating,
+      runtime: tmdb.runtime,
+      overview: tmdb.overview,
+      posterUrl: tmdb.posterUrl,
+      fileName,
+      fileId,
+      uniqueKey: media.uniqueKey,
+      telegramMessageId: copied.message_id,
+      topicId
+    });
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "✅ Film erfolgreich einsortiert:\n\n" +
+        `🎬 ${tmdb.title}\n` +
+        `🎭 Thema: ${genreTopicName}`
+    });
+
+    logToDb("movie_saved", `${tmdb.title} ${tmdb.year || ""}`);
+
+    return;
+  }
+}
 
   // =============================
   // MOVIE
