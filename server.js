@@ -513,6 +513,7 @@ async function handleUpdate(update) {
   const userId = String(msg.from?.id || "");
 
   console.log("USER ID:", userId);
+  console.log("CHAT ID:", msg.chat?.id, "CHAT TITLE:", msg.chat?.title);
 
   if (userId !== ADMIN_ID) {
     console.log("⛔ Ignored - nicht Admin");
