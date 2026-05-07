@@ -10,10 +10,11 @@ const SERIES_GROUP_ID = process.env.SERIES_GROUP_ID;
 async function sendMoviePost({ file_id, title, year }) {
 
   const caption = `
-🎬 ${title} (${year})
+🎬 <b>${title}</b>
+📅 ${year}
 
-🔥 @ArcheMovie
-🆔 ${Date.now().toString().slice(-4)}
+🎥 Qualität: HD
+📁 Format: MP4
 `;
 
   await fetch(`${BASE_URL}/sendVideo`, {
@@ -33,11 +34,10 @@ async function sendMoviePost({ file_id, title, year }) {
 async function sendEpisodePost({ file_id, series, season, episode }) {
 
   const caption = `
-📺 ${series}
-S${season}E${episode}
+📺 <b>${series}</b>
+🎬 Staffel ${season} • Folge ${episode}
 
-🔥 @ArcheMovie
-🆔 ${Date.now().toString().slice(-4)}
+🎥 Qualität: HD
 `;
 
   await fetch(`${BASE_URL}/sendVideo`, {
