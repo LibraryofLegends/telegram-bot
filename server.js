@@ -437,6 +437,40 @@ async function tg(method, data = {}) {
 }
 
 // =============================
+// TELEGRAM TOPICS
+// =============================
+async function createOrGetTopic({ chatId, name, type }) {
+  const uniqueKey = makeKey(`${type}-${chatId}-${name}`);
+
+  const existing = getTopic(uniqueKey);
+  if (existing) {
+    return existing.topic_id;
+  }
+
+  const topic = await tg("createForumTopic", {
+    chat_id: chatId,
+    name: name
+  });
+
+  if (!topic?.message_thread_id) {
+    console.error("❌ Thema konnte nicht erstellt werden:", name);
+    return null;
+  }
+
+  saveTopic({
+    name,
+    type,
+    chatId,
+    topicId: topic.message_thread_id,
+    uniqueKey
+  });
+
+  console.log("✅ Thema erstellt:", name, topic.message_thread_id);
+
+  return topic.message_thread_id;
+}
+
+// =============================
 // STARTSEITE
 // =============================
 app.get("/", (req, res) => {
@@ -570,6 +604,9 @@ async function handleUpload(msg) {
 
   console.log("🧠 Parsed:", media);
 
+  // =============================
+  // SERIES
+  // =============================
   if (media.type === "series") {
     const exists = seriesExists(media.uniqueKey);
 
@@ -601,32 +638,50 @@ async function handleUpload(msg) {
         chat_id: msg.chat.id,
         text:
           "❌ Keine TMDB-Daten gefunden:\n\n" +
-          `📺 ${media.seriesTitle}\n\n` +
-          "Die Datei wurde noch nicht gespeichert."
+          `📺 ${media.seriesTitle}`
+      });
+      return;
+    }
+
+    const topicId = await createOrGetTopic({
+      chatId: SERIES_GROUP_ID,
+      name: tmdb.seriesTitle,
+      type: "series"
+    });
+
+    if (!topicId) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Serien-Thema konnte nicht erstellt werden.\n\n" +
+          "Prüfe bitte, ob der Bot Admin ist und Themen verwalten darf."
       });
       return;
     }
 
     await tg("sendPhoto", {
       chat_id: msg.chat.id,
-      photo: tmdb.posterUrl || "https://via.placeholder.com/500x750.png?text=No+Cover",
+      photo:
+        tmdb.posterUrl ||
+        "https://via.placeholder.com/500x750.png?text=No+Cover",
       caption:
-        "✅ TMDB Serie gefunden:\n\n" +
-        `📺 ${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}\n` +
-        `${tmdb.episodeTitle ? `🎞 ${tmdb.episodeTitle}\n` : ""}` +
-        `🎭 ${tmdb.genre}\n` +
-        `⭐ ${tmdb.rating}\n\n` +
-        `📖 ${tmdb.overview}`
+        "✅ Serien-Thema bereit:\n\n" +
+        `📺 ${tmdb.seriesTitle}\n` +
+        `🧵 Topic ID: ${topicId}\n\n` +
+        "➡️ Posten in Gruppe kommt in BLOCK 6."
     });
 
     logToDb(
-      "series_tmdb_found",
+      "series_topic_ready",
       `${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}`
     );
 
     return;
   }
 
+  // =============================
+  // MOVIE
+  // =============================
   if (media.type === "movie") {
     const exists = movieExists(media.uniqueKey);
 
@@ -654,26 +709,43 @@ async function handleUpload(msg) {
         chat_id: msg.chat.id,
         text:
           "❌ Keine TMDB-Daten gefunden:\n\n" +
-          `🎬 ${media.title}\n\n` +
-          "Die Datei wurde noch nicht gespeichert."
+          `🎬 ${media.title}`
+      });
+      return;
+    }
+
+    const genreTopicName = tmdb.mainGenre || "Sonstige";
+
+    const topicId = await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: genreTopicName,
+      type: "movie_genre"
+    });
+
+    if (!topicId) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Film-Genre-Thema konnte nicht erstellt werden.\n\n" +
+          "Prüfe bitte, ob der Bot Admin ist und Themen verwalten darf."
       });
       return;
     }
 
     await tg("sendPhoto", {
       chat_id: msg.chat.id,
-      photo: tmdb.posterUrl || "https://via.placeholder.com/500x750.png?text=No+Cover",
+      photo:
+        tmdb.posterUrl ||
+        "https://via.placeholder.com/500x750.png?text=No+Cover",
       caption:
-        "✅ TMDB Film gefunden:\n\n" +
+        "✅ Film-Genre-Thema bereit:\n\n" +
         `🎬 ${tmdb.title}\n` +
-        `📅 ${tmdb.year || "Unbekannt"}\n` +
-        `🎭 ${tmdb.genre}\n` +
-        `⭐ ${tmdb.rating}\n` +
-        `⏱ ${tmdb.runtime}\n\n` +
-        `📖 ${tmdb.overview}`
+        `🎭 Genre-Thema: ${genreTopicName}\n` +
+        `🧵 Topic ID: ${topicId}\n\n` +
+        "➡️ Posten in Gruppe kommt in BLOCK 6."
     });
 
-    logToDb("movie_tmdb_found", `${tmdb.title} ${tmdb.year || ""}`);
+    logToDb("movie_topic_ready", `${tmdb.title} ${tmdb.year || ""}`);
 
     return;
   }
