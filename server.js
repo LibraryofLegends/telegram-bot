@@ -430,9 +430,16 @@ async function tg(method, data = {}) {
     const res = await axios.post(`${BASE_URL}/${method}`, data);
     return res.data.result;
   } catch (err) {
+    const errorData = err.response?.data || err.message;
+
     console.error(`❌ Telegram API Fehler bei ${method}:`);
-    console.error(err.response?.data || err.message);
-    return null;
+    console.error(JSON.stringify(errorData, null, 2));
+
+    return {
+      __error: true,
+      method,
+      error: errorData
+    };
   }
 }
 
@@ -453,9 +460,10 @@ async function createOrGetTopic({ chatId, name, type }) {
   });
 
   if (!topic?.message_thread_id) {
-    console.error("❌ Thema konnte nicht erstellt werden:", name);
-    return null;
-  }
+  console.error("❌ Thema konnte nicht erstellt werden:", name);
+  console.error("Telegram Antwort:", JSON.stringify(topic, null, 2));
+  return null;
+}
 
   saveTopic({
     name,
