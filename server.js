@@ -1,5 +1,6 @@
 const express = require("express");
 const axios = require("axios");
+const Database = require("better-sqlite3");
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -27,6 +28,164 @@ if (!TMDB_KEY) console.error("❌ TMDB_KEY fehlt");
 if (!MOVIE_GROUP_ID) console.error("❌ MOVIE_GROUP_ID fehlt");
 if (!SERIES_GROUP_ID) console.error("❌ SERIES_GROUP_ID fehlt");
 if (!ADMIN_ID) console.error("❌ ADMIN_ID fehlt");
+
+// =============================
+// DATABASE
+// =============================
+const db = new Database("library.db");
+
+db.pragma("journal_mode = WAL");
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS movies (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  year TEXT,
+  genre TEXT,
+  rating TEXT,
+  runtime TEXT,
+  overview TEXT,
+  poster_url TEXT,
+  file_name TEXT,
+  file_id TEXT,
+  unique_key TEXT UNIQUE,
+  telegram_message_id INTEGER,
+  topic_id INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS series (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  series_title TEXT NOT NULL,
+  season INTEGER,
+  episode INTEGER,
+  episode_title TEXT,
+  genre TEXT,
+  rating TEXT,
+  overview TEXT,
+  poster_url TEXT,
+  file_name TEXT,
+  file_id TEXT,
+  unique_key TEXT UNIQUE,
+  telegram_message_id INTEGER,
+  topic_id INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS topics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  chat_id TEXT NOT NULL,
+  topic_id INTEGER NOT NULL,
+  unique_key TEXT UNIQUE,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  type TEXT,
+  message TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+`);
+
+console.log("✅ Datenbank bereit");
+
+// =============================
+// DATABASE HELPER
+// =============================
+function logToDb(type, message) {
+  try {
+    db.prepare(`
+      INSERT INTO logs (type, message)
+      VALUES (?, ?)
+    `).run(type, message);
+  } catch (err) {
+    console.error("❌ DB Log Fehler:", err.message);
+  }
+}
+
+function getTopic(uniqueKey) {
+  return db.prepare(`
+    SELECT * FROM topics
+    WHERE unique_key = ?
+  `).get(uniqueKey);
+}
+
+function saveTopic({ name, type, chatId, topicId, uniqueKey }) {
+  return db.prepare(`
+    INSERT OR IGNORE INTO topics
+    (name, type, chat_id, topic_id, unique_key)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(name, type, String(chatId), topicId, uniqueKey);
+}
+
+function movieExists(uniqueKey) {
+  return db.prepare(`
+    SELECT * FROM movies
+    WHERE unique_key = ?
+  `).get(uniqueKey);
+}
+
+function seriesExists(uniqueKey) {
+  return db.prepare(`
+    SELECT * FROM series
+    WHERE unique_key = ?
+  `).get(uniqueKey);
+}
+
+function saveMovie(data) {
+  return db.prepare(`
+    INSERT OR IGNORE INTO movies
+    (
+      title, year, genre, rating, runtime, overview,
+      poster_url, file_name, file_id, unique_key,
+      telegram_message_id, topic_id
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    data.title,
+    data.year,
+    data.genre,
+    data.rating,
+    data.runtime,
+    data.overview,
+    data.posterUrl,
+    data.fileName,
+    data.fileId,
+    data.uniqueKey,
+    data.telegramMessageId,
+    data.topicId
+  );
+}
+
+function saveSeries(data) {
+  return db.prepare(`
+    INSERT OR IGNORE INTO series
+    (
+      series_title, season, episode, episode_title,
+      genre, rating, overview, poster_url,
+      file_name, file_id, unique_key,
+      telegram_message_id, topic_id
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    data.seriesTitle,
+    data.season,
+    data.episode,
+    data.episodeTitle,
+    data.genre,
+    data.rating,
+    data.overview,
+    data.posterUrl,
+    data.fileName,
+    data.fileId,
+    data.uniqueKey,
+    data.telegramMessageId,
+    data.topicId
+  );
+}
 
 // =============================
 // TELEGRAM API HELPER
@@ -130,6 +289,23 @@ async function handleCommand(msg) {
     });
     return;
   }
+  
+  if (text === "/stats") {
+  const movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
+  const seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
+  const topicCount = db.prepare("SELECT COUNT(*) AS count FROM topics").get().count;
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "📊 𝐒𝐓𝐀𝐓𝐈𝐒𝐓𝐈𝐊\n\n" +
+      `🎬 Filme: ${movieCount}\n` +
+      `📺 Serien-Episoden: ${seriesCount}\n` +
+      `🧵 Themen gespeichert: ${topicCount}`
+  });
+
+  return;
+}
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
