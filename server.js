@@ -310,6 +310,119 @@ function parseMedia(fileName = "") {
 }
 
 // =============================
+// TMDB API
+// =============================
+
+const TMDB_BASE = "https://api.themoviedb.org/3";
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
+
+async function tmdbGet(path, params = {}) {
+  try {
+    const res = await axios.get(`${TMDB_BASE}${path}`, {
+      params: {
+        api_key: TMDB_KEY,
+        language: "de-DE",
+        ...params
+      }
+    });
+
+    return res.data;
+  } catch (err) {
+    console.error("❌ TMDB Fehler:", err.response?.data || err.message);
+    return null;
+  }
+}
+
+function formatGenres(genres = []) {
+  if (!Array.isArray(genres) || genres.length === 0) return "Sonstige";
+  return genres.map((g) => g.name).join(" / ");
+}
+
+function getMainGenre(genres = []) {
+  if (!Array.isArray(genres) || genres.length === 0) return "Sonstige";
+  return genres[0].name || "Sonstige";
+}
+
+function formatRating(vote = 0) {
+  const rating = Number(vote || 0).toFixed(1);
+  const stars = Math.round(Number(vote || 0) / 2);
+
+  return "★".repeat(stars) + "☆".repeat(5 - stars) + ` • ${rating}`;
+}
+
+function posterUrl(path) {
+  if (!path) return "";
+  return `${TMDB_IMAGE_BASE}${path}`;
+}
+
+async function searchMovieTMDB(title, year = "") {
+  const search = await tmdbGet("/search/movie", {
+    query: title,
+    year: year || undefined,
+    include_adult: false
+  });
+
+  if (!search?.results?.length) return null;
+
+  const best = search.results[0];
+
+  const details = await tmdbGet(`/movie/${best.id}`, {
+    append_to_response: "credits"
+  });
+
+  if (!details) return null;
+
+  return {
+    tmdbId: details.id,
+    title: details.title || title,
+    year: details.release_date ? details.release_date.slice(0, 4) : year,
+    genre: formatGenres(details.genres),
+    mainGenre: getMainGenre(details.genres),
+    rating: formatRating(details.vote_average),
+    runtime: details.runtime ? `${details.runtime} Min.` : "Unbekannt",
+    overview: details.overview || "Keine Beschreibung verfügbar.",
+    posterUrl: posterUrl(details.poster_path)
+  };
+}
+
+async function searchSeriesTMDB(title, season, episode) {
+  const search = await tmdbGet("/search/tv", {
+    query: title,
+    include_adult: false
+  });
+
+  if (!search?.results?.length) return null;
+
+  const best = search.results[0];
+
+  const details = await tmdbGet(`/tv/${best.id}`);
+
+  let episodeDetails = null;
+
+  try {
+    episodeDetails = await tmdbGet(
+      `/tv/${best.id}/season/${season}/episode/${episode}`
+    );
+  } catch (err) {
+    episodeDetails = null;
+  }
+
+  return {
+    tmdbId: details.id,
+    seriesTitle: details.name || title,
+    episodeTitle: episodeDetails?.name || "",
+    genre: formatGenres(details.genres),
+    mainGenre: getMainGenre(details.genres),
+    rating: formatRating(details.vote_average),
+    overview:
+      episodeDetails?.overview ||
+      details.overview ||
+      "Keine Beschreibung verfügbar.",
+    posterUrl: posterUrl(episodeDetails?.still_path || details.poster_path)
+  };
+}
+
+// =============================
 // TELEGRAM API HELPER
 // =============================
 async function tg(method, data = {}) {
@@ -473,17 +586,42 @@ async function handleUpload(msg) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "📺 Serie erkannt:\n\n" +
-        `Titel: ${media.seriesTitle}\n` +
-        `Staffel: ${media.seasonText}\n` +
-        `Episode: ${media.episodeText}\n\n` +
-        `Key: ${media.uniqueKey}\n\n` +
-        "➡️ TMDB-Daten & Themen kommen ab BLOCK 4/5."
+        "🔎 Serie erkannt — suche TMDB-Daten...\n\n" +
+        `📺 ${media.seriesTitle} S${media.seasonText}E${media.episodeText}`
+    });
+
+    const tmdb = await searchSeriesTMDB(
+      media.seriesTitle,
+      media.season,
+      media.episode
+    );
+
+    if (!tmdb) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Keine TMDB-Daten gefunden:\n\n" +
+          `📺 ${media.seriesTitle}\n\n` +
+          "Die Datei wurde noch nicht gespeichert."
+      });
+      return;
+    }
+
+    await tg("sendPhoto", {
+      chat_id: msg.chat.id,
+      photo: tmdb.posterUrl || "https://via.placeholder.com/500x750.png?text=No+Cover",
+      caption:
+        "✅ TMDB Serie gefunden:\n\n" +
+        `📺 ${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}\n` +
+        `${tmdb.episodeTitle ? `🎞 ${tmdb.episodeTitle}\n` : ""}` +
+        `🎭 ${tmdb.genre}\n` +
+        `⭐ ${tmdb.rating}\n\n` +
+        `📖 ${tmdb.overview}`
     });
 
     logToDb(
-      "series_detected",
-      `${media.seriesTitle} S${media.seasonText}E${media.episodeText}`
+      "series_tmdb_found",
+      `${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}`
     );
 
     return;
@@ -505,14 +643,37 @@ async function handleUpload(msg) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "🎬 Film erkannt:\n\n" +
-        `Titel: ${media.title}\n` +
-        `Jahr: ${media.year || "Unbekannt"}\n\n` +
-        `Key: ${media.uniqueKey}\n\n` +
-        "➡️ TMDB-Daten & Genre-Themen kommen ab BLOCK 4/5."
+        "🔎 Film erkannt — suche TMDB-Daten...\n\n" +
+        `🎬 ${media.title} ${media.year || ""}`
     });
 
-    logToDb("movie_detected", `${media.title} ${media.year || ""}`);
+    const tmdb = await searchMovieTMDB(media.title, media.year);
+
+    if (!tmdb) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Keine TMDB-Daten gefunden:\n\n" +
+          `🎬 ${media.title}\n\n` +
+          "Die Datei wurde noch nicht gespeichert."
+      });
+      return;
+    }
+
+    await tg("sendPhoto", {
+      chat_id: msg.chat.id,
+      photo: tmdb.posterUrl || "https://via.placeholder.com/500x750.png?text=No+Cover",
+      caption:
+        "✅ TMDB Film gefunden:\n\n" +
+        `🎬 ${tmdb.title}\n` +
+        `📅 ${tmdb.year || "Unbekannt"}\n` +
+        `🎭 ${tmdb.genre}\n` +
+        `⭐ ${tmdb.rating}\n` +
+        `⏱ ${tmdb.runtime}\n\n` +
+        `📖 ${tmdb.overview}`
+    });
+
+    logToDb("movie_tmdb_found", `${tmdb.title} ${tmdb.year || ""}`);
 
     return;
   }
