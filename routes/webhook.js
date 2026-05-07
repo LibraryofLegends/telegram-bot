@@ -19,10 +19,11 @@ router.post("/", async (req, res) => {
     // ================= MESSAGE =================
 
     if (update.message) {
+  const msg = update.message;
 
-      const msg = update.message;
+  console.log("USER ID:", msg.from?.id); // 👈 HIER
 
-      const userId = msg.from?.id;
+  const userId = msg.from?.id;
 
       // 🔒 NUR ADMIN
       if (userId !== ADMIN_ID) {
