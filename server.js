@@ -645,6 +645,215 @@ async function handleCommand(msg) {
   return;
 }
 
+if (text.startsWith("/search")) {
+  const query = text.replace("/search", "").trim().toLowerCase();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "🔎 Bitte nutze:\n/search tulsa king"
+    });
+    return;
+  }
+
+  const movies = db.prepare(`
+    SELECT * FROM movies
+    WHERE LOWER(title) LIKE ?
+    ORDER BY title ASC
+    LIMIT 10
+  `).all(`%${query}%`);
+
+  const episodes = db.prepare(`
+    SELECT * FROM series
+    WHERE LOWER(series_title) LIKE ? OR LOWER(episode_title) LIKE ?
+    ORDER BY series_title ASC, season ASC, episode ASC
+    LIMIT 15
+  `).all(`%${query}%`, `%${query}%`);
+
+  let result = "🔎 𝐒𝐔𝐂𝐇𝐄\n\n";
+
+  if (!movies.length && !episodes.length) {
+    result += "❌ Nichts gefunden.";
+  }
+
+  if (movies.length) {
+    result += "🎬 𝐅𝐈𝐋𝐌𝐄\n\n";
+    for (const m of movies) {
+      result += `• ${m.title} ${m.year || ""}\n`;
+      result += `  🎭 ${m.genre || "Unbekannt"}\n\n`;
+    }
+  }
+
+  if (episodes.length) {
+    result += "📺 𝐒𝐄𝐑𝐈𝐄𝐍\n\n";
+    for (const s of episodes) {
+      result += `• ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")}\n`;
+      if (s.episode_title) result += `  🎞 ${s.episode_title}\n`;
+      result += `  🎭 ${s.genre || "Unbekannt"}\n\n`;
+    }
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result
+  });
+
+  return;
+}
+
+if (text === "/movies") {
+  const movies = db.prepare(`
+    SELECT * FROM movies
+    ORDER BY title ASC
+    LIMIT 50
+  `).all();
+
+  let result = "🎬 𝐅𝐈𝐋𝐌𝐄\n\n";
+
+  if (!movies.length) {
+    result += "Noch keine Filme gespeichert.";
+  } else {
+    for (const m of movies) {
+      result += `• ${m.title} ${m.year || ""}\n`;
+    }
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result
+  });
+
+  return;
+}
+
+if (text === "/series") {
+  const rows = db.prepare(`
+    SELECT series_title, COUNT(*) AS count
+    FROM series
+    GROUP BY series_title
+    ORDER BY series_title ASC
+    LIMIT 50
+  `).all();
+
+  let result = "📺 𝐒𝐄𝐑𝐈𝐄𝐍\n\n";
+
+  if (!rows.length) {
+    result += "Noch keine Serien gespeichert.";
+  } else {
+    for (const s of rows) {
+      result += `• ${s.series_title} — ${s.count} Episode(n)\n`;
+    }
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result
+  });
+
+  return;
+}
+
+if (text === "/az") {
+  const movies = db.prepare(`
+    SELECT title, year
+    FROM movies
+    ORDER BY title ASC
+  `).all();
+
+  const series = db.prepare(`
+    SELECT series_title, COUNT(*) AS count
+    FROM series
+    GROUP BY series_title
+    ORDER BY series_title ASC
+  `).all();
+
+  let result = "🔤 𝐀–𝐙 𝐋𝐈𝐒𝐓𝐄\n\n";
+
+  result += "🎬 𝐅𝐈𝐋𝐌𝐄\n";
+  if (!movies.length) {
+    result += "Keine Filme gespeichert.\n";
+  } else {
+    for (const m of movies) {
+      result += `• ${m.title} ${m.year || ""}\n`;
+    }
+  }
+
+  result += "\n📺 𝐒𝐄𝐑𝐈𝐄𝐍\n";
+  if (!series.length) {
+    result += "Keine Serien gespeichert.\n";
+  } else {
+    for (const s of series) {
+      result += `• ${s.series_title} — ${s.count} Episode(n)\n`;
+    }
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result
+  });
+
+  return;
+}
+
+if (text === "/duplicates") {
+  const movieDupes = db.prepare(`
+    SELECT title, year, COUNT(*) AS count
+    FROM movies
+    GROUP BY title, year
+    HAVING count > 1
+  `).all();
+
+  const seriesDupes = db.prepare(`
+    SELECT series_title, season, episode, COUNT(*) AS count
+    FROM series
+    GROUP BY series_title, season, episode
+    HAVING count > 1
+  `).all();
+
+  let result = "🧹 𝐃𝐔𝐏𝐋𝐈𝐊𝐀𝐓𝐄\n\n";
+
+  if (!movieDupes.length && !seriesDupes.length) {
+    result += "✅ Keine Duplikate gefunden.";
+  }
+
+  if (movieDupes.length) {
+    result += "🎬 Filme:\n";
+    for (const m of movieDupes) {
+      result += `• ${m.title} ${m.year || ""} — ${m.count}x\n`;
+    }
+  }
+
+  if (seriesDupes.length) {
+    result += "\n📺 Serien:\n";
+    for (const s of seriesDupes) {
+      result += `• ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")} — ${s.count}x\n`;
+    }
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result
+  });
+
+  return;
+}
+
+if (text === "/admin") {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "🎛 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋\n\n" +
+      "🎬 /movies — Filme anzeigen\n" +
+      "📺 /series — Serien anzeigen\n" +
+      "🔎 /search titel — Suche\n" +
+      "🔤 /az — A–Z Liste\n" +
+      "🧹 /duplicates — Duplikate prüfen\n" +
+      "📊 /stats — Statistik\n"
+  });
+
+  return;
+}
+
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text: "⚠️ Befehl noch nicht eingebaut. Kommt in späteren Blöcken."
