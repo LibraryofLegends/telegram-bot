@@ -644,42 +644,64 @@ function makeHashtags(text = "") {
 }
 
 function movieCaption(tmdb, extras = {}) {
-  const titleLine = `🎬 𝐓𝐈𝐓𝐄𝐋: ${tmdb.title.toUpperCase()} (${tmdb.year || "Unbekannt"})`;
+  const titleLine = `🎬 ${tmdb.title.toUpperCase()} (${tmdb.year || "Unbekannt"})`;
+
   const collectionLine = tmdb.collection
-    ? `🎞 𝐑𝐄𝐈𝐇𝐄: ${tmdb.collection.toUpperCase()}`
+    ? `🎞 ${tmdb.collection.toUpperCase()}`
     : "";
 
   const firstLetter = tmdb.title?.[0]?.toUpperCase() || "X";
+
+  const genreText = String(tmdb.genre || "Sonstige")
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .join(" • ");
+
   const genreTags = makeHashtags(tmdb.genre);
+
   const collectionTag = tmdb.collection
     ? "#" + tmdb.collection.replace(/[^a-zA-Z0-9]/g, "")
     : "";
 
-  const techLine =
-    `🎞 ${extras.resolution || "Unbekannt"} • ${extras.videoCodec || "Unbekannt"}` +
-    `${extras.hdr ? ` • ${extras.hdr}` : ""}`;
+  const mediaLines = [];
 
-  const audioLine =
-    `🔊 ${extras.audioCodec || "Unbekannt"}` +
-    `${extras.audioChannels && extras.audioChannels !== "Unbekannt" ? ` • ${extras.audioChannels}` : ""}`;
+  mediaLines.push(`🔥 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}`);
+  mediaLines.push(`🎭 ${genreText}`);
+
+  if (extras.resolution && extras.resolution !== "Unbekannt") {
+    mediaLines.push(`🎞 ${extras.resolution}`);
+  }
+
+  if (extras.source && extras.source !== "Unbekannt") {
+    mediaLines.push(`💿 ${extras.source}`);
+  }
+
+  if (extras.audio && extras.audio !== "Unbekannt") {
+    mediaLines.push(`🎧 ${extras.audio}`);
+  }
+
+  if (extras.videoCodec && extras.videoCodec !== "Unbekannt") {
+    mediaLines.push(`🎬 ${extras.videoCodec}${extras.hdr ? ` • ${extras.hdr}` : ""}`);
+  }
+
+  if (extras.audioCodec && extras.audioCodec !== "Unbekannt") {
+    mediaLines.push(`🔊 ${extras.audioCodec}${extras.audioChannels && extras.audioChannels !== "Unbekannt" ? ` • ${extras.audioChannels}` : ""}`);
+  }
 
   return (
     "━━━━━━━━━━━━━━━━━━━━━\n" +
     `${titleLine}\n` +
     `${collectionLine ? collectionLine + "\n" : ""}` +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
-    `🔥 ${extras.quality || "Unbekannt"} • ${tmdb.genre || "Sonstige"}\n` +
-    `🎧 ${extras.audio || "Unbekannt"}\n` +
-    `💿 ${extras.source || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}\n` +
-    `${techLine}\n` +
-    `${audioLine}\n` +
+    mediaLines.join("\n") + "\n" +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
-    `${tmdb.rating}\n` +
+    `⭐ ${tmdb.rating}\n` +
     `⏱ ${tmdb.runtime} • 🔞 ${tmdb.fsk}\n` +
     `🎥 ${tmdb.director}\n` +
     `👥 ${tmdb.cast}\n` +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
-    "📖 STORY\n" +
+    "📖 𝐒𝐓𝐎𝐑𝐘\n" +
     `${tmdb.overview || "Keine Beschreibung verfügbar."}\n` +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
     `🆔 ${extras.libraryId}\n` +
