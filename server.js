@@ -1324,7 +1324,9 @@ async function handleUpload(msg) {
       return;
     }
 
-    await createSeriesHubIfMissing({
+    const extras = getMediaExtras(fileName, msg);
+
+await createSeriesHubIfMissing({
   tmdb,
   topicId
 });
@@ -1334,7 +1336,7 @@ const copied = await copyOriginalMedia({
   messageId: msg.message_id,
   targetChatId: SERIES_GROUP_ID,
   topicId,
-  caption: seriesCaption(tmdb, media)
+  caption: seriesCaption(tmdb, media, extras)
 });
 
     if (!copied?.message_id) {
