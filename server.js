@@ -1,6 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const Database = require("better-sqlite3");
+const sharp = require("sharp");
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -635,6 +636,61 @@ async function searchSeriesTMDB(title, season, episode) {
       "Keine Beschreibung verfügbar.",
     posterUrl: posterUrl(episodeDetails?.still_path || details.poster_path)
   };
+}
+
+async function createBrandedCover(posterUrl, title = "") {
+  try {
+    const imageRes = await axios.get(posterUrl, {
+      responseType: "arraybuffer"
+    });
+
+    const inputBuffer = Buffer.from(imageRes.data);
+
+    const svgOverlay = `
+      <svg width="500" height="750">
+        <defs>
+          <linearGradient id="g" x1="0" y1="500" x2="0" y2="750">
+            <stop offset="0%" stop-color="black" stop-opacity="0"/>
+            <stop offset="100%" stop-color="black" stop-opacity="0.75"/>
+          </linearGradient>
+        </defs>
+
+        <rect x="0" y="500" width="500" height="250" fill="url(#g)"/>
+
+        <text x="250" y="670"
+          font-size="30"
+          font-family="Arial"
+          font-weight="bold"
+          fill="white"
+          text-anchor="middle">
+          LIBRARY OF LEGENDS
+        </text>
+
+        <text x="250" y="710"
+          font-size="22"
+          font-family="Arial"
+          fill="white"
+          text-anchor="middle">
+          @LibraryOfLegends
+        </text>
+      </svg>
+    `;
+
+    return await sharp(inputBuffer)
+      .resize(500, 750)
+      .composite([
+        {
+          input: Buffer.from(svgOverlay),
+          top: 0,
+          left: 0
+        }
+      ])
+      .jpeg({ quality: 90 })
+      .toBuffer();
+  } catch (err) {
+    console.error("❌ Branding Cover Fehler:", err.message);
+    return posterUrl;
+  }
 }
 
 // =============================
@@ -1317,10 +1373,10 @@ async function handleUpload(msg) {
     await tg("sendPhoto", {
       chat_id: MOVIE_GROUP_ID,
       message_thread_id: topicId,
-      photo:
-        tmdb.posterUrl ||
-        "https://via.placeholder.com/500x750.png?text=No+Cover"
-    });
+      photo: await createBrandedCover(
+  tmdb.posterUrl || "https://via.placeholder.com/500x750.png?text=No+Cover",
+  tmdb.title
+)
 
     // 2. MP4-Datei
     const copied = await copyOriginalMedia({
