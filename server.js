@@ -692,9 +692,9 @@ async function createBrandedCover(posterUrl, title = "") {
       .toBuffer();
 
   } console.error("❌ Branding Cover Fehler:", err.message);
-console.error("LOGO CHECK logo.png:", require("fs").existsSync("logo.png"));
-console.error("WATERMARK CHECK watermark.png:", require("fs").existsSync("watermark.png"));
-return posterUrl;
+    console.error("LOGO CHECK logo.png:", require("fs").existsSync("logo.png"));
+    console.error("WATERMARK CHECK watermark.png:", require("fs").existsSync("watermark.png"));
+    return posterUrl;
   }
 }
 
