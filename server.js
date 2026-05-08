@@ -682,22 +682,22 @@ function movieCaption(tmdb, extras = {}) {
   }
 
   return (
-    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
     `🎬 𝐇𝐀𝐕𝐎𝐂 (${tmdb.year || "Unbekannt"})\n`
       .replace("𝐇𝐀𝐕𝐎𝐂", tmdb.title.toUpperCase()) +
-    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
     mediaLines.join("\n") + "\n" +
-    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
     `⭐ ${tmdb.rating}\n` +
     `⏱ ${tmdb.runtime} • 🔞 ${tmdb.fsk}\n` +
     `🎥 ${tmdb.director}\n` +
     `👥 ${tmdb.cast}\n` +
-    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
     "📖 STORY\n" +
     `${tmdb.overview || "Keine Beschreibung verfügbar."}\n` +
-    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
     `🏷 ${extras.libraryId}\n` +
-    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
     `${genreTags}\n` +
     "@LibraryOfLegends"
   );
