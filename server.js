@@ -761,20 +761,55 @@ function movieCaption(tmdb, extras = {}) {
   );
 }
 
-function seriesCaption(tmdb, media) {
+function seriesCaption(tmdb, media, extras = {}) {
+  const genreText = String(tmdb.genre || "Sonstige")
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .join(" • ");
+
+  const genreTags = String(tmdb.genre || "")
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((g) => `#${g.replace(/\s+/g, "")}`)
+    .join(" ");
+
+  const episodeTitle = tmdb.episodeTitle
+    ? ` • ${tmdb.episodeTitle}`
+    : "";
+
+  const mediaLines = [];
+
+  mediaLines.push(`🔥 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}`);
+  mediaLines.push(`🎭 ${genreText}`);
+
+  if (extras.resolution && extras.resolution !== "Unbekannt") {
+    mediaLines.push(`🎞 ${extras.resolution}`);
+  }
+
+  if (extras.source && extras.source !== "Unbekannt") {
+    mediaLines.push(`💿 ${extras.source}`);
+  }
+
+  if (extras.audio && extras.audio !== "Unbekannt") {
+    mediaLines.push(`🎧 ${extras.audio}`);
+  }
+
   return (
     "━━━━━━━━━━━━━━━━━━\n" +
-    `📺 𝐓𝐈𝐓𝐄𝐋: ${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}\n` +
-    `${tmdb.episodeTitle ? `🎞 𝐅𝐎𝐋𝐆𝐄: ${tmdb.episodeTitle}\n` : ""}` +
-    `📀 𝐒𝐓𝐀𝐅𝐅𝐄𝐋: ${media.seasonText}\n` +
+    `📺 ${tmdb.seriesTitle.toUpperCase()}\n` +
+    `🎞 S${media.seasonText}E${media.episodeText}${episodeTitle}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
-    `🎭 𝐆𝐄𝐍𝐑𝐄: ${tmdb.genre || "Sonstige"}\n` +
-    `⭐ 𝐁𝐄𝐖𝐄𝐑𝐓𝐔𝐍𝐆: ${tmdb.rating || "Unbekannt"}\n` +
+    mediaLines.join("\n") + "\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
-    "📖 𝐒𝐓𝐎𝐑𝐘\n" +
+    `⭐ ${tmdb.rating || "Unbekannt"}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📖 STORY\n" +
     `${tmdb.overview || "Keine Beschreibung verfügbar."}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
-    `#${tmdb.seriesTitle.replace(/\s+/g, "")} ${makeHashtags(tmdb.genre)}\n` +
+    `#${tmdb.seriesTitle.replace(/\s+/g, "")} ${genreTags}\n` +
     "@LibraryOfLegends"
   );
 }
