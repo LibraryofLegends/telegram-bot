@@ -1318,6 +1318,7 @@ async function handleCommand(msg) {
         "🔤 /az — A–Z Liste\n" +
         "🧹 /duplicates — Duplikate prüfen\n" +
         "📊 /stats — Statistik\n"
+        "🔤 /seriesaz — Serien A–Z\n" +
     });
     return;
   }
