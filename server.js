@@ -1363,9 +1363,9 @@ async function handleUpload(msg) {
 await tg("sendPhoto", {
   chat_id: MOVIE_GROUP_ID,
   message_thread_id: topicId,
-  photo: {
-    source: brandedCover
-  }
+  photo: Buffer.isBuffer(brandedCover)
+    ? `data:image/jpeg;base64,${brandedCover.toString("base64")}`
+    : brandedCover
 });
 
     const copied = await copyOriginalMedia({
