@@ -650,25 +650,19 @@ function makeHashtags(text = "") {
 }
 
 function movieCaption(tmdb, extras = {}) {
-  const titleLine = `🎬 ${tmdb.title.toUpperCase()} (${tmdb.year || "Unbekannt"})`;
-
-  const collectionLine = tmdb.collection
-    ? `🎞 ${tmdb.collection.toUpperCase()}`
-    : "";
-
-  const firstLetter = tmdb.title?.[0]?.toUpperCase() || "X";
-
   const genreText = String(tmdb.genre || "Sonstige")
     .split("/")
     .map((g) => g.trim())
     .filter(Boolean)
     .join(" • ");
 
-  const genreTags = makeHashtags(tmdb.genre);
-
-  const collectionTag = tmdb.collection
-    ? "#" + tmdb.collection.replace(/[^a-zA-Z0-9]/g, "")
-    : "";
+  const genreTags = String(tmdb.genre || "")
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((g) => `#${g.replace(/\s+/g, "")}`)
+    .join(" ");
 
   const mediaLines = [];
 
@@ -687,18 +681,10 @@ function movieCaption(tmdb, extras = {}) {
     mediaLines.push(`🎧 ${extras.audio}`);
   }
 
-  if (extras.videoCodec && extras.videoCodec !== "Unbekannt") {
-    mediaLines.push(`🎬 ${extras.videoCodec}${extras.hdr ? ` • ${extras.hdr}` : ""}`);
-  }
-
-  if (extras.audioCodec && extras.audioCodec !== "Unbekannt") {
-    mediaLines.push(`🔊 ${extras.audioCodec}${extras.audioChannels && extras.audioChannels !== "Unbekannt" ? ` • ${extras.audioChannels}` : ""}`);
-  }
-
   return (
     "━━━━━━━━━━━━━━━━━━━━━\n" +
-    `${titleLine}\n` +
-    `${collectionLine ? collectionLine + "\n" : ""}` +
+    `🎬 𝐇𝐀𝐕𝐎𝐂 (${tmdb.year || "Unbekannt"})\n`
+      .replace("𝐇𝐀𝐕𝐎𝐂", tmdb.title.toUpperCase()) +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
     mediaLines.join("\n") + "\n" +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
@@ -707,12 +693,12 @@ function movieCaption(tmdb, extras = {}) {
     `🎥 ${tmdb.director}\n` +
     `👥 ${tmdb.cast}\n` +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
-    "📖 𝐒𝐓𝐎𝐑𝐘\n" +
+    "📖 STORY\n" +
     `${tmdb.overview || "Keine Beschreibung verfügbar."}\n` +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
-    `🆔 ${extras.libraryId}\n` +
+    `🏷 ${extras.libraryId}\n` +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
-    `${genreTags} #${firstLetter} ${makeGenreCode(tmdb.genre)} ${collectionTag}\n` +
+    `${genreTags}\n` +
     "@LibraryOfLegends"
   );
 }
@@ -1202,7 +1188,7 @@ async function handleUpload(msg) {
       return;
     }
 
-    const cover = await tg("sendPhoto", {
+    await tg("sendPhoto", {
   chat_id: MOVIE_GROUP_ID,
   message_thread_id: topicId,
   photo:
@@ -1217,7 +1203,7 @@ const copied = await copyOriginalMedia({
   topicId
 });
 
-const layoutMessage = await tg("sendMessage", {
+await tg("sendMessage", {
   chat_id: MOVIE_GROUP_ID,
   message_thread_id: topicId,
   text: movieCaption(tmdb, extras)
