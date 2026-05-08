@@ -382,6 +382,82 @@ function detectAudio(fileName = "") {
     langs.push("Deutsch");
     langs.push("Englisch");
   }
+  
+  function formatFileSize(bytes = 0) {
+  const size = Number(bytes || 0);
+  if (!size) return "Unbekannt";
+
+  const gb = size / (1024 * 1024 * 1024);
+  if (gb >= 1) return `${gb.toFixed(2)} GB`;
+
+  const mb = size / (1024 * 1024);
+  return `${mb.toFixed(0)} MB`;
+}
+
+function detectResolution(video = null) {
+  const width = video?.width || 0;
+  const height = video?.height || 0;
+
+  if (!width || !height) return "Unbekannt";
+  return `${width}x${height}`;
+}
+
+function detectVideoCodec(fileName = "") {
+  const f = String(fileName).toLowerCase();
+
+  if (/\b(x265|h265|h\.265|hevc)\b/.test(f)) return "HEVC / H.265";
+  if (/\b(x264|h264|h\.264|avc)\b/.test(f)) return "AVC / H.264";
+  if (/\b(av1)\b/.test(f)) return "AV1";
+
+  return "Unbekannt";
+}
+
+function detectAudioCodec(fileName = "") {
+  const f = String(fileName).toLowerCase();
+
+  if (/\b(truehd|atmos)\b/.test(f)) return "TrueHD Atmos";
+  if (/\b(eac3|e-ac3|ddp|dd\+)\b/.test(f)) return "E-AC3 / DDP";
+  if (/\b(ac3|dolby digital)\b/.test(f)) return "AC3";
+  if (/\b(dts-hd|dtshd)\b/.test(f)) return "DTS-HD";
+  if (/\b(dts)\b/.test(f)) return "DTS";
+  if (/\b(aac)\b/.test(f)) return "AAC";
+
+  return "Unbekannt";
+}
+
+function detectAudioChannels(fileName = "") {
+  const f = String(fileName).toLowerCase();
+
+  if (/\b(7\.1|7ch)\b/.test(f)) return "7.1";
+  if (/\b(5\.1|6ch)\b/.test(f)) return "5.1";
+  if (/\b(2\.0|stereo)\b/.test(f)) return "2.0";
+
+  return "Unbekannt";
+}
+
+function detectHDR(fileName = "") {
+  const f = String(fileName).toLowerCase();
+
+  if (/\b(dv|dolby vision)\b/.test(f)) return "Dolby Vision";
+  if (/\b(hdr10\+|hdr10plus)\b/.test(f)) return "HDR10+";
+  if (/\b(hdr10|hdr)\b/.test(f)) return "HDR";
+
+  return "";
+}
+
+function getMediaExtras(fileName, msg) {
+  return {
+    quality: detectQuality(fileName, msg.video),
+    resolution: detectResolution(msg.video),
+    fileSize: formatFileSize(msg.video?.file_size || msg.document?.file_size),
+    audio: detectAudio(fileName),
+    source: detectSource(fileName),
+    videoCodec: detectVideoCodec(fileName),
+    audioCodec: detectAudioCodec(fileName),
+    audioChannels: detectAudioChannels(fileName),
+    hdr: detectHDR(fileName)
+  };
+}
 
   return [...new Set(langs)].join(" • ") || "Unbekannt";
 }
@@ -554,14 +630,24 @@ function movieCaption(tmdb, extras = {}) {
     ? "#" + tmdb.collection.replace(/[^a-zA-Z0-9]/g, "")
     : "";
 
+  const techLine =
+    `🎞 ${extras.resolution || "Unbekannt"} • ${extras.videoCodec || "Unbekannt"}` +
+    `${extras.hdr ? ` • ${extras.hdr}` : ""}`;
+
+  const audioLine =
+    `🔊 ${extras.audioCodec || "Unbekannt"}` +
+    `${extras.audioChannels && extras.audioChannels !== "Unbekannt" ? ` • ${extras.audioChannels}` : ""}`;
+
   return (
     "━━━━━━━━━━━━━━━━━━━━━\n" +
     `${titleLine}\n` +
     `${collectionLine ? collectionLine + "\n" : ""}` +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
-    `🔥 ${extras.quality} • ${tmdb.genre || "Sonstige"}\n` +
-    `🎧 ${extras.audio}\n` +
-    `💿 ${extras.source}\n` +
+    `🔥 ${extras.quality || "Unbekannt"} • ${tmdb.genre || "Sonstige"}\n` +
+    `🎧 ${extras.audio || "Unbekannt"}\n` +
+    `💿 ${extras.source || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}\n` +
+    `${techLine}\n` +
+    `${audioLine}\n` +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
     `${tmdb.rating}\n` +
     `⏱ ${tmdb.runtime} • 🔞 ${tmdb.fsk}\n` +
@@ -1146,9 +1232,7 @@ async function handleUpload(msg) {
     const tmdb = await searchMovieTMDB(media.title, media.year);
     
     const extras = {
-  quality: detectQuality(fileName, msg.video),
-  audio: detectAudio(fileName),
-  source: detectSource(fileName),
+  ...getMediaExtras(fileName, msg),
   libraryId: makeLibraryId(tmdb?.tmdbId)
 };
 
