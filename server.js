@@ -640,6 +640,11 @@ async function searchSeriesTMDB(title, season, episode) {
 
 async function createBrandedCover(posterUrl, title = "") {
   try {
+    const fs = require("fs");
+
+    console.log("LOGO CHECK logo.png:", fs.existsSync("logo.png"));
+    console.log("WATERMARK CHECK watermark.png:", fs.existsSync("watermark.png"));
+
     const imageRes = await axios.get(posterUrl, {
       responseType: "arraybuffer"
     });
@@ -664,7 +669,6 @@ async function createBrandedCover(posterUrl, title = "") {
             <stop offset="100%" stop-color="black" stop-opacity="0.85"/>
           </linearGradient>
         </defs>
-
         <rect x="0" y="450" width="500" height="300" fill="url(#g)"/>
       </svg>
     `);
@@ -672,28 +676,20 @@ async function createBrandedCover(posterUrl, title = "") {
     return await sharp(inputBuffer)
       .resize(500, 750)
       .composite([
-        {
-          input: gradient,
-          top: 0,
-          left: 0
-        },
-        {
-          input: logo,
-          gravity: "south"
-        },
-        {
-          input: watermark,
-          gravity: "southeast",
-          top: 20,
-          left: 20
-        }
+        { input: gradient, top: 0, left: 0 },
+        { input: logo, gravity: "south" },
+        { input: watermark, gravity: "southeast" }
       ])
       .jpeg({ quality: 95 })
       .toBuffer();
 
-  } console.error("❌ Branding Cover Fehler:", err.message);
-    console.error("LOGO CHECK logo.png:", require("fs").existsSync("logo.png"));
-    console.error("WATERMARK CHECK watermark.png:", require("fs").existsSync("watermark.png"));
+  } catch (err) {
+    const fs = require("fs");
+
+    console.error("❌ Branding Cover Fehler:", err.message);
+    console.error("LOGO CHECK logo.png:", fs.existsSync("logo.png"));
+    console.error("WATERMARK CHECK watermark.png:", fs.existsSync("watermark.png"));
+
     return posterUrl;
   }
 }
