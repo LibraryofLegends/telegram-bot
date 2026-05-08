@@ -1353,21 +1353,22 @@ async function handleCommand(msg) {
   }
 
   if (text === "/admin") {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "🎛 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋\n\n" +
-        "🎬 /movies — Filme anzeigen\n" +
-        "📺 /series — Serien anzeigen\n" +
-        "🔎 /search titel — Suche\n" +
-        "🔤 /az — A–Z Liste\n" +
-        "🧹 /duplicates — Duplikate prüfen\n" +
-        "📊 /stats — Statistik\n"
-        "🔤 /seriesaz — Serien A–Z\n" +
-        "🔥 /featuredseries — Featured Serien\n" +
-    });
-    return;
-  }
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "🎛 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋\n\n" +
+      "🎬 /movies — Filme anzeigen\n" +
+      "📺 /series — Serien anzeigen\n" +
+      "🔎 /search titel — Suche\n" +
+      "🔤 /az — A–Z Liste\n" +
+      "🔤 /seriesaz — Serien A–Z\n" +
+      "🔥 /featuredseries — Featured Serien\n" +
+      "🧹 /duplicates — Duplikate prüfen\n" +
+      "📊 /stats — Statistik\n"
+  });
+
+  return;
+}
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
