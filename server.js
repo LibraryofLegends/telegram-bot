@@ -1173,6 +1173,49 @@ async function handleCommand(msg) {
         result += `• ${s.series_title} — ${s.count} Episode(n)\n`;
       }
     }
+    
+    if (text === "/seriesaz") {
+  const rows = db.prepare(`
+    SELECT series_title, COUNT(*) AS count
+    FROM series
+    GROUP BY series_title
+    ORDER BY series_title ASC
+  `).all();
+
+  if (!rows.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "📺 Noch keine Serien gespeichert."
+    });
+    return;
+  }
+
+  let currentLetter = "";
+  let result = "━━━━━━━━━━━━━━━━━━\n";
+  result += "🔤 𝐒𝐄𝐑𝐈𝐄𝐍 𝐀–𝐙\n";
+  result += "━━━━━━━━━━━━━━━━━━\n";
+
+  for (const s of rows) {
+    const letter = String(s.series_title || "#").charAt(0).toUpperCase();
+
+    if (letter !== currentLetter) {
+      currentLetter = letter;
+      result += `\n${currentLetter}\n`;
+    }
+
+    result += `• ${s.series_title} — ${s.count} Episode(n)\n`;
+  }
+
+  result += "\n━━━━━━━━━━━━━━━━━━\n";
+  result += "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result
+  });
+
+  return;
+}
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
