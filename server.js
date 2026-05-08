@@ -2,6 +2,7 @@ const express = require("express");
 const axios = require("axios");
 const Database = require("better-sqlite3");
 const sharp = require("sharp");
+const fs = require("fs");
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -640,8 +641,6 @@ async function searchSeriesTMDB(title, season, episode) {
 
 async function createBrandedCover(posterUrl, title = "") {
   try {
-    const fs = require("fs");
-
     console.log("LOGO CHECK logo.png.PNG:", fs.existsSync("logo.png.PNG"));
     console.log("WATERMARK CHECK watermark.png.PNG:", fs.existsSync("watermark.png.PNG"));
 
@@ -673,7 +672,9 @@ async function createBrandedCover(posterUrl, title = "") {
       </svg>
     `);
 
-    return await sharp(inputBuffer)
+    const outputPath = `/tmp/cover-${Date.now()}.jpg`;
+
+    await sharp(inputBuffer)
       .resize(500, 750)
       .composite([
         { input: gradient, top: 0, left: 0 },
@@ -681,11 +682,10 @@ async function createBrandedCover(posterUrl, title = "") {
         { input: watermark, gravity: "southeast" }
       ])
       .jpeg({ quality: 95 })
-      .toBuffer();
+      .toFile(outputPath);
 
+    return outputPath;
   } catch (err) {
-    const fs = require("fs");
-
     console.error("❌ Branding Cover Fehler:", err.message);
     console.error("LOGO CHECK logo.png.PNG:", fs.existsSync("logo.png.PNG"));
     console.error("WATERMARK CHECK watermark.png.PNG:", fs.existsSync("watermark.png.PNG"));
@@ -1360,9 +1360,16 @@ async function handleUpload(msg) {
 await tg("sendPhoto", {
   chat_id: MOVIE_GROUP_ID,
   message_thread_id: topicId,
-  photo: Buffer.isBuffer(brandedCover)
-    ? `data:image/jpeg;base64,${brandedCover.toString("base64")}`
-    : brandedCover
+  const brandedCover = await createBrandedCover(
+  tmdb.posterUrl || "https://via.placeholder.com/500x750.png?text=No+Cover",
+  tmdb.title
+);
+
+await tg("sendPhoto", {
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: topicId,
+  photo: brandedCover
+});
 });
 
     const copied = await copyOriginalMedia({
