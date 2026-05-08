@@ -880,16 +880,297 @@ app.post(`/webhook/${TOKEN}`, async (req, res) => {
   }
 });
 
+// =============================
+// UPDATE HANDLER
+// =============================
+async function handleUpdate(update) {
+  const msg = update.message || update.edited_message;
+  if (!msg) return;
 
-tatistik\n"
-  });
+  const userId = String(msg.from?.id || "");
 
-  return;
+  console.log("USER ID:", userId);
+  console.log("CHAT ID:", msg.chat?.id, "CHAT TITLE:", msg.chat?.title);
+
+  if (userId !== ADMIN_ID) {
+    console.log("⛔ Ignored - nicht Admin");
+    return;
+  }
+
+  if (msg.text) {
+    await handleCommand(msg);
+    return;
+  }
+
+  if (msg.video || msg.document) {
+    console.log("🎥 Video/Datei erkannt");
+    await handleUpload(msg);
+    return;
+  }
+
+  console.log("⚠️ Unbekannter Nachrichtentyp");
 }
+
+// =============================
+// COMMAND HANDLER
+// =============================
+async function handleCommand(msg) {
+  const text = msg.text || "";
+
+  if (text === "/start") {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "🔥 Movie & Series Bot V2 ist aktiv!\n\n" +
+        "Sende oder leite mir Filme/Serien weiter.\n\n" +
+        "Befehle:\n" +
+        "/help\n" +
+        "/stats\n" +
+        "/search titel\n" +
+        "/movies\n" +
+        "/series\n" +
+        "/az\n" +
+        "/duplicates\n" +
+        "/admin"
+    });
+    return;
+  }
+
+  if (text === "/help") {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "📌 Hilfe\n\n" +
+        "➡️ Leite Filme oder Serien an mich weiter.\n" +
+        "➡️ Serien erkennt der Bot über S01E01 oder 1x01.\n" +
+        "➡️ Filme werden automatisch per Genre sortiert.\n" +
+        "➡️ Serien bekommen automatisch eigene Themen."
+    });
+    return;
+  }
+
+  if (text === "/stats") {
+    const movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
+    const seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
+    const topicCount = db.prepare("SELECT COUNT(*) AS count FROM topics").get().count;
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "📊 𝐒𝐓𝐀𝐓𝐈𝐒𝐓𝐈𝐊\n\n" +
+        `🎬 Filme: ${movieCount}\n` +
+        `📺 Serien-Episoden: ${seriesCount}\n` +
+        `🧵 Themen gespeichert: ${topicCount}`
+    });
+    return;
+  }
+
+  if (text.startsWith("/search")) {
+    const query = text.replace("/search", "").trim().toLowerCase();
+
+    if (!query) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text: "🔎 Bitte nutze:\n/search tulsa king"
+      });
+      return;
+    }
+
+    const movies = db.prepare(`
+      SELECT * FROM movies
+      WHERE LOWER(title) LIKE ?
+      ORDER BY title ASC
+      LIMIT 10
+    `).all(`%${query}%`);
+
+    const episodes = db.prepare(`
+      SELECT * FROM series
+      WHERE LOWER(series_title) LIKE ? OR LOWER(episode_title) LIKE ?
+      ORDER BY series_title ASC, season ASC, episode ASC
+      LIMIT 15
+    `).all(`%${query}%`, `%${query}%`);
+
+    let result = "🔎 𝐒𝐔𝐂𝐇𝐄\n\n";
+
+    if (!movies.length && !episodes.length) {
+      result += "❌ Nichts gefunden.";
+    }
+
+    if (movies.length) {
+      result += "🎬 𝐅𝐈𝐋𝐌𝐄\n\n";
+      for (const m of movies) {
+        result += `• ${m.title} ${m.year || ""}\n`;
+        result += `  🎭 ${m.genre || "Unbekannt"}\n\n`;
+      }
+    }
+
+    if (episodes.length) {
+      result += "📺 𝐒𝐄𝐑𝐈𝐄𝐍\n\n";
+      for (const s of episodes) {
+        result += `• ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")}\n`;
+        if (s.episode_title) result += `  🎞 ${s.episode_title}\n`;
+        result += `  🎭 ${s.genre || "Unbekannt"}\n\n`;
+      }
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: result
+    });
+    return;
+  }
+
+  if (text === "/movies") {
+    const movies = db.prepare(`
+      SELECT * FROM movies
+      ORDER BY title ASC
+      LIMIT 50
+    `).all();
+
+    let result = "🎬 𝐅𝐈𝐋𝐌𝐄\n\n";
+
+    if (!movies.length) {
+      result += "Noch keine Filme gespeichert.";
+    } else {
+      for (const m of movies) {
+        result += `• ${m.title} ${m.year || ""}\n`;
+      }
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: result
+    });
+    return;
+  }
+
+  if (text === "/series") {
+    const rows = db.prepare(`
+      SELECT series_title, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY series_title ASC
+      LIMIT 50
+    `).all();
+
+    let result = "📺 𝐒𝐄𝐑𝐈𝐄𝐍\n\n";
+
+    if (!rows.length) {
+      result += "Noch keine Serien gespeichert.";
+    } else {
+      for (const s of rows) {
+        result += `• ${s.series_title} — ${s.count} Episode(n)\n`;
+      }
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: result
+    });
+    return;
+  }
+
+  if (text === "/az") {
+    const movies = db.prepare(`
+      SELECT title, year
+      FROM movies
+      ORDER BY title ASC
+    `).all();
+
+    const series = db.prepare(`
+      SELECT series_title, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY series_title ASC
+    `).all();
+
+    let result = "🔤 𝐀–𝐙 𝐋𝐈𝐒𝐓𝐄\n\n";
+
+    result += "🎬 𝐅𝐈𝐋𝐌𝐄\n";
+    if (!movies.length) {
+      result += "Keine Filme gespeichert.\n";
+    } else {
+      for (const m of movies) {
+        result += `• ${m.title} ${m.year || ""}\n`;
+      }
+    }
+
+    result += "\n📺 𝐒𝐄𝐑𝐈𝐄𝐍\n";
+    if (!series.length) {
+      result += "Keine Serien gespeichert.\n";
+    } else {
+      for (const s of series) {
+        result += `• ${s.series_title} — ${s.count} Episode(n)\n`;
+      }
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: result
+    });
+    return;
+  }
+
+  if (text === "/duplicates") {
+    const movieDupes = db.prepare(`
+      SELECT title, year, COUNT(*) AS count
+      FROM movies
+      GROUP BY title, year
+      HAVING count > 1
+    `).all();
+
+    const seriesDupes = db.prepare(`
+      SELECT series_title, season, episode, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title, season, episode
+      HAVING count > 1
+    `).all();
+
+    let result = "🧹 𝐃𝐔𝐏𝐋𝐈𝐊𝐀𝐓𝐄\n\n";
+
+    if (!movieDupes.length && !seriesDupes.length) {
+      result += "✅ Keine Duplikate gefunden.";
+    }
+
+    if (movieDupes.length) {
+      result += "🎬 Filme:\n";
+      for (const m of movieDupes) {
+        result += `• ${m.title} ${m.year || ""} — ${m.count}x\n`;
+      }
+    }
+
+    if (seriesDupes.length) {
+      result += "\n📺 Serien:\n";
+      for (const s of seriesDupes) {
+        result += `• ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")} — ${s.count}x\n`;
+      }
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: result
+    });
+    return;
+  }
+
+  if (text === "/admin") {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "🎛 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋\n\n" +
+        "🎬 /movies — Filme anzeigen\n" +
+        "📺 /series — Serien anzeigen\n" +
+        "🔎 /search titel — Suche\n" +
+        "🔤 /az — A–Z Liste\n" +
+        "🧹 /duplicates — Duplikate prüfen\n" +
+        "📊 /stats — Statistik\n"
+    });
+    return;
+  }
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: "⚠️ Befehl noch nicht eingebaut. Kommt in späteren Blöcken."
+    text: "⚠️ Unbekannter Befehl. Nutze /admin"
   });
 }
 
@@ -1074,16 +1355,15 @@ async function handleUpload(msg) {
       return;
     }
 
-    // 1. Cover einzeln
     await tg("sendPhoto", {
       chat_id: MOVIE_GROUP_ID,
       message_thread_id: topicId,
-      photo:
-        tmdb.posterUrl ||
-        "https://via.placeholder.com/500x750.png?text=No+Cover"
+      photo: await createBrandedCover(
+        tmdb.posterUrl || "https://via.placeholder.com/500x750.png?text=No+Cover",
+        tmdb.title
+      )
     });
 
-    // 2. MP4 mit Layout als Caption
     const copied = await copyOriginalMedia({
       fromChatId: msg.chat.id,
       messageId: msg.message_id,
@@ -1136,6 +1416,15 @@ async function handleUpload(msg) {
     return;
   }
 }
+
+// =============================
+// SERVER START
+// =============================
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`✅ Server läuft auf Port ${PORT}`);
+});
 
 // =============================
 // SERVER START
