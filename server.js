@@ -1355,14 +1355,18 @@ async function handleUpload(msg) {
       return;
     }
 
-    await tg("sendPhoto", {
-      chat_id: MOVIE_GROUP_ID,
-      message_thread_id: topicId,
-      photo: await createBrandedCover(
-        tmdb.posterUrl || "https://via.placeholder.com/500x750.png?text=No+Cover",
-        tmdb.title
-      )
-    });
+    const brandedCover = await createBrandedCover(
+  tmdb.posterUrl,
+  tmdb.title
+);
+
+await tg("sendPhoto", {
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: topicId,
+  photo: {
+    source: brandedCover
+  }
+});
 
     const copied = await copyOriginalMedia({
       fromChatId: msg.chat.id,
