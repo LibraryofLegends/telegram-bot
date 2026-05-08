@@ -113,6 +113,7 @@ addColumnIfMissing("movies", "video_codec", "TEXT");
 addColumnIfMissing("movies", "audio_codec", "TEXT");
 addColumnIfMissing("movies", "audio_channels", "TEXT");
 addColumnIfMissing("movies", "hdr", "TEXT");
+addColumnIfMissing("topics", "hub_message_id", "INTEGER");
 
 console.log("✅ Datenbank bereit");
 
@@ -776,6 +777,84 @@ function seriesCaption(tmdb, media) {
     `#${tmdb.seriesTitle.replace(/\s+/g, "")} ${makeHashtags(tmdb.genre)}\n` +
     "@LibraryOfLegends"
   );
+}
+
+// =============================
+// SERIES HUB LAYOUT
+// =============================
+function seriesHubCaption(tmdb) {
+  const genreText = String(tmdb.genre || "Sonstige")
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .join(" • ");
+
+  const tags = String(tmdb.genre || "")
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((g) => `#${g.replace(/\s+/g, "")}`)
+    .join(" ");
+
+  return (
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `📺 ${tmdb.seriesTitle.toUpperCase()}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎭 ${genreText}\n` +
+    `⭐ ${tmdb.rating || "Unbekannt"}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧭 STAFFELHUB\n\n" +
+    "📀 Staffel 01\n" +
+    "├ Episoden werden automatisch ergänzt\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `#${tmdb.seriesTitle.replace(/\s+/g, "")} ${tags}\n` +
+    "@LibraryOfLegends"
+  );
+}
+
+function getSeriesHubTopic(topicId) {
+  return db.prepare(`
+    SELECT * FROM topics
+    WHERE topic_id = ?
+  `).get(topicId);
+}
+
+function saveHubMessageId(topicId, messageId) {
+  db.prepare(`
+    UPDATE topics
+    SET hub_message_id = ?
+    WHERE topic_id = ?
+  `).run(messageId, topicId);
+}
+
+async function createSeriesHubIfMissing({ tmdb, topicId }) {
+  const topic = getSeriesHubTopic(topicId);
+
+  if (topic?.hub_message_id) {
+    return topic.hub_message_id;
+  }
+
+  await tg("sendPhoto", {
+    chat_id: SERIES_GROUP_ID,
+    message_thread_id: topicId,
+    photo:
+      tmdb.posterUrl ||
+      "https://via.placeholder.com/500x750.png?text=No+Cover"
+  });
+
+  const hub = await tg("sendMessage", {
+    chat_id: SERIES_GROUP_ID,
+    message_thread_id: topicId,
+    text: seriesHubCaption(tmdb)
+  });
+
+  if (hub?.message_id) {
+    saveHubMessageId(topicId, hub.message_id);
+    return hub.message_id;
+  }
+
+  return null;
 }
 
 // =============================
