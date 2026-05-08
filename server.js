@@ -1112,7 +1112,7 @@ if (text === "/admin") {
 }
 
 // =============================
-// UPLOAD HANDLER PLACEHOLDER
+// UPLOAD HANDLER
 // =============================
 async function handleUpload(msg) {
   const fileName =
@@ -1188,26 +1188,21 @@ async function handleUpload(msg) {
       return;
     }
 
-    await tg("sendPhoto", {
-  chat_id: MOVIE_GROUP_ID,
-  message_thread_id: topicId,
-  photo:
-    tmdb.posterUrl ||
-    "https://via.placeholder.com/500x750.png?text=No+Cover"
-});
+    const card = await tg("sendPhoto", {
+      chat_id: SERIES_GROUP_ID,
+      message_thread_id: topicId,
+      photo:
+        tmdb.posterUrl ||
+        "https://via.placeholder.com/500x750.png?text=No+Cover",
+      caption: seriesCaption(tmdb, media)
+    });
 
-const copied = await copyOriginalMedia({
-  fromChatId: msg.chat.id,
-  messageId: msg.message_id,
-  targetChatId: MOVIE_GROUP_ID,
-  topicId
-});
-
-await tg("sendMessage", {
-  chat_id: MOVIE_GROUP_ID,
-  message_thread_id: topicId,
-  text: movieCaption(tmdb, extras)
-});
+    const copied = await copyOriginalMedia({
+      fromChatId: msg.chat.id,
+      messageId: msg.message_id,
+      targetChatId: SERIES_GROUP_ID,
+      topicId
+    });
 
     if (!copied?.message_id) {
       await tg("sendMessage", {
@@ -1252,6 +1247,10 @@ await tg("sendMessage", {
 
   // =============================
   // MOVIE
+  // Reihenfolge:
+  // 1. Cover
+  // 2. MP4
+  // 3. Layout
   // =============================
   if (media.type === "movie") {
     const exists = movieExists(media.uniqueKey);
@@ -1275,20 +1274,20 @@ await tg("sendMessage", {
 
     const tmdb = await searchMovieTMDB(media.title, media.year);
 
-if (!tmdb) {
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "❌ Keine TMDB-Daten gefunden:\n\n" +
-      `🎬 ${media.title}`
-  });
-  return;
-}
+    if (!tmdb) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Keine TMDB-Daten gefunden:\n\n" +
+          `🎬 ${media.title}`
+      });
+      return;
+    }
 
-const extras = {
-  ...getMediaExtras(fileName, msg),
-  libraryId: makeLibraryCode(tmdb.genre)
-};
+    const extras = {
+      ...getMediaExtras(fileName, msg),
+      libraryId: makeLibraryCode(tmdb.genre)
+    };
 
     const genreTopicName = tmdb.mainGenre || "Sonstige";
 
@@ -1308,15 +1307,16 @@ const extras = {
       return;
     }
 
-    const card = await tg("sendPhoto", {
+    // 1. Cover ohne Caption
+    await tg("sendPhoto", {
       chat_id: MOVIE_GROUP_ID,
       message_thread_id: topicId,
       photo:
         tmdb.posterUrl ||
-        "https://via.placeholder.com/500x750.png?text=No+Cover",
-      caption: movieCaption(tmdb, extras)
+        "https://via.placeholder.com/500x750.png?text=No+Cover"
     });
 
+    // 2. MP4-Datei
     const copied = await copyOriginalMedia({
       fromChatId: msg.chat.id,
       messageId: msg.message_id,
@@ -1328,41 +1328,49 @@ const extras = {
       await tg("sendMessage", {
         chat_id: msg.chat.id,
         text:
-          "⚠️ Film-Karte wurde gepostet, aber Datei konnte nicht kopiert werden."
+          "⚠️ Film-Cover wurde gepostet, aber Datei konnte nicht kopiert werden."
       });
       return;
     }
 
-    saveMovie({
-  title: tmdb.title,
-  year: tmdb.year,
-  genre: tmdb.genre,
-  rating: tmdb.rating,
-  runtime: tmdb.runtime,
-  overview: tmdb.overview,
-  posterUrl: tmdb.posterUrl,
-  fileName,
-  fileId,
-  uniqueKey: media.uniqueKey,
-  telegramMessageId: copied.message_id,
-  topicId,
+    // 3. Layout unter der MP4
+    await tg("sendMessage", {
+      chat_id: MOVIE_GROUP_ID,
+      message_thread_id: topicId,
+      text: movieCaption(tmdb, extras)
+    });
 
-  collection: tmdb.collection,
-  quality: extras.quality,
-  audio: extras.audio,
-  source: extras.source,
-  fsk: tmdb.fsk,
-  director: tmdb.director,
-  cast: tmdb.cast,
-  libraryId: extras.libraryId
-});
+    saveMovie({
+      title: tmdb.title,
+      year: tmdb.year,
+      genre: tmdb.genre,
+      rating: tmdb.rating,
+      runtime: tmdb.runtime,
+      overview: tmdb.overview,
+      posterUrl: tmdb.posterUrl,
+      fileName,
+      fileId,
+      uniqueKey: media.uniqueKey,
+      telegramMessageId: copied.message_id,
+      topicId,
+
+      collection: tmdb.collection,
+      quality: extras.quality,
+      audio: extras.audio,
+      source: extras.source,
+      fsk: tmdb.fsk,
+      director: tmdb.director,
+      cast: tmdb.cast,
+      libraryId: extras.libraryId
+    });
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
         "✅ Film erfolgreich einsortiert:\n\n" +
         `🎬 ${tmdb.title}\n` +
-        `🎭 Thema: ${genreTopicName}`
+        `🎭 Thema: ${genreTopicName}\n` +
+        `🏷 ${extras.libraryId}`
     });
 
     logToDb("movie_saved", `${tmdb.title} ${tmdb.year || ""}`);
