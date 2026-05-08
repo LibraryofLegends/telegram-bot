@@ -1187,27 +1187,28 @@ async function handleUpload(msg) {
     }
 
     saveMovie({
-      title: tmdb.title,
-      year: tmdb.year,
-      genre: tmdb.genre,
-      rating: tmdb.rating,
-      runtime: tmdb.runtime,
-      overview: tmdb.overview,
-      posterUrl: tmdb.posterUrl,
-      fileName,
-      fileId,
-      uniqueKey: media.uniqueKey,
-      telegramMessageId: copied.message_id,
-      topicId
-      collection: tmdb.collection,
-quality: extras.quality,
-audio: extras.audio,
-source: extras.source,
-fsk: tmdb.fsk,
-director: tmdb.director,
-cast: tmdb.cast,
-libraryId: extras.libraryId,
-    });
+  title: tmdb.title,
+  year: tmdb.year,
+  genre: tmdb.genre,
+  rating: tmdb.rating,
+  runtime: tmdb.runtime,
+  overview: tmdb.overview,
+  posterUrl: tmdb.posterUrl,
+  fileName,
+  fileId,
+  uniqueKey: media.uniqueKey,
+  telegramMessageId: copied.message_id,
+  topicId,
+
+  collection: tmdb.collection,
+  quality: extras.quality,
+  audio: extras.audio,
+  source: extras.source,
+  fsk: tmdb.fsk,
+  director: tmdb.director,
+  cast: tmdb.cast,
+  libraryId: extras.libraryId
+});
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
