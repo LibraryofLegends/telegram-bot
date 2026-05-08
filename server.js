@@ -90,6 +90,22 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 `);
 
+function addColumnIfMissing(table, column, definition) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!cols.some((c) => c.name === column)) {
+    db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
+  }
+}
+
+addColumnIfMissing("movies", "collection", "TEXT");
+addColumnIfMissing("movies", "quality", "TEXT");
+addColumnIfMissing("movies", "audio", "TEXT");
+addColumnIfMissing("movies", "source", "TEXT");
+addColumnIfMissing("movies", "fsk", "TEXT");
+addColumnIfMissing("movies", "director", "TEXT");
+addColumnIfMissing("movies", "cast", "TEXT");
+addColumnIfMissing("movies", "library_id", "TEXT");
+
 console.log("✅ Datenbank bereit");
 
 // =============================
@@ -309,6 +325,57 @@ function parseMedia(fileName = "") {
   };
 }
 
+function detectQuality(fileName = "") {
+  const f = fileName.toLowerCase();
+
+  if (f.includes("2160p") || f.includes("4k") || f.includes("uhd")) return "UHD";
+  if (f.includes("1080p")) return "FHD";
+  if (f.includes("720p")) return "HD";
+  if (f.includes("480p") || f.includes("sd")) return "SD";
+
+  return "SD";
+}
+
+function detectSource(fileName = "") {
+  const f = fileName.toLowerCase();
+
+  if (f.includes("bluray") || f.includes("brrip")) return "BluRay";
+  if (f.includes("web-dl") || f.includes("webdl")) return "WEB-DL";
+  if (f.includes("webrip")) return "WEBRip";
+  if (f.includes("hdrip")) return "HDRip";
+  if (f.includes("dvdrip")) return "DVDRip";
+  if (f.includes("remux")) return "REMUX";
+
+  return "Unbekannt";
+}
+
+function detectAudio(fileName = "") {
+  const f = fileName.toLowerCase();
+  const langs = [];
+
+  if (/\b(german|deutsch|ger)\b/.test(f)) langs.push("Deutsch");
+  if (/\b(english|englisch|eng)\b/.test(f)) langs.push("Englisch");
+  if (/\b(french|franz|fr)\b/.test(f)) langs.push("Französisch");
+  if (/\b(spanish|spanisch|es)\b/.test(f)) langs.push("Spanisch");
+  if (/\b(italian|italienisch|ita)\b/.test(f)) langs.push("Italienisch");
+
+  if (/\b(dl|dual)\b/.test(f) && !langs.includes("Deutsch")) {
+    langs.push("Deutsch");
+    langs.push("Englisch");
+  }
+
+  return [...new Set(langs)].join(" • ") || "Unbekannt";
+}
+
+function makeLibraryId(id) {
+  return `#${String(id || 0).padStart(4, "0")}`;
+}
+
+function makeGenreCode(genre = "") {
+  const g = String(genre).split("/")[0].trim().toUpperCase();
+  return `#${g.slice(0, 3)}001`;
+}
+
 // =============================
 // TMDB API
 // =============================
@@ -367,10 +434,28 @@ async function searchMovieTMDB(title, year = "") {
   const best = search.results[0];
 
   const details = await tmdbGet(`/movie/${best.id}`, {
-    append_to_response: "credits"
+    append_to_response: "credits,release_dates"
   });
 
   if (!details) return null;
+
+  const director =
+    details.credits?.crew?.find((p) => p.job === "Director")?.name ||
+    "Unbekannt";
+
+  const cast =
+    details.credits?.cast
+      ?.slice(0, 3)
+      .map((p) => p.name)
+      .join(" • ") || "Unbekannt";
+
+  const deRelease = details.release_dates?.results?.find(
+    (r) => r.iso_3166_1 === "DE"
+  );
+
+  const fsk =
+    deRelease?.release_dates?.find((r) => r.certification)?.certification ||
+    "";
 
   return {
     tmdbId: details.id,
@@ -381,7 +466,11 @@ async function searchMovieTMDB(title, year = "") {
     rating: formatRating(details.vote_average),
     runtime: details.runtime ? `${details.runtime} Min.` : "Unbekannt",
     overview: details.overview || "Keine Beschreibung verfügbar.",
-    posterUrl: posterUrl(details.poster_path)
+    posterUrl: posterUrl(details.poster_path),
+    collection: details.belongs_to_collection?.name || "",
+    director,
+    cast,
+    fsk: fsk ? `FSK ${fsk}` : "FSK Unbekannt"
   };
 }
 
@@ -434,20 +523,38 @@ function makeHashtags(text = "") {
     .join(" ");
 }
 
-function movieCaption(tmdb) {
+function movieCaption(tmdb, extras = {}) {
+  const titleLine = `🎬 𝐓𝐈𝐓𝐄𝐋: ${tmdb.title.toUpperCase()} (${tmdb.year || "Unbekannt"})`;
+  const collectionLine = tmdb.collection
+    ? `🎞 𝐑𝐄𝐈𝐇𝐄: ${tmdb.collection.toUpperCase()}`
+    : "";
+
+  const firstLetter = tmdb.title?.[0]?.toUpperCase() || "X";
+  const genreTags = makeHashtags(tmdb.genre);
+  const collectionTag = tmdb.collection
+    ? "#" + tmdb.collection.replace(/[^a-zA-Z0-9]/g, "")
+    : "";
+
   return (
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 𝐓𝐈𝐓𝐄𝐋: ${tmdb.title}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `📅 𝐉𝐀𝐇𝐑: ${tmdb.year || "Unbekannt"}\n` +
-    `🎭 𝐆𝐄𝐍𝐑𝐄: ${tmdb.genre || "Sonstige"}\n` +
-    `⭐ 𝐁𝐄𝐖𝐄𝐑𝐓𝐔𝐍𝐆: ${tmdb.rating || "Unbekannt"}\n` +
-    `⏱ 𝐋𝐀𝐔𝐅𝐙𝐄𝐈𝐓: ${tmdb.runtime || "Unbekannt"}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📖 𝐒𝐓𝐎𝐑𝐘\n" +
+    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    `${titleLine}\n` +
+    `${collectionLine ? collectionLine + "\n" : ""}` +
+    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    `🔥 ${extras.quality} • ${tmdb.genre || "Sonstige"}\n` +
+    `🎧 ${extras.audio}\n` +
+    `💿 ${extras.source}\n` +
+    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    `${tmdb.rating}\n` +
+    `⏱ ${tmdb.runtime} • 🔞 ${tmdb.fsk}\n` +
+    `🎥 ${tmdb.director}\n` +
+    `👥 ${tmdb.cast}\n` +
+    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    "📖 STORY\n" +
     `${tmdb.overview || "Keine Beschreibung verfügbar."}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `${makeHashtags(tmdb.genre)}\n` +
+    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    `🆔 ${extras.libraryId} • #A${tmdb.tmdbId}\n` +
+    "━━━━━━━━━━━━━━━━━━━━━\n" +
+    `${genreTags} #${firstLetter} ${makeGenreCode(tmdb.genre)} ${collectionTag}\n` +
     "@LibraryOfLegends"
   );
 }
@@ -1018,6 +1125,13 @@ async function handleUpload(msg) {
     });
 
     const tmdb = await searchMovieTMDB(media.title, media.year);
+    
+    const extras = {
+  quality: detectQuality(fileName),
+  audio: detectAudio(fileName),
+  source: detectSource(fileName),
+  libraryId: makeLibraryId(tmdb?.tmdbId)
+};
 
     if (!tmdb) {
       await tg("sendMessage", {
@@ -1053,7 +1167,7 @@ async function handleUpload(msg) {
       photo:
         tmdb.posterUrl ||
         "https://via.placeholder.com/500x750.png?text=No+Cover",
-      caption: movieCaption(tmdb)
+      caption: movieCaption(tmdb, extras)
     });
 
     const copied = await copyOriginalMedia({
@@ -1085,6 +1199,14 @@ async function handleUpload(msg) {
       uniqueKey: media.uniqueKey,
       telegramMessageId: copied.message_id,
       topicId
+      collection: tmdb.collection,
+quality: extras.quality,
+audio: extras.audio,
+source: extras.source,
+fsk: tmdb.fsk,
+director: tmdb.director,
+cast: tmdb.cast,
+libraryId: extras.libraryId,
     });
 
     await tg("sendMessage", {
