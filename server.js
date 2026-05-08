@@ -646,12 +646,12 @@ async function createBrandedCover(posterUrl, title = "") {
 
     const inputBuffer = Buffer.from(imageRes.data);
 
-    const logo = await sharp("assets/logo.png")
+    const logo = await sharp("logo.png")
       .resize(260)
       .png()
       .toBuffer();
 
-    const watermark = await sharp("assets/watermark.png")
+    const watermark = await sharp("watermark.png")
       .resize(70)
       .png()
       .toBuffer();
