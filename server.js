@@ -646,47 +646,51 @@ async function createBrandedCover(posterUrl, title = "") {
 
     const inputBuffer = Buffer.from(imageRes.data);
 
-    const svgOverlay = `
+    const logo = await sharp("assets/logo.png")
+      .resize(260)
+      .png()
+      .toBuffer();
+
+    const watermark = await sharp("assets/watermark.png")
+      .resize(70)
+      .png()
+      .toBuffer();
+
+    const gradient = Buffer.from(`
       <svg width="500" height="750">
         <defs>
-          <linearGradient id="g" x1="0" y1="500" x2="0" y2="750">
+          <linearGradient id="g" x1="0" y1="450" x2="0" y2="750">
             <stop offset="0%" stop-color="black" stop-opacity="0"/>
-            <stop offset="100%" stop-color="black" stop-opacity="0.75"/>
+            <stop offset="100%" stop-color="black" stop-opacity="0.85"/>
           </linearGradient>
         </defs>
 
-        <rect x="0" y="500" width="500" height="250" fill="url(#g)"/>
-
-        <text x="250" y="670"
-          font-size="30"
-          font-family="Arial"
-          font-weight="bold"
-          fill="white"
-          text-anchor="middle">
-          LIBRARY OF LEGENDS
-        </text>
-
-        <text x="250" y="710"
-          font-size="22"
-          font-family="Arial"
-          fill="white"
-          text-anchor="middle">
-          @LibraryOfLegends
-        </text>
+        <rect x="0" y="450" width="500" height="300" fill="url(#g)"/>
       </svg>
-    `;
+    `);
 
     return await sharp(inputBuffer)
       .resize(500, 750)
       .composite([
         {
-          input: Buffer.from(svgOverlay),
+          input: gradient,
           top: 0,
           left: 0
+        },
+        {
+          input: logo,
+          gravity: "south"
+        },
+        {
+          input: watermark,
+          gravity: "southeast",
+          top: 20,
+          left: 20
         }
       ])
-      .jpeg({ quality: 90 })
+      .jpeg({ quality: 95 })
       .toBuffer();
+
   } catch (err) {
     console.error("❌ Branding Cover Fehler:", err.message);
     return posterUrl;
