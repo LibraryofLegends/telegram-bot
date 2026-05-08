@@ -471,6 +471,31 @@ function makeGenreCode(genre = "") {
   return `#${g.slice(0, 3)}001`;
 }
 
+function makeLibraryCode(genre = "", tmdbId = 0) {
+  const map = {
+    Action: "ACT",
+    Abenteuer: "ADV",
+    Animation: "ANI",
+    Komödie: "COM",
+    Krimi: "CRI",
+    Drama: "DRA",
+    Fantasy: "FAN",
+    Horror: "HOR",
+    Mystery: "MYS",
+    Romanze: "ROM",
+    Sciencefiction: "SCI",
+    Thriller: "THR",
+    Familie: "FAM"
+  };
+
+  const firstGenre =
+    String(genre).split("/")[0].trim();
+
+  const prefix = map[firstGenre] || "MOV";
+
+  return `LIB-${prefix}-${String(tmdbId).slice(-4).padStart(4, "0")}`;
+}
+
 // =============================
 // TMDB API
 // =============================
@@ -657,7 +682,7 @@ function movieCaption(tmdb, extras = {}) {
     "📖 STORY\n" +
     `${tmdb.overview || "Keine Beschreibung verfügbar."}\n` +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
-    `🆔 ${extras.libraryId} • #A${tmdb.tmdbId}\n` +
+    `🆔 ${extras.libraryId}\n` +
     "━━━━━━━━━━━━━━━━━━━━━\n" +
     `${genreTags} #${firstLetter} ${makeGenreCode(tmdb.genre)} ${collectionTag}\n` +
     "@LibraryOfLegends"
@@ -1243,7 +1268,7 @@ if (!tmdb) {
 
 const extras = {
   ...getMediaExtras(fileName, msg),
-  libraryId: makeLibraryId(tmdb.tmdbId)
+  libraryId: makeLibraryCode(tmdb.genre, tmdb.tmdbId)
 };
 
     const genreTopicName = tmdb.mainGenre || "Sonstige";
