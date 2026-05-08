@@ -1324,21 +1324,18 @@ async function handleUpload(msg) {
       return;
     }
 
-    await tg("sendPhoto", {
-      chat_id: SERIES_GROUP_ID,
-      message_thread_id: topicId,
-      photo:
-        tmdb.posterUrl ||
-        "https://via.placeholder.com/500x750.png?text=No+Cover",
-      caption: seriesCaption(tmdb, media)
-    });
+    await createSeriesHubIfMissing({
+  tmdb,
+  topicId
+});
 
-    const copied = await copyOriginalMedia({
-      fromChatId: msg.chat.id,
-      messageId: msg.message_id,
-      targetChatId: SERIES_GROUP_ID,
-      topicId
-    });
+const copied = await copyOriginalMedia({
+  fromChatId: msg.chat.id,
+  messageId: msg.message_id,
+  targetChatId: SERIES_GROUP_ID,
+  topicId,
+  caption: seriesCaption(tmdb, media)
+});
 
     if (!copied?.message_id) {
       await tg("sendMessage", {
