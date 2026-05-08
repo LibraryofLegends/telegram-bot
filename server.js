@@ -691,9 +691,10 @@ async function createBrandedCover(posterUrl, title = "") {
       .jpeg({ quality: 95 })
       .toBuffer();
 
-  } catch (err) {
-    console.error("❌ Branding Cover Fehler:", err.message);
-    return posterUrl;
+  } console.error("❌ Branding Cover Fehler:", err.message);
+console.error("LOGO CHECK logo.png:", require("fs").existsSync("logo.png"));
+console.error("WATERMARK CHECK watermark.png:", require("fs").existsSync("watermark.png"));
+return posterUrl;
   }
 }
 
