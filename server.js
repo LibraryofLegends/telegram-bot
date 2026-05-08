@@ -1352,15 +1352,12 @@ async function handleUpload(msg) {
       return;
     }
 
-    const brandedCover = await createBrandedCover(
-  tmdb.posterUrl || "https://via.placeholder.com/500x750.png?text=No+Cover",
-  tmdb.title
-);
-
-await tg("sendPhoto", {
+    await tg("sendPhoto", {
   chat_id: MOVIE_GROUP_ID,
   message_thread_id: topicId,
-  photo: brandedCover
+  photo:
+    tmdb.posterUrl ||
+    "https://via.placeholder.com/500x750.png?text=No+Cover"
 });
 
     const copied = await copyOriginalMedia({
