@@ -105,6 +105,12 @@ addColumnIfMissing("movies", "fsk", "TEXT");
 addColumnIfMissing("movies", "director", "TEXT");
 addColumnIfMissing("movies", "cast", "TEXT");
 addColumnIfMissing("movies", "library_id", "TEXT");
+addColumnIfMissing("movies", "resolution", "TEXT");
+addColumnIfMissing("movies", "file_size", "TEXT");
+addColumnIfMissing("movies", "video_codec", "TEXT");
+addColumnIfMissing("movies", "audio_codec", "TEXT");
+addColumnIfMissing("movies", "audio_channels", "TEXT");
+addColumnIfMissing("movies", "hdr", "TEXT");
 
 console.log("✅ Datenbank bereit");
 
@@ -325,15 +331,28 @@ function parseMedia(fileName = "") {
   };
 }
 
-function detectQuality(fileName = "") {
-  const f = fileName.toLowerCase();
+function detectQuality(fileName = "", video = null) {
+  const f = String(fileName).toLowerCase();
 
-  if (f.includes("2160p") || f.includes("4k") || f.includes("uhd")) return "UHD";
-  if (f.includes("1080p")) return "FHD";
-  if (f.includes("720p")) return "HD";
-  if (f.includes("480p") || f.includes("sd")) return "SD";
+  // =============================
+  // TELEGRAM VIDEO METADATA
+  // =============================
+  const width = video?.width || 0;
+  const height = video?.height || 0;
 
-  return "SD";
+  if (width >= 3800 || height >= 2100) return "UHD";
+  if (width >= 1900 || height >= 1000) return "FHD";
+  if (width >= 1200 || height >= 700) return "HD";
+
+  // =============================
+  // FALLBACK FILE NAME
+  // =============================
+  if (/\b(2160p|4k|uhd)\b/.test(f)) return "UHD";
+  if (/\b(1080p|fhd|fullhd)\b/.test(f)) return "FHD";
+  if (/\b(720p|hd)\b/.test(f)) return "HD";
+  if (/\b(480p|576p|sd)\b/.test(f)) return "SD";
+
+  return "Unbekannt";
 }
 
 function detectSource(fileName = "") {
@@ -1127,7 +1146,7 @@ async function handleUpload(msg) {
     const tmdb = await searchMovieTMDB(media.title, media.year);
     
     const extras = {
-  quality: detectQuality(fileName),
+  quality: detectQuality(fileName, msg.video),
   audio: detectAudio(fileName),
   source: detectSource(fileName),
   libraryId: makeLibraryId(tmdb?.tmdbId)
