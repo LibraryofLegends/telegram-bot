@@ -642,8 +642,8 @@ async function createBrandedCover(posterUrl, title = "") {
   try {
     const fs = require("fs");
 
-    console.log("LOGO CHECK logo.png:", fs.existsSync("logo.png"));
-    console.log("WATERMARK CHECK watermark.png:", fs.existsSync("watermark.png"));
+    console.log("LOGO CHECK logo.png.PNG:", fs.existsSync("logo.png.PNG"));
+    console.log("WATERMARK CHECK watermark.png.PNG:", fs.existsSync("watermark.png.PNG"));
 
     const imageRes = await axios.get(posterUrl, {
       responseType: "arraybuffer"
@@ -687,8 +687,8 @@ async function createBrandedCover(posterUrl, title = "") {
     const fs = require("fs");
 
     console.error("❌ Branding Cover Fehler:", err.message);
-    console.error("LOGO CHECK logo.png:", fs.existsSync("logo.png"));
-    console.error("WATERMARK CHECK watermark.png:", fs.existsSync("watermark.png"));
+    console.error("LOGO CHECK logo.png.PNG:", fs.existsSync("logo.png.PNG"));
+    console.error("WATERMARK CHECK watermark.png.PNG:", fs.existsSync("watermark.png.PNG"));
 
     return posterUrl;
   }
