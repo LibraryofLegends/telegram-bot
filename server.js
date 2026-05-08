@@ -724,13 +724,19 @@ function seriesCaption(tmdb, media) {
 // =============================
 // COPY MEDIA TO TARGET GROUP
 // =============================
-async function copyOriginalMedia({ fromChatId, messageId, targetChatId, topicId }) {
-  return await tg("copyMessage", {
+async function copyOriginalMedia({ fromChatId, messageId, targetChatId, topicId, caption = "" }) {
+  const data = {
     chat_id: targetChatId,
     from_chat_id: fromChatId,
     message_id: messageId,
     message_thread_id: topicId
-  });
+  };
+
+  if (caption) {
+    data.caption = caption;
+  }
+
+  return await tg("copyMessage", data);
 }
 
 // =============================
@@ -1318,11 +1324,12 @@ async function handleUpload(msg) {
 
     // 2. MP4-Datei
     const copied = await copyOriginalMedia({
-      fromChatId: msg.chat.id,
-      messageId: msg.message_id,
-      targetChatId: MOVIE_GROUP_ID,
-      topicId
-    });
+  fromChatId: msg.chat.id,
+  messageId: msg.message_id,
+  targetChatId: MOVIE_GROUP_ID,
+  topicId,
+  caption: movieCaption(tmdb, extras)
+});
 
     if (!copied?.message_id) {
       await tg("sendMessage", {
@@ -1332,13 +1339,6 @@ async function handleUpload(msg) {
       });
       return;
     }
-
-    // 3. Layout unter der MP4
-    await tg("sendMessage", {
-      chat_id: MOVIE_GROUP_ID,
-      message_thread_id: topicId,
-      text: movieCaption(tmdb, extras)
-    });
 
     saveMovie({
       title: tmdb.title,
