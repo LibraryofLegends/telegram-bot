@@ -378,12 +378,15 @@ function detectAudio(fileName = "") {
   if (/\b(spanish|spanisch|es)\b/.test(f)) langs.push("Spanisch");
   if (/\b(italian|italienisch|ita)\b/.test(f)) langs.push("Italienisch");
 
-  if (/\b(dl|dual)\b/.test(f) && !langs.includes("Deutsch")) {
-    langs.push("Deutsch");
-    langs.push("Englisch");
+  if (/\b(dl|dual)\b/.test(f)) {
+    if (!langs.includes("Deutsch")) langs.push("Deutsch");
+    if (!langs.includes("Englisch")) langs.push("Englisch");
   }
-  
-  function formatFileSize(bytes = 0) {
+
+  return [...new Set(langs)].join(" • ") || "Unbekannt";
+}
+
+function formatFileSize(bytes = 0) {
   const size = Number(bytes || 0);
   if (!size) return "Unbekannt";
 
@@ -457,9 +460,6 @@ function getMediaExtras(fileName, msg) {
     audioChannels: detectAudioChannels(fileName),
     hdr: detectHDR(fileName)
   };
-}
-
-  return [...new Set(langs)].join(" • ") || "Unbekannt";
 }
 
 function makeLibraryId(id) {
@@ -1230,21 +1230,21 @@ async function handleUpload(msg) {
     });
 
     const tmdb = await searchMovieTMDB(media.title, media.year);
-    
-    const extras = {
-  ...getMediaExtras(fileName, msg),
-  libraryId: makeLibraryId(tmdb?.tmdbId)
-};
 
-    if (!tmdb) {
-      await tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text:
-          "❌ Keine TMDB-Daten gefunden:\n\n" +
-          `🎬 ${media.title}`
-      });
-      return;
-    }
+if (!tmdb) {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "❌ Keine TMDB-Daten gefunden:\n\n" +
+      `🎬 ${media.title}`
+  });
+  return;
+}
+
+const extras = {
+  ...getMediaExtras(fileName, msg),
+  libraryId: makeLibraryId(tmdb.tmdbId)
+};
 
     const genreTopicName = tmdb.mainGenre || "Sonstige";
 
