@@ -471,7 +471,7 @@ function makeGenreCode(genre = "") {
   return `#${g.slice(0, 3)}001`;
 }
 
-function makeLibraryCode(genre = "", tmdbId = 0) {
+function makeLibraryCode(genre = "") {
   const map = {
     Action: "ACT",
     Abenteuer: "ADV",
@@ -488,12 +488,18 @@ function makeLibraryCode(genre = "", tmdbId = 0) {
     Familie: "FAM"
   };
 
-  const firstGenre =
-    String(genre).split("/")[0].trim();
-
+  const firstGenre = String(genre).split("/")[0].trim();
   const prefix = map[firstGenre] || "MOV";
 
-  return `LIB-${prefix}-${String(tmdbId).slice(-4).padStart(4, "0")}`;
+  const row = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM movies
+    WHERE library_id LIKE ?
+  `).get(`LIB-${prefix}-%`);
+
+  const nextNumber = Number(row.count || 0) + 1;
+
+  return `LIB-${prefix}-${String(nextNumber).padStart(4, "0")}`;
 }
 
 // =============================
@@ -1196,21 +1202,26 @@ async function handleUpload(msg) {
       return;
     }
 
-    const card = await tg("sendPhoto", {
-      chat_id: SERIES_GROUP_ID,
-      message_thread_id: topicId,
-      photo:
-        tmdb.posterUrl ||
-        "https://via.placeholder.com/500x750.png?text=No+Cover",
-      caption: seriesCaption(tmdb, media)
-    });
+    const cover = await tg("sendPhoto", {
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: topicId,
+  photo:
+    tmdb.posterUrl ||
+    "https://via.placeholder.com/500x750.png?text=No+Cover"
+});
 
-    const copied = await copyOriginalMedia({
-      fromChatId: msg.chat.id,
-      messageId: msg.message_id,
-      targetChatId: SERIES_GROUP_ID,
-      topicId
-    });
+const copied = await copyOriginalMedia({
+  fromChatId: msg.chat.id,
+  messageId: msg.message_id,
+  targetChatId: MOVIE_GROUP_ID,
+  topicId
+});
+
+const layoutMessage = await tg("sendMessage", {
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: topicId,
+  text: movieCaption(tmdb, extras)
+});
 
     if (!copied?.message_id) {
       await tg("sendMessage", {
@@ -1290,7 +1301,7 @@ if (!tmdb) {
 
 const extras = {
   ...getMediaExtras(fileName, msg),
-  libraryId: makeLibraryCode(tmdb.genre, tmdb.tmdbId)
+  libraryId: makeLibraryCode(tmdb.genre)
 };
 
     const genreTopicName = tmdb.mainGenre || "Sonstige";
