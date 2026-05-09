@@ -270,7 +270,8 @@ function detectSeries(fileName = "") {
     const episode = parseInt(match[2], 10);
 
     const beforeCode = normalized.slice(0, match.index);
-    const titleClean = cleanFileName(beforeCode);
+    let titleClean = cleanFileName(beforeCode);
+titleClean = titleClean.replace(/\b(19\d{2}|20\d{2})\b/g, "").replace(/\s+/g, " ").trim();
 
     return {
       isSeries: true,
