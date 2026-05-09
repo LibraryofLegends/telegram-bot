@@ -906,7 +906,9 @@ async function copyOriginalMedia({ fromChatId, messageId, targetChatId, topicId,
     data.caption = caption;
   }
 
-  return await tg("copyMessage", data);
+  const result = await tg("copyMessage", data);
+console.log("COPY RESULT:", JSON.stringify(result, null, 2));
+return result;
 }
 
 // =============================
