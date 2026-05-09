@@ -806,7 +806,7 @@ function seriesCaption(tmdb, media, extras = {}) {
     `⭐ ${tmdb.rating || "Unbekannt"}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "📖 STORY\n" +
-    `${tmdb.overview || "Keine Beschreibung verfügbar."}\n` +
+    `${String(tmdb.overview || "Keine Beschreibung verfügbar.").slice(0, 600)}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     `#${tmdb.seriesTitle.replace(/\s+/g, "")} ${genreTags}\n` +
     "@LibraryOfLegends"
