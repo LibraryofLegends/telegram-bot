@@ -252,23 +252,24 @@ function extractYear(text = "") {
 
 function detectSeries(fileName = "") {
   const raw = String(fileName);
+  const normalized = raw.replace(/[._-]+/g, " ");
 
   const patterns = [
-    /\bS(\d{1,2})E(\d{1,3})\b/i,
-    /\bS(\d{1,2})\.?E(\d{1,3})\b/i,
+    /\bS\s?(\d{1,2})\s?E\s?(\d{1,3})\b/i,
+    /\bS\s?(\d{1,2})\s*[-_. ]\s?E\s?(\d{1,3})\b/i,
     /\b(\d{1,2})x(\d{1,3})\b/i,
     /\bStaffel\s*(\d{1,2})\s*Folge\s*(\d{1,3})\b/i,
     /\bSeason\s*(\d{1,2})\s*Episode\s*(\d{1,3})\b/i
   ];
 
   for (const pattern of patterns) {
-    const match = raw.match(pattern);
+    const match = normalized.match(pattern);
     if (!match) continue;
 
     const season = parseInt(match[1], 10);
     const episode = parseInt(match[2], 10);
 
-    const beforeCode = raw.slice(0, match.index);
+    const beforeCode = normalized.slice(0, match.index);
     const titleClean = cleanFileName(beforeCode);
 
     return {
@@ -281,9 +282,7 @@ function detectSeries(fileName = "") {
     };
   }
 
-  return {
-    isSeries: false
-  };
+  return { isSeries: false };
 }
 
 function detectMovie(fileName = "") {
