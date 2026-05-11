@@ -1366,11 +1366,6 @@ async function handleCallback(callback) {
   });
 }
 
-  await tg("answerCallbackQuery", {
-    callback_query_id: callback.id
-  });
-}
-
 // =============================
 // COMMAND HANDLER
 // =============================
