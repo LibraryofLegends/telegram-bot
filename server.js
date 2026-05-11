@@ -24,6 +24,8 @@ const BASE_URL = `https://api.telegram.org/bot${TOKEN}`;
 
 let CURRENT_SERIES_NAME = "";
 
+let LAST_RESTORE_FILE_ID = "";
+
 // =============================
 // CHECK
 // =============================
@@ -1572,11 +1574,28 @@ async function handleUpdate(update) {
     return;
   }
 
-  if (msg.video || msg.document) {
-    console.log("🎥 Video/Datei erkannt");
-    await handleUpload(msg);
+  if (msg.document) {
+  const fileName = msg.document.file_name || "";
+
+  if (fileName === "library.db") {
+    LAST_RESTORE_FILE_ID = msg.document.file_id;
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "✅ Backup-Datei erkannt.\n\n" +
+        "Sende jetzt:\n/restoredb"
+    });
+
     return;
   }
+}
+
+if (msg.video || msg.document) {
+  console.log("🎥 Video/Datei erkannt");
+  await handleUpload(msg);
+  return;
+}
 
   console.log("⚠️ Unbekannter Nachrichtentyp");
 }
