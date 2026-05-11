@@ -1334,6 +1334,39 @@ async function handleCallback(callback) {
       text: "/duplicates"
     });
   }
+  
+  if (data === "panel_serieshub") {
+  await handleCommand({ chat: { id: chatId }, text: "/serieshub" });
+}
+
+if (data === "panel_az") {
+  await handleCommand({ chat: { id: chatId }, text: "/az" });
+}
+
+if (data === "panel_missing_help") {
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text: "🧩 Nutzung:\n/missingseries Serienname\n\nBeispiel:\n/missingseries Game of Thrones"
+  });
+}
+
+if (data === "panel_search_help") {
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text: "🔎 Nutzung:\n/search titel\n\nBeispiel:\n/search Game of Thrones"
+  });
+}
+
+if (data === "panel_setseries_help") {
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text: "📌 Nutzung:\n/setseries Serienname\n\nBeispiel:\n/setseries Timon und Pumbaa"
+  });
+}
+
+if (data === "panel_clearseries") {
+  await handleCommand({ chat: { id: chatId }, text: "/clearseries" });
+}
 
   await tg("answerCallbackQuery", {
     callback_query_id: callback.id
