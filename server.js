@@ -1954,7 +1954,10 @@ async function handleUpload(msg) {
       return;
     }
 
-    const extras = getMediaExtras(fileName, msg);
+    const extras = {
+  ...getMediaExtras(fileName, msg),
+  seriesLibraryId: makeSeriesLibraryCode(tmdb.genre)
+};
 
 await createSeriesHubIfMissing({
   tmdb,
