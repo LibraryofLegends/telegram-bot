@@ -1112,42 +1112,47 @@ async function createSeasonSeparatorIfMissing({ topicId, season }) {
 // =============================
 // COPY MEDIA TO TARGET GROUP
 // =============================
-async function copyOriginalMedia({ fromChatId, messageId, targetChatId, topicId, caption = "" }) {
-  const data = {
+async function copyOriginalMedia({
+  fromChatId,
+  messageId,
+  targetChatId,
+  topicId,
+  caption = "",
+  fileId = "",
+  isVideo = false
+}) {
+  const safeCaption = String(caption || "").slice(0, 900);
+
+  let result = await tg("copyMessage", {
     chat_id: targetChatId,
     from_chat_id: fromChatId,
     message_id: messageId,
-    message_thread_id: topicId
-  };
+    message_thread_id: topicId,
+    caption: safeCaption
+  });
 
-  if (caption) {
-    data.caption = String(caption).slice(0, 1000);
+  if (result?.message_id) {
+    console.log("COPY OK:", result.message_id);
+    return result;
   }
 
-  let result = await tg("copyMessage", data);
+  console.log("⚠️ copyMessage fehlgeschlagen — versuche file_id Fallback");
 
-  if (result?.__error && caption) {
-    console.log("⚠️ Copy mit Caption fehlgeschlagen — versuche ohne Caption");
-
-    const fallbackData = {
+  if (fileId) {
+    result = await tg(isVideo ? "sendVideo" : "sendDocument", {
       chat_id: targetChatId,
-      from_chat_id: fromChatId,
-      message_id: messageId,
-      message_thread_id: topicId
-    };
-
-    result = await tg("copyMessage", fallbackData);
+      message_thread_id: topicId,
+      [isVideo ? "video" : "document"]: fileId,
+      caption: safeCaption
+    });
 
     if (result?.message_id) {
-      await tg("sendMessage", {
-        chat_id: targetChatId,
-        message_thread_id: topicId,
-        text: String(caption).slice(0, 4000)
-      });
+      console.log("FILE_ID SEND OK:", result.message_id);
+      return result;
     }
   }
 
-  console.log("COPY RESULT:", JSON.stringify(result, null, 2));
+  console.log("COPY/SEND RESULT:", JSON.stringify(result, null, 2));
   return result;
 }
 
@@ -2013,12 +2018,16 @@ await createSeasonSeparatorIfMissing({
   season: media.season
 });
 
+const captionText = seriesCaption(tmdb, media, extras);
+
 const copied = await copyOriginalMedia({
   fromChatId: msg.chat.id,
   messageId: msg.message_id,
   targetChatId: SERIES_GROUP_ID,
   topicId,
-  caption: ""
+  caption: captionText,
+  fileId,
+  isVideo: !!msg.video
 });
 
     if (!copied?.message_id) {
