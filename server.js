@@ -293,8 +293,33 @@ function detectSeries(fileName = "") {
     const episode = parseInt(match[2], 10);
 
     const beforeCode = normalized.slice(0, match.index);
+    const afterCode = normalized.slice(match.index + match[0].length);
 
     let titleClean = cleanFileName(beforeCode);
+
+    const afterClean = cleanFileName(afterCode);
+    const afterParts = afterClean.split(/\s+/).filter(Boolean);
+
+    if (!titleClean && afterParts.length >= 2) {
+      const titleWords = [];
+      const episodeWords = [];
+
+      for (const word of afterParts) {
+        if (episodeWords.length > 0) {
+          episodeWords.push(word);
+          continue;
+        }
+
+        titleWords.push(word);
+
+        if (titleWords.length >= 3) {
+          episodeWords.push(...afterParts.slice(titleWords.length));
+          break;
+        }
+      }
+
+      titleClean = titleWords.join(" ");
+    }
 
     if (!titleClean && CURRENT_SERIES_NAME) {
       titleClean = CURRENT_SERIES_NAME;
@@ -305,9 +330,17 @@ function detectSeries(fileName = "") {
       .replace(/\s+/g, " ")
       .trim();
 
-    const afterCode = normalized.slice(match.index + match[0].length);
+    let episodeTitleFromFile = "";
 
-    const episodeTitleFromFile = cleanFileName(afterCode)
+    if (afterClean) {
+      if (afterClean.toLowerCase().startsWith(titleClean.toLowerCase())) {
+        episodeTitleFromFile = afterClean.slice(titleClean.length).trim();
+      } else {
+        episodeTitleFromFile = afterClean;
+      }
+    }
+
+    episodeTitleFromFile = episodeTitleFromFile
       .replace(/^\s*[-–—]\s*/g, "")
       .replace(/\s+/g, " ")
       .trim();
