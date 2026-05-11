@@ -1308,11 +1308,7 @@ async function createSeriesHubIfMissing({ tmdb, topicId }) {
 // =============================
 // SERIES SEASON CARDS
 // =============================
-async function createSeasonCardIfMissing({
-  tmdb,
-  topicId,
-  season
-}) {
+async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
   const separators = getSeasonSeparators(topicId);
   const seasonKey = String(season).padStart(2, "0");
 
@@ -1320,7 +1316,11 @@ async function createSeasonCardIfMissing({
     return separators[`card_${seasonKey}`];
   }
 
+  console.log("🎴 CREATE SEASON CARD:", tmdb.seriesTitle, "S" + seasonKey);
+
   const seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
+
+  const caption = seasonCaption(tmdb, seasonData, season).slice(0, 950);
 
   const seasonPoster =
     posterUrl(seasonData?.poster_path) ||
@@ -1328,12 +1328,27 @@ async function createSeasonCardIfMissing({
     tmdb.posterUrl ||
     "https://via.placeholder.com/500x750.png?text=No+Cover";
 
-  const card = await tg("sendPhoto", {
+  let card = await tg("sendPhoto", {
     chat_id: SERIES_GROUP_ID,
     message_thread_id: topicId,
     photo: seasonPoster,
-    caption: seasonCaption(tmdb, seasonData, season)
+    caption
   });
+
+  console.log("🎴 SEASON CARD RESULT:", JSON.stringify(card, null, 2));
+
+  if (!card?.message_id && tmdb.seriesPosterUrl && tmdb.seriesPosterUrl !== seasonPoster) {
+    console.log("⚠️ Staffelposter fehlgeschlagen — versuche Serienposter");
+
+    card = await tg("sendPhoto", {
+      chat_id: SERIES_GROUP_ID,
+      message_thread_id: topicId,
+      photo: tmdb.seriesPosterUrl,
+      caption
+    });
+
+    console.log("🎴 SEASON CARD FALLBACK RESULT:", JSON.stringify(card, null, 2));
+  }
 
   if (card?.message_id) {
     separators[`card_${seasonKey}`] = card.message_id;
