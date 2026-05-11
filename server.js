@@ -3,6 +3,7 @@ const axios = require("axios");
 const Database = require("better-sqlite3");
 const sharp = require("sharp");
 const fs = require("fs");
+const path = require("path");
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -1765,6 +1766,67 @@ if (text === "/clearseries") {
     chat_id: msg.chat.id,
     text: "🗑 Serienname zurückgesetzt."
   });
+
+  return;
+}
+
+if (text === "/restoredb") {
+
+  if (!LAST_RESTORE_FILE_ID) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Keine Backup-Datei erkannt.\n\n" +
+        "Sende zuerst eine library.db Datei."
+    });
+
+    return;
+  }
+
+  try {
+
+    const fileData = await tg("getFile", {
+      file_id: LAST_RESTORE_FILE_ID
+    });
+
+    if (!fileData?.file_path) {
+      throw new Error("Kein file_path erhalten");
+    }
+
+    const downloadUrl =
+      `https://api.telegram.org/file/bot${TOKEN}/${fileData.file_path}`;
+
+    const response = await axios.get(downloadUrl, {
+      responseType: "arraybuffer"
+    });
+
+    const dbBuffer = Buffer.from(response.data);
+
+    fs.writeFileSync(
+      path.join(__dirname, "library.db"),
+      dbBuffer
+    );
+
+    LAST_RESTORE_FILE_ID = "";
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "✅ Datenbank wiederhergestellt.\n\n" +
+        "⚠️ Bitte Render jetzt einmal neu deployen/restarten."
+    });
+
+  } catch (err) {
+
+    console.error("❌ Restore Fehler:", err.message);
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Restore fehlgeschlagen.\n\n" +
+        String(err.message).slice(0, 1000)
+    });
+  }
 
   return;
 }
