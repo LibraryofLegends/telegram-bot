@@ -36,7 +36,9 @@ if (!ADMIN_ID) console.error("❌ ADMIN_ID fehlt");
 // =============================
 // DATABASE
 // =============================
-const db = new Database("library.db");
+const DB_PATH = process.env.DB_PATH || "library.db";
+
+const db = new Database(DB_PATH);
 
 db.pragma("journal_mode = WAL");
 
