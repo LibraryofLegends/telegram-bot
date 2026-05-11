@@ -931,6 +931,104 @@ function seriesCaption(tmdb, media, extras = {}) {
   );
 }
 
+function formatSeasonGenres(genre = "") {
+  const items = String(genre || "Sonstige")
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+
+  const emojiMap = {
+    Action: "⚔️",
+    Abenteuer: "👑",
+    Drama: "🩸",
+    Fantasy: "🐉",
+    Krimi: "🕵️",
+    Thriller: "🔪",
+    Horror: "👻",
+    Komödie: "😂",
+    Animation: "🎨",
+    Familie: "👨‍👩‍👧",
+    Mystery: "🧩",
+    Romanze: "❤️",
+    Sciencefiction: "🚀"
+  };
+
+  return items
+    .map((g) => `${emojiMap[g] || "🎭"} #${g.replace(/\s+/g, "")}`)
+    .join(" • ");
+}
+
+function formatCastLine(cast = "") {
+  const people = String(cast || "")
+    .split("•")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  if (!people.length) return "Unbekannt";
+
+  return people
+    .map((p) => `#${p.replace(/\s+/g, "")}`)
+    .join(" ");
+}
+
+function seasonCaption(tmdb, seasonData, season) {
+  const seasonKey = String(season).padStart(2, "0");
+
+  const year =
+    seasonData?.air_date?.slice(0, 4) ||
+    "Unbekannt";
+
+  const episodeCount =
+    seasonData?.episodes?.length ||
+    "?";
+
+  const overview =
+    seasonData?.overview ||
+    tmdb.overview ||
+    "Keine Beschreibung verfügbar.";
+
+  const showrunner =
+    tmdb.createdBy ||
+    tmdb.director ||
+    "Unbekannt";
+
+  const castLine =
+    formatCastLine(tmdb.cast);
+
+  const genreLine =
+    formatSeasonGenres(tmdb.genre);
+
+  return (
+    "╔══════════════════╗\n" +
+    `        📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
+    `            STAFFEL ${seasonKey}\n` +
+    "╚══════════════════╝\n\n" +
+
+    `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
+    `📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎬 SHOWRUNNER\n" +
+    `${showrunner}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "👑 CAST\n" +
+    `${castLine}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📖 ÜBER DIE STAFFEL\n\n" +
+    `${String(overview).slice(0, 650)}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${genreLine}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
 // =============================
 // SERIES HUB LAYOUT
 // =============================
