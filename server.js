@@ -1097,12 +1097,12 @@ function seasonCaption(tmdb, seasonData, season) {
   return (
     "╔══════════════════╗\n" +
     `        📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-    `            `            ${theme.emoji} STAFFEL ${seasonKey}\n` +
+                ${theme.emoji} STAFFEL ${seasonKey}\n` +
     "╚══════════════════╝\n\n" +
 
     `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
     ``📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-`🎨 ${theme.name}\n` +
+      🎨 ${theme.name}\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "🎬 SHOWRUNNER\n" +
