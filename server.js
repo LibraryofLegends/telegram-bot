@@ -22,6 +22,8 @@ const BOT_USERNAME = process.env.BOT_USERNAME || "";
 
 const BASE_URL = `https://api.telegram.org/bot${TOKEN}`;
 
+let CURRENT_SERIES_NAME = "";
+
 // =============================
 // CHECK
 // =============================
@@ -290,7 +292,12 @@ function detectSeries(fileName = "") {
     const episode = parseInt(match[2], 10);
 
     const beforeCode = normalized.slice(0, match.index);
-    let titleClean = cleanFileName(beforeCode);
+
+let titleClean = cleanFileName(beforeCode);
+
+if (!titleClean && CURRENT_SERIES_NAME) {
+  titleClean = CURRENT_SERIES_NAME;
+}
 titleClean = titleClean.replace(/\b(19\d{2}|20\d{2})\b/g, "").replace(/\s+/g, " ").trim();
 
     return {
@@ -1173,6 +1180,40 @@ async function handleCommand(msg) {
     });
     return;
   }
+  
+  if (text.startsWith("/setseries")) {
+  const name = text.replace("/setseries", "").trim();
+
+  if (!name) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "⚠️ Nutzung:\n/setseries Serienname"
+    });
+    return;
+  }
+
+  CURRENT_SERIES_NAME = name;
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Aktuelle Serie gesetzt:\n\n" +
+      `📺 ${CURRENT_SERIES_NAME}`
+  });
+
+  return;
+}
+
+if (text === "/clearseries") {
+  CURRENT_SERIES_NAME = "";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: "🗑 Serienname zurückgesetzt."
+  });
+
+  return;
+}
 
   if (text === "/stats") {
     const movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
