@@ -221,7 +221,8 @@ function cleanFileName(fileName = "") {
   return String(fileName)
     .replace(/\.[a-z0-9]{2,5}$/i, "") // Endung entfernen
     .replace(/@[\w\d_]+/gi, "") // Telegram Tags entfernen
-    .replace(/\b(german|deutsch|english|eng|multi|dubbed|subbed|dl|dts|ddp|aac|ac3|x264|x265|h264|h265|hevc|bluray|brrip|webrip|webdl|web-dl|hdrip|dvdrip|remux|uhd|4k|2160p|1080p|720p|480p)\b/gi, "")
+    .replace(/\b(german|deutsch|ger|english|englisch|eng|multi|dubbed|subbed|dl|dual|dts|ddp|aac|ac3|x264|x265|h264|h265|hevc|bluray|brrip|webrip|web|webdl|web-dl|hdrip|dvdrip|remux|uhd|fhd|fullhd|hd|sd|4k|2160p|1080p|720p|576p|480p|original|orginal|originale|orginale|alte|tonspur|line|mic|md|proper|repack)\b/gi, "")
+    .replace(/[()[\]{}]/g, " ")
     .replace(/\b(amzn|nf|netflix|disney|hulu|apple|itunes|max|sky|paramount)\b/gi, "")
     .replace(/[._-]+/g, " ")
     .replace(/\s+/g, " ")
@@ -298,10 +299,13 @@ function detectMovie(fileName = "") {
   }
 
   title = title
-    .replace(/\bPart\s*\d+\b/gi, "")
-    .replace(/\bCD\s*\d+\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  .replace(/\bPart\s*\d+\b/gi, "")
+  .replace(/\bCD\s*\d+\b/gi, "")
+  .replace(/[()[\]{}]/g, " ")
+  .replace(/\b(FHD|HD|SD|UHD|WEB|DL|AC3|AAC|DTS)\b/gi, "")
+  .replace(/\b(Original|Orginal|Originale|Orginale|Alte|Tonspur)\b/gi, "")
+  .replace(/\s+/g, " ")
+  .trim();
 
   return {
     isMovie: true,
