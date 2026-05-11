@@ -1806,6 +1806,25 @@ if (text === "/restoredb") {
     }
 
     fs.writeFileSync(DB_FILE_PATH, dbBuffer);
+    
+    const testDb = new Database(DB_FILE_PATH, { readonly: true });
+
+const testStats = {
+  movies: testDb.prepare("SELECT COUNT(*) AS count FROM movies").get().count,
+  series: testDb.prepare("SELECT COUNT(*) AS count FROM series").get().count,
+  topics: testDb.prepare("SELECT COUNT(*) AS count FROM topics").get().count
+};
+
+testDb.close();
+
+await tg("sendMessage", {
+  chat_id: msg.chat.id,
+  text:
+    "📦 Backup geprüft:\n\n" +
+    `🎬 Filme: ${testStats.movies}\n` +
+    `📺 Serien-Episoden: ${testStats.series}\n` +
+    `🧵 Themen: ${testStats.topics}`
+});
 
     LAST_RESTORE_FILE_ID = "";
 
