@@ -782,6 +782,12 @@ async function searchSeriesTMDB(title, season, episode) {
   };
 }
 
+async function getSeasonTMDB(tvId, season) {
+  if (!tvId || !season) return null;
+
+  return await tmdbGet(`/tv/${tvId}/season/${season}`);
+}
+
 async function createBrandedCover(posterUrl, title = "") {
   try {
     console.log("LOGO CHECK logo.png.PNG:", fs.existsSync("logo.png.PNG"));
