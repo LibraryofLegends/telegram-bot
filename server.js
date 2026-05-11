@@ -3015,6 +3015,16 @@ const copied = await copyOriginalMedia({
   topicId,
   seriesLibraryId: extras.seriesLibraryId
 });
+
+try {
+  await updateSeasonCard({
+    tmdb,
+    topicId,
+    season: media.season
+  });
+} catch (err) {
+  console.error("⚠️ Staffelkarte Update Fehler:", err.message);
+}
     
     try {
   await updateSeriesHub({
