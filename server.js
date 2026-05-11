@@ -788,6 +788,57 @@ async function getSeasonTMDB(tvId, season) {
   return await tmdbGet(`/tv/${tvId}/season/${season}`);
 }
 
+function getSeasonTheme(season = 1) {
+  const themes = {
+    1: {
+      name: "ICE BLUE",
+      color: "#4DA6FF",
+      emoji: "❄️"
+    },
+    2: {
+      name: "ROYAL GOLD",
+      color: "#D4AF37",
+      emoji: "👑"
+    },
+    3: {
+      name: "BLOOD RED",
+      color: "#8B0000",
+      emoji: "🩸"
+    },
+    4: {
+      name: "MIDNIGHT PURPLE",
+      color: "#4B0082",
+      emoji: "🌌"
+    },
+    5: {
+      name: "FOREST GREEN",
+      color: "#228B22",
+      emoji: "🌲"
+    },
+    6: {
+      name: "EMBER ORANGE",
+      color: "#FF6A00",
+      emoji: "🔥"
+    },
+    7: {
+      name: "STEEL SILVER",
+      color: "#A9A9A9",
+      emoji: "⚔️"
+    },
+    8: {
+      name: "NIGHT BLACK",
+      color: "#111111",
+      emoji: "🌑"
+    }
+  };
+
+  return themes[Number(season)] || {
+    name: "CLASSIC",
+    color: "#000000",
+    emoji: "🎬"
+  };
+}
+
 async function createBrandedCover(posterUrl, title = "") {
   try {
     console.log("LOGO CHECK logo.png.PNG:", fs.existsSync("logo.png.PNG"));
