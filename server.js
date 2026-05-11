@@ -1227,6 +1227,7 @@ app.post(`/webhook/${TOKEN}`, async (req, res) => {
     const update = req.body;
 
     console.log("📩 Incoming Update");
+    console.log("UPDATE RAW:", JSON.stringify(update, null, 2));
 
     await handleUpdate(update);
 
