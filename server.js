@@ -1856,44 +1856,41 @@ await tg("sendMessage", {
 
 if (text === "/backup") {
   try {
-    await tg("sendDocument", {
-      chat_id: msg.chat.id,
-      document: "attach://file"
-    });
+    const backupPath = path.join("/tmp", `library-backup-${Date.now()}.db`);
 
-    const formData = new FormData();
-  } catch (err) {
-    console.error("❌ Backup Fehler:", err.message);
-  }
+    await db.backup(backupPath);
 
-  try {
-    const fileStream = fs.createReadStream(DB_FILE_PATH);
+    const stats = {
+      movies: db.prepare("SELECT COUNT(*) AS count FROM movies").get().count,
+      series: db.prepare("SELECT COUNT(*) AS count FROM series").get().count,
+      topics: db.prepare("SELECT COUNT(*) AS count FROM topics").get().count
+    };
 
     const FormData = require("form-data");
     const form = new FormData();
 
     form.append("chat_id", msg.chat.id);
-    form.append("document", fileStream, "library.db");
-
-    await axios.post(
-      `${BASE_URL}/sendDocument`,
-      form,
-      {
-        headers: form.getHeaders()
-      }
+    form.append("document", fs.createReadStream(backupPath), "library.db");
+    form.append(
+      "caption",
+      "✅ Datenbank Backup\n\n" +
+      `🎬 Filme: ${stats.movies}\n` +
+      `📺 Serien-Episoden: ${stats.series}\n` +
+      `🧵 Themen: ${stats.topics}`
     );
 
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: "✅ Backup erfolgreich gesendet."
+    await axios.post(`${BASE_URL}/sendDocument`, form, {
+      headers: form.getHeaders()
     });
+
+    fs.unlinkSync(backupPath);
 
   } catch (err) {
     console.error("❌ Backup Fehler:", err.message);
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "❌ Backup fehlgeschlagen."
+      text: "❌ Backup fehlgeschlagen:\n" + err.message
     });
   }
 
