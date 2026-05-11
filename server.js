@@ -1387,11 +1387,6 @@ function saveSeasonSeparators(topicId, separators) {
 // COPY MEDIA TO TARGET GROUP
 // =============================
 async function copyOriginalMedia({
-
-// =============================
-// COPY MEDIA TO TARGET GROUP
-// =============================
-async function copyOriginalMedia({
   fromChatId,
   messageId,
   targetChatId,
