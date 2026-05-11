@@ -774,7 +774,8 @@ async function searchSeriesTMDB(title, season, episode) {
     episodeTitle: episodeDetails?.name || "",
     genre: formatGenres(details.genres),
     mainGenre: getMainGenre(details.genres),
-    rating: formatRating(details.vote_average),
+    rating: formatRating(episodeDetails?.vote_average || details.vote_average),
+seriesRating: formatRating(details.vote_average),
     overview:
       episodeDetails?.overview ||
       details.overview ||
