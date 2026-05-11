@@ -1264,6 +1264,61 @@ async function createSeriesHubIfMissing({ tmdb, topicId }) {
 // =============================
 // SERIES SEASON SEPARATORS
 // =============================
+async function createSeasonCardIfMissing({
+  tmdb,
+  topicId,
+  season
+}) {
+  const separators = getSeasonSeparators(topicId);
+
+  const seasonKey = String(season).padStart(2, "0");
+
+  // Bereits vorhanden?
+  if (separators[`card_${seasonKey}`]) {
+    return separators[`card_${seasonKey}`];
+  }
+
+  // Staffel-Cover holen
+  let seasonPoster = tmdb.posterUrl;
+
+  try {
+    const seasonData = await tmdbGet(
+      `/tv/${tmdb.tmdbId}/season/${season}`
+    );
+
+    if (seasonData?.poster_path) {
+      seasonPoster = posterUrl(seasonData.poster_path);
+    }
+  } catch (err) {
+    console.log("⚠️ Staffelposter Fehler:", err.message);
+  }
+
+  // Cover posten
+  if (seasonPoster) {
+    await tg("sendPhoto", {
+      chat_id: SERIES_GROUP_ID,
+      message_thread_id: topicId,
+      photo: seasonPoster
+    });
+  }
+
+  // Staffel-Info posten
+  const card = await tg("sendMessage", {
+    chat_id: SERIES_GROUP_ID,
+    message_thread_id: topicId,
+    text: seasonCaption(tmdb, season)
+  });
+
+  if (card?.message_id) {
+    separators[`card_${seasonKey}`] = card.message_id;
+    saveSeasonSeparators(topicId, separators);
+
+    return card.message_id;
+  }
+
+  return null;
+}
+
 function getSeasonSeparators(topicId) {
   const topic = getSeriesHubTopic(topicId);
 
@@ -2868,10 +2923,10 @@ await createSeriesHubIfMissing({
   topicId
 });
 
-await createSeasonSeparatorIfMissing({
+await createSeasonCardIfMissing({
+  tmdb,
   topicId,
-  season: media.season,
-  tmdb
+  season: media.season
 });
 
 const captionText = seriesCaption(tmdb, media, extras);
