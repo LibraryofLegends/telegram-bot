@@ -888,23 +888,35 @@ function buildEpisodeIndex(seriesTitle) {
   `).all(seriesTitle);
 
   if (!episodes.length) {
-    return "📀 Staffel 01\n└ Episoden werden automatisch ergänzt";
+    return "📀 Staffel 01 — 0 Episode(n)\n└ Episoden werden automatisch ergänzt";
+  }
+
+  const seasons = {};
+
+  for (const ep of episodes) {
+    const seasonNumber = Number(ep.season || 0);
+    if (!seasons[seasonNumber]) seasons[seasonNumber] = [];
+    seasons[seasonNumber].push(ep);
   }
 
   let result = "";
-  let currentSeason = null;
 
-  for (const ep of episodes) {
-    if (ep.season !== currentSeason) {
-      currentSeason = ep.season;
-      if (result) result += "\n";
-      result += `📀 Staffel ${String(ep.season).padStart(2, "0")}\n`;
-    }
+  for (const seasonNumber of Object.keys(seasons).map(Number).sort((a, b) => a - b)) {
+    const seasonEpisodes = seasons[seasonNumber];
+    const seasonText = String(seasonNumber).padStart(2, "0");
 
-    const epCode =
-      `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
+    if (result) result += "\n";
 
-    result += `├ ${epCode}${ep.episode_title ? ` • ${ep.episode_title}` : ""}\n`;
+    result += `📀 Staffel ${seasonText} — ${seasonEpisodes.length} Episode(n)\n`;
+
+    seasonEpisodes.forEach((ep, index) => {
+      const epCode =
+        `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
+
+      const prefix = index === seasonEpisodes.length - 1 ? "└" : "├";
+
+      result += `${prefix} ${epCode}${ep.episode_title ? ` • ${ep.episode_title}` : ""}\n`;
+    });
   }
 
   return result.trim();
