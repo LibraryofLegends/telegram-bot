@@ -1433,6 +1433,83 @@ if (text === "/featuredseries") {
   return;
 }
 
+if (text === "/serieshub") {
+  const latest = db.prepare(`
+    SELECT series_title, season, episode, episode_title
+    FROM series
+    ORDER BY created_at DESC
+    LIMIT 5
+  `).all();
+
+  const trending = db.prepare(`
+    SELECT series_title, COUNT(*) AS count
+    FROM series
+    GROUP BY series_title
+    ORDER BY count DESC, series_title ASC
+    LIMIT 5
+  `).all();
+
+  const featured = db.prepare(`
+    SELECT series_title, genre, rating, COUNT(*) AS count
+    FROM series
+    GROUP BY series_title
+    ORDER BY rating DESC, count DESC, series_title ASC
+    LIMIT 5
+  `).all();
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📺 SERIES HUB\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  result += "🆕 NEUE FOLGEN\n";
+  if (!latest.length) {
+    result += "Noch keine Folgen gespeichert.\n\n";
+  } else {
+    for (const s of latest) {
+      result += `• ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")}`;
+      if (s.episode_title) result += ` • ${s.episode_title}`;
+      result += "\n";
+    }
+    result += "\n";
+  }
+
+  result += "🔥 TRENDING\n";
+  if (!trending.length) {
+    result += "Noch keine Trends verfügbar.\n\n";
+  } else {
+    for (const s of trending) {
+      result += `• ${s.series_title} — ${s.count} Episode(n)\n`;
+    }
+    result += "\n";
+  }
+
+  result += "⭐ FEATURED\n";
+  if (!featured.length) {
+    result += "Noch keine Featured-Serien verfügbar.\n\n";
+  } else {
+    for (const s of featured) {
+      result += `• ${s.series_title} — ${s.rating || "Unbekannt"}\n`;
+    }
+    result += "\n";
+  }
+
+  result += "━━━━━━━━━━━━━━━━━━\n";
+  result += "🔤 /seriesaz — Serien A–Z\n";
+  result += "🆕 /newseries — Neue Folgen\n";
+  result += "🔥 /trendingseries — Trending\n";
+  result += "⭐ /featuredseries — Featured\n";
+  result += "━━━━━━━━━━━━━━━━━━\n";
+  result += "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result
+  });
+
+  return;
+}
+
   if (text === "/az") {
     const movies = db.prepare(`
       SELECT title, year
@@ -1523,6 +1600,7 @@ if (text === "/featuredseries") {
       "🎛 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋\n\n" +
       "🎬 /movies — Filme anzeigen\n" +
       "📺 /series — Serien anzeigen\n" +
+      "📺 /serieshub — Serien Dashboard\n" +
       "🔎 /search titel — Suche\n" +
       "🔤 /az — A–Z Liste\n" +
       "🆕 /newseries — Neue Folgen\n" +
