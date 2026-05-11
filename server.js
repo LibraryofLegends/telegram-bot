@@ -942,6 +942,13 @@ function movieCaption(tmdb, extras = {}) {
   if (extras.audio && extras.audio !== "Unbekannt") {
     mediaLines.push(`🎧 ${extras.audio}`);
   }
+  
+  const safeOverview = String(
+  tmdb.overview || "Keine Beschreibung verfügbar."
+)
+  .replace(/\s+/g, " ")
+  .trim()
+  .slice(0, 320);
 
   return (
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -956,7 +963,7 @@ function movieCaption(tmdb, extras = {}) {
     `👥 ${tmdb.cast}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "📖 STORY\n" +
-    `${String(tmdb.overview || "Keine Beschreibung verfügbar.").slice(0, 600)}\n` +
+    ${safeOverview}\n`
     "━━━━━━━━━━━━━━━━━━\n" +
     `🏷 ${extras.libraryId}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
