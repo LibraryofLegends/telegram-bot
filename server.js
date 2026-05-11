@@ -1129,33 +1129,39 @@ function seasonCaption(tmdb, seasonData, season) {
 // SERIES HUB LAYOUT
 // =============================
 function seriesHubCaption(tmdb) {
-  const genreText = String(tmdb.genre || "Sonstige")
-    .split("/")
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .join(" • ");
-
-  const tags = String(tmdb.genre || "")
-    .split("/")
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-    .map((g) => `#${g.replace(/\s+/g, "")}`)
-    .join(" ");
-
+  const genreLine = formatSeasonGenres(tmdb.genre);
   const episodeIndex = buildEpisodeIndex(tmdb.seriesTitle);
 
+  const totalEpisodes = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM series
+    WHERE series_title = ?
+  `).get(tmdb.seriesTitle)?.count || 0;
+
+  const seasonCount = db.prepare(`
+    SELECT COUNT(DISTINCT season) AS count
+    FROM series
+    WHERE series_title = ?
+  `).get(tmdb.seriesTitle)?.count || 0;
+
   return (
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `📺 ${tmdb.seriesTitle.toUpperCase()}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🎭 ${genreText}\n` +
+    "╔══════════════════╗\n" +
+    `        📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
+    "           SERIES HUB\n" +
+    "╚══════════════════╝\n\n" +
+
     `⭐ ${tmdb.rating || "Unbekannt"}\n` +
+    `📀 ${seasonCount} Staffel(n) • 🎞 ${totalEpisodes} Episode(n)\n` +
+
     "━━━━━━━━━━━━━━━━━━\n" +
-    "🧭 STAFFELHUB\n\n" +
+    "🧭 STAFFELÜBERSICHT\n\n" +
     episodeIndex + "\n" +
+
     "━━━━━━━━━━━━━━━━━━\n" +
-    `#${tmdb.seriesTitle.replace(/\s+/g, "")} ${tags}\n` +
+    "🎭 GENRE\n" +
+    `${genreLine}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends"
   );
 }
