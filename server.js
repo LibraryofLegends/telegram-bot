@@ -117,6 +117,7 @@ addColumnIfMissing("movies", "audio_channels", "TEXT");
 addColumnIfMissing("movies", "hdr", "TEXT");
 addColumnIfMissing("topics", "hub_message_id", "INTEGER");
 addColumnIfMissing("topics", "season_separators", "TEXT DEFAULT '{}'");
+addColumnIfMissing("series", "series_library_id", "TEXT");
 
 console.log("✅ Datenbank bereit");
 
@@ -541,6 +542,37 @@ function makeLibraryCode(genre = "") {
   return `LIB-${prefix}-${String(nextNumber).padStart(4, "0")}`;
 }
 
+function makeSeriesLibraryCode(genre = "") {
+  const map = {
+    Action: "ACT",
+    Abenteuer: "ADV",
+    Animation: "ANI",
+    Komödie: "COM",
+    Krimi: "KRI",
+    Drama: "DRA",
+    Fantasy: "FAN",
+    Horror: "HOR",
+    Mystery: "MYS",
+    Romanze: "ROM",
+    Sciencefiction: "SCI",
+    Thriller: "THR",
+    Familie: "FAM"
+  };
+
+  const firstGenre = String(genre).split("/")[0].trim();
+  const prefix = map[firstGenre] || "SER";
+
+  const row = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM series
+    WHERE series_library_id LIKE ?
+  `).get(`SER-${prefix}-%`);
+
+  const nextNumber = Number(row.count || 0) + 1;
+
+  return `SER-${prefix}-${String(nextNumber).padStart(4, "0")}`;
+}
+
 // =============================
 // TMDB API
 // =============================
@@ -846,6 +878,8 @@ const episodeTitle = finalEpisodeTitle
     "━━━━━━━━━━━━━━━━━━\n" +
     "📖 STORY\n" +
     `${String(tmdb.overview || "Keine Beschreibung verfügbar.").slice(0, 600)}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🏷 ${extras.seriesLibraryId || ""}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     `#${tmdb.seriesTitle.replace(/\s+/g, "")} ${genreTags}\n` +
     "@LibraryOfLegends"
