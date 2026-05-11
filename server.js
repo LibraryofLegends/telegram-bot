@@ -39,9 +39,9 @@ if (!ADMIN_ID) console.error("❌ ADMIN_ID fehlt");
 // =============================
 // DATABASE
 // =============================
-const DB_PATH = process.env.DB_PATH || "library.db";
+const DB_FILE_PATH = path.join(__dirname, "library.db");
 
-const db = new Database(DB_PATH);
+const db = new Database(DB_FILE_PATH);
 
 db.pragma("journal_mode = WAL");
 
@@ -1771,7 +1771,6 @@ if (text === "/clearseries") {
 }
 
 if (text === "/restoredb") {
-
   if (!LAST_RESTORE_FILE_ID) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
@@ -1779,12 +1778,10 @@ if (text === "/restoredb") {
         "❌ Keine Backup-Datei erkannt.\n\n" +
         "Sende zuerst eine library.db Datei."
     });
-
     return;
   }
 
   try {
-
     const fileData = await tg("getFile", {
       file_id: LAST_RESTORE_FILE_ID
     });
@@ -1802,10 +1799,13 @@ if (text === "/restoredb") {
 
     const dbBuffer = Buffer.from(response.data);
 
-    fs.writeFileSync(
-      path.join(__dirname, "library.db"),
-      dbBuffer
-    );
+    try {
+      db.close();
+    } catch (e) {
+      console.error("DB close Fehler:", e.message);
+    }
+
+    fs.writeFileSync(DB_FILE_PATH, dbBuffer);
 
     LAST_RESTORE_FILE_ID = "";
 
@@ -1813,11 +1813,15 @@ if (text === "/restoredb") {
       chat_id: msg.chat.id,
       text:
         "✅ Datenbank wiederhergestellt.\n\n" +
-        "⚠️ Bitte Render jetzt einmal neu deployen/restarten."
+        "🔄 Bot startet jetzt automatisch neu.\n" +
+        "Danach /stats prüfen."
     });
 
-  } catch (err) {
+    setTimeout(() => {
+      process.exit(0);
+    }, 1500);
 
+  } catch (err) {
     console.error("❌ Restore Fehler:", err.message);
 
     await tg("sendMessage", {
