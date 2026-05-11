@@ -2008,6 +2008,11 @@ await createSeriesHubIfMissing({
   topicId
 });
 
+await createSeasonSeparatorIfMissing({
+  topicId,
+  season: media.season
+});
+
 const copied = await copyOriginalMedia({
   fromChatId: msg.chat.id,
   messageId: msg.message_id,
