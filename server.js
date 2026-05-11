@@ -2037,10 +2037,10 @@ async function sendAdminPanel(chatId) {
       ]
     }
   });
-}
 
-console.log("PANEL RESULT:", JSON.stringify(panelResult, null, 2));
-return panelResult;
+  console.log("PANEL RESULT:", JSON.stringify(panelResult, null, 2));
+  return panelResult;
+}
 
 // =============================
 // UPLOAD HANDLER
