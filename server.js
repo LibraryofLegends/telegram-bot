@@ -1335,6 +1335,57 @@ if (text === "/newseries") {
   return;
 }
 
+if (text === "/trendingseries") {
+  const rows = db.prepare(`
+    SELECT series_title, genre, rating, COUNT(*) AS count
+    FROM series
+    GROUP BY series_title
+    ORDER BY count DESC, series_title ASC
+    LIMIT 10
+  `).all();
+
+  if (!rows.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "🔥 Noch keine Trending-Serien verfügbar."
+    });
+    return;
+  }
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🔥 TRENDING SERIEN\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  let rank = 1;
+
+  for (const s of rows) {
+    const genreText = String(s.genre || "Sonstige")
+      .split("/")
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(" • ");
+
+    result += `#${rank} 📺 ${s.series_title}\n`;
+    result += `📀 ${s.count} Episode(n)\n`;
+    result += `🎭 ${genreText}\n`;
+    result += `⭐ ${s.rating || "Unbekannt"}\n\n`;
+
+    rank++;
+  }
+
+  result += "━━━━━━━━━━━━━━━━━━\n";
+  result += "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result
+  });
+
+  return;
+}
+
   if (text === "/az") {
     const movies = db.prepare(`
       SELECT title, year
@@ -1428,6 +1479,7 @@ if (text === "/newseries") {
       "🔎 /search titel — Suche\n" +
       "🔤 /az — A–Z Liste\n" +
       "🆕 /newseries — Neue Folgen\n" +
+      "🔥 /trendingseries — Trending Serien\n" +
       "🔤 /seriesaz — Serien A–Z\n" +
       "🔥 /featuredseries — Featured Serien\n" +
       "🧹 /duplicates — Duplikate prüfen\n" +
