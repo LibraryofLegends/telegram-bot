@@ -1383,14 +1383,6 @@ function saveSeasonSeparators(topicId, separators) {
   `).run(JSON.stringify(separators), topicId);
 }
 
-async function createSeasonSeparatorIfMissing({ topicId, season, tmdb }) {
-  const separators = getSeasonSeparators(topicId);
-  const seasonKey = String(season).padStart(2, "0");
-
-  if (separators[seasonKey]) {
-    return separators[seasonKey];
-  }
-
   const seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
 
   const seasonPoster =
@@ -2831,8 +2823,10 @@ if (text.startsWith("/fixseries")) {
   }
 
   if (text === "/admin") {
-  console.log("✅ ADMIN PANEL WIRD GESENDET");
-  await sendAdminPanel(msg.chat.id);
+  await handleCommand({
+    chat: { id: msg.chat.id },
+    text: "/start"
+  });
   return;
 }
 
