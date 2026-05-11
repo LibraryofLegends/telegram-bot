@@ -720,7 +720,11 @@ async function searchSeriesTMDB(title, season, episode) {
 
   const best = search.results[0];
 
-  const details = await tmdbGet(`/tv/${best.id}`);
+  const details = await tmdbGet(`/tv/${best.id}`, {
+    append_to_response: "credits,content_ratings"
+  });
+
+  if (!details) return null;
 
   let episodeDetails = null;
 
@@ -731,6 +735,33 @@ async function searchSeriesTMDB(title, season, episode) {
   } catch (err) {
     episodeDetails = null;
   }
+
+  const createdBy =
+    details.created_by
+      ?.map((p) => p.name)
+      .filter(Boolean)
+      .join(" • ") || "Unbekannt";
+
+  const cast =
+    details.credits?.cast
+      ?.slice(0, 5)
+      .map((p) => p.name)
+      .join(" • ") || "Unbekannt";
+
+  const deRating = details.content_ratings?.results?.find(
+    (r) => r.iso_3166_1 === "DE"
+  );
+
+  const usRating = details.content_ratings?.results?.find(
+    (r) => r.iso_3166_1 === "US"
+  );
+
+  const fsk =
+    deRating?.rating
+      ? `FSK ${deRating.rating}`
+      : usRating?.rating
+        ? usRating.rating
+        : "FSK Unbekannt";
 
   return {
     tmdbId: details.id,
@@ -743,7 +774,11 @@ async function searchSeriesTMDB(title, season, episode) {
       episodeDetails?.overview ||
       details.overview ||
       "Keine Beschreibung verfügbar.",
-    posterUrl: posterUrl(episodeDetails?.still_path || details.poster_path)
+    posterUrl: posterUrl(episodeDetails?.still_path || details.poster_path),
+    seriesPosterUrl: posterUrl(details.poster_path),
+    createdBy,
+    cast,
+    fsk
   };
 }
 
