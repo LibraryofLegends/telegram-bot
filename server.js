@@ -1228,11 +1228,7 @@ function saveSeasonSeparators(topicId, separators) {
   `).run(JSON.stringify(separators), topicId);
 }
 
-async function createSeasonSeparatorIfMissing({
-  topicId,
-  season,
-  tmdb
-}) {
+async function createSeasonSeparatorIfMissing({ topicId, season, tmdb }) {
   const separators = getSeasonSeparators(topicId);
   const seasonKey = String(season).padStart(2, "0");
 
@@ -1240,40 +1236,24 @@ async function createSeasonSeparatorIfMissing({
     return separators[seasonKey];
   }
 
-  const seasonData = await getSeasonTMDB(
-    tmdb.tmdbId,
-    season
-  );
+  const seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
 
-  const poster =
+  const seasonPoster =
     posterUrl(seasonData?.poster_path) ||
-    tmdb.posterUrl;
-
-  const caption =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `📀 ${tmdb.seriesTitle.toUpperCase()}\n` +
-    `STAFFEL ${seasonKey}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🎞 ${seasonData?.episodes?.length || "?"} Episoden\n` +
-    `📅 ${seasonData?.air_date?.slice(0,4) || "Unbekannt"}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `${String(
-      seasonData?.overview ||
-      "Keine Beschreibung verfügbar."
-    ).slice(0, 500)}\n` +
-    "━━━━━━━━━━━━━━━━━━";
+    tmdb.seriesPosterUrl ||
+    tmdb.posterUrl ||
+    "https://via.placeholder.com/500x750.png?text=No+Cover";
 
   const msg = await tg("sendPhoto", {
     chat_id: SERIES_GROUP_ID,
     message_thread_id: topicId,
-    photo: poster,
-    caption
+    photo: seasonPoster,
+    caption: seasonCaption(tmdb, seasonData, season)
   });
 
   if (msg?.message_id) {
     separators[seasonKey] = msg.message_id;
     saveSeasonSeparators(topicId, separators);
-
     return msg.message_id;
   }
 
