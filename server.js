@@ -1311,7 +1311,7 @@ async function createSeriesHubIfMissing({ tmdb, topicId }) {
 }
 
 // =============================
-// SERIES SEASON SEPARATORS
+// SERIES SEASON CARDS
 // =============================
 async function createSeasonCardIfMissing({
   tmdb,
