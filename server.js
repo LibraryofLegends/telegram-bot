@@ -1651,6 +1651,81 @@ if (text === "/serieshub") {
   return;
 }
 
+if (text.startsWith("/missingseries")) {
+  const query = text.replace("/missingseries", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "⚠️ Nutzung:\n/missingseries Tulsa King"
+    });
+    return;
+  }
+
+  const rows = db.prepare(`
+    SELECT series_title, season, episode
+    FROM series
+    WHERE LOWER(series_title) LIKE ?
+    ORDER BY season ASC, episode ASC
+  `).all(`%${query.toLowerCase()}%`);
+
+  if (!rows.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: `❌ Keine Serie gefunden für:\n${query}`
+    });
+    return;
+  }
+
+  const seriesTitle = rows[0].series_title;
+  const seasons = {};
+
+  for (const row of rows) {
+    const s = Number(row.season);
+    if (!seasons[s]) seasons[s] = [];
+    seasons[s].push(Number(row.episode));
+  }
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🧩 FEHLENDE EPISODEN\n` +
+    `📺 ${seriesTitle}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  let hasMissing = false;
+
+  for (const season of Object.keys(seasons).map(Number).sort((a, b) => a - b)) {
+    const episodes = [...new Set(seasons[season])].sort((a, b) => a - b);
+    const minEp = episodes[0];
+    const maxEp = episodes[episodes.length - 1];
+
+    const missing = [];
+    for (let ep = minEp; ep <= maxEp; ep++) {
+      if (!episodes.includes(ep)) missing.push(ep);
+    }
+
+    result += `📀 Staffel ${String(season).padStart(2, "0")}\n`;
+
+    if (!missing.length) {
+      result += "✅ Keine Lücken gefunden\n\n";
+    } else {
+      hasMissing = true;
+      result += `⚠️ Fehlend: ${missing.map((ep) => `E${String(ep).padStart(2, "0")}`).join(", ")}\n\n`;
+    }
+  }
+
+  result += "━━━━━━━━━━━━━━━━━━\n";
+  result += hasMissing ? "⚠️ Sammlung unvollständig" : "✅ Sammlung wirkt vollständig";
+  result += "\n@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result
+  });
+
+  return;
+}
+
   if (text === "/az") {
     const movies = db.prepare(`
       SELECT title, year
@@ -1742,6 +1817,7 @@ if (text === "/serieshub") {
       "🎬 /movies — Filme anzeigen\n" +
       "📺 /series — Serien anzeigen\n" +
       "📺 /serieshub — Serien Dashboard\n" +
+      "🧩 /missingseries titel — Fehlende Episoden\n" +
       "🔎 /search titel — Suche\n" +
       "🔤 /az — A–Z Liste\n" +
       "🆕 /newseries — Neue Folgen\n" +
