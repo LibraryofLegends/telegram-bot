@@ -812,9 +812,11 @@ function seriesCaption(tmdb, media, extras = {}) {
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
-  const episodeTitle = tmdb.episodeTitle
-    ? ` • ${tmdb.episodeTitle}`
-    : "";
+  const finalEpisodeTitle = tmdb.episodeTitle || media.episodeTitleFromFile || "";
+
+const episodeTitle = finalEpisodeTitle
+  ? ` • ${finalEpisodeTitle}`
+  : "";
 
   const mediaLines = [];
 
@@ -1945,7 +1947,7 @@ const copied = await copyOriginalMedia({
       seriesTitle: tmdb.seriesTitle,
       season: media.season,
       episode: media.episode,
-      episodeTitle: tmdb.episodeTitle || "",
+      episodeTitle: tmdb.episodeTitle || media.episodeTitleFromFile || "",
       genre: tmdb.genre,
       rating: tmdb.rating,
       overview: tmdb.overview,
