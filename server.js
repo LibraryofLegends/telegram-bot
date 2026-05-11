@@ -1243,6 +1243,13 @@ app.post(`/webhook/${TOKEN}`, async (req, res) => {
 async function handleUpdate(update) {
   const msg = update.message || update.edited_message;
   if (!msg) return;
+  
+  const callback = update.callback_query;
+
+if (callback) {
+  await handleCallback(callback);
+  return;
+}
 
   const userId = String(msg.from?.id || "");
 
@@ -1266,6 +1273,71 @@ async function handleUpdate(update) {
   }
 
   console.log("⚠️ Unbekannter Nachrichtentyp");
+}
+
+async function handleCallback(callback) {
+  const data = callback.data;
+  const chatId = callback.message.chat.id;
+
+  if (data === "panel_movies") {
+    await handleCommand({
+      chat: { id: chatId },
+      text: "/movies"
+    });
+  }
+
+  if (data === "panel_series") {
+    await handleCommand({
+      chat: { id: chatId },
+      text: "/series"
+    });
+  }
+
+  if (data === "panel_newseries") {
+    await handleCommand({
+      chat: { id: chatId },
+      text: "/newseries"
+    });
+  }
+
+  if (data === "panel_trending") {
+    await handleCommand({
+      chat: { id: chatId },
+      text: "/trendingseries"
+    });
+  }
+
+  if (data === "panel_featured") {
+    await handleCommand({
+      chat: { id: chatId },
+      text: "/featuredseries"
+    });
+  }
+
+  if (data === "panel_stats") {
+    await handleCommand({
+      chat: { id: chatId },
+      text: "/stats"
+    });
+  }
+
+  if (data === "panel_seriesaz") {
+    await handleCommand({
+      chat: { id: chatId },
+      text: "/seriesaz"
+    });
+  }
+
+  if (data === "panel_duplicates") {
+    await handleCommand({
+      chat: { id: chatId },
+      text: "/duplicates"
+    });
+  }
+
+  await tg("answerCallbackQuery", {
+    callback_query_id: callback.id
+  });
 }
 
 // =============================
@@ -1904,26 +1976,28 @@ if (text.startsWith("/missingseries")) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "🎛 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋\n\n" +
-      "🎬 FILME\n" +
-      "• /movies — Filme anzeigen\n" +
-      "• /az — Filme & Serien A–Z\n" +
-      "• /duplicates — Duplikate prüfen\n\n" +
-
-      "📺 SERIEN\n" +
-      "• /series — Serien anzeigen\n" +
-      "• /serieshub — Serien Dashboard\n" +
-      "• /seriesaz — Serien A–Z\n" +
-      "• /newseries — Neue Folgen\n" +
-      "• /trendingseries — Trending Serien\n" +
-      "• /featuredseries — Featured Serien\n" +
-      "• /missingseries titel — Fehlende Episoden\n" +
-      "• /setseries name — Serienname setzen\n" +
-      "• /clearseries — Serienname zurücksetzen\n\n" +
-
-      "📊 SYSTEM\n" +
-      "• /stats — Statistik\n" +
-      "• /search titel — Suche\n"
+      "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐂𝐎𝐍𝐓𝐑𝐎𝐋 𝐏𝐀𝐍𝐄𝐋\n\n" +
+      "Wähle eine Funktion aus:",
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "🎬 Filme", callback_data: "panel_movies" },
+          { text: "📺 Serien", callback_data: "panel_series" }
+        ],
+        [
+          { text: "🆕 Neue Folgen", callback_data: "panel_newseries" },
+          { text: "🔥 Trending", callback_data: "panel_trending" }
+        ],
+        [
+          { text: "⭐ Featured", callback_data: "panel_featured" },
+          { text: "📊 Statistik", callback_data: "panel_stats" }
+        ],
+        [
+          { text: "🔤 Serien A–Z", callback_data: "panel_seriesaz" },
+          { text: "🧹 Duplikate", callback_data: "panel_duplicates" }
+        ]
+      ]
+    }
   });
 
   return;
