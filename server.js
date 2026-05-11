@@ -1863,10 +1863,14 @@ const copied = await copyOriginalMedia({
       topicId
     });
     
-    await updateSeriesHub({
-  tmdb,
-  topicId
-});
+    try {
+  await updateSeriesHub({
+    tmdb,
+    topicId
+  });
+} catch (err) {
+  console.error("⚠️ Hub Update Fehler:", err.message);
+}
 
 await createSeasonSeparatorIfMissing({
   topicId,
