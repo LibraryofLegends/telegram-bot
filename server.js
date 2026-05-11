@@ -1073,52 +1073,35 @@ function formatCastLine(cast = "") {
 
 function seasonCaption(tmdb, seasonData, season) {
   const seasonKey = String(season).padStart(2, "0");
-  
   const theme = getSeasonTheme(season);
 
-  const year =
-    seasonData?.air_date?.slice(0, 4) ||
-    "Unbekannt";
+  const year = seasonData?.air_date?.slice(0, 4) || "Unbekannt";
+  const episodeCount = seasonData?.episodes?.length || "?";
 
-  const episodeCount =
-    seasonData?.episodes?.length ||
-    "?";
-    
-    const progressText = buildSeasonProgress(
-  tmdb.seriesTitle,
-  season,
-  seasonData?.episodes?.length || 0
-);
-
-  const overview =
+  const overview = String(
     seasonData?.overview ||
     tmdb.overview ||
-    "Keine Beschreibung verfügbar.";
+    "Keine Beschreibung verfügbar."
+  )
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 360);
 
-  const showrunner =
-    tmdb.createdBy ||
-    tmdb.director ||
-    "Unbekannt";
-
-  const castLine =
-    formatCastLine(tmdb.cast);
-
-  const genreLine =
-    formatSeasonGenres(tmdb.genre);
+  const showrunner = String(tmdb.createdBy || "Unbekannt").slice(0, 80);
+  const castLine = formatCastLine(tmdb.cast);
+  const genreLine = formatSeasonGenres(tmdb.genre);
 
   return (
-  "╔══════════════════╗\n" +
-  `        📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-  `            ${theme.emoji} STAFFEL ${seasonKey}\n` +
-  "╚══════════════════╝\n\n" +
+    "╔══════════════════╗\n" +
+    `        📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
+    `            ${theme.emoji} STAFFEL ${seasonKey}\n` +
+    "╚══════════════════╝\n\n" +
 
-  `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
-  `📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-  `🎨 ${theme.name}\n` +
-`${progressText}\n` +
+    `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
+    `📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
 
-"━━━━━━━━━━━━━━━━━━\n" +
-"🎬 SHOWRUNNER\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎬 SHOWRUNNER\n" +
     `${showrunner}\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -1127,14 +1110,14 @@ function seasonCaption(tmdb, seasonData, season) {
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "📖 ÜBER DIE STAFFEL\n\n" +
-    `${String(overview).slice(0, 650)}\n` +
+    `${overview}\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     `${genreLine}\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends"
-  );
+  ).slice(0, 1000);
 }
 
 // =============================
