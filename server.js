@@ -894,12 +894,6 @@ async function createBrandedCover(posterUrl, title = "") {
   }
 }
 
-async function getSeasonTMDB(tvId, season) {
-  return await tmdbGet(
-    `/tv/${tvId}/season/${season}`
-  );
-}
-
 // =============================
 // PREMIUM LAYOUTS
 // =============================
@@ -1319,53 +1313,50 @@ async function createSeasonCardIfMissing({
   season
 }) {
   const separators = getSeasonSeparators(topicId);
-
   const seasonKey = String(season).padStart(2, "0");
 
-  // Bereits vorhanden?
   if (separators[`card_${seasonKey}`]) {
     return separators[`card_${seasonKey}`];
   }
 
-  // Staffel-Cover holen
-  let seasonPoster = tmdb.posterUrl;
+  const seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
 
-  try {
-    const seasonData = await tmdbGet(
-      `/tv/${tmdb.tmdbId}/season/${season}`
-    );
+  const seasonPoster =
+    posterUrl(seasonData?.poster_path) ||
+    tmdb.seriesPosterUrl ||
+    tmdb.posterUrl ||
+    "https://via.placeholder.com/500x750.png?text=No+Cover";
 
-    if (seasonData?.poster_path) {
-      seasonPoster = posterUrl(seasonData.poster_path);
-    }
-  } catch (err) {
-    console.log("⚠️ Staffelposter Fehler:", err.message);
-  }
-
-  // Cover posten
-  if (seasonPoster) {
-    await tg("sendPhoto", {
-      chat_id: SERIES_GROUP_ID,
-      message_thread_id: topicId,
-      photo: seasonPoster
-    });
-  }
-
-  // Staffel-Info posten
-  const card = await tg("sendMessage", {
+  const card = await tg("sendPhoto", {
     chat_id: SERIES_GROUP_ID,
     message_thread_id: topicId,
-    text: seasonCaption(tmdb, seasonData, season)
+    photo: seasonPoster,
+    caption: seasonCaption(tmdb, seasonData, season)
   });
 
   if (card?.message_id) {
     separators[`card_${seasonKey}`] = card.message_id;
     saveSeasonSeparators(topicId, separators);
-
     return card.message_id;
   }
 
   return null;
+}
+
+async function updateSeasonCard({ tmdb, topicId, season }) {
+  const separators = getSeasonSeparators(topicId);
+  const seasonKey = String(season).padStart(2, "0");
+  const messageId = separators[`card_${seasonKey}`];
+
+  if (!messageId) return null;
+
+  const seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
+
+  return await tg("editMessageCaption", {
+    chat_id: SERIES_GROUP_ID,
+    message_id: messageId,
+    caption: seasonCaption(tmdb, seasonData, season)
+  });
 }
 
 function getSeasonSeparators(topicId) {
