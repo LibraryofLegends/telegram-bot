@@ -1997,6 +1997,97 @@ if (text.startsWith("/progress")) {
   return;
 }
 
+if (text.startsWith("/rebuildseasoncards")) {
+  const query = text.replace("/rebuildseasoncards", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "⚠️ Nutzung:\n/rebuildseasoncards Game of Thrones"
+    });
+    return;
+  }
+
+  const rows = db.prepare(`
+    SELECT *
+    FROM series
+    WHERE LOWER(series_title) LIKE ?
+    ORDER BY season ASC, episode ASC
+  `).all(`%${query.toLowerCase()}%`);
+
+  if (!rows.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: `❌ Keine Serie gefunden für:\n${query}`
+    });
+    return;
+  }
+
+  const first = rows[0];
+
+  const tmdb = await searchSeriesTMDB(
+    first.series_title,
+    first.season,
+    first.episode
+  );
+
+  if (!tmdb) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ TMDB-Daten konnten nicht geladen werden."
+    });
+    return;
+  }
+
+  const topic = db.prepare(`
+    SELECT *
+    FROM topics
+    WHERE name = ?
+    AND type = 'series'
+    LIMIT 1
+  `).get(first.series_title);
+
+  if (!topic) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Serien-Thema nicht gefunden."
+    });
+    return;
+  }
+
+  const seasons = [
+    ...new Set(rows.map((r) => Number(r.season)).filter(Boolean))
+  ].sort((a, b) => a - b);
+
+  const separators = getSeasonSeparators(topic.topic_id);
+
+  for (const season of seasons) {
+    const seasonKey = String(season).padStart(2, "0");
+
+    delete separators[`card_${seasonKey}`];
+  }
+
+  saveSeasonSeparators(topic.topic_id, separators);
+
+  for (const season of seasons) {
+    await createSeasonCardIfMissing({
+      tmdb,
+      topicId: topic.topic_id,
+      season
+    });
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Staffelkarten neu erstellt:\n\n" +
+      `📺 ${tmdb.seriesTitle}\n` +
+      `📀 ${seasons.length} Staffel(n)`
+  });
+
+  return;
+}
+
   if (text === "/stats") {
     const movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
     const seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
