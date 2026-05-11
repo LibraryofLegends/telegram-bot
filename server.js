@@ -1867,7 +1867,7 @@ if (text === "/backup") {
   }
 
   try {
-    const fileStream = fs.createReadStream("library.db");
+    const fileStream = fs.createReadStream(DB_FILE_PATH);
 
     const FormData = require("form-data");
     const form = new FormData();
