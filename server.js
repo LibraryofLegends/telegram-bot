@@ -2008,20 +2008,43 @@ if (text.startsWith("/rebuildseasoncards")) {
     return;
   }
 
-  const rows = db.prepare(`
-    SELECT *
-    FROM series
-    WHERE LOWER(series_title) LIKE ?
-    ORDER BY season ASC, episode ASC
-  `).all(`%${query.toLowerCase()}%`);
+  const allRows = db.prepare(`
+  SELECT *
+  FROM series
+  ORDER BY series_title ASC, season ASC, episode ASC
+`).all();
+
+const queryKey = makeKey(query);
+
+const rows = allRows.filter((row) => {
+  const titleKey = makeKey(row.series_title || "");
+  return titleKey.includes(queryKey) || queryKey.includes(titleKey);
+});
 
   if (!rows.length) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: `❌ Keine Serie gefunden für:\n${query}`
-    });
-    return;
+  const names = db.prepare(`
+    SELECT series_title, COUNT(*) AS count
+    FROM series
+    GROUP BY series_title
+    ORDER BY series_title ASC
+    LIMIT 30
+  `).all();
+
+  let list = "";
+
+  for (const n of names) {
+    list += `• ${n.series_title} — ${n.count} Folge(n)\n`;
   }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      `❌ Keine Serie gefunden für:\n${query}\n\n` +
+      "📺 Gespeicherte Serien:\n\n" +
+      (list || "Keine Serien gespeichert.")
+  });
+  return;
+}
 
   const first = rows[0];
 
