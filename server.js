@@ -1376,27 +1376,30 @@ async function handleCommand(msg) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "🎛 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋\n\n" +
-      "🎬 FILME\n" +
-      "• /movies — Filme anzeigen\n" +
-      "• /az — Filme & Serien A–Z\n" +
-      "• /duplicates — Duplikate prüfen\n\n" +
-      "📺 SERIEN\n" +
-      "• /series — Serien anzeigen\n" +
-      "• /serieshub — Serien Dashboard\n" +
-      "• /seriesaz — Serien A–Z\n" +
-      "• /newseries — Neue Folgen\n" +
-      "• /trendingseries — Trending Serien\n" +
-      "• /featuredseries — Featured Serien\n" +
-      "• /missingseries titel — Fehlende Episoden\n" +
-      "• /setseries name — Serienname setzen\n" +
-      "• /clearseries — Serienname zurücksetzen\n\n" +
-      "📊 SYSTEM\n" +
-      "• /stats — Statistik\n" +
-      "• /search titel — Suche"
-      "🧹 /smartduplicates — Bessere Duplikatprüfung\n" +
-"🛠 /fixmovie alt | neu | jahr — Film korrigieren\n" +
-"🛠 /fixseries alt | neu — Serie korrigieren\n" +
+  "🎛 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋\n\n" +
+  "🎬 FILME\n" +
+  "• /movies — Filme anzeigen\n" +
+  "• /az — Filme & Serien A–Z\n" +
+  "• /duplicates — Duplikate prüfen\n" +
+  "• /smartduplicates — Bessere Duplikatprüfung\n" +
+  "• /fixmovie alt | neu | jahr — Film korrigieren\n\n" +
+
+  "📺 SERIEN\n" +
+  "• /series — Serien anzeigen\n" +
+  "• /serieshub — Serien Dashboard\n" +
+  "• /seriesaz — Serien A–Z\n" +
+  "• /newseries — Neue Folgen\n" +
+  "• /trendingseries — Trending Serien\n" +
+  "• /featuredseries — Featured Serien\n" +
+  "• /missingseries titel — Fehlende Episoden\n" +
+  "• /fixseries alt | neu — Serie korrigieren\n" +
+  "• /setseries name — Serienname setzen\n" +
+  "• /clearseries — Serienname zurücksetzen\n\n" +
+
+  "📊 SYSTEM\n" +
+  "• /stats — Statistik\n" +
+  "• /search titel — Suche\n" +
+  "• /backup — Datenbank sichern"
   });
 
   return;
