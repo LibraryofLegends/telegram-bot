@@ -1109,9 +1109,10 @@ function seasonCaption(tmdb, seasonData, season) {
   `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
   `📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
   `🎨 ${theme.name}\n` +
+`${progressText}\n` +
 
-  "━━━━━━━━━━━━━━━━━━\n" +
-    "🎬 SHOWRUNNER\n" +
+"━━━━━━━━━━━━━━━━━━\n" +
+"🎬 SHOWRUNNER\n" +
     `${showrunner}\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
