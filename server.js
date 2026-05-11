@@ -1289,93 +1289,81 @@ async function handleCallback(callback) {
   const data = callback.data;
   const chatId = callback.message.chat.id;
 
+  await tg("answerCallbackQuery", {
+    callback_query_id: callback.id
+  });
+
+  console.log("✅ Callback verarbeitet:", data);
+
   if (data === "panel_movies") {
-    await handleCommand({
-      chat: { id: chatId },
-      text: "/movies"
-    });
+    return await handleCommand({ chat: { id: chatId }, text: "/movies" });
   }
 
   if (data === "panel_series") {
-    await handleCommand({
-      chat: { id: chatId },
-      text: "/series"
-    });
+    return await handleCommand({ chat: { id: chatId }, text: "/series" });
   }
 
-  if (data === "panel_newseries") {
-    await handleCommand({
-      chat: { id: chatId },
-      text: "/newseries"
-    });
-  }
-
-  if (data === "panel_trending") {
-    await handleCommand({
-      chat: { id: chatId },
-      text: "/trendingseries"
-    });
-  }
-
-  if (data === "panel_featured") {
-    await handleCommand({
-      chat: { id: chatId },
-      text: "/featuredseries"
-    });
-  }
-
-  if (data === "panel_stats") {
-    await handleCommand({
-      chat: { id: chatId },
-      text: "/stats"
-    });
+  if (data === "panel_serieshub") {
+    return await handleCommand({ chat: { id: chatId }, text: "/serieshub" });
   }
 
   if (data === "panel_seriesaz") {
-    await handleCommand({
-      chat: { id: chatId },
-      text: "/seriesaz"
-    });
+    return await handleCommand({ chat: { id: chatId }, text: "/seriesaz" });
+  }
+
+  if (data === "panel_newseries") {
+    return await handleCommand({ chat: { id: chatId }, text: "/newseries" });
+  }
+
+  if (data === "panel_trending") {
+    return await handleCommand({ chat: { id: chatId }, text: "/trendingseries" });
+  }
+
+  if (data === "panel_featured") {
+    return await handleCommand({ chat: { id: chatId }, text: "/featuredseries" });
+  }
+
+  if (data === "panel_az") {
+    return await handleCommand({ chat: { id: chatId }, text: "/az" });
   }
 
   if (data === "panel_duplicates") {
-    await handleCommand({
-      chat: { id: chatId },
-      text: "/duplicates"
+    return await handleCommand({ chat: { id: chatId }, text: "/duplicates" });
+  }
+
+  if (data === "panel_stats") {
+    return await handleCommand({ chat: { id: chatId }, text: "/stats" });
+  }
+
+  if (data === "panel_missing_help") {
+    return await tg("sendMessage", {
+      chat_id: chatId,
+      text: "🧩 Nutzung:\n/missingseries Serienname\n\nBeispiel:\n/missingseries Game of Thrones"
     });
   }
-  
-  if (data === "panel_serieshub") {
-  await handleCommand({ chat: { id: chatId }, text: "/serieshub" });
-}
 
-if (data === "panel_az") {
-  await handleCommand({ chat: { id: chatId }, text: "/az" });
-}
+  if (data === "panel_search_help") {
+    return await tg("sendMessage", {
+      chat_id: chatId,
+      text: "🔎 Nutzung:\n/search titel\n\nBeispiel:\n/search Game of Thrones"
+    });
+  }
 
-if (data === "panel_missing_help") {
-  await tg("sendMessage", {
+  if (data === "panel_setseries_help") {
+    return await tg("sendMessage", {
+      chat_id: chatId,
+      text: "📌 Nutzung:\n/setseries Serienname\n\nBeispiel:\n/setseries Timon und Pumbaa"
+    });
+  }
+
+  if (data === "panel_clearseries") {
+    return await handleCommand({ chat: { id: chatId }, text: "/clearseries" });
+  }
+
+  return await tg("sendMessage", {
     chat_id: chatId,
-    text: "🧩 Nutzung:\n/missingseries Serienname\n\nBeispiel:\n/missingseries Game of Thrones"
+    text: "⚠️ Button noch nicht verbunden."
   });
-}
-
-if (data === "panel_search_help") {
-  await tg("sendMessage", {
-    chat_id: chatId,
-    text: "🔎 Nutzung:\n/search titel\n\nBeispiel:\n/search Game of Thrones"
-  });
-}
-
-if (data === "panel_setseries_help") {
-  await tg("sendMessage", {
-    chat_id: chatId,
-    text: "📌 Nutzung:\n/setseries Serienname\n\nBeispiel:\n/setseries Timon und Pumbaa"
-  });
-}
-
-if (data === "panel_clearseries") {
-  await handleCommand({ chat: { id: chatId }, text: "/clearseries" });
 }
 
   await tg("answerCallbackQuery", {
