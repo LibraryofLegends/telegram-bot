@@ -1100,11 +1100,11 @@ function seasonCaption(tmdb, seasonData, season) {
   `            ${theme.emoji} STAFFEL ${seasonKey}\n` +
   "╚══════════════════╝\n\n" +
 
-    `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
-    ``📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-      🎨 ${theme.name}\n` +
+  `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
+  `📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+  `🎨 ${theme.name}\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+  "━━━━━━━━━━━━━━━━━━\n" +
     "🎬 SHOWRUNNER\n" +
     `${showrunner}\n` +
 
