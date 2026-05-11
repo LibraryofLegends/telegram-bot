@@ -1905,19 +1905,25 @@ if (text.startsWith("/missingseries")) {
     chat_id: msg.chat.id,
     text:
       "🎛 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋\n\n" +
-      "🎬 /movies — Filme anzeigen\n" +
-      "📺 /series — Serien anzeigen\n" +
-      "📺 /serieshub — Serien Dashboard\n" +
-      "🧩 /missingseries titel — Fehlende Episoden\n" +
-      "🔎 /search titel — Suche\n" +
-      "🔤 /az — A–Z Liste\n" +
-      "🆕 /newseries — Neue Folgen\n" +
-      "🔥 /trendingseries — Trending Serien\n" +
-      "⭐ /featuredseries — Featured Serien\n" +
-      "🔤 /seriesaz — Serien A–Z\n" +
-      "🔥 /featuredseries — Featured Serien\n" +
-      "🧹 /duplicates — Duplikate prüfen\n" +
-      "📊 /stats — Statistik\n"
+      "🎬 FILME\n" +
+      "• /movies — Filme anzeigen\n" +
+      "• /az — Filme & Serien A–Z\n" +
+      "• /duplicates — Duplikate prüfen\n\n" +
+
+      "📺 SERIEN\n" +
+      "• /series — Serien anzeigen\n" +
+      "• /serieshub — Serien Dashboard\n" +
+      "• /seriesaz — Serien A–Z\n" +
+      "• /newseries — Neue Folgen\n" +
+      "• /trendingseries — Trending Serien\n" +
+      "• /featuredseries — Featured Serien\n" +
+      "• /missingseries titel — Fehlende Episoden\n" +
+      "• /setseries name — Serienname setzen\n" +
+      "• /clearseries — Serienname zurücksetzen\n\n" +
+
+      "📊 SYSTEM\n" +
+      "• /stats — Statistik\n" +
+      "• /search titel — Suche\n"
   });
 
   return;
