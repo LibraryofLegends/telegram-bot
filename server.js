@@ -2054,11 +2054,6 @@ const copied = await copyOriginalMedia({
   console.error("⚠️ Hub Update Fehler:", err.message);
 }
 
-await createSeasonSeparatorIfMissing({
-  topicId,
-  season: media.season
-});
-
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
