@@ -2185,20 +2185,33 @@ const rows = allRows.filter((row) => {
 
   saveSeasonSeparators(topic.topic_id, separators);
 
-  for (const season of seasons) {
-    await createSeasonCardIfMissing({
-      tmdb,
-      topicId: topic.topic_id,
-      season
-    });
+  let createdCount = 0;
+let failedSeasons = [];
+
+for (const season of seasons) {
+  const result = await createSeasonCardIfMissing({
+    tmdb,
+    topicId: topic.topic_id,
+    season
+  });
+
+  if (result) {
+    createdCount++;
+  } else {
+    failedSeasons.push(`S${String(season).padStart(2, "0")}`);
   }
+
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+}
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "✅ Staffelkarten neu erstellt:\n\n" +
-      `📺 ${tmdb.seriesTitle}\n` +
-      `📀 ${seasons.length} Staffel(n)`
+      "✅ Staffelkarten Vorgang beendet:\n\n" +
+`📺 ${tmdb.seriesTitle}\n` +
+`📀 Gefunden: ${seasons.length} Staffel(n)\n` +
+`✅ Erstellt: ${createdCount}\n` +
+(failedSeasons.length ? `⚠️ Fehler: ${failedSeasons.join(", ")}` : "🏆 Alle Staffelkarten erstellt")
   });
 
   return;
