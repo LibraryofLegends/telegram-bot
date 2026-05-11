@@ -1077,6 +1077,12 @@ function seasonCaption(tmdb, seasonData, season) {
   const episodeCount =
     seasonData?.episodes?.length ||
     "?";
+    
+    const progressText = buildSeasonProgress(
+  tmdb.seriesTitle,
+  season,
+  seasonData?.episodes?.length || 0
+);
 
   const overview =
     seasonData?.overview ||
@@ -1200,6 +1206,48 @@ function buildEpisodeIndex(seriesTitle) {
   }
 
   return result.trim();
+}
+
+function buildSeasonProgress(seriesTitle, season, totalEpisodes = 0) {
+  const rows = db.prepare(`
+    SELECT episode
+    FROM series
+    WHERE series_title = ?
+    AND season = ?
+    ORDER BY episode ASC
+  `).all(seriesTitle, season);
+
+  const existingEpisodes = [
+    ...new Set(rows.map((r) => Number(r.episode || 0)).filter(Boolean))
+  ].sort((a, b) => a - b);
+
+  const total = Number(totalEpisodes || 0) || Math.max(...existingEpisodes, 0);
+
+  if (!existingEpisodes.length) {
+    return `✅ Verfügbar: 0/${total || "?"} Episoden`;
+  }
+
+  const missing = [];
+
+  if (total) {
+    for (let ep = 1; ep <= total; ep++) {
+      if (!existingEpisodes.includes(ep)) {
+        missing.push(ep);
+      }
+    }
+  }
+
+  let result = `✅ Verfügbar: ${existingEpisodes.length}/${total || "?"} Episoden`;
+
+  if (missing.length) {
+    result += `\n⚠️ Fehlend: ${missing
+      .map((ep) => `E${String(ep).padStart(2, "0")}`)
+      .join(", ")}`;
+  } else if (total) {
+    result += "\n🏆 Staffel vollständig";
+  }
+
+  return result;
 }
 
 function getSeriesHubTopic(topicId) {
