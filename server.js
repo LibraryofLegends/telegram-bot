@@ -1151,30 +1151,39 @@ async function copyOriginalMedia({
   topicId,
   caption = "",
   fileId = "",
-  isVideo = false
+  isVideo = false,
+  adminChatId = ""
 }) {
   const safeCaption = String(caption || "").slice(0, 900);
 
-  let result = await tg("copyMessage", {
+  const baseData = {
     chat_id: targetChatId,
     from_chat_id: fromChatId,
     message_id: messageId,
-    message_thread_id: topicId,
-    caption: safeCaption
-  });
+    message_thread_id: topicId
+  };
+
+  if (safeCaption) {
+    baseData.caption = safeCaption;
+  }
+
+  let result = await tg("copyMessage", baseData);
 
   if (result?.message_id) {
     console.log("COPY OK:", result.message_id);
     return result;
   }
 
-  console.log("⚠️ copyMessage fehlgeschlagen — versuche file_id Fallback");
+  console.log("⚠️ copyMessage fehlgeschlagen:", JSON.stringify(result, null, 2));
 
   if (fileId) {
-    result = await tg(isVideo ? "sendVideo" : "sendDocument", {
+    const sendMethod = isVideo ? "sendVideo" : "sendDocument";
+    const mediaField = isVideo ? "video" : "document";
+
+    result = await tg(sendMethod, {
       chat_id: targetChatId,
       message_thread_id: topicId,
-      [isVideo ? "video" : "document"]: fileId,
+      [mediaField]: fileId,
       caption: safeCaption
     });
 
@@ -1182,9 +1191,20 @@ async function copyOriginalMedia({
       console.log("FILE_ID SEND OK:", result.message_id);
       return result;
     }
+
+    console.log("⚠️ file_id Fallback fehlgeschlagen:", JSON.stringify(result, null, 2));
   }
 
-  console.log("COPY/SEND RESULT:", JSON.stringify(result, null, 2));
+  if (adminChatId) {
+    await tg("sendMessage", {
+      chat_id: adminChatId,
+      text:
+        "❌ Datei konnte nicht kopiert/gesendet werden.\n\n" +
+        `Methode: ${result?.method || "unbekannt"}\n` +
+        `Fehler: ${JSON.stringify(result?.error || result || "unbekannt").slice(0, 1000)}`
+    });
+  }
+
   return result;
 }
 
@@ -2690,7 +2710,8 @@ const copied = await copyOriginalMedia({
   topicId,
   caption: captionText,
   fileId,
-  isVideo: !!msg.video
+  isVideo: !!msg.video,
+  adminChatId: msg.chat.id
 });
 
     if (!copied?.message_id) {
