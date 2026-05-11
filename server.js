@@ -753,7 +753,7 @@ function movieCaption(tmdb, extras = {}) {
     `👥 ${tmdb.cast}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "📖 STORY\n" +
-    `${tmdb.overview || "Keine Beschreibung verfügbar."}\n` +
+    `${String(tmdb.overview || "Keine Beschreibung verfügbar.").slice(0, 600)}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     `🏷 ${extras.libraryId}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
