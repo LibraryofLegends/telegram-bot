@@ -832,6 +832,8 @@ function seriesHubCaption(tmdb) {
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
+  const episodeIndex = buildEpisodeIndex(tmdb.seriesTitle);
+
   return (
     "━━━━━━━━━━━━━━━━━━\n" +
     `📺 ${tmdb.seriesTitle.toUpperCase()}\n` +
@@ -840,12 +842,42 @@ function seriesHubCaption(tmdb) {
     `⭐ ${tmdb.rating || "Unbekannt"}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "🧭 STAFFELHUB\n\n" +
-    "📀 Staffel 01\n" +
-    "├ Episoden werden automatisch ergänzt\n" +
+    episodeIndex + "\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `#${tmdb.seriesTitle.replace(/\s+/g, "")} ${tags}\n` +
     "@LibraryOfLegends"
   );
+}
+
+function buildEpisodeIndex(seriesTitle) {
+  const episodes = db.prepare(`
+    SELECT season, episode, episode_title
+    FROM series
+    WHERE series_title = ?
+    ORDER BY season ASC, episode ASC
+  `).all(seriesTitle);
+
+  if (!episodes.length) {
+    return "📀 Staffel 01\n└ Episoden werden automatisch ergänzt";
+  }
+
+  let result = "";
+  let currentSeason = null;
+
+  for (const ep of episodes) {
+    if (ep.season !== currentSeason) {
+      currentSeason = ep.season;
+      if (result) result += "\n";
+      result += `📀 Staffel ${String(ep.season).padStart(2, "0")}\n`;
+    }
+
+    const epCode =
+      `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
+
+    result += `├ ${epCode}${ep.episode_title ? ` • ${ep.episode_title}` : ""}\n`;
+  }
+
+  return result.trim();
 }
 
 function getSeriesHubTopic(topicId) {
