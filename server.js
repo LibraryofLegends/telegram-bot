@@ -1389,6 +1389,7 @@ async function handleCommand(msg) {
   "• /serieshub — Serien Dashboard\n" +
   "• /seriesaz — Serien A–Z\n" +
   "• /newseries — Neue Folgen\n" +
+  "• /progress serienname — Serien-Fortschritt\n" +
   "• /trendingseries — Trending Serien\n" +
   "• /featuredseries — Featured Serien\n" +
   "• /missingseries titel — Fehlende Episoden\n" +
@@ -1399,6 +1400,7 @@ async function handleCommand(msg) {
   "📊 SYSTEM\n" +
   "• /stats — Statistik\n" +
   "• /search titel — Suche\n" +
+  "• /qualitystats — Qualitäts-Statistik\n" +
   "• /backup — Datenbank sichern"
   });
 
@@ -1591,6 +1593,111 @@ if (text.startsWith("/deleteseries")) {
     text:
       "🗑 Episode gelöscht:\n\n" +
       `📺 ${row.series_title} S${String(row.season).padStart(2, "0")}E${String(row.episode).padStart(2, "0")}`
+  });
+
+  return;
+}
+
+if (text === "/qualitystats") {
+  const movies = db.prepare(`
+    SELECT quality, COUNT(*) AS count
+    FROM movies
+    GROUP BY quality
+    ORDER BY count DESC
+  `).all();
+
+  if (!movies.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "📊 Noch keine Qualitätsdaten gespeichert."
+    });
+    return;
+  }
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📊 QUALITÄTS-STATISTIK\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  for (const row of movies) {
+    result += `• ${row.quality || "Unbekannt"}: ${row.count}\n`;
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result
+  });
+
+  return;
+}
+
+if (text.startsWith("/progress")) {
+  const query = text.replace("/progress", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "⚠️ Nutzung:\n/progress Serienname\n\nBeispiel:\n/progress Game of Thrones"
+    });
+    return;
+  }
+
+  const rows = db.prepare(`
+    SELECT series_title, season, episode
+    FROM series
+    WHERE LOWER(series_title) LIKE ?
+    ORDER BY season ASC, episode ASC
+  `).all(`%${query.toLowerCase()}%`);
+
+  if (!rows.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: `❌ Keine Serie gefunden für:\n${query}`
+    });
+    return;
+  }
+
+  const seriesTitle = rows[0].series_title;
+  const seasons = {};
+
+  for (const row of rows) {
+    const season = Number(row.season || 0);
+    if (!seasons[season]) seasons[season] = [];
+    seasons[season].push(Number(row.episode || 0));
+  }
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📈 SERIEN-FORTSCHRITT\n" +
+    `📺 ${seriesTitle}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  for (const season of Object.keys(seasons).map(Number).sort((a, b) => a - b)) {
+    const episodes = [...new Set(seasons[season])].sort((a, b) => a - b);
+    const maxEpisode = Math.max(...episodes);
+
+    result += `📀 Staffel ${String(season).padStart(2, "0")}\n`;
+    result += `✅ Vorhanden: ${episodes.length}/${maxEpisode}\n`;
+
+    const missing = [];
+    for (let ep = 1; ep <= maxEpisode; ep++) {
+      if (!episodes.includes(ep)) missing.push(ep);
+    }
+
+    if (missing.length) {
+      result += `⚠️ Fehlend: ${missing.map((ep) => `E${String(ep).padStart(2, "0")}`).join(", ")}\n`;
+    } else {
+      result += "✅ Keine Lücken erkannt\n";
+    }
+
+    result += "\n";
+  }
+
+  result += "━━━━━━━━━━━━━━━━━━\n@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result.slice(0, 4000)
   });
 
   return;
