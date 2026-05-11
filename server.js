@@ -1097,7 +1097,7 @@ function seasonCaption(tmdb, seasonData, season) {
   return (
     "╔══════════════════╗\n" +
     `        📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-                ${theme.emoji} STAFFEL ${seasonKey}\n` +
+                 ${theme.emoji} STAFFEL ${seasonKey}\n` +
     "╚══════════════════╝\n\n" +
 
     `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
