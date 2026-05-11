@@ -114,6 +114,7 @@ addColumnIfMissing("movies", "audio_codec", "TEXT");
 addColumnIfMissing("movies", "audio_channels", "TEXT");
 addColumnIfMissing("movies", "hdr", "TEXT");
 addColumnIfMissing("topics", "hub_message_id", "INTEGER");
+addColumnIfMissing("topics", "season_separators", "TEXT DEFAULT '{}'");
 
 console.log("✅ Datenbank bereit");
 
@@ -923,6 +924,49 @@ async function createSeriesHubIfMissing({ tmdb, topicId }) {
       tmdb.posterUrl ||
       "https://via.placeholder.com/500x750.png?text=No+Cover"
   });
+  
+  function getSeasonSeparators(topicId) {
+  const topic = getSeriesHubTopic(topicId);
+  try {
+    return JSON.parse(topic?.season_separators || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveSeasonSeparators(topicId, separators) {
+  db.prepare(`
+    UPDATE topics
+    SET season_separators = ?
+    WHERE topic_id = ?
+  `).run(JSON.stringify(separators), topicId);
+}
+
+async function createSeasonSeparatorIfMissing({ topicId, season }) {
+  const separators = getSeasonSeparators(topicId);
+  const seasonKey = String(season).padStart(2, "0");
+
+  if (separators[seasonKey]) {
+    return separators[seasonKey];
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: SERIES_GROUP_ID,
+    message_thread_id: topicId,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      `📀 STAFFEL ${seasonKey}\n` +
+      "━━━━━━━━━━━━━━━━━━"
+  });
+
+  if (msg?.message_id) {
+    separators[seasonKey] = msg.message_id;
+    saveSeasonSeparators(topicId, separators);
+    return msg.message_id;
+  }
+
+  return null;
+}
 
   const hub = await tg("sendMessage", {
     chat_id: SERIES_GROUP_ID,
@@ -1737,6 +1781,11 @@ const copied = await copyOriginalMedia({
     await updateSeriesHub({
   tmdb,
   topicId
+});
+
+await createSeasonSeparatorIfMissing({
+  topicId,
+  season: media.season
 });
 
     await tg("sendMessage", {
