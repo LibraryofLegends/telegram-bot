@@ -214,9 +214,10 @@ function saveSeries(data) {
       series_title, season, episode, episode_title,
       genre, rating, overview, poster_url,
       file_name, file_id, unique_key,
-      telegram_message_id, topic_id
+      telegram_message_id, topic_id,
+      series_library_id
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.seriesTitle,
     data.season,
@@ -230,7 +231,8 @@ function saveSeries(data) {
     data.fileId,
     data.uniqueKey,
     data.telegramMessageId,
-    data.topicId
+    data.topicId,
+    data.seriesLibraryId
   );
 }
 
@@ -2037,20 +2039,21 @@ const copied = await copyOriginalMedia({
     }
 
     saveSeries({
-      seriesTitle: tmdb.seriesTitle,
-      season: media.season,
-      episode: media.episode,
-      episodeTitle: tmdb.episodeTitle || media.episodeTitleFromFile || "",
-      genre: tmdb.genre,
-      rating: tmdb.rating,
-      overview: tmdb.overview,
-      posterUrl: tmdb.posterUrl,
-      fileName,
-      fileId,
-      uniqueKey: media.uniqueKey,
-      telegramMessageId: copied.message_id,
-      topicId
-    });
+  seriesTitle: tmdb.seriesTitle,
+  season: media.season,
+  episode: media.episode,
+  episodeTitle: tmdb.episodeTitle || media.episodeTitleFromFile || "",
+  genre: tmdb.genre,
+  rating: tmdb.rating,
+  overview: tmdb.overview,
+  posterUrl: tmdb.posterUrl,
+  fileName,
+  fileId,
+  uniqueKey: media.uniqueKey,
+  telegramMessageId: copied.message_id,
+  topicId,
+  seriesLibraryId: extras.seriesLibraryId
+});
     
     try {
   await updateSeriesHub({
