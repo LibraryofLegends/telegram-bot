@@ -1227,7 +1227,6 @@ app.post(`/webhook/${TOKEN}`, async (req, res) => {
     const update = req.body;
 
     console.log("📩 Incoming Update");
-    console.log("UPDATE RAW:", JSON.stringify(update, null, 2));
 
     await handleUpdate(update);
 
@@ -1374,8 +1373,29 @@ async function handleCommand(msg) {
   const text = msg.text || "";
 
   if (text === "/start") {
-  console.log("✅ START PANEL WIRD GESENDET");
-  await sendAdminPanel(msg.chat.id);
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "🎛 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋\n\n" +
+      "🎬 FILME\n" +
+      "• /movies — Filme anzeigen\n" +
+      "• /az — Filme & Serien A–Z\n" +
+      "• /duplicates — Duplikate prüfen\n\n" +
+      "📺 SERIEN\n" +
+      "• /series — Serien anzeigen\n" +
+      "• /serieshub — Serien Dashboard\n" +
+      "• /seriesaz — Serien A–Z\n" +
+      "• /newseries — Neue Folgen\n" +
+      "• /trendingseries — Trending Serien\n" +
+      "• /featuredseries — Featured Serien\n" +
+      "• /missingseries titel — Fehlende Episoden\n" +
+      "• /setseries name — Serienname setzen\n" +
+      "• /clearseries — Serienname zurücksetzen\n\n" +
+      "📊 SYSTEM\n" +
+      "• /stats — Statistik\n" +
+      "• /search titel — Suche"
+  });
+
   return;
 }
 
@@ -2038,7 +2058,6 @@ async function sendAdminPanel(chatId) {
     }
   });
 
-  console.log("PANEL RESULT:", JSON.stringify(panelResult, null, 2));
   return panelResult;
 }
 
