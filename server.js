@@ -1836,7 +1836,7 @@ const copied = await copyOriginalMedia({
   messageId: msg.message_id,
   targetChatId: SERIES_GROUP_ID,
   topicId,
-  caption: seriesCaption(tmdb, media, extras)
+  caption: ""
 });
 
     if (!copied?.message_id) {
