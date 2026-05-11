@@ -1023,12 +1023,34 @@ async function copyOriginalMedia({ fromChatId, messageId, targetChatId, topicId,
   };
 
   if (caption) {
-    data.caption = caption;
+    data.caption = String(caption).slice(0, 1000);
   }
 
-  const result = await tg("copyMessage", data);
-console.log("COPY RESULT:", JSON.stringify(result, null, 2));
-return result;
+  let result = await tg("copyMessage", data);
+
+  if (result?.__error && caption) {
+    console.log("⚠️ Copy mit Caption fehlgeschlagen — versuche ohne Caption");
+
+    const fallbackData = {
+      chat_id: targetChatId,
+      from_chat_id: fromChatId,
+      message_id: messageId,
+      message_thread_id: topicId
+    };
+
+    result = await tg("copyMessage", fallbackData);
+
+    if (result?.message_id) {
+      await tg("sendMessage", {
+        chat_id: targetChatId,
+        message_thread_id: topicId,
+        text: String(caption).slice(0, 4000)
+      });
+    }
+  }
+
+  console.log("COPY RESULT:", JSON.stringify(result, null, 2));
+  return result;
 }
 
 // =============================
