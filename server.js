@@ -1383,29 +1383,10 @@ function saveSeasonSeparators(topicId, separators) {
   `).run(JSON.stringify(separators), topicId);
 }
 
-  const seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
-
-  const seasonPoster =
-    posterUrl(seasonData?.poster_path) ||
-    tmdb.seriesPosterUrl ||
-    tmdb.posterUrl ||
-    "https://via.placeholder.com/500x750.png?text=No+Cover";
-
-  const msg = await tg("sendPhoto", {
-    chat_id: SERIES_GROUP_ID,
-    message_thread_id: topicId,
-    photo: seasonPoster,
-    caption: seasonCaption(tmdb, seasonData, season)
-  });
-
-  if (msg?.message_id) {
-    separators[seasonKey] = msg.message_id;
-    saveSeasonSeparators(topicId, separators);
-    return msg.message_id;
-  }
-
-  return null;
-}
+// =============================
+// COPY MEDIA TO TARGET GROUP
+// =============================
+async function copyOriginalMedia({
 
 // =============================
 // COPY MEDIA TO TARGET GROUP
