@@ -977,11 +977,13 @@ function movieCaption(tmdb, extras = {}) {
 }
 
 function seriesCaption(tmdb, media, extras = {}) {
-  const genreText = String(tmdb.genre || "Sonstige")
-    .split("/")
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .join(" • ");
+  const finalEpisodeTitle = tmdb.episodeTitle || media.episodeTitleFromFile || "";
+  const episodeTitle = finalEpisodeTitle ? ` • ${finalEpisodeTitle}` : "";
+
+  const overview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 320);
 
   const genreTags = String(tmdb.genre || "")
     .split("/")
@@ -991,46 +993,29 @@ function seriesCaption(tmdb, media, extras = {}) {
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
-  const finalEpisodeTitle = tmdb.episodeTitle || media.episodeTitleFromFile || "";
-
-  const episodeTitle = finalEpisodeTitle
-    ? ` • ${finalEpisodeTitle}`
-    : "";
-
-  const mediaLines = [];
-
-  mediaLines.push(`🔥 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}`);
-  mediaLines.push(`🎭 ${genreText}`);
-
-  if (extras.resolution && extras.resolution !== "Unbekannt") {
-    mediaLines.push(`🎞 ${extras.resolution}`);
-  }
-
-  if (extras.source && extras.source !== "Unbekannt") {
-    mediaLines.push(`💿 ${extras.source}`);
-  }
-
-  if (extras.audio && extras.audio !== "Unbekannt") {
-    mediaLines.push(`🎧 ${extras.audio}`);
-  }
-
   return (
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `📺 ${tmdb.seriesTitle.toUpperCase()}\n` +
-    `🎞 S${media.seasonText}E${media.episodeText}${episodeTitle}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    mediaLines.join("\n") + "\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
+    "╔══════════════════╗\n" +
+    `        📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
+    `          S${media.seasonText}E${media.episodeText}\n` +
+    "╚══════════════════╝\n\n" +
+
+    `🎞 ${finalEpisodeTitle || "Episode"}\n` +
     `⭐ ${tmdb.rating || "Unbekannt"}\n` +
+    `🔥 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}\n` +
+    (extras.resolution && extras.resolution !== "Unbekannt" ? `🎬 ${extras.resolution}\n` : "") +
+    (extras.audio && extras.audio !== "Unbekannt" ? `🎧 ${extras.audio}\n` : "") +
+
     "━━━━━━━━━━━━━━━━━━\n" +
-    "📖 STORY\n" +
-    `${String(tmdb.overview || "Keine Beschreibung verfügbar.").slice(0, 500)}\n` +
+    "📖 EPISODEN-STORY\n\n" +
+    `${overview}\n` +
+
     "━━━━━━━━━━━━━━━━━━\n" +
     `🏷 ${extras.seriesLibraryId || ""}\n` +
+
     "━━━━━━━━━━━━━━━━━━\n" +
-    `#${tmdb.seriesTitle.replace(/\s+/g, "")} ${genreTags}\n` +
+    `#${String(tmdb.seriesTitle || "").replace(/\s+/g, "")} ${genreTags}\n` +
     "@LibraryOfLegends"
-  );
+  ).slice(0, 950);
 }
 
 function formatSeasonGenres(genre = "") {
