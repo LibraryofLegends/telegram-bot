@@ -1355,7 +1355,7 @@ async function createSeasonCardIfMissing({
   const card = await tg("sendMessage", {
     chat_id: SERIES_GROUP_ID,
     message_thread_id: topicId,
-    text: seasonCaption(tmdb, season)
+    text: seasonCaption(tmdb, seasonData, season)
   });
 
   if (card?.message_id) {
