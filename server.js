@@ -1241,15 +1241,25 @@ app.post(`/webhook/${TOKEN}`, async (req, res) => {
 // UPDATE HANDLER
 // =============================
 async function handleUpdate(update) {
-  const msg = update.message || update.edited_message;
-  if (!msg) return;
-  
   const callback = update.callback_query;
 
-if (callback) {
-  await handleCallback(callback);
-  return;
-}
+  if (callback) {
+    const userId = String(callback.from?.id || "");
+
+    console.log("🔘 Button gedrückt:", callback.data);
+    console.log("USER ID:", userId);
+
+    if (userId !== ADMIN_ID) {
+      console.log("⛔ Button ignored - nicht Admin");
+      return;
+    }
+
+    await handleCallback(callback);
+    return;
+  }
+
+  const msg = update.message || update.edited_message;
+  if (!msg) return;
 
   const userId = String(msg.from?.id || "");
 
