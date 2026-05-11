@@ -1446,6 +1446,150 @@ if (text === "/clearseries") {
   return;
 }
 
+if (text === "/backup") {
+  try {
+    await tg("sendDocument", {
+      chat_id: msg.chat.id,
+      document: "attach://file"
+    });
+
+    const formData = new FormData();
+  } catch (err) {
+    console.error("❌ Backup Fehler:", err.message);
+  }
+
+  try {
+    const fileStream = fs.createReadStream("library.db");
+
+    const FormData = require("form-data");
+    const form = new FormData();
+
+    form.append("chat_id", msg.chat.id);
+    form.append("document", fileStream, "library.db");
+
+    await axios.post(
+      `${BASE_URL}/sendDocument`,
+      form,
+      {
+        headers: form.getHeaders()
+      }
+    );
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "✅ Backup erfolgreich gesendet."
+    });
+
+  } catch (err) {
+    console.error("❌ Backup Fehler:", err.message);
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Backup fehlgeschlagen."
+    });
+  }
+
+  return;
+}
+
+if (text.startsWith("/deletemovie")) {
+  const query = text.replace("/deletemovie", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "⚠️ Nutzung:\n/deletemovie Filmname"
+    });
+    return;
+  }
+
+  const movie = db.prepare(`
+    SELECT * FROM movies
+    WHERE LOWER(title) LIKE ?
+    LIMIT 1
+  `).get(`%${query.toLowerCase()}%`);
+
+  if (!movie) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Film nicht gefunden."
+    });
+    return;
+  }
+
+  db.prepare(`
+    DELETE FROM movies
+    WHERE id = ?
+  `).run(movie.id);
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "🗑 Film gelöscht:\n\n" +
+      `🎬 ${movie.title} ${movie.year || ""}`
+  });
+
+  return;
+}
+
+if (text.startsWith("/deleteseries")) {
+  const query = text.replace("/deleteseries", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n" +
+        "/deleteseries Tulsa King S01E01"
+    });
+    return;
+  }
+
+  const match = query.match(/(.+)\s+s(\d{1,2})e(\d{1,2})/i);
+
+  if (!match) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Format falsch.\nBeispiel:\n/deleteseries Tulsa King S01E01"
+    });
+    return;
+  }
+
+  const title = match[1].trim();
+  const season = Number(match[2]);
+  const episode = Number(match[3]);
+
+  const row = db.prepare(`
+    SELECT * FROM series
+    WHERE LOWER(series_title) = ?
+    AND season = ?
+    AND episode = ?
+    LIMIT 1
+  `).get(title.toLowerCase(), season, episode);
+
+  if (!row) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Episode nicht gefunden."
+    });
+    return;
+  }
+
+  db.prepare(`
+    DELETE FROM series
+    WHERE id = ?
+  `).run(row.id);
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "🗑 Episode gelöscht:\n\n" +
+      `📺 ${row.series_title} S${String(row.season).padStart(2, "0")}E${String(row.episode).padStart(2, "0")}`
+  });
+
+  return;
+}
+
   if (text === "/stats") {
     const movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
     const seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
