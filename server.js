@@ -1999,7 +1999,7 @@ if (text.startsWith("/missingseries")) {
 }
 
 async function sendAdminPanel(chatId) {
-  return await tg("sendMessage", {
+  const panelResult = await tg("sendMessage", {
     chat_id: chatId,
     text:
       "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐂𝐎𝐍𝐓𝐑𝐎𝐋 𝐏𝐀𝐍𝐄𝐋\n\n" +
@@ -2038,6 +2038,9 @@ async function sendAdminPanel(chatId) {
     }
   });
 }
+
+console.log("PANEL RESULT:", JSON.stringify(panelResult, null, 2));
+return panelResult;
 
 // =============================
 // UPLOAD HANDLER
