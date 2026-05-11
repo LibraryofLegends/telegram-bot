@@ -846,9 +846,9 @@ function seriesCaption(tmdb, media, extras = {}) {
 
   const finalEpisodeTitle = tmdb.episodeTitle || media.episodeTitleFromFile || "";
 
-const episodeTitle = finalEpisodeTitle
-  ? ` • ${finalEpisodeTitle}`
-  : "";
+  const episodeTitle = finalEpisodeTitle
+    ? ` • ${finalEpisodeTitle}`
+    : "";
 
   const mediaLines = [];
 
@@ -877,7 +877,7 @@ const episodeTitle = finalEpisodeTitle
     `⭐ ${tmdb.rating || "Unbekannt"}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "📖 STORY\n" +
-    `${String(tmdb.overview || "Keine Beschreibung verfügbar.").slice(0, 600)}\n` +
+    `${String(tmdb.overview || "Keine Beschreibung verfügbar.").slice(0, 500)}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     `🏷 ${extras.seriesLibraryId || ""}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
