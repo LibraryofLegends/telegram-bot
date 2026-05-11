@@ -300,15 +300,21 @@ if (!titleClean && CURRENT_SERIES_NAME) {
 }
 titleClean = titleClean.replace(/\b(19\d{2}|20\d{2})\b/g, "").replace(/\s+/g, " ").trim();
 
-    return {
-      isSeries: true,
-      seriesTitle: normalizeTitle(titleClean),
-      season,
-      episode,
-      seasonText: String(season).padStart(2, "0"),
-      episodeText: String(episode).padStart(2, "0")
-    };
-  }
+    const afterCode = normalized.slice(match.index + match[0].length);
+const episodeTitleFromFile = cleanFileName(afterCode)
+  .replace(/^\s*[-–—]\s*/g, "")
+  .replace(/\s+/g, " ")
+  .trim();
+
+return {
+  isSeries: true,
+  seriesTitle: normalizeTitle(titleClean),
+  season,
+  episode,
+  seasonText: String(season).padStart(2, "0"),
+  episodeText: String(episode).padStart(2, "0"),
+  episodeTitleFromFile
+};
 
   return { isSeries: false };
 }
