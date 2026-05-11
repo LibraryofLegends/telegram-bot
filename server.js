@@ -275,11 +275,16 @@ function extractYear(text = "") {
 
 function detectSeries(fileName = "") {
   const raw = String(fileName);
-  const normalized = raw.replace(/[._-]+/g, " ");
+  const normalized = raw
+    .replace(/@[\w\d_]+/gi, "")
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+    .replace(/[._]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
   const patterns = [
     /\bS\s?(\d{1,2})\s?E\s?(\d{1,3})\b/i,
-    /\bS\s?(\d{1,2})\s*[-_. ]\s?E\s?(\d{1,3})\b/i,
+    /\bS\s?(\d{1,2})\s*[- ]\s?E\s?(\d{1,3})\b/i,
     /\b(\d{1,2})x(\d{1,3})\b/i,
     /\bStaffel\s*(\d{1,2})\s*Folge\s*(\d{1,3})\b/i,
     /\bSeason\s*(\d{1,2})\s*Episode\s*(\d{1,3})\b/i
@@ -292,55 +297,48 @@ function detectSeries(fileName = "") {
     const season = parseInt(match[1], 10);
     const episode = parseInt(match[2], 10);
 
-    const beforeCode = normalized.slice(0, match.index);
-    const afterCode = normalized.slice(match.index + match[0].length);
+    const beforeCode = normalized.slice(0, match.index).trim();
+    const afterCode = normalized.slice(match.index + match[0].length).trim();
 
     let titleClean = cleanFileName(beforeCode);
+    let episodeTitleFromFile = "";
 
-    const afterClean = cleanFileName(afterCode);
-    const afterParts = afterClean.split(/\s+/).filter(Boolean);
+    // Fall 1:
+    // Game of Thrones S01E09 Baelor
+    if (titleClean) {
+      episodeTitleFromFile = cleanFileName(afterCode);
+    }
 
-    if (!titleClean && afterParts.length >= 2) {
-      const titleWords = [];
-      const episodeWords = [];
+    // Fall 2:
+    // S01E09 Game of Thrones - Baelor
+    if (!titleClean && afterCode) {
+      const parts = afterCode.split(/\s+-\s+/);
 
-      for (const word of afterParts) {
-        if (episodeWords.length > 0) {
-          episodeWords.push(word);
-          continue;
-        }
+      if (parts.length >= 2) {
+        titleClean = cleanFileName(parts[0]);
+        episodeTitleFromFile = cleanFileName(parts.slice(1).join(" - "));
+      } else {
+        const words = cleanFileName(afterCode).split(/\s+/).filter(Boolean);
 
-        titleWords.push(word);
-
-        if (titleWords.length >= 3) {
-          episodeWords.push(...afterParts.slice(titleWords.length));
-          break;
+        if (words.length >= 3) {
+          titleClean = words.slice(0, 3).join(" ");
+          episodeTitleFromFile = words.slice(3).join(" ");
+        } else {
+          titleClean = cleanFileName(afterCode);
         }
       }
-
-      titleClean = titleWords.join(" ");
     }
 
     if (!titleClean && CURRENT_SERIES_NAME) {
       titleClean = CURRENT_SERIES_NAME;
     }
 
-    titleClean = titleClean
+    titleClean = String(titleClean || "")
       .replace(/\b(19\d{2}|20\d{2})\b/g, "")
       .replace(/\s+/g, " ")
       .trim();
 
-    let episodeTitleFromFile = "";
-
-    if (afterClean) {
-      if (afterClean.toLowerCase().startsWith(titleClean.toLowerCase())) {
-        episodeTitleFromFile = afterClean.slice(titleClean.length).trim();
-      } else {
-        episodeTitleFromFile = afterClean;
-      }
-    }
-
-    episodeTitleFromFile = episodeTitleFromFile
+    episodeTitleFromFile = String(episodeTitleFromFile || "")
       .replace(/^\s*[-–—]\s*/g, "")
       .replace(/\s+/g, " ")
       .trim();
