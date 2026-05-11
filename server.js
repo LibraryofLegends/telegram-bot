@@ -2130,7 +2130,7 @@ audioChannels: extras.audioChannels,
 hdr: extras.hdr
     });
 
-    await tg("sendMessage", {
+        await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
         "✅ Film erfolgreich einsortiert:\n\n" +
