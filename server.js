@@ -1014,8 +1014,27 @@ async function createSeriesHubIfMissing({ tmdb, topicId }) {
       "https://via.placeholder.com/500x750.png?text=No+Cover"
   });
   
-  function getSeasonSeparators(topicId) {
+
+  const hub = await tg("sendMessage", {
+    chat_id: SERIES_GROUP_ID,
+    message_thread_id: topicId,
+    text: seriesHubCaption(tmdb)
+  });
+
+  if (hub?.message_id) {
+    saveHubMessageId(topicId, hub.message_id);
+    return hub.message_id;
+  }
+
+  return null;
+}
+
+// =============================
+// SERIES SEASON SEPARATORS
+// =============================
+function getSeasonSeparators(topicId) {
   const topic = getSeriesHubTopic(topicId);
+
   try {
     return JSON.parse(topic?.season_separators || "{}");
   } catch {
@@ -1052,20 +1071,6 @@ async function createSeasonSeparatorIfMissing({ topicId, season }) {
     separators[seasonKey] = msg.message_id;
     saveSeasonSeparators(topicId, separators);
     return msg.message_id;
-  }
-
-  return null;
-}
-
-  const hub = await tg("sendMessage", {
-    chat_id: SERIES_GROUP_ID,
-    message_thread_id: topicId,
-    text: seriesHubCaption(tmdb)
-  });
-
-  if (hub?.message_id) {
-    saveHubMessageId(topicId, hub.message_id);
-    return hub.message_id;
   }
 
   return null;
