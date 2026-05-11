@@ -1394,6 +1394,9 @@ async function handleCommand(msg) {
       "📊 SYSTEM\n" +
       "• /stats — Statistik\n" +
       "• /search titel — Suche"
+      "🧹 /smartduplicates — Bessere Duplikatprüfung\n" +
+"🛠 /fixmovie alt | neu | jahr — Film korrigieren\n" +
+"🛠 /fixseries alt | neu — Serie korrigieren\n" +
   });
 
   return;
@@ -2107,6 +2110,247 @@ if (text.startsWith("/missingseries")) {
     });
     return;
   }
+  
+  if (text.startsWith("/fixmovie")) {
+  const query = text.replace("/fixmovie", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "⚠️ Nutzung:\n/fixmovie AlterTitel | Neuer Titel | Jahr\n\nBeispiel:\n/fixmovie Der Pate | The Godfather | 1972"
+    });
+    return;
+  }
+
+  const parts = query.split("|").map((p) => p.trim());
+
+  if (parts.length < 2) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Format falsch.\nBeispiel:\n/fixmovie Der Pate | The Godfather | 1972"
+    });
+    return;
+  }
+
+  const oldTitle = parts[0];
+  const newTitle = parts[1];
+  const year = parts[2] || "";
+
+  const movie = db.prepare(`
+    SELECT * FROM movies
+    WHERE LOWER(title) LIKE ?
+    LIMIT 1
+  `).get(`%${oldTitle.toLowerCase()}%`);
+
+  if (!movie) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Film in Datenbank nicht gefunden."
+    });
+    return;
+  }
+
+  const tmdb = await searchMovieTMDB(newTitle, year);
+
+  if (!tmdb) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Keine TMDB-Daten für den neuen Titel gefunden."
+    });
+    return;
+  }
+
+  db.prepare(`
+    UPDATE movies
+    SET title = ?, year = ?, genre = ?, rating = ?, runtime = ?, overview = ?,
+        poster_url = ?, collection = ?, fsk = ?, director = ?, cast = ?,
+        unique_key = ?
+    WHERE id = ?
+  `).run(
+    tmdb.title,
+    tmdb.year,
+    tmdb.genre,
+    tmdb.rating,
+    tmdb.runtime,
+    tmdb.overview,
+    tmdb.posterUrl,
+    tmdb.collection,
+    tmdb.fsk,
+    tmdb.director,
+    tmdb.cast,
+    makeKey(`${tmdb.title}-${tmdb.year || "unknown"}`),
+    movie.id
+  );
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Film korrigiert:\n\n" +
+      `Alt: ${movie.title} ${movie.year || ""}\n` +
+      `Neu: ${tmdb.title} ${tmdb.year || ""}`
+  });
+
+  return;
+}
+
+if (text.startsWith("/fixseries")) {
+  const query = text.replace("/fixseries", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n" +
+        "/fixseries AlterTitel | Neuer Titel\n\n" +
+        "Beispiel:\n/fixseries GOT | Game of Thrones"
+    });
+    return;
+  }
+
+  const parts = query.split("|").map((p) => p.trim());
+
+  if (parts.length < 2) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Format falsch.\nBeispiel:\n/fixseries GOT | Game of Thrones"
+    });
+    return;
+  }
+
+  const oldTitle = parts[0];
+  const newTitle = parts[1];
+
+  const row = db.prepare(`
+    SELECT * FROM series
+    WHERE LOWER(series_title) LIKE ?
+    ORDER BY season ASC, episode ASC
+    LIMIT 1
+  `).get(`%${oldTitle.toLowerCase()}%`);
+
+  if (!row) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Serie in Datenbank nicht gefunden."
+    });
+    return;
+  }
+
+  const tmdb = await searchSeriesTMDB(newTitle, row.season, row.episode);
+
+  if (!tmdb) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Keine TMDB-Daten für die neue Serie gefunden."
+    });
+    return;
+  }
+
+  db.prepare(`
+    UPDATE series
+    SET series_title = ?, genre = ?, rating = ?, overview = ?, poster_url = ?
+    WHERE LOWER(series_title) LIKE ?
+  `).run(
+    tmdb.seriesTitle,
+    tmdb.genre,
+    tmdb.rating,
+    tmdb.overview,
+    tmdb.posterUrl,
+    `%${oldTitle.toLowerCase()}%`
+  );
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Serie korrigiert:\n\n" +
+      `Alt: ${oldTitle}\n` +
+      `Neu: ${tmdb.seriesTitle}`
+  });
+
+  return;
+}
+  
+  if (text === "/smartduplicates") {
+  const movies = db.prepare(`
+    SELECT id, title, year, file_name
+    FROM movies
+    ORDER BY title ASC
+  `).all();
+
+  const series = db.prepare(`
+    SELECT id, series_title, season, episode, file_name
+    FROM series
+    ORDER BY series_title ASC, season ASC, episode ASC
+  `).all();
+
+  function simpleKey(value = "") {
+    return String(value)
+      .toLowerCase()
+      .replace(/ä/g, "ae")
+      .replace(/ö/g, "oe")
+      .replace(/ü/g, "ue")
+      .replace(/ß/g, "ss")
+      .replace(/[^a-z0-9]/g, "");
+  }
+
+  const movieMap = {};
+  const seriesMap = {};
+
+  for (const m of movies) {
+    const key = simpleKey(`${m.title}-${m.year || ""}`);
+    if (!movieMap[key]) movieMap[key] = [];
+    movieMap[key].push(m);
+  }
+
+  for (const s of series) {
+    const key = simpleKey(
+      `${s.series_title}-s${String(s.season).padStart(2, "0")}-e${String(s.episode).padStart(2, "0")}`
+    );
+    if (!seriesMap[key]) seriesMap[key] = [];
+    seriesMap[key].push(s);
+  }
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧹 SMART DUPLIKATE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  let found = false;
+
+  result += "🎬 FILME\n";
+
+  for (const key of Object.keys(movieMap)) {
+    if (movieMap[key].length > 1) {
+      found = true;
+      result += "\n⚠️ Mögliches Duplikat:\n";
+      for (const m of movieMap[key]) {
+        result += `• ID ${m.id} — ${m.title} ${m.year || ""}\n`;
+      }
+    }
+  }
+
+  result += "\n📺 SERIEN\n";
+
+  for (const key of Object.keys(seriesMap)) {
+    if (seriesMap[key].length > 1) {
+      found = true;
+      result += "\n⚠️ Mögliches Duplikat:\n";
+      for (const s of seriesMap[key]) {
+        result += `• ID ${s.id} — ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")}\n`;
+      }
+    }
+  }
+
+  if (!found) {
+    result += "✅ Keine Smart-Duplikate gefunden.";
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result.slice(0, 4000)
+  });
+
+  return;
+}
 
   if (text === "/duplicates") {
     const movieDupes = db.prepare(`
