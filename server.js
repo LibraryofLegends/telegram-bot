@@ -802,6 +802,12 @@ async function createBrandedCover(posterUrl, title = "") {
   }
 }
 
+async function getSeasonTMDB(tvId, season) {
+  return await tmdbGet(
+    `/tv/${tvId}/season/${season}`
+  );
+}
+
 // =============================
 // PREMIUM LAYOUTS
 // =============================
@@ -1083,7 +1089,11 @@ function saveSeasonSeparators(topicId, separators) {
   `).run(JSON.stringify(separators), topicId);
 }
 
-async function createSeasonSeparatorIfMissing({ topicId, season }) {
+async function createSeasonSeparatorIfMissing({
+  topicId,
+  season,
+  tmdb
+}) {
   const separators = getSeasonSeparators(topicId);
   const seasonKey = String(season).padStart(2, "0");
 
@@ -1091,18 +1101,40 @@ async function createSeasonSeparatorIfMissing({ topicId, season }) {
     return separators[seasonKey];
   }
 
-  const msg = await tg("sendMessage", {
+  const seasonData = await getSeasonTMDB(
+    tmdb.tmdbId,
+    season
+  );
+
+  const poster =
+    posterUrl(seasonData?.poster_path) ||
+    tmdb.posterUrl;
+
+  const caption =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `📀 ${tmdb.seriesTitle.toUpperCase()}\n` +
+    `STAFFEL ${seasonKey}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎞 ${seasonData?.episodes?.length || "?"} Episoden\n` +
+    `📅 ${seasonData?.air_date?.slice(0,4) || "Unbekannt"}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${String(
+      seasonData?.overview ||
+      "Keine Beschreibung verfügbar."
+    ).slice(0, 500)}\n` +
+    "━━━━━━━━━━━━━━━━━━";
+
+  const msg = await tg("sendPhoto", {
     chat_id: SERIES_GROUP_ID,
     message_thread_id: topicId,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      `📀 STAFFEL ${seasonKey}\n` +
-      "━━━━━━━━━━━━━━━━━━"
+    photo: poster,
+    caption
   });
 
   if (msg?.message_id) {
     separators[seasonKey] = msg.message_id;
     saveSeasonSeparators(topicId, separators);
+
     return msg.message_id;
   }
 
@@ -2645,7 +2677,8 @@ await createSeriesHubIfMissing({
 
 await createSeasonSeparatorIfMissing({
   topicId,
-  season: media.season
+  season: media.season,
+  tmdb
 });
 
 const captionText = seriesCaption(tmdb, media, extras);
