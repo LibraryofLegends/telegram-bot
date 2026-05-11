@@ -1353,25 +1353,37 @@ async function handleCommand(msg) {
       "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐂𝐎𝐍𝐓𝐑𝐎𝐋 𝐏𝐀𝐍𝐄𝐋\n\n" +
       "Wähle eine Funktion aus:",
     reply_markup: {
-      inline_keyboard: [
-        [
-          { text: "🎬 Filme", callback_data: "panel_movies" },
-          { text: "📺 Serien", callback_data: "panel_series" }
-        ],
-        [
-          { text: "🆕 Neue Folgen", callback_data: "panel_newseries" },
-          { text: "🔥 Trending", callback_data: "panel_trending" }
-        ],
-        [
-          { text: "⭐ Featured", callback_data: "panel_featured" },
-          { text: "📊 Statistik", callback_data: "panel_stats" }
-        ],
-        [
-          { text: "🔤 Serien A–Z", callback_data: "panel_seriesaz" },
-          { text: "🧹 Duplikate", callback_data: "panel_duplicates" }
-        ]
-      ]
-    }
+  inline_keyboard: [
+    [
+      { text: "🎬 Filme", callback_data: "panel_movies" },
+      { text: "📺 Serien", callback_data: "panel_series" }
+    ],
+    [
+      { text: "📺 Serien Hub", callback_data: "panel_serieshub" },
+      { text: "🔤 Serien A–Z", callback_data: "panel_seriesaz" }
+    ],
+    [
+      { text: "🆕 Neue Folgen", callback_data: "panel_newseries" },
+      { text: "🔥 Trending", callback_data: "panel_trending" }
+    ],
+    [
+      { text: "⭐ Featured", callback_data: "panel_featured" },
+      { text: "🧩 Fehlende Folgen", callback_data: "panel_missing_help" }
+    ],
+    [
+      { text: "🔤 A–Z Gesamt", callback_data: "panel_az" },
+      { text: "🧹 Duplikate", callback_data: "panel_duplicates" }
+    ],
+    [
+      { text: "📊 Statistik", callback_data: "panel_stats" },
+      { text: "🔎 Suche Hilfe", callback_data: "panel_search_help" }
+    ],
+    [
+      { text: "📌 SetSeries Hilfe", callback_data: "panel_setseries_help" },
+      { text: "🗑 Clear Series", callback_data: "panel_clearseries" }
+    ]
+  ]
+}
   });
 
   return;
