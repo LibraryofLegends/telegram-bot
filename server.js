@@ -1067,6 +1067,8 @@ function formatCastLine(cast = "") {
 
 function seasonCaption(tmdb, seasonData, season) {
   const seasonKey = String(season).padStart(2, "0");
+  
+  const theme = getSeasonTheme(season);
 
   const year =
     seasonData?.air_date?.slice(0, 4) ||
@@ -1095,11 +1097,12 @@ function seasonCaption(tmdb, seasonData, season) {
   return (
     "╔══════════════════╗\n" +
     `        📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-    `            STAFFEL ${seasonKey}\n` +
+    `            `            ${theme.emoji} STAFFEL ${seasonKey}\n` +
     "╚══════════════════╝\n\n" +
 
     `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
-    `📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+    ``📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+`🎨 ${theme.name}\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "🎬 SHOWRUNNER\n" +
