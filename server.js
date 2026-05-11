@@ -1921,7 +1921,13 @@ await createSeasonSeparatorIfMissing({
       fsk: tmdb.fsk,
       director: tmdb.director,
       cast: tmdb.cast,
-      libraryId: extras.libraryId
+      libraryId: extras.libraryId,
+resolution: extras.resolution,
+fileSize: extras.fileSize,
+videoCodec: extras.videoCodec,
+audioCodec: extras.audioCodec,
+audioChannels: extras.audioChannels,
+hdr: extras.hdr
     });
 
     await tg("sendMessage", {
