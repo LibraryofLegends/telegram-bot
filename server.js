@@ -1347,23 +1347,35 @@ async function handleCommand(msg) {
   const text = msg.text || "";
 
   if (text === "/start") {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "🔥 Movie & Series Bot V2 ist aktiv!\n\n" +
-        "Sende oder leite mir Filme/Serien weiter.\n\n" +
-        "Befehle:\n" +
-        "/help\n" +
-        "/stats\n" +
-        "/search titel\n" +
-        "/movies\n" +
-        "/series\n" +
-        "/az\n" +
-        "/duplicates\n" +
-        "/admin"
-    });
-    return;
-  }
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐂𝐎𝐍𝐓𝐑𝐎𝐋 𝐏𝐀𝐍𝐄𝐋\n\n" +
+      "Wähle eine Funktion aus:",
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "🎬 Filme", callback_data: "panel_movies" },
+          { text: "📺 Serien", callback_data: "panel_series" }
+        ],
+        [
+          { text: "🆕 Neue Folgen", callback_data: "panel_newseries" },
+          { text: "🔥 Trending", callback_data: "panel_trending" }
+        ],
+        [
+          { text: "⭐ Featured", callback_data: "panel_featured" },
+          { text: "📊 Statistik", callback_data: "panel_stats" }
+        ],
+        [
+          { text: "🔤 Serien A–Z", callback_data: "panel_seriesaz" },
+          { text: "🧹 Duplikate", callback_data: "panel_duplicates" }
+        ]
+      ]
+    }
+  });
+
+  return;
+}
 
   if (text === "/help") {
     await tg("sendMessage", {
