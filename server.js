@@ -3486,7 +3486,7 @@ hdr: extras.hdr
       text:
         "✅ Film erfolgreich einsortiert:\n\n" +
         `🎬 ${tmdb.title}\n` +
-        `🎭 Thema: ${genreTopicName}\n` +
+        `🎭 Thema: ${finalTopicName}\n` +
         `🏷 ${extras.libraryId}`
     });
 
