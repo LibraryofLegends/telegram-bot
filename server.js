@@ -3383,13 +3383,21 @@ try {
     }
 
     const extras = {
-      ...getMediaExtras(fileName, msg),
-      libraryId: makeLibraryCode(tmdb.genre)
-    };
+  ...getMediaExtras(fileName, msg),
+  libraryId: makeLibraryCode(tmdb.genre)
+};
 
-    const genreTopicName = tmdb.mainGenre || "Sonstige";
+const genreTopicName = tmdb.mainGenre || "Sonstige";
 
-    const topicId = await createOrGetTopic({
+let finalTopicName = genreTopicName;
+let finalTopicType = "movie_genre";
+
+if (tmdb.collection && tmdb.collectionId) {
+  finalTopicName = `🎞 ${tmdb.collection}`;
+  finalTopicType = "collection";
+}
+
+const topicId = await createOrGetTopic({
   chatId: MOVIE_GROUP_ID,
   name: finalTopicName,
   type: finalTopicType
