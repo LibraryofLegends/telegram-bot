@@ -3368,6 +3368,29 @@ try {
       });
       return;
     }
+    
+    if (tmdb.collection && tmdb.collectionId) {
+  let collection = getCollection(tmdb.collectionId);
+
+  if (!collection) {
+    const collectionTopicId = await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: `🎞 ${tmdb.collection}`,
+      type: "collection"
+    });
+
+    if (collectionTopicId) {
+      saveCollection({
+        collectionName: tmdb.collection,
+        tmdbCollectionId: tmdb.collectionId,
+        topicId: collectionTopicId,
+        posterUrl: tmdb.collectionPoster
+      });
+
+      console.log("✅ Collection erstellt:", tmdb.collection);
+    }
+  }
+}
 
     await tg("sendPhoto", {
   chat_id: MOVIE_GROUP_ID,
