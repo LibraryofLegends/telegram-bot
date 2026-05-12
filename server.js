@@ -1350,7 +1350,8 @@ async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
 
   const brandedSeasonPoster = await createBrandedCover(
   seasonPoster,
-  `${tmdb.seriesTitle} Staffel ${seasonKey}`
+  tmdb.seriesTitle,
+  `Staffel ${seasonKey}`
 );
 
 let card = await tg("sendPhoto", {
