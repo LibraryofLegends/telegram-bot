@@ -1022,7 +1022,7 @@ function seriesCaption(tmdb, media, extras = {}) {
 
     `🎞 ${finalEpisodeTitle || "Episode"}\n` +
     `⭐ ${tmdb.rating || "Unbekannt"}\n` +
-    `🔥 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}\n` +
+    `🏷 ${getQualityBadge(extras.quality)} • ${extras.fileSize || "Unbekannt"}\n` +
     (extras.resolution && extras.resolution !== "Unbekannt" ? `🎬 ${extras.resolution}\n` : "") +
     (extras.audio && extras.audio !== "Unbekannt" ? `🎧 ${extras.audio}\n` : "") +
 
