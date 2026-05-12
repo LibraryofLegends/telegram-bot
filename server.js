@@ -91,6 +91,15 @@ CREATE TABLE IF NOT EXISTS topics (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS collections (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  collection_name TEXT,
+  tmdb_collection_id INTEGER,
+  topic_id INTEGER,
+  poster_url TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   type TEXT,
@@ -238,6 +247,31 @@ function saveSeries(data) {
     data.telegramMessageId,
     data.topicId,
     data.seriesLibraryId
+  );
+}
+
+function getCollection(tmdbCollectionId) {
+  return db.prepare(`
+    SELECT * FROM collections
+    WHERE tmdb_collection_id = ?
+  `).get(tmdbCollectionId);
+}
+
+function saveCollection(data) {
+  return db.prepare(`
+    INSERT INTO collections
+    (
+      collection_name,
+      tmdb_collection_id,
+      topic_id,
+      poster_url
+    )
+    VALUES (?, ?, ?, ?)
+  `).run(
+    data.collectionName,
+    data.tmdbCollectionId,
+    data.topicId,
+    data.posterUrl
   );
 }
 
@@ -709,6 +743,10 @@ async function searchMovieTMDB(title, year = "") {
     overview: details.overview || "Keine Beschreibung verfügbar.",
     posterUrl: posterUrl(details.poster_path),
     collection: details.belongs_to_collection?.name || "",
+collectionId: details.belongs_to_collection?.id || null,
+collectionPoster: details.belongs_to_collection?.poster_path
+  ? posterUrl(details.belongs_to_collection.poster_path)
+  : "",
     director,
     cast,
     fsk: fsk ? `FSK ${fsk}` : "FSK Unbekannt"
