@@ -369,6 +369,21 @@ function cleanFileName(fileName = "") {
     .trim();
 }
 
+function fixKnownMovieTitle(title = "") {
+  return String(title)
+    .replace(/StarWarsEpisodeI\b/gi, "Star Wars Episode I ")
+    .replace(/StarWarsEpisodeII\b/gi, "Star Wars Episode II ")
+    .replace(/StarWarsEpisodeIII\b/gi, "Star Wars Episode III ")
+    .replace(/StarWarsEpisodeIV\b/gi, "Star Wars Episode IV ")
+    .replace(/StarWarsEpisodeV\b/gi, "Star Wars Episode V ")
+    .replace(/StarWarsEpisodeVI\b/gi, "Star Wars Episode VI ")
+    .replace(/StarWarsEpisodeVII\b/gi, "Star Wars Episode VII ")
+    .replace(/StarWarsEpisodeVIII\b/gi, "Star Wars Episode VIII ")
+    .replace(/StarWarsEpisodeIX\b/gi, "Star Wars Episode IX ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normalizeTitle(title = "") {
   return String(title)
     .replace(/\s+/g, " ")
@@ -482,11 +497,13 @@ function detectMovie(fileName = "") {
 
   let title = cleaned;
 
-  if (year) {
-    title = cleaned.replace(new RegExp(`\\b${year}\\b`, "g"), "");
-  }
+if (year) {
+  title = cleaned.replace(new RegExp(`\\b${year}\\b`, "g"), "");
+}
 
-  title = title
+title = fixKnownMovieTitle(title);
+
+title = title
   .replace(/\bPart\s*\d+\b/gi, "")
   .replace(/\bCD\s*\d+\b/gi, "")
   .replace(/[()[\]{}]/g, " ")
