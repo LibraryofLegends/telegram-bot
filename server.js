@@ -1317,12 +1317,17 @@ async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
     tmdb.posterUrl ||
     "https://via.placeholder.com/500x750.png?text=No+Cover";
 
-  let card = await tg("sendPhoto", {
-    chat_id: SERIES_GROUP_ID,
-    message_thread_id: topicId,
-    photo: seasonPoster,
-    caption
-  });
+  const brandedSeasonPoster = await createBrandedCover(
+  seasonPoster,
+  `${tmdb.seriesTitle} Staffel ${seasonKey}`
+);
+
+let card = await tg("sendPhoto", {
+  chat_id: SERIES_GROUP_ID,
+  message_thread_id: topicId,
+  photo: brandedSeasonPoster,
+  caption
+});
 
   console.log("🎴 SEASON CARD RESULT:", JSON.stringify(card, null, 2));
 
