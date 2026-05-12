@@ -848,7 +848,7 @@ function getSeasonTheme(season = 1) {
   };
 }
 
-async function createBrandedCover(posterUrl, title = "") {
+async function createBrandedCover(posterUrl, title = "", subtitle = "") {
   try {
     console.log("LOGO CHECK logo.png.PNG:", fs.existsSync("logo.png.PNG"));
     console.log("WATERMARK CHECK watermark.png.PNG:", fs.existsSync("watermark.png.PNG"));
@@ -860,7 +860,7 @@ async function createBrandedCover(posterUrl, title = "") {
     const inputBuffer = Buffer.from(imageRes.data);
 
     const logo = await sharp("logo.png.PNG")
-      .resize(260)
+      .resize(230)
       .png()
       .toBuffer();
 
@@ -869,15 +869,49 @@ async function createBrandedCover(posterUrl, title = "") {
       .png()
       .toBuffer();
 
-    const gradient = Buffer.from(`
+    const safeTitle = String(title || "")
+      .toUpperCase()
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .slice(0, 32);
+
+    const safeSubtitle = String(subtitle || "")
+      .toUpperCase()
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .slice(0, 32);
+
+    const overlay = Buffer.from(`
       <svg width="500" height="750">
         <defs>
-          <linearGradient id="g" x1="0" y1="450" x2="0" y2="750">
+          <linearGradient id="g" x1="0" y1="360" x2="0" y2="750">
             <stop offset="0%" stop-color="black" stop-opacity="0"/>
-            <stop offset="100%" stop-color="black" stop-opacity="0.85"/>
+            <stop offset="65%" stop-color="black" stop-opacity="0.72"/>
+            <stop offset="100%" stop-color="black" stop-opacity="0.92"/>
           </linearGradient>
         </defs>
-        <rect x="0" y="450" width="500" height="300" fill="url(#g)"/>
+
+        <rect x="0" y="360" width="500" height="390" fill="url(#g)"/>
+
+        <text x="250" y="575"
+          font-size="34"
+          font-weight="900"
+          text-anchor="middle"
+          fill="white"
+          font-family="Arial, Helvetica, sans-serif">
+          ${safeTitle}
+        </text>
+
+        <text x="250" y="620"
+          font-size="24"
+          font-weight="700"
+          text-anchor="middle"
+          fill="#D4AF37"
+          font-family="Arial, Helvetica, sans-serif">
+          ${safeSubtitle}
+        </text>
       </svg>
     `);
 
@@ -886,7 +920,7 @@ async function createBrandedCover(posterUrl, title = "") {
     await sharp(inputBuffer)
       .resize(500, 750)
       .composite([
-        { input: gradient, top: 0, left: 0 },
+        { input: overlay, top: 0, left: 0 },
         { input: logo, gravity: "south" },
         { input: watermark, gravity: "southeast" }
       ])
@@ -896,9 +930,6 @@ async function createBrandedCover(posterUrl, title = "") {
     return outputPath;
   } catch (err) {
     console.error("❌ Branding Cover Fehler:", err.message);
-    console.error("LOGO CHECK logo.png.PNG:", fs.existsSync("logo.png.PNG"));
-    console.error("WATERMARK CHECK watermark.png.PNG:", fs.existsSync("watermark.png.PNG"));
-
     return posterUrl;
   }
 }
