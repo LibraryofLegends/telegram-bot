@@ -3459,6 +3459,12 @@ const topicId = await createOrGetTopic({
   type: finalTopicType
 });
 
+try {
+  await createOrUpdateCollectionHub(tmdb, topicId);
+} catch (err) {
+  console.error("⚠️ Collection Hub Update Fehler:", err.message);
+}
+
     if (!topicId) {
       await tg("sendMessage", {
         chat_id: msg.chat.id,
@@ -3544,12 +3550,6 @@ audioCodec: extras.audioCodec,
 audioChannels: extras.audioChannels,
 hdr: extras.hdr
     });
-    
-    try {
-  await createOrUpdateCollectionHub(tmdb, topicId);
-} catch (err) {
-  console.error("⚠️ Collection Hub Update Fehler:", err.message);
-}
 
         await tg("sendMessage", {
       chat_id: msg.chat.id,
