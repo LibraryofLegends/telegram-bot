@@ -884,36 +884,26 @@ async function createBrandedCover(posterUrl, title = "", subtitle = "") {
       .slice(0, 32);
 
     const overlay = Buffer.from(`
-      <svg width="500" height="750">
-        <defs>
-          <linearGradient id="g" x1="0" y1="360" x2="0" y2="750">
-            <stop offset="0%" stop-color="black" stop-opacity="0"/>
-            <stop offset="65%" stop-color="black" stop-opacity="0.72"/>
-            <stop offset="100%" stop-color="black" stop-opacity="0.92"/>
-          </linearGradient>
-        </defs>
+<svg width="500" height="750" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0" y1="360" x2="0" y2="750" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="65%" stop-color="#000000" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.92"/>
+    </linearGradient>
+  </defs>
 
-        <rect x="0" y="360" width="500" height="390" fill="url(#g)"/>
+  <rect x="0" y="360" width="500" height="390" fill="url(#g)"/>
 
-        <text x="250" y="575"
-          font-size="34"
-          font-weight="900"
-          text-anchor="middle"
-          fill="white"
-          font-family="Arial, Helvetica, sans-serif">
-          ${safeTitle}
-        </text>
+  <text x="250" y="570" font-size="32" font-weight="900"
+        text-anchor="middle" fill="#ffffff"
+        font-family="sans-serif">${safeTitle}</text>
 
-        <text x="250" y="620"
-          font-size="24"
-          font-weight="700"
-          text-anchor="middle"
-          fill="#D4AF37"
-          font-family="Arial, Helvetica, sans-serif">
-          ${safeSubtitle}
-        </text>
-      </svg>
-    `);
+  <text x="250" y="615" font-size="24" font-weight="800"
+        text-anchor="middle" fill="#D4AF37"
+        font-family="sans-serif">${safeSubtitle}</text>
+</svg>
+`);
 
     const outputPath = `/tmp/cover-${Date.now()}.jpg`;
 
