@@ -132,6 +132,7 @@ addColumnIfMissing("movies", "hdr", "TEXT");
 addColumnIfMissing("topics", "hub_message_id", "INTEGER");
 addColumnIfMissing("topics", "season_separators", "TEXT DEFAULT '{}'");
 addColumnIfMissing("series", "series_library_id", "TEXT");
+addColumnIfMissing("collections", "hub_message_id", "INTEGER");
 
 console.log("✅ Datenbank bereit");
 
@@ -273,6 +274,82 @@ function saveCollection(data) {
     data.topicId,
     data.posterUrl
   );
+}
+
+function getCollectionById(tmdbCollectionId) {
+  return db.prepare(`
+    SELECT * FROM collections
+    WHERE tmdb_collection_id = ?
+  `).get(tmdbCollectionId);
+}
+
+function saveCollectionHubMessageId(tmdbCollectionId, messageId) {
+  db.prepare(`
+    UPDATE collections
+    SET hub_message_id = ?
+    WHERE tmdb_collection_id = ?
+  `).run(messageId, tmdbCollectionId);
+}
+
+function collectionHubCaption(collectionName) {
+  const movies = db.prepare(`
+    SELECT title, year, library_id
+    FROM movies
+    WHERE collection = ?
+    ORDER BY year ASC, title ASC
+  `).all(collectionName);
+
+  let result =
+    "╔══════════════════╗\n" +
+    `      🎞 ${String(collectionName || "").toUpperCase()}\n` +
+    "        FILMREIHE\n" +
+    "╚══════════════════╝\n\n";
+
+  if (!movies.length) {
+    result += "Noch keine Filme gespeichert.\n";
+  } else {
+    movies.forEach((m, index) => {
+      result += `${index + 1}. ${m.title} (${m.year || "Unbekannt"})\n`;
+      if (m.library_id) result += `   🏷 ${m.library_id}\n`;
+    });
+  }
+
+  result +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 Filme: ${movies.length}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return result.slice(0, 4000);
+}
+
+async function createOrUpdateCollectionHub(tmdb, topicId) {
+  if (!tmdb.collection || !tmdb.collectionId) return null;
+
+  const collection = getCollectionById(tmdb.collectionId);
+  if (!collection) return null;
+
+  const text = collectionHubCaption(tmdb.collection);
+
+  if (collection.hub_message_id) {
+    return await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: collection.hub_message_id,
+      text
+    });
+  }
+
+  const hub = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: topicId,
+    text
+  });
+
+  if (hub?.message_id) {
+    saveCollectionHubMessageId(tmdb.collectionId, hub.message_id);
+  }
+
+  return hub;
 }
 
 // =============================
