@@ -3390,10 +3390,10 @@ try {
     const genreTopicName = tmdb.mainGenre || "Sonstige";
 
     const topicId = await createOrGetTopic({
-      chatId: MOVIE_GROUP_ID,
-      name: genreTopicName,
-      type: "movie_genre"
-    });
+  chatId: MOVIE_GROUP_ID,
+  name: finalTopicName,
+  type: finalTopicType
+});
 
     if (!topicId) {
       await tg("sendMessage", {
