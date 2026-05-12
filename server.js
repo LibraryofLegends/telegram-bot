@@ -3460,7 +3460,8 @@ hdr: extras.hdr
         "✅ Film erfolgreich einsortiert:\n\n" +
         `🎬 ${tmdb.title}\n` +
         `🎭 Thema: ${finalTopicName}\n` +
-        `🏷 ${extras.libraryId}`
+(tmdb.collection ? `🎞 Filmreihe: ${tmdb.collection}\n` : "") +
+`🏷 ${extras.libraryId}`
     });
 
     logToDb("movie_saved", `${tmdb.title} ${tmdb.year || ""}`);
