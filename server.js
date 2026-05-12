@@ -997,6 +997,17 @@ function movieCaption(tmdb, extras = {}) {
   );
 }
 
+function getQualityBadge(quality = "") {
+  const q = String(quality || "").toUpperCase();
+
+  if (q === "UHD") return "💎 UHD";
+  if (q === "FHD") return "🔥 FHD";
+  if (q === "HD") return "⚡ HD";
+  if (q === "SD") return "📼 SD";
+
+  return "🎞 Qualität unbekannt";
+}
+
 function seriesCaption(tmdb, media, extras = {}) {
   const finalEpisodeTitle = tmdb.episodeTitle || media.episodeTitleFromFile || "";
   const episodeTitle = finalEpisodeTitle ? ` • ${finalEpisodeTitle}` : "";
