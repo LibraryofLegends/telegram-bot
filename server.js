@@ -281,13 +281,49 @@ function saveCollection(data) {
 
 function cleanFileName(fileName = "") {
   return String(fileName)
-    .replace(/\.[a-z0-9]{2,5}$/i, "") // Endung entfernen
-    .replace(/@[\w\d_]+/gi, "") // Telegram Tags entfernen
-    .replace(/\b(german|deutsch|ger|english|englisch|eng|multi|dubbed|subbed|dl|dual|dts|ddp|aac|ac3|x264|x265|h264|h265|hevc|bluray|brrip|webrip|web|webdl|web-dl|hdrip|dvdrip|remux|uhd|fhd|fullhd|hd|sd|4k|2160p|1080p|720p|576p|480p|original|orginal|originale|orginale|alte|tonspur|line|mic|md|proper|repack)\b/gi, "")
-    .replace(/[()[\]{}]/g, " ")
+    // Dateiendung entfernen
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+
+    // Telegram Tags entfernen
+    .replace(/@[\w\d_]+/gi, "")
+
+    // Scene / Release / Audio / Qualität entfernen
+    .replace(
+      /\b(
+        german|deutsch|ger|
+        english|englisch|eng|
+        multi|dubbed|subbed|
+        dl|dual|
+        dts|ddp|aac|ac3|
+        x264|x265|h264|h265|hevc|av1|
+        bluray|brrip|webrip|web|webdl|web-dl|
+        hdrip|dvdrip|remux|
+        hdr|hdr10|hdr10plus|dolby|vision|
+        uhd|fhd|fullhd|hd|sd|
+        4k|2160p|1080p|720p|576p|480p|
+        original|orginal|originale|orginale|
+        alte|tonspur|
+        line|mic|md|
+        proper|repack
+      )\b/gi,
+      ""
+    )
+
+    // Streaming Plattformen entfernen
     .replace(/\b(amzn|nf|netflix|disney|hulu|apple|itunes|max|sky|paramount)\b/gi, "")
+
+    // Klammern entfernen
+    .replace(/[()[\]{}]/g, " ")
+
+    // Punkte / Unterstriche / Bindestriche ersetzen
     .replace(/[._-]+/g, " ")
+
+    // 5 1 / 7 1 usw entfernen
+    .replace(/\b\d\s+\d\b/g, " ")
+
+    // Mehrfache Leerzeichen bereinigen
     .replace(/\s+/g, " ")
+
     .trim();
 }
 
