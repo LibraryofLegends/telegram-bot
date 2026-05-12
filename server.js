@@ -371,15 +371,12 @@ function cleanFileName(fileName = "") {
 
 function fixKnownMovieTitle(title = "") {
   return String(title)
-    .replace(/StarWarsEpisodeI\b/gi, "Star Wars Episode I ")
-    .replace(/StarWarsEpisodeII\b/gi, "Star Wars Episode II ")
-    .replace(/StarWarsEpisodeIII\b/gi, "Star Wars Episode III ")
-    .replace(/StarWarsEpisodeIV\b/gi, "Star Wars Episode IV ")
-    .replace(/StarWarsEpisodeV\b/gi, "Star Wars Episode V ")
-    .replace(/StarWarsEpisodeVI\b/gi, "Star Wars Episode VI ")
-    .replace(/StarWarsEpisodeVII\b/gi, "Star Wars Episode VII ")
-    .replace(/StarWarsEpisodeVIII\b/gi, "Star Wars Episode VIII ")
-    .replace(/StarWarsEpisodeIX\b/gi, "Star Wars Episode IX ")
+    .replace(/StarWarsEpisodeIII/gi, "Star Wars Episode III ")
+    .replace(/StarWarsEpisodeII/gi, "Star Wars Episode II ")
+    .replace(/StarWarsEpisodeI/gi, "Star Wars Episode I ")
+    .replace(/DiedunkleBedrohung/gi, "Die dunkle Bedrohung")
+    .replace(/AngriffderKlonkrieger/gi, "Angriff der Klonkrieger")
+    .replace(/DieRachederSith/gi, "Die Rache der Sith")
     .replace(/\s+/g, " ")
     .trim();
 }
