@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS topics (
 CREATE TABLE IF NOT EXISTS collections (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   collection_name TEXT,
-  tmdb_collection_id INTEGER,
+  tmdb_collection_id INTEGER UNIQUE,
   topic_id INTEGER,
   poster_url TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
