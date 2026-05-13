@@ -842,59 +842,72 @@ function posterUrl(path) {
 }
 
 async function searchMovieTMDB(title, year = "") {
-  const search = await tmdbGet("/search/movie", {
-    query: title,
-    year: year || undefined,
-    include_adult: false
-  });
+  const variants = buildMovieSearchVariants(title);
 
-  if (!search?.results?.length) return null;
+  for (const queryTitle of variants) {
+    console.log("🔎 TMDB Movie Search:", queryTitle, year || "");
 
-  const best = search.results[0];
+    const search = await tmdbGet("/search/movie", {
+      query: queryTitle,
+      year: year || undefined,
+      include_adult: false
+    });
 
-  const details = await tmdbGet(`/movie/${best.id}`, {
-    append_to_response: "credits,release_dates"
-  });
+    if (!search?.results?.length) continue;
 
-  if (!details) return null;
+    const best = search.results[0];
 
-  const director =
-    details.credits?.crew?.find((p) => p.job === "Director")?.name ||
-    "Unbekannt";
+    const details = await tmdbGet(`/movie/${best.id}`, {
+      append_to_response: "credits,release_dates"
+    });
 
-  const cast =
-    details.credits?.cast
-      ?.slice(0, 3)
-      .map((p) => p.name)
-      .join(" • ") || "Unbekannt";
+    if (!details) continue;
 
-  const deRelease = details.release_dates?.results?.find(
-    (r) => r.iso_3166_1 === "DE"
-  );
+    const director =
+      details.credits?.crew?.find((p) => p.job === "Director")?.name ||
+      "Unbekannt";
 
-  const fsk =
-    deRelease?.release_dates?.find((r) => r.certification)?.certification ||
-    "";
+    const cast =
+      details.credits?.cast
+        ?.slice(0, 3)
+        .map((p) => p.name)
+        .join(" • ") || "Unbekannt";
 
-  return {
-    tmdbId: details.id,
-    title: details.title || title,
-    year: details.release_date ? details.release_date.slice(0, 4) : year,
-    genre: formatGenres(details.genres),
-    mainGenre: getMainGenre(details.genres),
-    rating: formatRating(details.vote_average),
-    runtime: details.runtime ? `${details.runtime} Min.` : "Unbekannt",
-    overview: details.overview || "Keine Beschreibung verfügbar.",
-    posterUrl: posterUrl(details.poster_path),
-    collection: details.belongs_to_collection?.name || "",
-collectionId: details.belongs_to_collection?.id || null,
-collectionPoster: details.belongs_to_collection?.poster_path
-  ? posterUrl(details.belongs_to_collection.poster_path)
-  : "",
-    director,
-    cast,
-    fsk: fsk ? `FSK ${fsk}` : "FSK Unbekannt"
-  };
+    const deRelease = details.release_dates?.results?.find(
+      (r) => r.iso_3166_1 === "DE"
+    );
+
+    const fsk =
+      deRelease?.release_dates?.find((r) => r.certification)?.certification ||
+      "";
+
+    return {
+      tmdbId: details.id,
+      title: details.title || queryTitle,
+      year: details.release_date ? details.release_date.slice(0, 4) : year,
+      genre: formatGenres(details.genres),
+      mainGenre: getMainGenre(details.genres),
+      rating: formatRating(details.vote_average),
+      runtime: details.runtime ? `${details.runtime} Min.` : "Unbekannt",
+      overview: details.overview || "Keine Beschreibung verfügbar.",
+      posterUrl: posterUrl(details.poster_path),
+      collection: details.belongs_to_collection?.name || "",
+      collectionId: details.belongs_to_collection?.id || null,
+      collectionPoster: details.belongs_to_collection?.poster_path
+        ? posterUrl(details.belongs_to_collection.poster_path)
+        : "",
+      director,
+      cast,
+      fsk: fsk ? `FSK ${fsk}` : "FSK Unbekannt"
+    };
+  }
+
+  // letzter Versuch ohne Jahr
+  if (year) {
+    return await searchMovieTMDB(title, "");
+  }
+
+  return null;
 }
 
 async function searchSeriesTMDB(title, season, episode) {
