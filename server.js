@@ -589,22 +589,7 @@ function buildMovieSearchVariants(title = "") {
   )];
 }
 
-function parseMedia(fileName = "") {
-  const series = detectSeries(fileName);
-
-  if (series.isSeries) {
-    const uniqueKey = makeKey(
-      `${series.seriesTitle}-s${series.seasonText}-e${series.episodeText}`
-    );
-
-    return {
-      type: "series",
-      ...series,
-      uniqueKey
-    };
-  }
-  
-  function parseManualMovieCaption(caption = "") {
+function parseManualMovieCaption(caption = "") {
   const text = String(caption || "").trim();
 
   if (!text.toLowerCase().startsWith("/movie")) {
@@ -634,6 +619,21 @@ function parseMedia(fileName = "") {
     manual: true
   };
 }
+
+function parseMedia(fileName = "") {
+  const series = detectSeries(fileName);
+
+  if (series.isSeries) {
+    const uniqueKey = makeKey(
+      `${series.seriesTitle}-s${series.seasonText}-e${series.episodeText}`
+    );
+
+    return {
+      type: "series",
+      ...series,
+      uniqueKey
+    };
+  }
 
   const movie = detectMovie(fileName);
   const uniqueKey = makeKey(`${movie.title}-${movie.year || "unknown"}`);
