@@ -551,7 +551,7 @@ function detectMovie(fileName = "") {
   let title = fixedCleaned;
 
 if (year) {
-  title = cleaned.replace(new RegExp(`\\b${year}\\b`, "g"), "");
+  title = fixedCleaned.replace(new RegExp(`\\b${year}\\b`, "g"), "");
 }
 
 title = fixKnownMovieTitle(title);
