@@ -2513,6 +2513,46 @@ for (const season of seasons) {
   return;
 }
 
+if (text.startsWith("/collection")) {
+  const query = text.replace("/collection", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n" +
+        "/collection Star Wars\n\n" +
+        "Beispiel:\n/collection Stirb langsam"
+    });
+    return;
+  }
+
+  const collection = db.prepare(`
+    SELECT *
+    FROM collections
+    WHERE LOWER(collection_name) LIKE ?
+    ORDER BY collection_name ASC
+    LIMIT 1
+  `).get(`%${query.toLowerCase()}%`);
+
+  if (!collection) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: `❌ Keine Filmreihe gefunden für:\n${query}`
+    });
+    return;
+  }
+
+  const textOut = collectionHubCaption(collection.collection_name);
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: textOut
+  });
+
+  return;
+}
+
   if (text === "/movies") {
     const movies = db.prepare(`
       SELECT * FROM movies
