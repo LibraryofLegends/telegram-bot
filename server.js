@@ -1870,6 +1870,7 @@ async function handleCommand(msg) {
   "• /smartduplicates — Bessere Duplikatprüfung\n" +
   "• /fixmovie alt | neu | jahr — Film korrigieren\n" +
 "• /collections — Filmreihen anzeigen\n\n" +
+"• /collection name — Filmreihe Details\n" +
 
   "📺 SERIEN\n" +
   "• /series — Serien anzeigen\n" +
