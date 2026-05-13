@@ -1961,6 +1961,40 @@ async function handleCallback(callback) {
   });
 
   console.log("✅ Callback verarbeitet:", data);
+  
+  if (data.startsWith("moviepick:")) {
+  const tmdbId = Number(data.replace("moviepick:", ""));
+  const pending = PENDING_MOVIE_UPLOADS.get(userId);
+
+  if (!pending) {
+    return await tg("sendMessage", {
+      chat_id: chatId,
+      text: "⚠️ Keine offene Film-Auswahl gefunden. Bitte Datei erneut senden."
+    });
+  }
+
+  PENDING_MOVIE_UPLOADS.delete(userId);
+
+  const tmdb = await getMovieDetailsById(tmdbId);
+
+  if (!tmdb) {
+    return await tg("sendMessage", {
+      chat_id: chatId,
+      text: "❌ TMDB-Details konnten nicht geladen werden."
+    });
+  }
+
+  return await processMovieUpload({
+    msg: pending.msg,
+    media: {
+      ...pending.media,
+      title: tmdb.title,
+      year: tmdb.year,
+      uniqueKey: makeKey(`${tmdb.title}-${tmdb.year || "unknown"}`)
+    },
+    tmdb
+  });
+}
 
   if (data === "panel_movies") {
     return await handleCommand({ chat: { id: chatId }, text: "/movies" });
