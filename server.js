@@ -3877,14 +3877,40 @@ try {
     const tmdb = await searchMovieTMDB(media.title, media.year);
 
     if (!tmdb) {
-      await tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text:
-          "❌ Keine TMDB-Daten gefunden:\n\n" +
-          `🎬 ${media.title}`
-      });
-      return;
+  const choices = await searchMovieTMDBChoices(media.title, media.year);
+
+  if (!choices.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Keine TMDB-Daten gefunden:\n\n" +
+        `🎬 ${media.title}\n\n` +
+        "💡 Tipp:\n/movie Exakter Filmtitel | Jahr"
+    });
+    return;
+  }
+
+  PENDING_MOVIE_UPLOADS.set(String(msg.from.id), { msg, media });
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "🎬 Mehrere mögliche TMDB-Treffer gefunden.\n\n" +
+      "Bitte wähle den richtigen Film:",
+    reply_markup: {
+      inline_keyboard: choices.map((m) => [
+        {
+          text: `🎬 ${m.title} (${m.year})`,
+          callback_data: `moviepick:${m.id}`
+        }
+      ])
     }
+  });
+
+  return;
+}
+
+return await processMovieUpload({ msg, media, tmdb });
 
     const extras = {
   ...getMediaExtras(fileName, msg),
