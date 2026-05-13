@@ -1645,7 +1645,7 @@ async function updateSeasonCard({ tmdb, topicId, season }) {
   return await tg("editMessageCaption", {
     chat_id: SERIES_GROUP_ID,
     message_id: messageId,
-    caption: seasonCaption(tmdb, seasonData, season)
+    caption: seasonCaption(tmdb, seasonData, season).slice(0, 950)
   });
 }
 
