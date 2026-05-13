@@ -3855,189 +3855,50 @@ try {
   }
 
   if (media.type === "movie") {
-    const exists = movieExists(media.uniqueKey);
-
-    if (exists) {
-      await tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text:
-          "⚠️ Film ist bereits gespeichert:\n\n" +
-          `🎬 ${media.title} ${media.year || ""}`
-      });
-      return;
-    }
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "🔎 Film erkannt — suche TMDB-Daten...\n\n" +
-        `🎬 ${media.title} ${media.year || ""}`
-    });
-
-    const tmdb = await searchMovieTMDB(media.title, media.year);
-
-    if (!tmdb) {
-  const choices = await searchMovieTMDBChoices(media.title, media.year);
-
-  if (!choices.length) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "❌ Keine TMDB-Daten gefunden:\n\n" +
-        `🎬 ${media.title}\n\n` +
-        "💡 Tipp:\n/movie Exakter Filmtitel | Jahr"
-    });
-    return;
-  }
-
-  PENDING_MOVIE_UPLOADS.set(String(msg.from.id), { msg, media });
-
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "🎬 Mehrere mögliche TMDB-Treffer gefunden.\n\n" +
-      "Bitte wähle den richtigen Film:",
-    reply_markup: {
-      inline_keyboard: choices.map((m) => [
-        {
-          text: `🎬 ${m.title} (${m.year})`,
-          callback_data: `moviepick:${m.id}`
-        }
-      ])
-    }
+      "🔎 Film erkannt — suche TMDB-Daten...\n\n" +
+      `🎬 ${media.title} ${media.year || ""}`
   });
 
-  return;
-}
+  const tmdb = await searchMovieTMDB(media.title, media.year);
 
-return await processMovieUpload({ msg, media, tmdb });
+  if (!tmdb) {
+    const choices = await searchMovieTMDBChoices(media.title, media.year);
 
-    const extras = {
-  ...getMediaExtras(fileName, msg),
-  libraryId: makeLibraryCode(tmdb.genre)
-};
-
-const genreTopicName = tmdb.mainGenre || "Sonstige";
-
-let finalTopicName = genreTopicName;
-let finalTopicType = "movie_genre";
-
-if (tmdb.collection && tmdb.collectionId) {
-  finalTopicName = `🎞 ${tmdb.collection}`;
-  finalTopicType = "collection";
-}
-
-const topicId = await createOrGetTopic({
-  chatId: MOVIE_GROUP_ID,
-  name: finalTopicName,
-  type: finalTopicType
-});
-
-    if (!topicId) {
+    if (!choices.length) {
       await tg("sendMessage", {
         chat_id: msg.chat.id,
         text:
-          "❌ Film-Genre-Thema konnte nicht erstellt werden.\n\n" +
-          "Prüfe MOVIE_GROUP_ID, Bot-Adminrechte und Forum-Themen."
-      });
-      return;
-    }
-    
-    if (tmdb.collection && tmdb.collectionId) {
-  let collection = getCollection(tmdb.collectionId);
-
-  if (!collection) {
-    const collectionTopicId = await createOrGetTopic({
-      chatId: MOVIE_GROUP_ID,
-      name: `🎞 ${tmdb.collection}`,
-      type: "collection"
-    });
-
-    if (collectionTopicId) {
-      saveCollection({
-        collectionName: tmdb.collection,
-        tmdbCollectionId: tmdb.collectionId,
-        topicId: collectionTopicId,
-        posterUrl: tmdb.collectionPoster
-      });
-
-      console.log("✅ Collection erstellt:", tmdb.collection);
-    }
-  }
-}
-
-    await tg("sendPhoto", {
-  chat_id: MOVIE_GROUP_ID,
-  message_thread_id: topicId,
-  photo:
-    tmdb.posterUrl ||
-    "https://via.placeholder.com/500x750.png?text=No+Cover"
-});
-
-    const copied = await copyOriginalMedia({
-      fromChatId: msg.chat.id,
-      messageId: msg.message_id,
-      targetChatId: MOVIE_GROUP_ID,
-      topicId,
-      caption: movieCaption(tmdb, extras)
-    });
-
-    if (!copied?.message_id) {
-      await tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text: "⚠️ Film-Cover wurde gepostet, aber Datei konnte nicht kopiert werden."
+          "❌ Keine TMDB-Daten gefunden:\n\n" +
+          `🎬 ${media.title}\n\n` +
+          "💡 Tipp:\n/movie Exakter Filmtitel | Jahr"
       });
       return;
     }
 
-    saveMovie({
-  title: tmdb.title,
-  year: tmdb.year,
-  genre: tmdb.genre,
-  rating: tmdb.rating,
-  runtime: tmdb.runtime,
-  overview: tmdb.overview,
-  posterUrl: tmdb.posterUrl,
-  fileName,
-  fileId,
-  uniqueKey: media.uniqueKey,
-  telegramMessageId: copied.message_id,
-  topicId,
-  collection: tmdb.collection,
-  quality: extras.quality,
-  audio: extras.audio,
-  source: extras.source,
-  fsk: tmdb.fsk,
-  director: tmdb.director,
-  cast: tmdb.cast,
-  libraryId: extras.libraryId,
-  resolution: extras.resolution,
-  fileSize: extras.fileSize,
-  videoCodec: extras.videoCodec,
-  audioCodec: extras.audioCodec,
-  audioChannels: extras.audioChannels,
-  hdr: extras.hdr
-});
+    PENDING_MOVIE_UPLOADS.set(String(msg.from.id), { msg, media });
 
-try {
-  await createOrUpdateCollectionHub(tmdb, topicId);
-} catch (err) {
-  console.error("⚠️ Collection Hub Update Fehler:", err.message);
-}
-
-        await tg("sendMessage", {
+    await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "✅ Film erfolgreich einsortiert:\n\n" +
-        `🎬 ${tmdb.title}\n` +
-        `🎭 Thema: ${finalTopicName}\n` +
-(tmdb.collection ? `🎞 Filmreihe: ${tmdb.collection}\n` : "") +
-`🏷 ${extras.libraryId}`
+        "🎬 Mehrere mögliche TMDB-Treffer gefunden.\n\n" +
+        "Bitte wähle den richtigen Film:",
+      reply_markup: {
+        inline_keyboard: choices.map((m) => [
+          {
+            text: `🎬 ${m.title} (${m.year})`,
+            callback_data: `moviepick:${m.id}`
+          }
+        ])
+      }
     });
 
-    logToDb("movie_saved", `${tmdb.title} ${tmdb.year || ""}`);
     return;
   }
+
+  return await processMovieUpload({ msg, media, tmdb });
 }
 
 // =============================
