@@ -551,6 +551,23 @@ title = title
   };
 }
 
+function buildMovieSearchVariants(title = "") {
+  const base = String(title || "").trim();
+
+  const variants = [
+    base,
+    fixKnownMovieTitle(base),
+    base.replace(/([a-z])([A-Z])/g, "$1 $2"),
+    base.replace(/([A-ZÄÖÜ][a-zäöüß]+)([A-ZÄÖÜ])/g, "$1 $2")
+  ];
+
+  return [...new Set(
+    variants
+      .map((v) => String(v || "").replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+  )];
+}
+
 function parseMedia(fileName = "") {
   const series = detectSeries(fileName);
 
