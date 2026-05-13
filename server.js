@@ -1868,7 +1868,8 @@ async function handleCommand(msg) {
   "• /az — Filme & Serien A–Z\n" +
   "• /duplicates — Duplikate prüfen\n" +
   "• /smartduplicates — Bessere Duplikatprüfung\n" +
-  "• /fixmovie alt | neu | jahr — Film korrigieren\n\n" +
+  "• /fixmovie alt | neu | jahr — Film korrigieren\n" +
+"• /collections — Filmreihen anzeigen\n\n" +
 
   "📺 SERIEN\n" +
   "• /series — Serien anzeigen\n" +
