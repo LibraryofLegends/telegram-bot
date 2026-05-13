@@ -379,12 +379,39 @@ function cleanFileName(fileName = "") {
 
 function fixKnownMovieTitle(title = "") {
   return String(title)
+    // Star Wars Stories
+    .replace(/SoloAStarWarsStory/gi, "Solo A Star Wars Story")
+    .replace(/RogueOneAStarWarsStory/gi, "Rogue One A Star Wars Story")
+
+    // Star Wars Episoden
+    .replace(/StarWarsEpisodeIX/gi, "Star Wars Episode IX ")
+    .replace(/StarWarsEpisodeVIII/gi, "Star Wars Episode VIII ")
+    .replace(/StarWarsEpisodeVII/gi, "Star Wars Episode VII ")
+    .replace(/StarWarsEpisodeVI/gi, "Star Wars Episode VI ")
+    .replace(/StarWarsEpisodeV/gi, "Star Wars Episode V ")
+    .replace(/StarWarsEpisodeIV/gi, "Star Wars Episode IV ")
     .replace(/StarWarsEpisodeIII/gi, "Star Wars Episode III ")
     .replace(/StarWarsEpisodeII/gi, "Star Wars Episode II ")
     .replace(/StarWarsEpisodeI/gi, "Star Wars Episode I ")
+
+    // Star Wars Titel Deutsch
+    .replace(/EinenneueHoffnung/gi, "Eine neue Hoffnung")
+    .replace(/EineineueHoffnung/gi, "Eine neue Hoffnung")
+    .replace(/EineNeueHoffnung/gi, "Eine neue Hoffnung")
+    .replace(/DasImperiumschlägtzurück/gi, "Das Imperium schlägt zurück")
+    .replace(/DasImperiumSchlägtZurück/gi, "Das Imperium schlägt zurück")
+    .replace(/DieRükkehrderJediRitter/gi, "Die Rückkehr der Jedi Ritter")
+    .replace(/DieRueckkehrderJediRitter/gi, "Die Rückkehr der Jedi Ritter")
+    .replace(/DieRückkehrderJediRitter/gi, "Die Rückkehr der Jedi Ritter")
+    .replace(/DasErwachenderMacht/gi, "Das Erwachen der Macht")
+    .replace(/DieletztenJedi/gi, "Die letzten Jedi")
+    .replace(/DerAufstiegSkywalkers/gi, "Der Aufstieg Skywalkers")
+
+    // Alte vorhandene Titel
     .replace(/DiedunkleBedrohung/gi, "Die dunkle Bedrohung")
     .replace(/AngriffderKlonkrieger/gi, "Angriff der Klonkrieger")
     .replace(/DieRachederSith/gi, "Die Rache der Sith")
+
     .replace(/\s+/g, " ")
     .trim();
 }
