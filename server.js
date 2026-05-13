@@ -454,6 +454,38 @@ function makeKey(value = "") {
     .replace(/^-+|-+$/g, "");
 }
 
+function isBourneMovie(tmdb = {}, fileName = "") {
+  const text = `${tmdb.title || ""} ${tmdb.collection || ""} ${fileName || ""}`.toLowerCase();
+
+  return (
+    text.includes("bourne") ||
+    text.includes("treadstone") ||
+    text.includes("blackbriar")
+  );
+}
+
+function getBourneProgram(title = "") {
+  const t = String(title || "").toLowerCase();
+
+  if (t.includes("legacy") || t.includes("vermächtnis")) return "OUTCOME";
+  if (t.includes("ultimatum")) return "BLACKBRIAR";
+  return "TREADSTONE";
+}
+
+function bourneButtons() {
+  return {
+    inline_keyboard: [
+      [
+        { text: "📁 CIA DOSSIER", callback_data: "bourne_dossier" },
+        { text: "🧠 PROGRAMME", callback_data: "bourne_programs" }
+      ],
+      [
+        { text: "🛰️ BOURNE ARCHIVE", callback_data: "bourne_archive" }
+      ]
+    ]
+  };
+}
+
 function extractYear(text = "") {
   const match = String(text).match(/\b(19\d{2}|20\d{2})\b|(?:^|[^0-9])(19\d{2}|20\d{2})(?:[^0-9]|$)/);
   return match ? (match[1] || match[2]) : "";
@@ -1750,7 +1782,8 @@ async function copyOriginalMedia({
   caption = "",
   fileId = "",
   isVideo = false,
-  adminChatId = ""
+  adminChatId = "",
+  replyMarkup = null
 }) {
   const safeCaption = String(caption || "").slice(0, 900);
 
@@ -1764,6 +1797,10 @@ async function copyOriginalMedia({
   if (safeCaption) {
     baseData.caption = safeCaption;
   }
+  
+  if (replyMarkup) {
+  baseData.reply_markup = replyMarkup;
+}
 
   let result = await tg("copyMessage", baseData);
 
@@ -1779,11 +1816,12 @@ async function copyOriginalMedia({
     const mediaField = isVideo ? "video" : "document";
 
     result = await tg(sendMethod, {
-      chat_id: targetChatId,
-      message_thread_id: topicId,
-      [mediaField]: fileId,
-      caption: safeCaption
-    });
+  chat_id: targetChatId,
+  message_thread_id: topicId,
+  [mediaField]: fileId,
+  caption: safeCaption,
+  ...(replyMarkup ? { reply_markup: replyMarkup } : {})
+});
 
     if (result?.message_id) {
       console.log("FILE_ID SEND OK:", result.message_id);
