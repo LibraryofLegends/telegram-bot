@@ -3658,12 +3658,6 @@ const topicId = await createOrGetTopic({
   type: finalTopicType
 });
 
-try {
-  await createOrUpdateCollectionHub(tmdb, topicId);
-} catch (err) {
-  console.error("⚠️ Collection Hub Update Fehler:", err.message);
-}
-
     if (!topicId) {
       await tg("sendMessage", {
         chat_id: msg.chat.id,
@@ -3722,33 +3716,39 @@ try {
     }
 
     saveMovie({
-      title: tmdb.title,
-      year: tmdb.year,
-      genre: tmdb.genre,
-      rating: tmdb.rating,
-      runtime: tmdb.runtime,
-      overview: tmdb.overview,
-      posterUrl: tmdb.posterUrl,
-      fileName,
-      fileId,
-      uniqueKey: media.uniqueKey,
-      telegramMessageId: copied.message_id,
-      topicId,
-      collection: tmdb.collection,
-      quality: extras.quality,
-      audio: extras.audio,
-      source: extras.source,
-      fsk: tmdb.fsk,
-      director: tmdb.director,
-      cast: tmdb.cast,
-      libraryId: extras.libraryId,
-resolution: extras.resolution,
-fileSize: extras.fileSize,
-videoCodec: extras.videoCodec,
-audioCodec: extras.audioCodec,
-audioChannels: extras.audioChannels,
-hdr: extras.hdr
-    });
+  title: tmdb.title,
+  year: tmdb.year,
+  genre: tmdb.genre,
+  rating: tmdb.rating,
+  runtime: tmdb.runtime,
+  overview: tmdb.overview,
+  posterUrl: tmdb.posterUrl,
+  fileName,
+  fileId,
+  uniqueKey: media.uniqueKey,
+  telegramMessageId: copied.message_id,
+  topicId,
+  collection: tmdb.collection,
+  quality: extras.quality,
+  audio: extras.audio,
+  source: extras.source,
+  fsk: tmdb.fsk,
+  director: tmdb.director,
+  cast: tmdb.cast,
+  libraryId: extras.libraryId,
+  resolution: extras.resolution,
+  fileSize: extras.fileSize,
+  videoCodec: extras.videoCodec,
+  audioCodec: extras.audioCodec,
+  audioChannels: extras.audioChannels,
+  hdr: extras.hdr
+});
+
+try {
+  await createOrUpdateCollectionHub(tmdb, topicId);
+} catch (err) {
+  console.error("⚠️ Collection Hub Update Fehler:", err.message);
+}
 
         await tg("sendMessage", {
       chat_id: msg.chat.id,
