@@ -379,6 +379,30 @@ function cleanFileName(fileName = "") {
 
 function fixKnownMovieTitle(title = "") {
   return String(title)
+    // Datum vorne: 2013.02.06 Parker -> Parker
+    .replace(/^\s*\d{4}\s+\d{1,2}\s+\d{1,2}\s+/g, "")
+
+    // Mission Impossible
+    .replace(/Mission\s+Impossible/gi, "Mission Impossible")
+    .replace(/MissionImpossible/gi, "Mission Impossible")
+
+    // Guardians
+    .replace(/GuardiansoftheGalaxyVol\s*2/gi, "Guardians of the Galaxy Vol. 2")
+    .replace(/GuardiansoftheGalaxyVol\.?\s*2/gi, "Guardians of the Galaxy Vol. 2")
+    .replace(/Guardians\s+of\s+the\s+Galaxy\s+3/gi, "Guardians of the Galaxy Vol. 3")
+    .replace(/GuardiansoftheGalaxy3/gi, "Guardians of the Galaxy Vol. 3")
+
+    // Kill Bill
+    .replace(/KillBillTheWholeBloodyAffairTeil1/gi, "Kill Bill The Whole Bloody Affair")
+    .replace(/KillBillTheWholeBloodyAffair/gi, "Kill Bill The Whole Bloody Affair")
+
+    // Disney / Deutsch
+    .replace(/Die\s*EisköniginVölligunverfroren/gi, "Die Eiskönigin Völlig unverfroren")
+    .replace(/DieEisköniginVölligunverfroren/gi, "Die Eiskönigin Völlig unverfroren")
+
+    // Renegade
+    .replace(/Renegade(\d{4})/gi, "Renegade $1")
+
     // Star Wars Stories
     .replace(/SoloAStarWarsStory/gi, "Solo A Star Wars Story")
     .replace(/RogueOneAStarWarsStory/gi, "Rogue One A Star Wars Story")
@@ -394,20 +418,16 @@ function fixKnownMovieTitle(title = "") {
     .replace(/StarWarsEpisodeII/gi, "Star Wars Episode II ")
     .replace(/StarWarsEpisodeI/gi, "Star Wars Episode I ")
 
-    // Star Wars Titel Deutsch
     .replace(/EinenneueHoffnung/gi, "Eine neue Hoffnung")
     .replace(/EineineueHoffnung/gi, "Eine neue Hoffnung")
     .replace(/EineNeueHoffnung/gi, "Eine neue Hoffnung")
     .replace(/DasImperiumschlägtzurück/gi, "Das Imperium schlägt zurück")
-    .replace(/DasImperiumSchlägtZurück/gi, "Das Imperium schlägt zurück")
     .replace(/DieRükkehrderJediRitter/gi, "Die Rückkehr der Jedi Ritter")
     .replace(/DieRueckkehrderJediRitter/gi, "Die Rückkehr der Jedi Ritter")
     .replace(/DieRückkehrderJediRitter/gi, "Die Rückkehr der Jedi Ritter")
     .replace(/DasErwachenderMacht/gi, "Das Erwachen der Macht")
     .replace(/DieletztenJedi/gi, "Die letzten Jedi")
     .replace(/DerAufstiegSkywalkers/gi, "Der Aufstieg Skywalkers")
-
-    // Alte vorhandene Titel
     .replace(/DiedunkleBedrohung/gi, "Die dunkle Bedrohung")
     .replace(/AngriffderKlonkrieger/gi, "Angriff der Klonkrieger")
     .replace(/DieRachederSith/gi, "Die Rache der Sith")
@@ -435,8 +455,8 @@ function makeKey(value = "") {
 }
 
 function extractYear(text = "") {
-  const match = String(text).match(/\b(19\d{2}|20\d{2})\b/);
-  return match ? match[1] : "";
+  const match = String(text).match(/\b(19\d{2}|20\d{2})\b|(?:^|[^0-9])(19\d{2}|20\d{2})(?:[^0-9]|$)/);
+  return match ? (match[1] || match[2]) : "";
 }
 
 function detectSeries(fileName = "") {
@@ -525,9 +545,10 @@ function detectSeries(fileName = "") {
 
 function detectMovie(fileName = "") {
   const cleaned = cleanFileName(fileName);
-  const year = extractYear(cleaned);
+  const fixedCleaned = fixKnownMovieTitle(cleaned);
+  const year = extractYear(fixedCleaned);
 
-  let title = cleaned;
+  let title = fixedCleaned;
 
 if (year) {
   title = cleaned.replace(new RegExp(`\\b${year}\\b`, "g"), "");
