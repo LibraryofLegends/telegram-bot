@@ -3900,6 +3900,7 @@ try {
 
   return await processMovieUpload({ msg, media, tmdb });
 }
+}
 
 // =============================
 // SERVER START
