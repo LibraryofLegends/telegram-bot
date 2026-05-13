@@ -348,6 +348,14 @@ async function createOrUpdateCollectionHub(tmdb, topicId) {
   if (hub?.message_id) {
     saveCollectionHubMessageId(tmdb.collectionId, hub.message_id);
   }
+  
+  if (hub?.message_id) {
+  await tg("pinChatMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_id: hub.message_id,
+    disable_notification: true
+  });
+}
 
   return hub;
 }
