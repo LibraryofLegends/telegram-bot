@@ -603,6 +603,37 @@ function parseMedia(fileName = "") {
       uniqueKey
     };
   }
+  
+  function parseManualMovieCaption(caption = "") {
+  const text = String(caption || "").trim();
+
+  if (!text.toLowerCase().startsWith("/movie")) {
+    return null;
+  }
+
+  const query = text.replace(/^\/movie/i, "").trim();
+
+  if (!query) return null;
+
+  const parts = query
+    .split("|")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const title = parts[0] || "";
+  const year = parts[1] || extractYear(query) || "";
+
+  if (!title) return null;
+
+  return {
+    type: "movie",
+    isMovie: true,
+    title: normalizeTitle(title),
+    year,
+    uniqueKey: makeKey(`${title}-${year || "unknown"}`),
+    manual: true
+  };
+}
 
   const movie = detectMovie(fileName);
   const uniqueKey = makeKey(`${movie.title}-${movie.year || "unknown"}`);
@@ -3431,7 +3462,9 @@ async function handleUpload(msg) {
   console.log("🚀 HANDLE UPLOAD TRIGGERED");
   console.log("📁 Datei:", fileName);
 
-  const media = parseMedia(fileName);
+  const manualMovie = parseManualMovieCaption(msg.caption || "");
+
+const media = manualMovie || parseMedia(fileName);
 
   console.log("🧠 Parsed:", media);
 
