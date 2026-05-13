@@ -3550,6 +3550,149 @@ async function sendAdminPanel(chatId) {
   return panelResult;
 }
 
+async function processMovieUpload({ msg, media, tmdb }) {
+  const fileName =
+    msg.document?.file_name ||
+    msg.video?.file_name ||
+    msg.caption ||
+    "Unbekannte Datei";
+
+  const fileId =
+    msg.video?.file_id ||
+    msg.document?.file_id ||
+    "";
+
+  const exists = movieExists(media.uniqueKey);
+
+  if (exists) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Film ist bereits gespeichert:\n\n" +
+        `🎬 ${media.title} ${media.year || ""}`
+    });
+    return;
+  }
+
+  const extras = {
+    ...getMediaExtras(fileName, msg),
+    libraryId: makeLibraryCode(tmdb.genre)
+  };
+
+  const genreTopicName = tmdb.mainGenre || "Sonstige";
+
+  let finalTopicName = genreTopicName;
+  let finalTopicType = "movie_genre";
+
+  if (tmdb.collection && tmdb.collectionId) {
+    finalTopicName = `🎞 ${tmdb.collection}`;
+    finalTopicType = "collection";
+  }
+
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: finalTopicName,
+    type: finalTopicType
+  });
+
+  if (!topicId) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Film-Thema konnte nicht erstellt werden.\n\n" +
+        "Prüfe MOVIE_GROUP_ID, Bot-Adminrechte und Forum-Themen."
+    });
+    return;
+  }
+
+  if (tmdb.collection && tmdb.collectionId) {
+    let collection = getCollection(tmdb.collectionId);
+
+    if (!collection) {
+      saveCollection({
+        collectionName: tmdb.collection,
+        tmdbCollectionId: tmdb.collectionId,
+        topicId,
+        posterUrl: tmdb.collectionPoster
+      });
+    }
+  }
+
+  await tg("sendPhoto", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: topicId,
+    photo:
+      tmdb.posterUrl ||
+      "https://via.placeholder.com/500x750.png?text=No+Cover"
+  });
+
+  const copied = await copyOriginalMedia({
+    fromChatId: msg.chat.id,
+    messageId: msg.message_id,
+    targetChatId: MOVIE_GROUP_ID,
+    topicId,
+    caption: movieCaption(tmdb, extras),
+    fileId,
+    isVideo: !!msg.video,
+    adminChatId: msg.chat.id
+  });
+
+  if (!copied?.message_id) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "⚠️ Film-Cover wurde gepostet, aber Datei konnte nicht kopiert werden."
+    });
+    return;
+  }
+
+  saveMovie({
+    title: tmdb.title,
+    year: tmdb.year,
+    genre: tmdb.genre,
+    rating: tmdb.rating,
+    runtime: tmdb.runtime,
+    overview: tmdb.overview,
+    posterUrl: tmdb.posterUrl,
+    fileName,
+    fileId,
+    uniqueKey: media.uniqueKey,
+    telegramMessageId: copied.message_id,
+    topicId,
+    collection: tmdb.collection,
+    quality: extras.quality,
+    audio: extras.audio,
+    source: extras.source,
+    fsk: tmdb.fsk,
+    director: tmdb.director,
+    cast: tmdb.cast,
+    libraryId: extras.libraryId,
+    resolution: extras.resolution,
+    fileSize: extras.fileSize,
+    videoCodec: extras.videoCodec,
+    audioCodec: extras.audioCodec,
+    audioChannels: extras.audioChannels,
+    hdr: extras.hdr
+  });
+
+  try {
+    await createOrUpdateCollectionHub(tmdb, topicId);
+  } catch (err) {
+    console.error("⚠️ Collection Hub Update Fehler:", err.message);
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Film erfolgreich einsortiert:\n\n" +
+      `🎬 ${tmdb.title}\n` +
+      `🎭 Thema: ${finalTopicName}\n` +
+      (tmdb.collection ? `🎞 Filmreihe: ${tmdb.collection}\n` : "") +
+      `🏷 ${extras.libraryId}`
+  });
+
+  logToDb("movie_saved", `${tmdb.title} ${tmdb.year || ""}`);
+}
+
 // =============================
 // UPLOAD HANDLER
 // =============================
