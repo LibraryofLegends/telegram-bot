@@ -2468,6 +2468,50 @@ for (const season of seasons) {
     });
     return;
   }
+  
+  if (text === "/collections") {
+  const rows = db.prepare(`
+    SELECT 
+      c.collection_name,
+      c.tmdb_collection_id,
+      c.topic_id,
+      COUNT(m.id) AS movie_count
+    FROM collections c
+    LEFT JOIN movies m
+      ON m.collection = c.collection_name
+    GROUP BY c.tmdb_collection_id
+    ORDER BY c.collection_name ASC
+  `).all();
+
+  if (!rows.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "🎞 Noch keine Filmreihen gespeichert."
+    });
+    return;
+  }
+
+  let result =
+    "╔══════════════════╗\n" +
+    "      🎞 FILMREIHEN\n" +
+    "╚══════════════════╝\n\n";
+
+  for (const row of rows) {
+    result += `🎞 ${row.collection_name}\n`;
+    result += `🎬 Filme: ${row.movie_count || 0}\n\n`;
+  }
+
+  result +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result.slice(0, 4000)
+  });
+
+  return;
+}
 
   if (text === "/movies") {
     const movies = db.prepare(`
