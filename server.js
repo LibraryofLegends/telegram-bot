@@ -1885,38 +1885,40 @@ async function handleCallback(callback) {
 async function handleCommand(msg) {
   const text = msg.text || "";
 
-  if (text === "/start") {
+  if (text === "/start" || text === "/admin") {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-  "🎛 𝐀𝐃𝐌𝐈𝐍 𝐏𝐀𝐍𝐄𝐋\n\n" +
-  "🎬 FILME\n" +
-  "• /movies — Filme anzeigen\n" +
-  "• /az — Filme & Serien A–Z\n" +
-  "• /duplicates — Duplikate prüfen\n" +
-  "• /smartduplicates — Bessere Duplikatprüfung\n" +
-  "• /fixmovie alt | neu | jahr — Film korrigieren\n" +
-"• /collections — Filmreihen anzeigen\n\n" +
-"• /collection name — Filmreihe Details\n" +
+      "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n\n" +
 
-  "📺 SERIEN\n" +
-  "• /series — Serien anzeigen\n" +
-  "• /serieshub — Serien Dashboard\n" +
-  "• /seriesaz — Serien A–Z\n" +
-  "• /newseries — Neue Folgen\n" +
-  "• /progress serienname — Serien-Fortschritt\n" +
-  "• /trendingseries — Trending Serien\n" +
-  "• /featuredseries — Featured Serien\n" +
-  "• /missingseries titel — Fehlende Episoden\n" +
-  "• /fixseries alt | neu — Serie korrigieren\n" +
-  "• /setseries name — Serienname setzen\n" +
-  "• /clearseries — Serienname zurücksetzen\n\n" +
+      "🎬 FILME\n" +
+      "• /movies — Filme anzeigen\n" +
+      "• /collections — Filmreihen anzeigen\n" +
+      "• /collection name — Filmreihe Details\n" +
+      "• /fixmovie alt | neu | jahr — Film korrigieren\n\n" +
 
-  "📊 SYSTEM\n" +
-  "• /stats — Statistik\n" +
-  "• /search titel — Suche\n" +
-  "• /qualitystats — Qualitäts-Statistik\n" +
-  "• /backup — Datenbank sichern"
+      "📺 SERIEN\n" +
+      "• /series — Serien anzeigen\n" +
+      "• /seriesaz — Serien A–Z\n" +
+      "• /serieshub — Serien Dashboard\n" +
+      "• /newseries — Neue Folgen\n" +
+      "• /progress name — Serien-Fortschritt\n" +
+      "• /missingseries name — Fehlende Episoden\n" +
+      "• /rebuildseasoncards name — Staffelkarten neu erstellen\n" +
+      "• /fixseries alt | neu — Serie korrigieren\n\n" +
+
+      "🧹 VERWALTUNG\n" +
+      "• /az — Gesamt A–Z\n" +
+      "• /duplicates — Duplikate prüfen\n" +
+      "• /smartduplicates — Smart-Duplikate\n" +
+      "• /deletemovie name — Film löschen\n" +
+      "• /deleteseries name S01E01 — Episode löschen\n\n" +
+
+      "📊 SYSTEM\n" +
+      "• /stats — Statistik\n" +
+      "• /qualitystats — Qualitäts-Statistik\n" +
+      "• /search titel — Suche\n" +
+      "• /backup — Datenbank sichern"
   });
 
   return;
@@ -3310,14 +3312,6 @@ if (text.startsWith("/fixseries")) {
     });
     return;
   }
-
-  if (text === "/admin") {
-  await handleCommand({
-    chat: { id: msg.chat.id },
-    text: "/start"
-  });
-  return;
-}
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
