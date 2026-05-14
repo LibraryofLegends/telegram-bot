@@ -3664,16 +3664,21 @@ async function processMovieUpload({ msg, media, tmdb }) {
       "https://via.placeholder.com/500x750.png?text=No+Cover"
   });
 
-  const copied = await copyOriginalMedia({
-    fromChatId: msg.chat.id,
-    messageId: msg.message_id,
-    targetChatId: MOVIE_GROUP_ID,
-    topicId,
-    caption: movieCaption(tmdb, extras),
-    fileId,
-    isVideo: !!msg.video,
-    adminChatId: msg.chat.id
-  });
+  const isBourne = isBourneMovie(tmdb, fileName);
+
+const copied = await copyOriginalMedia({
+  fromChatId: msg.chat.id,
+  messageId: msg.message_id,
+  targetChatId: MOVIE_GROUP_ID,
+  topicId,
+  caption: isBourne
+    ? bourneMovieCaption(tmdb, extras)
+    : movieCaption(tmdb, extras),
+  fileId,
+  isVideo: !!msg.video,
+  adminChatId: msg.chat.id,
+  replyMarkup: isBourne ? bourneButtons() : null
+});
 
   if (!copied?.message_id) {
     await tg("sendMessage", {
