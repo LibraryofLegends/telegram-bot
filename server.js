@@ -1348,6 +1348,39 @@ function movieCaption(tmdb, extras = {}) {
   );
 }
 
+function bourneMovieCaption(tmdb, extras = {}) {
+  const safeOverview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 360);
+
+  const program = getBourneProgram(tmdb.title);
+
+  return (
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🕶️ ${String(tmdb.title || "").toUpperCase()} (${tmdb.year || "Unbekannt"})\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📁 CIA ARCHIVE • CLASSIFIED\n" +
+    `🧠 PROGRAMM: ${program}\n` +
+    `🔥 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}\n` +
+    `🎭 ${String(tmdb.genre || "Action / Thriller").replace(/\s*\/\s*/g, " • ")}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `⭐ ${tmdb.rating || "Unbekannt"}\n` +
+    `⏱ ${tmdb.runtime || "Unbekannt"} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+    `🎥 ${tmdb.director || "Unbekannt"}\n` +
+    `👥 ${tmdb.cast || "Unbekannt"}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📖 MISSION FILE\n" +
+    `${safeOverview}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🏷 ${extras.libraryId || ""}\n` +
+    "⚠️ STATUS: CLASSIFIED\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "#JasonBourne #Bourne #CIA #Treadstone #Action #Thriller\n" +
+    "@LibraryOfLegends"
+  ).slice(0, 900);
+}
+
 function getQualityBadge(quality = "") {
   const q = String(quality || "").toUpperCase();
 
