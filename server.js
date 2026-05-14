@@ -2001,8 +2001,9 @@ async function handleCallback(callback) {
   console.log("✅ Callback verarbeitet:", data);
   
   if (data.startsWith("moviepick:")) {
-  const tmdbId = Number(data.replace("moviepick:", ""));
-  const pending = PENDING_MOVIE_UPLOADS.get(userId);
+  const userId = String(callback.from?.id || "");
+const tmdbId = Number(data.replace("moviepick:", ""));
+const pending = PENDING_MOVIE_UPLOADS.get(userId);
 
   if (!pending) {
     return await tg("sendMessage", {
