@@ -2556,6 +2556,7 @@ async function handleCommand(msg) {
       "• /deleteseries name S01E01 — Episode löschen\n\n" +
 
       "📊 SYSTEM\n" +
+      "• /dashboard — Premium Dashboard\n" +
       "• /stats — Statistik\n" +
       "• /qualitystats — Qualitäts-Statistik\n" +
       "• /search titel — Suche\n" +
