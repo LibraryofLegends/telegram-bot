@@ -448,8 +448,9 @@ text +=
   "━━━━━━━━━━━━━━━━━━\n" +
   `🧩 Sammlung: ${progressBlocks} ${rows.length}/5\n` +
   `🎬 Filme im Archiv: ${rows.length}\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "@LibraryOfLegends";
+missingText +
+"━━━━━━━━━━━━━━━━━━\n" +
+"@LibraryOfLegends";
 
   return text.slice(0, 4000);
 }
