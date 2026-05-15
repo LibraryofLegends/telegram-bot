@@ -610,6 +610,8 @@ let result =
     "━━━━━━━━━━━━━━━━━━\n" +
     `🧩 Sammlung: ${data.progressBlocks} ${data.savedMovies}/${data.officialTotal}\n` +
     `🎬 Filme im Archiv: ${data.savedMovies}\n` +
+    `🏆 Franchise Rating: ${data.franchiseRating}\n` +
+(data.bestMovie ? `👑 Bester Film: ${data.bestMovie.title}\n` : "") +
     (data.savedMovies >= data.officialTotal
       ? "🏆 STATUS: KOMPLETT\n"
       : "⚠️ STATUS: UNVOLLSTÄNDIG\n") +
