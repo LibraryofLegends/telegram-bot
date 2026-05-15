@@ -2068,6 +2068,61 @@ const pending = PENDING_MOVIE_UPLOADS.get(userId);
   });
 }
 
+if (data === "bourne_dossier") {
+  return await tg("sendMessage", {
+    chat_id: chatId,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📁 CIA DOSSIER\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "🕶️ SUBJECT: Jason Bourne\n" +
+      "📛 REAL NAME: David Webb\n" +
+      "🧠 PROGRAM: TREADSTONE\n" +
+      "⚠️ STATUS: ROGUE AGENT\n" +
+      "🎯 CLEARANCE: BLACK\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "Er weiß nicht, wer er ist.\n" +
+      "Aber sie haben Angst davor.\n" +
+      "━━━━━━━━━━━━━━━━━━"
+  });
+}
+
+if (data === "bourne_programs") {
+  return await tg("sendMessage", {
+    chat_id: chatId,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🧠 BOURNE PROGRAMME\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "01 • TREADSTONE\n" +
+      "Geheimes CIA-Programm zur Ausbildung perfekter Attentäter.\n\n" +
+      "02 • BLACKBRIAR\n" +
+      "Nachfolger von Treadstone — aggressiver, geheimer, gefährlicher.\n\n" +
+      "03 • OUTCOME\n" +
+      "Erweitertes Agentenprogramm mit körperlicher und mentaler Optimierung.\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "⚠️ STATUS: CLASSIFIED"
+  });
+}
+
+if (data === "bourne_archive") {
+  return await tg("sendMessage", {
+    chat_id: chatId,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🛰️ BOURNE ARCHIVE\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "01 • Die Bourne Identität (2002)\n" +
+      "02 • Die Bourne Verschwörung (2004)\n" +
+      "03 • Das Bourne Ultimatum (2007)\n" +
+      "04 • Das Bourne Vermächtnis (2012)\n" +
+      "05 • Jason Bourne (2016)\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📁 Die komplette Bourne-Saga\n" +
+      "⚠️ STATUS: CLASSIFIED"
+  });
+}
+
   if (data === "panel_movies") {
     return await handleCommand({ chat: { id: chatId }, text: "/movies" });
   }
