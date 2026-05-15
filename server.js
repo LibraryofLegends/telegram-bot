@@ -487,6 +487,7 @@ text +=
   `🎬 Filme im Archiv: ${rows.length}\n` +
   missingText +
   `${collectionStatus}\n` +
+  `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
   "━━━━━━━━━━━━━━━━━━\n" +
   "@LibraryOfLegends";
 
