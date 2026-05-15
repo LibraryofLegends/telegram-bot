@@ -2385,11 +2385,12 @@ async function handleCommand(msg) {
       "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n\n" +
 
       "🎬 FILME\n" +
-      "• /movies — Filme anzeigen\n" +
-      "• /collections — Filmreihen anzeigen\n" +
-      "• /collection name — Filmreihe Details\n" +
-      "• /bourne — Bourne Archiv anzeigen\n" +
-      "• /fixmovie alt | neu | jahr — Film korrigieren\n\n" +
+"• /movies — Filme anzeigen\n" +
+"• /collections — Filmreihen anzeigen\n" +
+"• /collection name — Filmreihe Details\n" +
+"• /bourne — Bourne Archiv anzeigen\n" +
+"• /rebuildbournehub — Bourne Hub neu erstellen\n" +
+"• /fixmovie alt | neu | jahr — Film korrigieren\n\n" +
 
       "📺 SERIEN\n" +
       "• /series — Serien anzeigen\n" +
