@@ -500,7 +500,7 @@ const collectionThemes = {
 
 function buildCollectionData(collectionName = "") {
   const rows = db.prepare(`
-    SELECT title, year, library_id
+    SELECT title, year, library_id, rating
     FROM movies
     WHERE collection = ?
     ORDER BY year ASC, title ASC
@@ -510,6 +510,26 @@ function buildCollectionData(collectionName = "") {
 
   const officialTotal = requiredMovies.length || rows.length;
   const savedMovies = rows.length;
+  const ratingValues = rows
+  .map((m) => {
+    const match = String(m.rating || "").match(/(\d+(\.\d+)?)/g);
+    return match ? Number(match[match.length - 1]) : null;
+  })
+  .filter((n) => Number.isFinite(n));
+
+const franchiseRating = ratingValues.length
+  ? (ratingValues.reduce((sum, n) => sum + n, 0) / ratingValues.length).toFixed(1)
+  : "Unbekannt";
+
+const bestMovie = ratingValues.length
+  ? rows
+      .filter((m) => String(m.rating || "").match(/(\d+(\.\d+)?)/g))
+      .sort((a, b) => {
+        const ar = Number(String(a.rating).match(/(\d+(\.\d+)?)/g).pop());
+        const br = Number(String(b.rating).match(/(\d+(\.\d+)?)/g).pop());
+        return br - ar;
+      })[0]
+  : null;
 
   const missingSlots = Math.max(officialTotal - savedMovies, 0);
 
