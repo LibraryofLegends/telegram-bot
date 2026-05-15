@@ -461,6 +461,20 @@ const collectionRegistry = {
   ]
 };
 
+const universeRegistry = {
+  "Terminator Universe": [
+    "Terminator Filmreihe"
+  ],
+
+  "Bourne Universe": [
+    "Bourne Filmreihe"
+  ],
+
+  "Matrix Universe": [
+    "Matrix Filmreihe"
+  ]
+};
+
 const collectionThemes = {
   "Terminator Filmreihe": {
     icon: "🤖",
