@@ -439,7 +439,13 @@ function bourneHubCaption() {
       .join(" → ")
   : "Noch keine Timeline verfügbar";
 
-const progressBlocks = "█".repeat(rows.length) + "░".repeat(5 - rows.length);
+const totalBourneMovies = 5;
+const savedBourneMovies = Math.min(rows.length, totalBourneMovies);
+const missingBourneSlots = Math.max(totalBourneMovies - savedBourneMovies, 0);
+
+const progressBlocks =
+  "█".repeat(savedBourneMovies) +
+  "░".repeat(missingBourneSlots);
 
 const requiredBourneMovies = [
   { title: "Die Bourne Identität", year: "2002" },
