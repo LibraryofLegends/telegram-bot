@@ -4065,6 +4065,14 @@ if (isBourne) {
   }
 }
 
+if (isBourne) {
+  try {
+    await createOrUpdateBourneHub(topicId);
+  } catch (err) {
+    console.error("⚠️ Bourne Hub Vorab-Update Fehler:", err.message);
+  }
+}
+
   await tg("sendPhoto", {
     chat_id: MOVIE_GROUP_ID,
     message_thread_id: topicId,
