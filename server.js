@@ -3758,8 +3758,6 @@ if (isBourne) {
       "https://via.placeholder.com/500x750.png?text=No+Cover"
   });
 
-  const isBourne = isBourneMovie(tmdb, fileName);
-
 const copied = await copyOriginalMedia({
   fromChatId: msg.chat.id,
   messageId: msg.message_id,
