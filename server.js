@@ -1515,27 +1515,28 @@ function movieCaption(tmdb, extras = {}) {
   .slice(0, 320);
 
   return (
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 𝐇𝐀𝐕𝐎𝐂 (${tmdb.year || "Unbekannt"})\n`
-      .replace("𝐇𝐀𝐕𝐎𝐂", tmdb.title.toUpperCase()) +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    mediaLines.join("\n") + "\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `⭐ ${tmdb.rating}\n` +
-    `⏱ ${tmdb.runtime} • 🔞 ${tmdb.fsk}\n` +
-    `🎥 ${tmdb.director}\n` +
-    `👥 ${tmdb.cast}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📖 STORY\n" +
-    `${safeOverview}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🏷 ${extras.libraryId}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `${genreTags}\n` +
-    "@LibraryOfLegends"
-  );
-  
-  function bourneKeyboard() {
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `🎬 𝐇𝐀𝐕𝐎𝐂 (${tmdb.year || "Unbekannt"})\n`
+    .replace("𝐇𝐀𝐕𝐎𝐂", tmdb.title.toUpperCase()) +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  mediaLines.join("\n") + "\n" +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `⭐ ${tmdb.rating}\n` +
+  `⏱ ${tmdb.runtime} • 🔞 ${tmdb.fsk}\n` +
+  `🎥 ${tmdb.director}\n` +
+  `👥 ${tmdb.cast}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "📖 STORY\n" +
+  `${safeOverview}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `🏷 ${extras.libraryId}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `${genreTags}\n` +
+  "@LibraryOfLegends"
+);
+}
+
+function bourneKeyboard() {
   return {
     inline_keyboard: [
       [
