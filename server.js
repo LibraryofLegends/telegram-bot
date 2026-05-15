@@ -2481,6 +2481,10 @@ if (data === "bourne_next") {
   if (data === "panel_duplicates") {
     return await handleCommand({ chat: { id: chatId }, text: "/duplicates" });
   }
+  
+  if (data === "panel_dashboard") {
+  return await handleCommand({ chat: { id: chatId }, text: "/dashboard" });
+}
 
   if (data === "panel_stats") {
     return await handleCommand({ chat: { id: chatId }, text: "/stats" });
