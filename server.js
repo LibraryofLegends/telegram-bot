@@ -473,6 +473,11 @@ if (missingMovies.length) {
     "\n";
 }
 
+const collectionStatus =
+  missingMovies.length === 0
+    ? "🏆 STATUS: KOMPLETT"
+    : "⚠️ STATUS: UNVOLLSTÄNDIG";
+
 text +=
   "\n━━━━━━━━━━━━━━━━━━\n" +
   "🛰️ TIMELINE\n" +
