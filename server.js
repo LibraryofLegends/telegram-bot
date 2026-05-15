@@ -540,6 +540,22 @@ const collectionThemes = {
   }
 };
 
+const collectionCinemaCards = {
+  "Terminator Filmreihe": [
+    "🤖 SKYNET CORE",
+    "Threat Level: RED",
+    "Temporal Breaches: DETECTED",
+    "Resistance Activity: ACTIVE"
+  ],
+
+  "Bourne Filmreihe": [
+    "🕶️ CIA DOSSIER",
+    "Operation: TREADSTONE",
+    "Asset Status: ROGUE",
+    "Clearance: BLACK"
+  ]
+};
+
 const collectionBanners = {
   "Terminator Filmreihe":
     "https://image.tmdb.org/t/p/original/9pkZesKMnblFfKxEhQx45YQ2kIe.jpg",
@@ -663,20 +679,26 @@ function collectionHubCaption(collectionName) {
   const data = buildCollectionData(collectionName);
 
   const theme =
-  collectionThemes[collectionName] || {
-    icon: "🎞",
-    archive: "COLLECTION ARCHIVE",
-    subline: "PREMIUM FILM COLLECTION",
-    status: "🎬 FILMREIHE"
-  };
+    collectionThemes[collectionName] || {
+      icon: "🎞",
+      archive: "COLLECTION ARCHIVE",
+      subline: "PREMIUM FILM COLLECTION",
+      status: "🎬 FILMREIHE"
+    };
 
-let result =
+  const cinemaCard =
+    collectionCinemaCards[collectionName] || [];
+
+  let result =
   "━━━━━━━━━━━━━━━━━━\n" +
   `${theme.icon} ${String(collectionName || "").toUpperCase()}\n` +
   "━━━━━━━━━━━━━━━━━━\n\n" +
   `📁 ${theme.archive}\n` +
   `${theme.subline}\n` +
   `${theme.status}\n\n` +
+  (cinemaCard.length
+  ? "\n" + cinemaCard.join("\n") + "\n\n"
+  : "") +
   "━━━━━━━━━━━━━━━━━━\n" +
   "📀 FILMREIHENFOLGE\n" +
   "━━━━━━━━━━━━━━━━━━\n\n";
