@@ -437,18 +437,42 @@ function buildCollectionData(collectionName = "") {
     ORDER BY year ASC, title ASC
   `).all(collectionName);
 
-  const totalMovies = rows.length;
+  const collectionTotals = {
+    "Terminator Filmreihe": 6,
+    "John Wick Filmreihe": 4,
+    "The Dark Knight Trilogie": 3,
+    "Matrix Filmreihe": 4,
+    "Spider-Man Filmreihe": 8,
+    "Avengers Filmreihe": 4,
+    "Deadpool Filmreihe": 3
+  };
+
+  const officialTotal =
+    collectionTotals[collectionName] || rows.length;
+
+  const savedMovies = rows.length;
+
+  const missingMovies = Math.max(
+    officialTotal - savedMovies,
+    0
+  );
 
   const progressBlocks =
-    "█".repeat(rows.length);
+    "█".repeat(savedMovies) +
+    "░".repeat(missingMovies);
 
   const timeline = rows.length
-    ? rows.map((_, index) => String(index + 1).padStart(2, "0")).join(" → ")
+    ? rows
+        .map((_, index) =>
+          String(index + 1).padStart(2, "0")
+        )
+        .join(" → ")
     : "Keine Filme";
 
   return {
     rows,
-    totalMovies,
+    savedMovies,
+    officialTotal,
     progressBlocks,
     timeline
   };
