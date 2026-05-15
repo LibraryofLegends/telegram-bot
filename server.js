@@ -2489,6 +2489,10 @@ if (data === "bourne_next") {
   });
 }
 
+if (data === "panel_missing_bourne") {
+  return await handleCommand({ chat: { id: chatId }, text: "/missingbourne" });
+}
+
 if (data === "panel_bourne") {
   return await handleCommand({ chat: { id: chatId }, text: "/bourne" });
 }
@@ -3375,9 +3379,20 @@ if (text === "/dashboard") {
     "@LibraryOfLegends";
 
   await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: result.slice(0, 4000)
-  });
+  chat_id: msg.chat.id,
+  text: result.slice(0, 4000),
+  reply_markup: {
+    inline_keyboard: [
+      [
+        { text: "📌 HUB AKTUALISIEREN", callback_data: "panel_bourne_hub" }
+      ],
+      [
+        { text: "🧩 FEHLENDE FILME", callback_data: "panel_missing_bourne" },
+        { text: "🎛 DASHBOARD", callback_data: "panel_dashboard" }
+      ]
+    ]
+  }
+});
 
   return;
 }
