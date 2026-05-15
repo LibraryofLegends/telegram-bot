@@ -2552,6 +2552,7 @@ async function handleCommand(msg) {
 "• /bourne — Bourne Archiv anzeigen\n" +
 "• /missingbourne — Fehlende Bourne Filme\n" +
 "• /rebuildbournehub — Bourne Hub neu erstellen\n" +
+"• /bournesetup — Bourne System aktualisieren\n" +
 "• /rebuildcollections — Alle Collection Hubs aktualisieren\n" +
 "• /fixmovie alt | neu | jahr — Film korrigieren\n\n" +
 
