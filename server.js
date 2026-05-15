@@ -4131,9 +4131,12 @@ async function sendAdminPanel(chatId) {
           { text: "🧹 Duplikate", callback_data: "panel_duplicates" }
         ],
         [
-          { text: "📊 Statistik", callback_data: "panel_stats" },
-          { text: "🔎 Suche Hilfe", callback_data: "panel_search_help" }
-        ],
+  { text: "🎛 Dashboard", callback_data: "panel_dashboard" },
+  { text: "📊 Statistik", callback_data: "panel_stats" }
+],
+[
+  { text: "🔎 Suche Hilfe", callback_data: "panel_search_help" }
+],
         [
           { text: "📌 SetSeries Hilfe", callback_data: "panel_setseries_help" },
           { text: "🗑 Clear Series", callback_data: "panel_clearseries" }
