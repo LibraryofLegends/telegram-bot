@@ -645,6 +645,10 @@ let result =
     `🎬 Filme im Archiv: ${data.savedMovies}\n` +
     `🏆 Franchise Rating: ${data.franchiseRating}\n` +
 (data.bestMovie ? `👑 Bester Film: ${data.bestMovie.title}\n` : "") +
+"\n🌍 UNIVERSUM-STATS\n" +
+`⏱ Laufzeit: ${data.totalRuntimeText}\n` +
+`📀 Größte Datei: ${data.largestFile}\n` +
+`📅 Zeitraum: ${data.universePeriod}\n` +
     (data.savedMovies >= data.officialTotal
       ? "🏆 STATUS: KOMPLETT\n"
       : "⚠️ STATUS: UNVOLLSTÄNDIG\n") +
