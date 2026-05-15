@@ -478,14 +478,14 @@ const missingMovies = requiredMovies.filter((m) => {
   return !storedYears.includes(String(m.year));
 });
 
-  const missingMovies = Math.max(
-    officialTotal - savedMovies,
-    0
-  );
+  const missingSlots = Math.max(
+  officialTotal - savedMovies,
+  0
+);
 
   const progressBlocks =
     "█".repeat(savedMovies) +
-    "░".repeat(missingMovies);
+    "░".repeat(missingSlots);
 
   const timeline = rows.length
     ? rows
