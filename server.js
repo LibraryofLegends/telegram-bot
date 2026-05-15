@@ -4070,6 +4070,9 @@ const copied = await copyOriginalMedia({
   caption: isBourne
     ? bourneMovieCaption(tmdb, extras)
     : movieCaption(tmdb, extras),
+    reply_markup: isBourne
+  ? bourneKeyboard()
+  : undefined,
   fileId,
   isVideo: !!msg.video,
   adminChatId: msg.chat.id,
