@@ -4364,18 +4364,6 @@ if (isBourne) {
   }
 }
 
-      caption:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        `🎞 ${String(tmdb.collection || "").toUpperCase()}\n` +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "📁 COLLECTION ARCHIVE\n" +
-        "🎬 Premium Filmreihe\n" +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "@LibraryOfLegends"
-    });
-  }
-}
-
 if (isBourne) {
   try {
     await createOrUpdateBourneHub(topicId);
