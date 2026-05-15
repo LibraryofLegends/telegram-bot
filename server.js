@@ -301,6 +301,41 @@ function bourneHubCaption() {
        OR LOWER(collection) LIKE '%bourne%'
     ORDER BY year ASC, title ASC
   `).all();
+  
+  async function createOrUpdateBourneHub(topicId) {
+  const uniqueKey = makeKey(`collection-${MOVIE_GROUP_ID}-🎞 Bourne Filmreihe`);
+  const topic = getTopic(uniqueKey);
+
+  if (!topic) return null;
+
+  const text = bourneHubCaption();
+
+  if (topic.hub_message_id) {
+    return await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+  }
+
+  const hub = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: topicId,
+    text
+  });
+
+  if (hub?.message_id) {
+    saveHubMessageId(topicId, hub.message_id);
+
+    await tg("pinChatMessage", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: hub.message_id,
+      disable_notification: true
+    });
+  }
+
+  return hub;
+}
 
   let text =
     "━━━━━━━━━━━━━━━━━━\n" +
