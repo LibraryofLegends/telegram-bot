@@ -2550,6 +2550,7 @@ async function handleCommand(msg) {
 "• /collections — Filmreihen anzeigen\n" +
 "• /collection name — Filmreihe Details\n" +
 "• /bourne — Bourne Archiv anzeigen\n" +
+"• /missingbourne — Fehlende Bourne Filme\n" +
 "• /rebuildbournehub — Bourne Hub neu erstellen\n" +
 "• /rebuildcollections — Alle Collection Hubs aktualisieren\n" +
 "• /fixmovie alt | neu | jahr — Film korrigieren\n\n" +
