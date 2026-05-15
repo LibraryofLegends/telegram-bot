@@ -4075,13 +4075,10 @@ const copied = await copyOriginalMedia({
   caption: isBourne
     ? bourneMovieCaption(tmdb, extras)
     : movieCaption(tmdb, extras),
-    reply_markup: isBourne
-  ? bourneKeyboard()
-  : undefined,
-  fileId,
-  isVideo: !!msg.video,
-  adminChatId: msg.chat.id,
-  replyMarkup: isBourne ? bourneButtons() : null
+    fileId,
+isVideo: !!msg.video,
+adminChatId: msg.chat.id,
+replyMarkup: isBourne ? bourneKeyboard() : null
 });
 
   if (!copied?.message_id) {
