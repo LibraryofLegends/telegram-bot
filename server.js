@@ -1534,6 +1534,35 @@ function movieCaption(tmdb, extras = {}) {
     `${genreTags}\n` +
     "@LibraryOfLegends"
   );
+  
+  function bourneKeyboard() {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "🛰️ BOURNE ARCHIVE",
+          callback_data: "bourne_archive"
+        }
+      ],
+      [
+        {
+          text: "🧠 TREADSTONE",
+          callback_data: "bourne_treadstone"
+        },
+        {
+          text: "🎞 FILMREIHE",
+          callback_data: "bourne_collection"
+        }
+      ],
+      [
+        {
+          text: "🔥 WEITERE MISSIONEN",
+          callback_data: "bourne_more"
+        }
+      ]
+    ]
+  };
+}
 }
 
 function bourneMovieCaption(tmdb, extras = {}) {
