@@ -2033,11 +2033,10 @@ async function copyOriginalMedia({
   targetChatId,
   topicId,
   caption = "",
-  reply_markup = undefined,
-  fileId = "",
-  isVideo = false,
-  adminChatId = "",
-  replyMarkup = null
+fileId = "",
+isVideo = false,
+adminChatId = "",
+replyMarkup = null
 }) {
   const safeCaption = String(caption || "").slice(0, 900);
 
