@@ -478,7 +478,7 @@ text +=
   "🛰️ TIMELINE\n" +
   `${timeline}\n` +
   "━━━━━━━━━━━━━━━━━━\n" +
-  `🧩 Sammlung: ${progressBlocks} ${rows.length}/5\n` +
+  `🧩 Sammlung: ${progressBlocks} ${savedBourneMovies}/${totalBourneMovies}\n` +
   `🎬 Filme im Archiv: ${rows.length}\n` +
   missingText +
   "━━━━━━━━━━━━━━━━━━\n" +
@@ -3324,7 +3324,7 @@ if (text === "/dashboard") {
 
   result +=
     "\n━━━━━━━━━━━━━━━━━━\n" +
-    `✅ Vorhanden: ${rows.length}/5\n` +
+    `✅ Vorhanden: ${savedBourneMovies}/${totalBourneMovies}\n` +
     `⚠️ Fehlend: ${missing.length}/5\n` +
     "@LibraryOfLegends";
 
