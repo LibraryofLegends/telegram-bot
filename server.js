@@ -512,12 +512,24 @@ function buildCollectionData(collectionName = "") {
 function collectionHubCaption(collectionName) {
   const data = buildCollectionData(collectionName);
 
-  let result =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🎞 ${String(collectionName || "").toUpperCase()}\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-    "📀 FILMREIHENFOLGE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+  const theme =
+  collectionThemes[collectionName] || {
+    icon: "🎞",
+    archive: "COLLECTION ARCHIVE",
+    subline: "PREMIUM FILM COLLECTION",
+    status: "🎬 FILMREIHE"
+  };
+
+let result =
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `${theme.icon} ${String(collectionName || "").toUpperCase()}\n` +
+  "━━━━━━━━━━━━━━━━━━\n\n" +
+  `📁 ${theme.archive}\n` +
+  `${theme.subline}\n` +
+  `${theme.status}\n\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "📀 FILMREIHENFOLGE\n" +
+  "━━━━━━━━━━━━━━━━━━\n\n";
 
   if (!data.rows.length) {
     result += "Noch keine Filme gespeichert.\n";
