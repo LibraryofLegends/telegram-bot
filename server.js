@@ -430,11 +430,23 @@ function bourneHubCaption() {
     });
   }
 
-  text +=
-    "\n━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 Filme im Archiv: ${rows.length}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "@LibraryOfLegends";
+  const timeline = rows.length
+  ? rows
+      .map((m, index) => {
+        const nr = String(index + 1).padStart(2, "0");
+        return nr;
+      })
+      .join(" → ")
+  : "Noch keine Timeline verfügbar";
+
+text +=
+  "\n━━━━━━━━━━━━━━━━━━\n" +
+  "🛰️ TIMELINE\n" +
+  `${timeline}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `🎬 Filme im Archiv: ${rows.length}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "@LibraryOfLegends";
 
   return text.slice(0, 4000);
 }
