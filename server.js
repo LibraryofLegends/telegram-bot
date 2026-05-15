@@ -2106,20 +2106,36 @@ if (data === "bourne_programs") {
 }
 
 if (data === "bourne_archive") {
+  const rows = db.prepare(`
+    SELECT title, year, library_id
+    FROM movies
+    WHERE LOWER(title) LIKE '%bourne%'
+       OR LOWER(collection) LIKE '%bourne%'
+    ORDER BY year ASC, title ASC
+  `).all();
+
+  let text =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰️ BOURNE ARCHIVE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!rows.length) {
+    text += "Noch keine Bourne-Filme gespeichert.\n";
+  } else {
+    rows.forEach((m, index) => {
+      text += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
+      if (m.library_id) text += `     🏷 ${m.library_id}\n`;
+    });
+  }
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 Filme im Archiv: ${rows.length}\n` +
+    "⚠️ STATUS: CLASSIFIED";
+
   return await tg("sendMessage", {
     chat_id: chatId,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🛰️ BOURNE ARCHIVE\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      "01 • Die Bourne Identität (2002)\n" +
-      "02 • Die Bourne Verschwörung (2004)\n" +
-      "03 • Das Bourne Ultimatum (2007)\n" +
-      "04 • Das Bourne Vermächtnis (2012)\n" +
-      "05 • Jason Bourne (2016)\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "📁 Die komplette Bourne-Saga\n" +
-      "⚠️ STATUS: CLASSIFIED"
+    text: text.slice(0, 4000)
   });
 }
 
