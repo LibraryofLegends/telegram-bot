@@ -475,6 +475,34 @@ const universeRegistry = {
   ]
 };
 
+const universeThemes = {
+  "Terminator Universe": {
+    icon: "🌍",
+    archive: "MULTIVERSE DATABASE",
+    status: "🔴 SKYNET GLOBAL NETWORK"
+  },
+
+  "Matrix Universe": {
+    icon: "🧬",
+    archive: "MACHINE MAINFRAME",
+    status: "🟢 MATRIX SYSTEM ACTIVE"
+  }
+};
+
+const spinOffRegistry = {
+  "Breaking Bad Universe": [
+    "Breaking Bad",
+    "Better Call Saul",
+    "El Camino"
+  ],
+
+  "Conjuring Universe": [
+    "Conjuring Filmreihe",
+    "Annabelle Filmreihe",
+    "The Nun Filmreihe"
+  ]
+};
+
 const collectionThemes = {
   "Terminator Filmreihe": {
     icon: "🤖",
