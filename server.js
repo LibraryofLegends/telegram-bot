@@ -598,7 +598,10 @@ const timeline = sortedRows.length
   timeline,
   missingMovies,
   franchiseRating,
-  bestMovie
+  bestMovie,
+  totalRuntimeText,
+  largestFile,
+  universePeriod
 };
 }
 
