@@ -500,7 +500,7 @@ const collectionThemes = {
 
 function buildCollectionData(collectionName = "") {
   const rows = db.prepare(`
-    SELECT title, year, library_id, rating
+    SELECT title, year, library_id, rating, runtime, file_size
     FROM movies
     WHERE collection = ?
     ORDER BY year ASC, title ASC
@@ -530,6 +530,36 @@ const bestMovie = ratingValues.length
         return br - ar;
       })[0]
   : null;
+  
+  const totalRuntimeMinutes = rows.reduce((sum, m) => {
+  return sum + Number(m.runtime || 0);
+}, 0);
+
+const runtimeHours = Math.floor(totalRuntimeMinutes / 60);
+const runtimeMinutes = totalRuntimeMinutes % 60;
+
+const totalRuntimeText =
+  totalRuntimeMinutes > 0
+    ? `${runtimeHours}h ${runtimeMinutes}m`
+    : "Unbekannt";
+
+const fileSizes = rows
+  .map((m) => parseFloat(String(m.file_size || "0")))
+  .filter((n) => Number.isFinite(n));
+
+const largestFile =
+  fileSizes.length
+    ? `${Math.max(...fileSizes).toFixed(2)} GB`
+    : "Unbekannt";
+
+const years = rows
+  .map((m) => Number(m.year))
+  .filter((y) => Number.isFinite(y));
+
+const universePeriod =
+  years.length
+    ? `${Math.min(...years)} → ${Math.max(...years)}`
+    : "Unbekannt";
 
   const missingSlots = Math.max(officialTotal - savedMovies, 0);
 
