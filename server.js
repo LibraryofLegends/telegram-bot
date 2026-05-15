@@ -500,31 +500,31 @@ async function createOrUpdateCollectionHub(tmdb, topicId) {
   const collection = getCollectionById(tmdb.collectionId);
   if (!collection) return null;
 
-  const text = collectionHubCaption(tmdb.collection);
+  const hubText = collectionHubCaption(tmdb.collection);
 
   if (collection.hub_message_id) {
     return await tg("editMessageText", {
       chat_id: MOVIE_GROUP_ID,
       message_id: collection.hub_message_id,
-      text
+      text: hubText
     });
   }
 
   const hub = await tg("sendMessage", {
     chat_id: MOVIE_GROUP_ID,
     message_thread_id: topicId,
-    text
+    text: hubText
   });
 
   if (hub?.message_id) {
-  saveCollectionHubMessageId(tmdb.collectionId, hub.message_id);
+    saveCollectionHubMessageId(tmdb.collectionId, hub.message_id);
 
-  await tg("pinChatMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_id: hub.message_id,
-    disable_notification: true
-  });
-}
+    await tg("pinChatMessage", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: hub.message_id,
+      disable_notification: true
+    });
+  }
 
   return hub;
 }
