@@ -563,32 +563,63 @@ async function createOrUpdateBourneHub(topicId) {
   return hub;
 }
 
-function collectionHubCaption(collectionName) {
-  const movies = db.prepare(`
+function buildCollectionData(collectionName = "") {
+  const rows = db.prepare(`
     SELECT title, year, library_id
     FROM movies
     WHERE collection = ?
     ORDER BY year ASC, title ASC
   `).all(collectionName);
 
-  let result =
-    "╔══════════════════╗\n" +
-    `      🎞 ${String(collectionName || "").toUpperCase()}\n` +
-    "        FILMREIHE\n" +
-    "╚══════════════════╝\n\n";
+  const totalMovies = rows.length;
 
-  if (!movies.length) {
+  const progressBlocks =
+    "█".repeat(Math.min(totalMovies, 10)) +
+    "░".repeat(Math.max(10 - totalMovies, 0));
+
+  const timeline = rows.length
+    ? rows.map((_, index) => String(index + 1).padStart(2, "0")).join(" → ")
+    : "Keine Filme";
+
+  return {
+    rows,
+    totalMovies,
+    progressBlocks,
+    timeline
+  };
+}
+
+function collectionHubCaption(collectionName) {
+  const data = buildCollectionData(collectionName);
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎞 ${String(collectionName || "").toUpperCase()}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "📀 FILMREIHENFOLGE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!data.rows.length) {
     result += "Noch keine Filme gespeichert.\n";
   } else {
-    movies.forEach((m, index) => {
-      result += `${index + 1}. ${m.title} (${m.year || "Unbekannt"})\n`;
-      if (m.library_id) result += `   🏷 ${m.library_id}\n`;
+    data.rows.forEach((m, index) => {
+      result += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
+
+      if (m.library_id) {
+        result += `     🏷 ${m.library_id}\n`;
+      }
     });
   }
 
   result +=
     "\n━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 Filme: ${movies.length}\n` +
+    "🛰️ TIMELINE\n" +
+    `${data.timeline}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🧩 Sammlung: ${data.progressBlocks}\n` +
+    `🎬 Filme im Archiv: ${data.totalMovies}\n` +
+    `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends";
 
