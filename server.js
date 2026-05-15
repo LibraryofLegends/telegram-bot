@@ -541,13 +541,13 @@ const timeline = sortedRows.length
   : "Keine Filme";
 
   return {
-    rows,
-    savedMovies,
-    officialTotal,
-    progressBlocks,
-    timeline,
-    missingMovies
-  };
+  rows: sortedRows,
+  savedMovies,
+  officialTotal,
+  progressBlocks,
+  timeline,
+  missingMovies
+};
 }
 
 function collectionHubCaption(collectionName) {
