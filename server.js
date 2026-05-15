@@ -374,6 +374,87 @@ function bourneHubCaption() {
   return text.slice(0, 4000);
 }
 
+function bourneHubCaption() {
+  const rows = db.prepare(`
+    SELECT title, year, library_id
+    FROM movies
+    WHERE LOWER(title) LIKE '%bourne%'
+       OR LOWER(collection) LIKE '%bourne%'
+    ORDER BY year ASC, title ASC
+  `).all();
+
+  let text =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🕶️ JASON BOURNE UNIVERSE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "📁 CIA ARCHIVE\n" +
+    "🧠 TREADSTONE • BLACKBRIAR • OUTCOME\n" +
+    "⚠️ STATUS: CLASSIFIED\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📀 FILMREIHENFOLGE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!rows.length) {
+    text += "Noch keine Bourne-Filme gespeichert.\n";
+  } else {
+    rows.forEach((m, index) => {
+      text += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
+      if (m.library_id) text += `     🏷 ${m.library_id}\n`;
+    });
+  }
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 Filme im Archiv: ${rows.length}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+async function createOrUpdateBourneHub(topicId) {
+  const topic = db.prepare(`
+    SELECT *
+    FROM topics
+    WHERE topic_id = ?
+    AND chat_id = ?
+    LIMIT 1
+  `).get(topicId, String(MOVIE_GROUP_ID));
+
+  const text = bourneHubCaption();
+
+  if (topic?.hub_message_id) {
+    return await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+  }
+
+  const hub = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: topicId,
+    text
+  });
+
+  if (hub?.message_id) {
+    db.prepare(`
+      UPDATE topics
+      SET hub_message_id = ?
+      WHERE topic_id = ?
+      AND chat_id = ?
+    `).run(hub.message_id, topicId, String(MOVIE_GROUP_ID));
+
+    await tg("pinChatMessage", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: hub.message_id,
+      disable_notification: true
+    });
+  }
+
+  return hub;
+}
+
 function collectionHubCaption(collectionName) {
   const movies = db.prepare(`
     SELECT title, year, library_id
