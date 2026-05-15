@@ -486,6 +486,7 @@ text +=
   `🧩 Sammlung: ${progressBlocks} ${savedBourneMovies}/${totalBourneMovies}\n` +
   `🎬 Filme im Archiv: ${rows.length}\n` +
   missingText +
+  `${collectionStatus}\n` +
   "━━━━━━━━━━━━━━━━━━\n" +
   "@LibraryOfLegends";
 
