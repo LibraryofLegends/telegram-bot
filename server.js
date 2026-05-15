@@ -4158,7 +4158,7 @@ const copied = await copyOriginalMedia({
     fileId,
 isVideo: !!msg.video,
 adminChatId: msg.chat.id,
-replyMarkup: isBourne ? bourneKeyboard() : null
+replyMarkup: isBourne ? bourneKeyboard(tmdb.title) : null
 });
 
   if (!copied?.message_id) {
