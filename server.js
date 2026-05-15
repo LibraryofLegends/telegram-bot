@@ -532,7 +532,8 @@ const bestMovie = ratingValues.length
   : null;
   
   const totalRuntimeMinutes = rows.reduce((sum, m) => {
-  return sum + Number(m.runtime || 0);
+  const match = String(m.runtime || "").match(/\d+/);
+  return sum + (match ? Number(match[0]) : 0);
 }, 0);
 
 const runtimeHours = Math.floor(totalRuntimeMinutes / 60);
