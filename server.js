@@ -440,6 +440,36 @@ const collectionRegistry = {
   ]
 };
 
+const collectionThemes = {
+  "Terminator Filmreihe": {
+    icon: "🤖",
+    archive: "SKYNET ARCHIVE",
+    subline: "JUDGMENT DAY PROTOCOL",
+    status: "⚠️ SKYNET ONLINE"
+  },
+
+  "Bourne Filmreihe": {
+    icon: "🕶️",
+    archive: "CIA ARCHIVE",
+    subline: "TREADSTONE • BLACKBRIAR • OUTCOME",
+    status: "⚠️ STATUS: CLASSIFIED"
+  },
+
+  "Matrix Filmreihe": {
+    icon: "💊",
+    archive: "ZION ARCHIVE",
+    subline: "THE ONE • MACHINE WAR",
+    status: "🟢 MATRIX DETECTED"
+  },
+
+  "John Wick Filmreihe": {
+    icon: "🩸",
+    archive: "HIGH TABLE ARCHIVE",
+    subline: "EXCOMMUNICADO DOSSIER",
+    status: "⚫ ACTIVE CONTRACT"
+  }
+};
+
 function buildCollectionData(collectionName = "") {
   const rows = db.prepare(`
     SELECT title, year, library_id
