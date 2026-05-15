@@ -478,17 +478,17 @@ function collectionHubCaption(collectionName) {
   }
 
   result +=
-    "\n━━━━━━━━━━━━━━━━━━\n" +
-    "🛰️ TIMELINE\n" +
-    `${data.timeline}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🧩 Sammlung: ${data.progressBlocks} ${data.totalMovies}/${data.totalMovies}\n`
-    `🎬 Filme im Archiv: ${data.totalMovies}\n` +
-    `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "@LibraryOfLegends";
+  "\n━━━━━━━━━━━━━━━━━━\n" +
+  "🛰️ TIMELINE\n" +
+  `${data.timeline}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `🧩 Sammlung: ${data.progressBlocks} ${data.totalMovies}/${data.totalMovies}\n` +
+  `🎬 Filme im Archiv: ${data.totalMovies}\n` +
+  `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "@LibraryOfLegends";
 
-  return result.slice(0, 4000);
+return result.slice(0, 4000);
 }
 
 async function createOrUpdateCollectionHub(tmdb, topicId) {
