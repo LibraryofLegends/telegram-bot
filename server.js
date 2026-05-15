@@ -3939,10 +3939,14 @@ const copied = await copyOriginalMedia({
   });
 
   try {
+  if (isBourne) {
+    await createOrUpdateBourneHub(topicId);
+  } else {
     await createOrUpdateCollectionHub(tmdb, topicId);
-  } catch (err) {
-    console.error("⚠️ Collection Hub Update Fehler:", err.message);
   }
+} catch (err) {
+  console.error("⚠️ Collection/Bourne Hub Update Fehler:", err.message);
+}
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
