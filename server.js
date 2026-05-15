@@ -4364,18 +4364,6 @@ if (isBourne) {
   }
 }
 
-  if (tmdb.collection && tmdb.collectionId) {
-  const existingCollection = getCollection(tmdb.collectionId);
-
-  if (!existingCollection?.hub_message_id) {
-    await tg("sendPhoto", {
-      chat_id: MOVIE_GROUP_ID,
-      message_thread_id: topicId,
-      photo:
-        tmdb.collectionPoster ||
-        tmdb.posterUrl ||
-        "https://via.placeholder.com/500x750.png?text=No+Cover",
-
       caption:
         "━━━━━━━━━━━━━━━━━━\n" +
         `🎞 ${String(tmdb.collection || "").toUpperCase()}\n` +
