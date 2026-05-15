@@ -481,12 +481,13 @@ const missingMovies = requiredMovies.filter((m) => {
     : "Keine Filme";
 
   return {
-    rows,
-    savedMovies,
-    officialTotal,
-    progressBlocks,
-    timeline
-  };
+  rows,
+  savedMovies,
+  officialTotal,
+  progressBlocks,
+  timeline,
+  missingMovies
+};
 }
 
 function collectionHubCaption(collectionName) {
