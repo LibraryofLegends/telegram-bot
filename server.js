@@ -29,8 +29,6 @@ let LAST_RESTORE_FILE_ID = "";
 
 const PENDING_MOVIE_UPLOADS = new Map();
 
-function buildCollectionData(collectionName = "") {
-
 // =============================
 // CHECK
 // =============================
