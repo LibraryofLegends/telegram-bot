@@ -2446,6 +2446,18 @@ if (data === "bourne_next") {
   });
 }
 
+if (data === "panel_bourne") {
+  return await handleCommand({ chat: { id: chatId }, text: "/bourne" });
+}
+
+if (data === "panel_bourne_hub") {
+  return await handleCommand({ chat: { id: chatId }, text: "/rebuildbournehub" });
+}
+
+if (data === "panel_rebuild_collections") {
+  return await handleCommand({ chat: { id: chatId }, text: "/rebuildcollections" });
+}
+
   if (data === "panel_movies") {
     return await handleCommand({ chat: { id: chatId }, text: "/movies" });
   }
