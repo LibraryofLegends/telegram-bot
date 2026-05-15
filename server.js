@@ -429,6 +429,27 @@ async function createOrUpdateBourneHub(topicId) {
   return hub;
 }
 
+const chronologyRegistry = {
+
+  "Terminator Filmreihe": [
+    "1984",
+    "1991",
+    "2003",
+    "2009",
+    "2015",
+    "2019"
+  ],
+
+  "Bourne Filmreihe": [
+    "2002",
+    "2004",
+    "2007",
+    "2012",
+    "2016"
+  ]
+
+};
+
 const collectionRegistry = {
   "Terminator Filmreihe": [
     { title: "Terminator", year: "1984" },
@@ -502,9 +523,22 @@ function buildCollectionData(collectionName = "") {
     return !storedYears.includes(String(m.year));
   });
 
-  const timeline = rows.length
-    ? rows.map((_, index) => String(index + 1).padStart(2, "0")).join(" → ")
-    : "Keine Filme";
+  const chronology = chronologyRegistry[collectionName] || [];
+
+const sortedRows = chronology.length
+  ? rows.sort((a, b) => {
+      const aIndex = chronology.indexOf(String(a.year));
+      const bIndex = chronology.indexOf(String(b.year));
+
+      return aIndex - bIndex;
+    })
+  : rows;
+
+const timeline = sortedRows.length
+  ? sortedRows
+      .map((_, index) => String(index + 1).padStart(2, "0"))
+      .join(" → ")
+  : "Keine Filme";
 
   return {
     rows,
