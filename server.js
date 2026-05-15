@@ -1747,7 +1747,7 @@ const movieThemes = {
   status: "🔴 THREAT LEVEL: EXTREME",
   subline: "🛰 TEMPORAL BREACH DETECTED",
   divider: "▰▰▰▰▰▰▰▰▰▰"
-}
+},
 
   "Bourne Filmreihe": {
     icon: "🕶️",
