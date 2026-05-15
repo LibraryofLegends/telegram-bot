@@ -2425,6 +2425,27 @@ if (data === "bourne_archive") {
   });
 }
 
+if (data === "bourne_collection") {
+  return await tg("sendMessage", {
+    chat_id: chatId,
+    text: bourneHubCaption()
+  });
+}
+
+if (data === "bourne_next") {
+  return await tg("sendMessage", {
+    chat_id: chatId,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "➡️ NÄCHSTE MISSION\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "Öffne das Bourne Archive, um den nächsten gespeicherten Film in der Collection zu finden.\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🛰️ Tipp: Nutze den Button BOURNE ARCHIVE\n" +
+      "⚠️ STATUS: CLASSIFIED"
+  });
+}
+
   if (data === "panel_movies") {
     return await handleCommand({ chat: { id: chatId }, text: "/movies" });
   }
