@@ -453,56 +453,46 @@ function buildCollectionData(collectionName = "") {
   `).all(collectionName);
 
   const collectionTotals = {
-    "Terminator Filmreihe": 6,
-    "John Wick Filmreihe": 4,
-    "The Dark Knight Trilogie": 3,
-    "Matrix Filmreihe": 4,
-    "Spider-Man Filmreihe": 8,
-    "Avengers Filmreihe": 4,
-    "Deadpool Filmreihe": 3
+    "Terminator Filmreihe": 6
   };
 
+  const requiredMovies =
+    collectionRegistry[collectionName] || [];
+
   const officialTotal =
-    collectionTotals[collectionName] || rows.length;
+    collectionTotals[collectionName] || requiredMovies.length || rows.length;
 
   const savedMovies = rows.length;
-  
-  const requiredMovies =
-  collectionRegistry[collectionName] || [];
-
-const storedYears = rows.map((m) =>
-  String(m.year || "")
-);
-
-const missingMovies = requiredMovies.filter((m) => {
-  return !storedYears.includes(String(m.year));
-});
 
   const missingSlots = Math.max(
-  officialTotal - savedMovies,
-  0
-);
+    officialTotal - savedMovies,
+    0
+  );
 
   const progressBlocks =
     "█".repeat(savedMovies) +
     "░".repeat(missingSlots);
 
+  const storedYears = rows.map((m) =>
+    String(m.year || "")
+  );
+
+  const missingMovies = requiredMovies.filter((m) => {
+    return !storedYears.includes(String(m.year));
+  });
+
   const timeline = rows.length
-    ? rows
-        .map((_, index) =>
-          String(index + 1).padStart(2, "0")
-        )
-        .join(" → ")
+    ? rows.map((_, index) => String(index + 1).padStart(2, "0")).join(" → ")
     : "Keine Filme";
 
   return {
-  rows,
-  savedMovies,
-  officialTotal,
-  progressBlocks,
-  timeline,
-  missingMovies
-};
+    rows,
+    savedMovies,
+    officialTotal,
+    progressBlocks,
+    timeline,
+    missingMovies
+  };
 }
 
 function collectionHubCaption(collectionName) {
