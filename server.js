@@ -29,19 +29,6 @@ let LAST_RESTORE_FILE_ID = "";
 
 const PENDING_MOVIE_UPLOADS = new Map();
 
-const COLLECTION_CACHE = new Map();
-
-const collectionRegistry = {
-  "Terminator Filmreihe": [
-    { title: "Terminator", year: "1984" },
-    { title: "Terminator 2 - Tag der Abrechnung", year: "1991" },
-    { title: "Terminator 3 - Rebellion der Maschinen", year: "2003" },
-    { title: "Terminator: Die Erlösung", year: "2009" },
-    { title: "Terminator: Genisys", year: "2015" },
-    { title: "Terminator: Dark Fate", year: "2019" }
-  ]
-};
-
 function buildCollectionData(collectionName = "") {
 
 // =============================
@@ -444,6 +431,17 @@ async function createOrUpdateBourneHub(topicId) {
   return hub;
 }
 
+const collectionRegistry = {
+  "Terminator Filmreihe": [
+    { title: "Terminator", year: "1984" },
+    { title: "Terminator 2 - Tag der Abrechnung", year: "1991" },
+    { title: "Terminator 3 - Rebellion der Maschinen", year: "2003" },
+    { title: "Terminator: Die Erlösung", year: "2009" },
+    { title: "Terminator: Genisys", year: "2015" },
+    { title: "Terminator: Dark Fate", year: "2019" }
+  ]
+};
+
 function buildCollectionData(collectionName = "") {
   const rows = db.prepare(`
     SELECT title, year, library_id
@@ -452,30 +450,18 @@ function buildCollectionData(collectionName = "") {
     ORDER BY year ASC, title ASC
   `).all(collectionName);
 
-  const collectionTotals = {
-    "Terminator Filmreihe": 6
-  };
+  const requiredMovies = collectionRegistry[collectionName] || [];
 
-  const requiredMovies =
-    collectionRegistry[collectionName] || [];
-
-  const officialTotal =
-    collectionTotals[collectionName] || requiredMovies.length || rows.length;
-
+  const officialTotal = requiredMovies.length || rows.length;
   const savedMovies = rows.length;
 
-  const missingSlots = Math.max(
-    officialTotal - savedMovies,
-    0
-  );
+  const missingSlots = Math.max(officialTotal - savedMovies, 0);
 
   const progressBlocks =
     "█".repeat(savedMovies) +
     "░".repeat(missingSlots);
 
-  const storedYears = rows.map((m) =>
-    String(m.year || "")
-  );
+  const storedYears = rows.map((m) => String(m.year || ""));
 
   const missingMovies = requiredMovies.filter((m) => {
     return !storedYears.includes(String(m.year));
@@ -502,7 +488,6 @@ function collectionHubCaption(collectionName) {
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎞 ${String(collectionName || "").toUpperCase()}\n` +
     "━━━━━━━━━━━━━━━━━━\n\n" +
-
     "📀 FILMREIHENFOLGE\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
@@ -511,35 +496,30 @@ function collectionHubCaption(collectionName) {
   } else {
     data.rows.forEach((m, index) => {
       result += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
-
-      if (m.library_id) {
-        result += `     🏷 ${m.library_id}\n`;
-      }
+      if (m.library_id) result += `     🏷 ${m.library_id}\n`;
     });
   }
 
   result +=
-  "\n━━━━━━━━━━━━━━━━━━\n" +
-  "🛰️ TIMELINE\n" +
-  `${data.timeline}\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `🧩 Sammlung: ${data.progressBlocks} ${data.savedMovies}/${data.officialTotal}\n` +
-  `🎬 Filme im Archiv: ${data.savedMovies}\n` +
-  (data.savedMovies >= data.officialTotal
-    ? "🏆 STATUS: KOMPLETT\n"
-    : "⚠️ STATUS: UNVOLLSTÄNDIG\n") +
-  (data.missingMovies.length
-    ? "\n🧩 FEHLENDE FILME\n" +
-      data.missingMovies
-        .map((m) => `• ${m.title} (${m.year})`)
-        .join("\n") +
-      "\n"
-    : "") +
-  `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "@LibraryOfLegends";
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "🛰️ TIMELINE\n" +
+    `${data.timeline}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🧩 Sammlung: ${data.progressBlocks} ${data.savedMovies}/${data.officialTotal}\n` +
+    `🎬 Filme im Archiv: ${data.savedMovies}\n` +
+    (data.savedMovies >= data.officialTotal
+      ? "🏆 STATUS: KOMPLETT\n"
+      : "⚠️ STATUS: UNVOLLSTÄNDIG\n") +
+    (data.missingMovies.length
+      ? "\n🧩 FEHLENDE FILME\n" +
+        data.missingMovies.map((m) => `• ${m.title} (${m.year})`).join("\n") +
+        "\n"
+      : "") +
+    `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
 
-return result.slice(0, 4000);
+  return result.slice(0, 4000);
 }
 
 async function createOrUpdateCollectionHub(tmdb, topicId) {
