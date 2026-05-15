@@ -454,6 +454,32 @@ text +=
   return text.slice(0, 4000);
 }
 
+const requiredBourneMovies = [
+  { title: "Die Bourne Identität", year: "2002" },
+  { title: "Die Bourne Verschwörung", year: "2004" },
+  { title: "Das Bourne Ultimatum", year: "2007" },
+  { title: "Das Bourne Vermächtnis", year: "2012" },
+  { title: "Jason Bourne", year: "2016" }
+];
+
+const storedYears = rows.map((m) => String(m.year || ""));
+
+const missingMovies = requiredBourneMovies.filter((m) => {
+  return !storedYears.includes(m.year);
+});
+
+let missingText = "";
+
+if (missingMovies.length) {
+  missingText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧩 FEHLENDE MISSIONEN\n" +
+    missingMovies
+      .map((m) => `• ${m.title} (${m.year})`)
+      .join("\n") +
+    "\n";
+}
+
 async function createOrUpdateBourneHub(topicId) {
   const topic = db.prepare(`
     SELECT *
