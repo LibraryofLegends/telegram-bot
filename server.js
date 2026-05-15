@@ -523,6 +523,13 @@ function collectionHubCaption(collectionName) {
   (data.savedMovies >= data.officialTotal
   ? "🏆 STATUS: KOMPLETT\n"
   : "⚠️ STATUS: UNVOLLSTÄNDIG\n") +
+  (data.missingMovies.length
+  ? "\n🧩 FEHLENDE FILME\n" +
+    data.missingMovies
+      .map((m) => `• ${m.title} (${m.year})`)
+      .join("\n") +
+    "\n"
+  : "") +
   `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
   "━━━━━━━━━━━━━━━━━━\n" +
   "@LibraryOfLegends";
