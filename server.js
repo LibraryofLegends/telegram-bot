@@ -1740,7 +1740,32 @@ function makeHashtags(text = "") {
     .join(" ");
 }
 
+const movieThemes = {
+  "Terminator Filmreihe": {
+    icon: "🤖",
+    archive: "📼 SKYNET ARCHIVE ENTRY",
+    status: "🔴 THREAT LEVEL: EXTREME",
+    subline: "🛰 TEMPORAL BREACH DETECTED"
+  },
+
+  "Bourne Filmreihe": {
+    icon: "🕶️",
+    archive: "📁 CIA DOSSIER",
+    status: "⚫ ROGUE ASSET",
+    subline: "🧠 TREADSTONE ACTIVE"
+  },
+
+  "Matrix Filmreihe": {
+    icon: "💊",
+    archive: "📟 ZION MAINFRAME ENTRY",
+    status: "🟢 MATRIX SIGNAL DETECTED",
+    subline: "🧬 THE ONE PROTOCOL"
+  }
+};
+
 function movieCaption(tmdb, extras = {}) {
+  const theme = movieThemes[tmdb.collection] || {};
+
   const genreText = String(tmdb.genre || "Sonstige")
     .split("/")
     .map((g) => g.trim())
@@ -1755,50 +1780,38 @@ function movieCaption(tmdb, extras = {}) {
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
-  const mediaLines = [];
-
-  mediaLines.push(`🔥 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}`);
-  mediaLines.push(`🎭 ${genreText}`);
-
-  if (extras.resolution && extras.resolution !== "Unbekannt") {
-    mediaLines.push(`🎞 ${extras.resolution}`);
-  }
-
-  if (extras.source && extras.source !== "Unbekannt") {
-    mediaLines.push(`💿 ${extras.source}`);
-  }
-
-  if (extras.audio && extras.audio !== "Unbekannt") {
-    mediaLines.push(`🎧 ${extras.audio}`);
-  }
-  
-  const safeOverview = String(
-  tmdb.overview || "Keine Beschreibung verfügbar."
-)
-  .replace(/\s+/g, " ")
-  .trim()
-  .slice(0, 320);
+  const safeOverview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 340);
 
   return (
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `🎬 𝐇𝐀𝐕𝐎𝐂 (${tmdb.year || "Unbekannt"})\n`
-    .replace("𝐇𝐀𝐕𝐎𝐂", tmdb.title.toUpperCase()) +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  mediaLines.join("\n") + "\n" +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `⭐ ${tmdb.rating}\n` +
-  `⏱ ${tmdb.runtime} • 🔞 ${tmdb.fsk}\n` +
-  `🎥 ${tmdb.director}\n` +
-  `👥 ${tmdb.cast}\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "📖 STORY\n" +
-  `${safeOverview}\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `🏷 ${extras.libraryId}\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `${genreTags}\n` +
-  "@LibraryOfLegends"
-);
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${theme.icon || "🎬"} ${String(tmdb.title || "").toUpperCase()} • ${tmdb.year || "Unbekannt"}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    (theme.archive
+      ? `${theme.archive}\n${theme.status}\n${theme.subline}\n`
+      : "") +
+    `🔥 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}\n` +
+    `🎭 ${genreText}\n` +
+    (extras.resolution && extras.resolution !== "Unbekannt" ? `🎞 ${extras.resolution}\n` : "") +
+    (extras.source && extras.source !== "Unbekannt" ? `💿 ${extras.source}\n` : "") +
+    (extras.audio && extras.audio !== "Unbekannt" ? `🎧 ${extras.audio}\n` : "") +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `⭐ ${tmdb.rating || "Unbekannt"}\n` +
+    `⏱ ${tmdb.runtime || "Unbekannt"} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+    `🎥 ${tmdb.director || "Unbekannt"}\n` +
+    `👥 ${tmdb.cast || "Unbekannt"}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📖 STORY\n" +
+    `${safeOverview}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🏷 ${extras.libraryId || ""}\n` +
+    (theme.archive ? "📡 FRANCHISE DATABASE\n" : "") +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${genreTags}\n` +
+    "@LibraryOfLegends"
+  ).slice(0, 1000);
 }
 
 function getNextBourneMovie(title = "") {
