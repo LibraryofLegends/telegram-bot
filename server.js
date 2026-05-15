@@ -526,15 +526,15 @@ function collectionHubCaption(collectionName) {
   `🧩 Sammlung: ${data.progressBlocks} ${data.savedMovies}/${data.officialTotal}\n` +
   `🎬 Filme im Archiv: ${data.savedMovies}\n` +
   (data.savedMovies >= data.officialTotal
-  ? "🏆 STATUS: KOMPLETT\n"
-  : "⚠️ STATUS: UNVOLLSTÄNDIG\n") +
+    ? "🏆 STATUS: KOMPLETT\n"
+    : "⚠️ STATUS: UNVOLLSTÄNDIG\n") +
   (data.missingMovies.length
-  ? "\n🧩 FEHLENDE FILME\n" +
-    data.missingMovies
-      .map((m) => `• ${m.title} (${m.year})`)
-      .join("\n") +
-    "\n"
-  : "") +
+    ? "\n🧩 FEHLENDE FILME\n" +
+      data.missingMovies
+        .map((m) => `• ${m.title} (${m.year})`)
+        .join("\n") +
+      "\n"
+    : "") +
   `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
   "━━━━━━━━━━━━━━━━━━\n" +
   "@LibraryOfLegends";
