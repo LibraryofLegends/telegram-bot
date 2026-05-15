@@ -3191,6 +3191,26 @@ if (text === "/dashboard") {
     return;
   }
   
+  if (text === "/bournehelp") {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🕶️ BOURNE COMMAND CENTER\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "🛰️ /bourne — Bourne Archiv anzeigen\n" +
+      "🧩 /missingbourne — Fehlende Bourne Filme prüfen\n" +
+      "📌 /rebuildbournehub — Bourne Hub neu erstellen\n" +
+      "⚙️ /bournesetup — Bourne System aktualisieren\n" +
+      "🎛 /dashboard — Premium Dashboard\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "⚠️ STATUS: CLASSIFIED\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+  
   if (text === "/bournesetup") {
   const topic = db.prepare(`
     SELECT *
