@@ -439,11 +439,14 @@ function bourneHubCaption() {
       .join(" → ")
   : "Noch keine Timeline verfügbar";
 
+const progressBlocks = "█".repeat(rows.length) + "░".repeat(5 - rows.length);
+
 text +=
   "\n━━━━━━━━━━━━━━━━━━\n" +
   "🛰️ TIMELINE\n" +
   `${timeline}\n` +
   "━━━━━━━━━━━━━━━━━━\n" +
+  `🧩 Sammlung: ${progressBlocks} ${rows.length}/5\n` +
   `🎬 Filme im Archiv: ${rows.length}\n` +
   "━━━━━━━━━━━━━━━━━━\n" +
   "@LibraryOfLegends";
