@@ -303,14 +303,17 @@ function bourneHubCaption() {
   `).all();
   
   async function createOrUpdateBourneHub(topicId) {
-  const uniqueKey = makeKey(`collection-${MOVIE_GROUP_ID}-🎞 Bourne Filmreihe`);
-  const topic = getTopic(uniqueKey);
-
-  if (!topic) return null;
+  const topic = db.prepare(`
+    SELECT *
+    FROM topics
+    WHERE topic_id = ?
+    AND chat_id = ?
+    LIMIT 1
+  `).get(topicId, String(MOVIE_GROUP_ID));
 
   const text = bourneHubCaption();
 
-  if (topic.hub_message_id) {
+  if (topic?.hub_message_id) {
     return await tg("editMessageText", {
       chat_id: MOVIE_GROUP_ID,
       message_id: topic.hub_message_id,
@@ -325,7 +328,12 @@ function bourneHubCaption() {
   });
 
   if (hub?.message_id) {
-    saveHubMessageId(topicId, hub.message_id);
+    db.prepare(`
+      UPDATE topics
+      SET hub_message_id = ?
+      WHERE topic_id = ?
+      AND chat_id = ?
+    `).run(hub.message_id, topicId, String(MOVIE_GROUP_ID));
 
     await tg("pinChatMessage", {
       chat_id: MOVIE_GROUP_ID,
