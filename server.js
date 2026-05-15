@@ -2033,6 +2033,7 @@ async function copyOriginalMedia({
   targetChatId,
   topicId,
   caption = "",
+  reply_markup = undefined,
   fileId = "",
   isVideo = false,
   adminChatId = "",
@@ -2050,6 +2051,10 @@ async function copyOriginalMedia({
   if (safeCaption) {
     baseData.caption = safeCaption;
   }
+  
+  if (reply_markup) {
+  baseData.reply_markup = reply_markup;
+}
   
   if (replyMarkup) {
   baseData.reply_markup = replyMarkup;
