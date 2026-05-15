@@ -695,10 +695,10 @@ function collectionHubCaption(collectionName) {
   "━━━━━━━━━━━━━━━━━━\n\n" +
   `📁 ${theme.archive}\n` +
   `${theme.subline}\n` +
-  `${theme.status}\n\n` +
-  (cinemaCard.length
+  `${theme.status}\n` +
+(cinemaCard.length
   ? "\n" + cinemaCard.join("\n") + "\n\n"
-  : "") +
+  : "\n") +
   "━━━━━━━━━━━━━━━━━━\n" +
   "📀 FILMREIHENFOLGE\n" +
   "━━━━━━━━━━━━━━━━━━\n\n";
