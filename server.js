@@ -1766,6 +1766,31 @@ const movieThemes = {
 function movieCaption(tmdb, extras = {}) {
   const theme = movieThemes[tmdb.collection] || {};
 
+  const divider = theme.divider || "━━━━━━━━━━━━━━━━━━";
+
+  const mainGenre = String(tmdb.genre || "Sonstige")
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)[0] || "Sonstige";
+
+  const genreEmojiMap = {
+    Action: "💥",
+    Thriller: "🔪",
+    Sciencefiction: "🚀",
+    Drama: "🎭",
+    Horror: "👻",
+    Krimi: "🕵️",
+    Abenteuer: "🗺️",
+    Fantasy: "🐉",
+    Komödie: "😂",
+    Animation: "🎨",
+    Familie: "👨‍👩‍👧",
+    Mystery: "🧩",
+    Romanze: "❤️"
+  };
+
+  const genreEmoji = genreEmojiMap[mainGenre] || "🎬";
+
   const genreText = String(tmdb.genre || "Sonstige")
     .split("/")
     .map((g) => g.trim())
@@ -1780,53 +1805,86 @@ function movieCaption(tmdb, extras = {}) {
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
+  const ratingNumber =
+    Number(String(tmdb.rating || "").match(/(\d+(\.\d+)?)/g)?.pop() || 0);
+
+  const releaseBadge =
+    ratingNumber >= 8
+      ? "🏆 CULT CLASSIC"
+      : ratingNumber >= 7
+        ? "🎖 PREMIUM RELEASE"
+        : "🎞 ARCHIVE ENTRY";
+
+  const threatLevel =
+    ratingNumber >= 8
+      ? "🔴 THREAT LEVEL: EXTREME"
+      : ratingNumber >= 7
+        ? "🟠 THREAT LEVEL: HIGH"
+        : "🟡 THREAT LEVEL: MODERATE";
+
+  const castLines = String(tmdb.cast || "Unbekannt")
+    .split("•")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .slice(0, 4)
+    .map((p) => `• ${p}`)
+    .join("\n");
+
+  const techLine = [
+    extras.quality || "Unbekannt",
+    extras.resolution && extras.resolution !== "Unbekannt" ? extras.resolution : null,
+    extras.audio && extras.audio !== "Unbekannt" ? extras.audio : null,
+    extras.fileSize || "Unbekannt"
+  ].filter(Boolean).join(" • ");
+
   const overviewRaw = String(tmdb.overview || "Keine Beschreibung verfügbar.")
-  .replace(/\s+/g, " ")
-  .trim();
+    .replace(/\s+/g, " ")
+    .trim();
 
-let safeOverview = overviewRaw;
+  let safeOverview = overviewRaw;
 
-if (safeOverview.length > 340) {
-  safeOverview = safeOverview.slice(0, 340);
+  if (safeOverview.length > 340) {
+    safeOverview = safeOverview.slice(0, 340);
 
-  const lastSentenceEnd = Math.max(
-    safeOverview.lastIndexOf("."),
-    safeOverview.lastIndexOf("!"),
-    safeOverview.lastIndexOf("?")
-  );
+    const lastSentenceEnd = Math.max(
+      safeOverview.lastIndexOf("."),
+      safeOverview.lastIndexOf("!"),
+      safeOverview.lastIndexOf("?")
+    );
 
-  if (lastSentenceEnd > 180) {
-    safeOverview = safeOverview.slice(0, lastSentenceEnd + 1);
-  } else {
-    safeOverview = safeOverview.slice(0, safeOverview.lastIndexOf(" "));
-    safeOverview += " …";
+    if (lastSentenceEnd > 180) {
+      safeOverview = safeOverview.slice(0, lastSentenceEnd + 1);
+    } else {
+      safeOverview = safeOverview.slice(0, safeOverview.lastIndexOf(" "));
+      safeOverview += " …";
+    }
   }
-}
 
   return (
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `${theme.icon || "🎬"} ${String(tmdb.title || "").toUpperCase()} • ${tmdb.year || "Unbekannt"}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
+    `${divider}\n` +
+    `${theme.icon || genreEmoji} ${String(tmdb.title || "").toUpperCase()} • ${tmdb.year || "Unbekannt"}\n` +
+    `${divider}\n` +
     (theme.archive
-      ? `${theme.archive}\n${theme.status}\n${theme.subline}\n`
-      : "") +
-    `🔥 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}\n` +
-    `🎭 ${genreText}\n` +
-    (extras.resolution && extras.resolution !== "Unbekannt" ? `🎞 ${extras.resolution}\n` : "") +
-    (extras.source && extras.source !== "Unbekannt" ? `💿 ${extras.source}\n` : "") +
-    (extras.audio && extras.audio !== "Unbekannt" ? `🎧 ${extras.audio}\n` : "") +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `⭐ ${tmdb.rating || "Unbekannt"}\n` +
+      ? `${theme.archive}\n${theme.status || threatLevel}\n${theme.subline || ""}\n`
+      : `${threatLevel}\n`) +
+    `${genreEmoji} ${genreText}\n` +
+    `🎞 ${techLine}\n` +
+    `${divider}\n` +
+    `⭐ IMDb ${tmdb.rating || "Unbekannt"}\n` +
+    `${releaseBadge}\n` +
     `⏱ ${tmdb.runtime || "Unbekannt"} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-    `🎥 ${tmdb.director || "Unbekannt"}\n` +
-    `👥 ${tmdb.cast || "Unbekannt"}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
+    `${divider}\n` +
+    "🎥 REGIE\n" +
+    `${tmdb.director || "Unbekannt"}\n\n` +
+    "👥 CAST\n" +
+    `${castLines || "Unbekannt"}\n` +
+    `${divider}\n` +
     "📖 STORY\n" +
-    `${safeOverview}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🏷 ${extras.libraryId || ""}\n` +
+    `» ${safeOverview}\n` +
+    `${divider}\n` +
+    `🏷 DATABASE ID: ${extras.libraryId || "Unbekannt"}\n` +
     (theme.archive ? "📡 FRANCHISE DATABASE\n" : "") +
-    "━━━━━━━━━━━━━━━━━━\n" +
+    `${divider}\n` +
     `${genreTags}\n` +
     "@LibraryOfLegends"
   ).slice(0, 1000);
