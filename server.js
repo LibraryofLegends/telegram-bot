@@ -618,8 +618,8 @@ const universePeriod =
   const missingSlots = Math.max(officialTotal - savedMovies, 0);
 
   const progressBlocks =
-    "█".repeat(savedMovies) +
-    "░".repeat(missingSlots);
+  "■".repeat(savedMovies) +
+  "□".repeat(missingSlots);
 
   const storedYears = rows.map((m) => String(m.year || ""));
 
