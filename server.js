@@ -1613,6 +1613,8 @@ function bourneMovieCaption(tmdb, extras = {}) {
   const program = getBourneProgram(tmdb.title);
   
   const agentCode = getBourneAgentCode(tmdb.title);
+  
+  const collectionNumber = getBourneCollectionNumber(tmdb.title);
 
   return (
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -1621,6 +1623,7 @@ function bourneMovieCaption(tmdb, extras = {}) {
     "📁 CIA ARCHIVE • CLASSIFIED\n" +
     `🧠 PROGRAMM: ${program}\n` +
     `🛰️ AGENT CODE: ${agentCode}\n` +
+    `📀 COLLECTION: ${collectionNumber}\n` +
     `🔥 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}\n` +
     `🎭 ${String(tmdb.genre || "Action / Thriller").replace(/\s*\/\s*/g, " • ")}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
