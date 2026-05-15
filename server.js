@@ -441,20 +441,6 @@ function bourneHubCaption() {
 
 const progressBlocks = "█".repeat(rows.length) + "░".repeat(5 - rows.length);
 
-text +=
-  "\n━━━━━━━━━━━━━━━━━━\n" +
-  "🛰️ TIMELINE\n" +
-  `${timeline}\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `🧩 Sammlung: ${progressBlocks} ${rows.length}/5\n` +
-  `🎬 Filme im Archiv: ${rows.length}\n` +
-missingText +
-"━━━━━━━━━━━━━━━━━━\n" +
-"@LibraryOfLegends";
-
-  return text.slice(0, 4000);
-}
-
 const requiredBourneMovies = [
   { title: "Die Bourne Identität", year: "2002" },
   { title: "Die Bourne Verschwörung", year: "2004" },
@@ -479,6 +465,20 @@ if (missingMovies.length) {
       .map((m) => `• ${m.title} (${m.year})`)
       .join("\n") +
     "\n";
+}
+
+text +=
+  "\n━━━━━━━━━━━━━━━━━━\n" +
+  "🛰️ TIMELINE\n" +
+  `${timeline}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `🧩 Sammlung: ${progressBlocks} ${rows.length}/5\n` +
+  `🎬 Filme im Archiv: ${rows.length}\n` +
+missingText +
+"━━━━━━━━━━━━━━━━━━\n" +
+"@LibraryOfLegends";
+
+  return text.slice(0, 4000);
 }
 
 async function createOrUpdateBourneHub(topicId) {
