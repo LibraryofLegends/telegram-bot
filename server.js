@@ -3204,6 +3204,49 @@ if (text === "/rebuildbournehub") {
 
   return;
 }
+
+if (text === "/rebuildcollections") {
+  const collections = db.prepare(`
+    SELECT *
+    FROM collections
+    WHERE topic_id IS NOT NULL
+    ORDER BY collection_name ASC
+  `).all();
+
+  let updated = 0;
+  let failed = 0;
+
+  for (const c of collections) {
+    try {
+      const fakeTmdb = {
+        collection: c.collection_name,
+        collectionId: c.tmdb_collection_id
+      };
+
+      await createOrUpdateCollectionHub(fakeTmdb, c.topic_id);
+      updated++;
+
+      await new Promise((resolve) => setTimeout(resolve, 700));
+    } catch (err) {
+      failed++;
+      console.error("⚠️ Collection Rebuild Fehler:", err.message);
+    }
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🎞 COLLECTION REBUILD\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `✅ Aktualisiert: ${updated}\n` +
+      `⚠️ Fehler: ${failed}\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
   
   if (text === "/collections") {
   const rows = db.prepare(`
