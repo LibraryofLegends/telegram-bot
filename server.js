@@ -29,6 +29,21 @@ let LAST_RESTORE_FILE_ID = "";
 
 const PENDING_MOVIE_UPLOADS = new Map();
 
+const COLLECTION_CACHE = new Map();
+
+const collectionRegistry = {
+  "Terminator Filmreihe": [
+    { title: "Terminator", year: "1984" },
+    { title: "Terminator 2 - Tag der Abrechnung", year: "1991" },
+    { title: "Terminator 3 - Rebellion der Maschinen", year: "2003" },
+    { title: "Terminator: Die Erlösung", year: "2009" },
+    { title: "Terminator: Genisys", year: "2015" },
+    { title: "Terminator: Dark Fate", year: "2019" }
+  ]
+};
+
+function buildCollectionData(collectionName = "") {
+
 // =============================
 // CHECK
 // =============================
