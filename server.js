@@ -4459,6 +4459,8 @@ replyMarkup: isBourne ? bourneKeyboard(tmdb.title) : null
 try {
   if (isBourne) {
     await createOrUpdateBourneHub(topicId);
+  } else if (tmdb.collection && tmdb.collectionId) {
+    await createOrUpdateCollectionHub(tmdb, topicId);
   }
 } catch (err) {
   console.error("⚠️ Collection/Bourne Hub Update Fehler:", err.message);
