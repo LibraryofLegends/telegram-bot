@@ -640,8 +640,8 @@ const sortedRows = chronology.length
 
 const timeline = sortedRows.length
   ? sortedRows
-      .map((_, index) => String(index + 1).padStart(2, "0"))
-      .join(" → ")
+      .map((m, index) => `${String(index + 1).padStart(2, "0")}•${m.year || "????"}`)
+      .join(" ══▶ ")
   : "Keine Filme";
 
   return {
