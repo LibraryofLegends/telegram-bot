@@ -3190,6 +3190,45 @@ if (text === "/dashboard") {
     return;
   }
   
+  if (text === "/bournesetup") {
+  const topic = db.prepare(`
+    SELECT *
+    FROM topics
+    WHERE name = ?
+    AND chat_id = ?
+    LIMIT 1
+  `).get("🎞 Bourne Filmreihe", String(MOVIE_GROUP_ID));
+
+  if (topic?.topic_id) {
+    await createOrUpdateBourneHub(topic.topic_id);
+  }
+
+  const bourneCount = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM movies
+    WHERE LOWER(title) LIKE '%bourne%'
+       OR LOWER(collection) LIKE '%bourne%'
+  `).get().count;
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🕶️ BOURNE SETUP\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `📌 Hub: ${topic?.topic_id ? "Aktualisiert" : "Nicht gefunden"}\n` +
+      `🎬 Filme: ${bourneCount}/5\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "Nutze danach:\n" +
+      "/missingbourne\n" +
+      "/bourne\n" +
+      "/dashboard\n" +
+      "━━━━━━━━━━━━━━━━━━"
+  });
+
+  return;
+}
+  
   if (text === "/missingbourne") {
   const required = [
     { title: "Die Bourne Identität", year: "2002" },
