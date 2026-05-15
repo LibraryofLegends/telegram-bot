@@ -2950,6 +2950,33 @@ for (const season of seasons) {
 
   return;
 }
+
+if (text === "/rebuildbournehub") {
+  const topic = db.prepare(`
+    SELECT *
+    FROM topics
+    WHERE name = ?
+    AND chat_id = ?
+    LIMIT 1
+  `).get("🎞 Bourne Filmreihe", String(MOVIE_GROUP_ID));
+
+  if (!topic?.topic_id) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Bourne-Thema nicht gefunden. Lade zuerst einen Bourne-Film hoch."
+    });
+    return;
+  }
+
+  await createOrUpdateBourneHub(topic.topic_id);
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: "✅ Premium Bourne-Hub wurde erstellt/aktualisiert."
+  });
+
+  return;
+}
   
   if (text === "/collections") {
   const rows = db.prepare(`
