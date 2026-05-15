@@ -1742,11 +1742,12 @@ function makeHashtags(text = "") {
 
 const movieThemes = {
   "Terminator Filmreihe": {
-    icon: "🤖",
-    archive: "📼 SKYNET ARCHIVE ENTRY",
-    status: "🔴 THREAT LEVEL: EXTREME",
-    subline: "🛰 TEMPORAL BREACH DETECTED"
-  },
+  icon: "🤖",
+  archive: "📼 SKYNET ARCHIVE ENTRY",
+  status: "🔴 THREAT LEVEL: EXTREME",
+  subline: "🛰 TEMPORAL BREACH DETECTED",
+  divider: "▰▰▰▰▰▰▰▰▰▰"
+}
 
   "Bourne Filmreihe": {
     icon: "🕶️",
