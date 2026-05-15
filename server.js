@@ -4119,6 +4119,13 @@ async function sendAdminPanel(chatId) {
           { text: "📺 Serien", callback_data: "panel_series" }
         ],
         [
+  { text: "🕶️ Bourne Archiv", callback_data: "panel_bourne" },
+  { text: "🔄 Bourne Hub", callback_data: "panel_bourne_hub" }
+],
+[
+  { text: "🎞 Collections Rebuild", callback_data: "panel_rebuild_collections" }
+],
+        [
           { text: "📺 Serien Hub", callback_data: "panel_serieshub" },
           { text: "🔤 Serien A–Z", callback_data: "panel_seriesaz" }
         ],
