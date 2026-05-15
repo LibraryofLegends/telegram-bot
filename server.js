@@ -3706,15 +3706,20 @@ async function processMovieUpload({ msg, media, tmdb }) {
     libraryId: makeLibraryCode(tmdb.genre)
   };
 
-  const genreTopicName = tmdb.mainGenre || "Sonstige";
+  const isBourne = isBourneMovie(tmdb, fileName);
 
-  let finalTopicName = genreTopicName;
-  let finalTopicType = "movie_genre";
+const genreTopicName = tmdb.mainGenre || "Sonstige";
 
-  if (tmdb.collection && tmdb.collectionId) {
-    finalTopicName = `🎞 ${tmdb.collection}`;
-    finalTopicType = "collection";
-  }
+let finalTopicName = genreTopicName;
+let finalTopicType = "movie_genre";
+
+if (isBourne) {
+  finalTopicName = "🎞 Bourne Filmreihe";
+  finalTopicType = "collection";
+} else if (tmdb.collection && tmdb.collectionId) {
+  finalTopicName = `🎞 ${tmdb.collection}`;
+  finalTopicType = "collection";
+}
 
   const topicId = await createOrGetTopic({
     chatId: MOVIE_GROUP_ID,
