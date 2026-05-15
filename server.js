@@ -1780,10 +1780,28 @@ function movieCaption(tmdb, extras = {}) {
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
-  const safeOverview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 340);
+  const overviewRaw = String(tmdb.overview || "Keine Beschreibung verfügbar.")
+  .replace(/\s+/g, " ")
+  .trim();
+
+let safeOverview = overviewRaw;
+
+if (safeOverview.length > 340) {
+  safeOverview = safeOverview.slice(0, 340);
+
+  const lastSentenceEnd = Math.max(
+    safeOverview.lastIndexOf("."),
+    safeOverview.lastIndexOf("!"),
+    safeOverview.lastIndexOf("?")
+  );
+
+  if (lastSentenceEnd > 180) {
+    safeOverview = safeOverview.slice(0, lastSentenceEnd + 1);
+  } else {
+    safeOverview = safeOverview.slice(0, safeOverview.lastIndexOf(" "));
+    safeOverview += " …";
+  }
+}
 
   return (
     "━━━━━━━━━━━━━━━━━━\n" +
