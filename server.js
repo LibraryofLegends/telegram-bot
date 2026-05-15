@@ -970,6 +970,32 @@ function getMediaExtras(fileName, msg) {
   };
 }
 
+function getBourneAgentCode(title = "") {
+  const t = String(title).toLowerCase();
+
+  if (t.includes("ident")) {
+    return "TREADSTONE-001";
+  }
+
+  if (t.includes("verschw")) {
+    return "BLACKBRIAR-002";
+  }
+
+  if (t.includes("ultimatum")) {
+    return "OUTCOME-003";
+  }
+
+  if (t.includes("verm")) {
+    return "LEGACY-004";
+  }
+
+  if (t.includes("jason bourne")) {
+    return "CROSS-005";
+  }
+
+  return "CLASSIFIED-000";
+}
+
 function makeLibraryId(id) {
   return `#${String(id || 0).padStart(4, "0")}`;
 }
