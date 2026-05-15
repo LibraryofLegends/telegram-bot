@@ -451,6 +451,17 @@ function buildCollectionData(collectionName = "") {
     collectionTotals[collectionName] || rows.length;
 
   const savedMovies = rows.length;
+  
+  const requiredMovies =
+  collectionRegistry[collectionName] || [];
+
+const storedYears = rows.map((m) =>
+  String(m.year || "")
+);
+
+const missingMovies = requiredMovies.filter((m) => {
+  return !storedYears.includes(String(m.year));
+});
 
   const missingMovies = Math.max(
     officialTotal - savedMovies,
