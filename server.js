@@ -4364,6 +4364,31 @@ if (isBourne) {
   }
 }
 
+if (tmdb.collection && tmdb.collectionId) {
+  const collection = getCollection(tmdb.collectionId);
+
+  if (!collection?.hub_message_id) {
+    await tg("sendPhoto", {
+      chat_id: MOVIE_GROUP_ID,
+      message_thread_id: topicId,
+      photo:
+        tmdb.collectionPoster ||
+        tmdb.posterUrl ||
+        "https://via.placeholder.com/500x750.png?text=No+Cover",
+      caption:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        `🎞 ${String(tmdb.collection || "").toUpperCase()}\n` +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "📁 COLLECTION ARCHIVE\n" +
+        "🎬 Premium Filmreihe\n" +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "@LibraryOfLegends"
+    });
+  }
+
+  await createOrUpdateCollectionHub(tmdb, topicId);
+}
+
 if (isBourne) {
   try {
     await createOrUpdateBourneHub(topicId);
@@ -4403,45 +4428,43 @@ replyMarkup: isBourne ? bourneKeyboard(tmdb.title) : null
   }
 
   saveMovie({
-    title: tmdb.title,
-    year: tmdb.year,
-    genre: tmdb.genre,
-    rating: tmdb.rating,
-    runtime: tmdb.runtime,
-    overview: tmdb.overview,
-    posterUrl: tmdb.posterUrl,
-    fileName,
-    fileId,
-    uniqueKey: media.uniqueKey,
-    telegramMessageId: copied.message_id,
-    topicId,
-    collection: tmdb.collection,
-    quality: extras.quality,
-    audio: extras.audio,
-    source: extras.source,
-    fsk: tmdb.fsk,
-    director: tmdb.director,
-    cast: tmdb.cast,
-    libraryId: extras.libraryId,
-    resolution: extras.resolution,
-    fileSize: extras.fileSize,
-    videoCodec: extras.videoCodec,
-    audioCodec: extras.audioCodec,
-    audioChannels: extras.audioChannels,
-    hdr: extras.hdr
-  });
+  title: tmdb.title,
+  year: tmdb.year,
+  genre: tmdb.genre,
+  rating: tmdb.rating,
+  runtime: tmdb.runtime,
+  overview: tmdb.overview,
+  posterUrl: tmdb.posterUrl,
+  fileName,
+  fileId,
+  uniqueKey: media.uniqueKey,
+  telegramMessageId: copied.message_id,
+  topicId,
+  collection: tmdb.collection,
+  quality: extras.quality,
+  audio: extras.audio,
+  source: extras.source,
+  fsk: tmdb.fsk,
+  director: tmdb.director,
+  cast: tmdb.cast,
+  libraryId: extras.libraryId,
+  resolution: extras.resolution,
+  fileSize: extras.fileSize,
+  videoCodec: extras.videoCodec,
+  audioCodec: extras.audioCodec,
+  audioChannels: extras.audioChannels,
+  hdr: extras.hdr
+});
 
-  try {
+try {
   if (isBourne) {
     await createOrUpdateBourneHub(topicId);
-  } else {
-    await createOrUpdateCollectionHub(tmdb, topicId);
   }
 } catch (err) {
   console.error("⚠️ Collection/Bourne Hub Update Fehler:", err.message);
 }
 
-  await tg("sendMessage", {
+await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
       "✅ Film erfolgreich einsortiert:\n\n" +
