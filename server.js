@@ -293,6 +293,32 @@ function saveCollectionHubMessageId(tmdbCollectionId, messageId) {
   `).run(messageId, tmdbCollectionId);
 }
 
+function buildCollectionData(collectionName = "") {
+  const rows = db.prepare(`
+    SELECT title, year, library_id
+    FROM movies
+    WHERE collection = ?
+    ORDER BY year ASC, title ASC
+  `).all(collectionName);
+
+  const totalMovies = rows.length;
+
+  const progressBlocks =
+    "█".repeat(Math.min(totalMovies, 10)) +
+    "░".repeat(Math.max(10 - totalMovies, 0));
+
+  const timeline = rows.length
+    ? rows.map((_, index) => String(index + 1).padStart(2, "0")).join(" → ")
+    : "Keine Filme";
+
+  return {
+    rows,
+    totalMovies,
+    progressBlocks,
+    timeline
+  };
+}
+
 function bourneHubCaption() {
   const rowsRaw = db.prepare(`
   SELECT title, year, library_id
