@@ -3069,6 +3069,38 @@ for (const season of seasons) {
   return;
 }
 
+if (text === "/dashboard") {
+  const movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
+  const seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
+  const topicCount = db.prepare("SELECT COUNT(*) AS count FROM topics").get().count;
+  const collectionCount = db.prepare("SELECT COUNT(*) AS count FROM collections").get().count;
+
+  const bourneCount = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM movies
+    WHERE LOWER(title) LIKE '%bourne%'
+       OR LOWER(collection) LIKE '%bourne%'
+  `).get().count;
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🎛 PREMIUM DASHBOARD\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `🎬 Filme: ${movieCount}\n` +
+      `🎞 Collections: ${collectionCount}\n` +
+      `🕶️ Bourne Archiv: ${bourneCount}/5\n` +
+      `📺 Serien-Episoden: ${seriesCount}\n` +
+      `🧵 Themen: ${topicCount}\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "⚙️ SYSTEM STATUS: ONLINE\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
   if (text === "/stats") {
     const movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
     const seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
