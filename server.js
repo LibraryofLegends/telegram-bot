@@ -566,7 +566,9 @@ const timeline = sortedRows.length
   officialTotal,
   progressBlocks,
   timeline,
-  missingMovies
+  missingMovies,
+  franchiseRating,
+  bestMovie
 };
 }
 
