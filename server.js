@@ -1871,8 +1871,8 @@ function movieCaption(tmdb, extras = {}) {
     `${genreEmoji} ${genreText}\n` +
     `🎞 ${techLine}\n` +
     `${divider}\n` +
-    `⭐ IMDb ${tmdb.rating || "Unbekannt"}\n` +
-    `${releaseBadge}\n` +
+    `⭐ RATING: ${tmdb.rating || "Unbekannt"} IMDb\n` +
+`🎖 CLASSIFICATION: ${releaseBadge.replace("🏆 ", "").replace("🎖 ", "").replace("🎞 ", "")}\n` +
     `⏱ ${tmdb.runtime || "Unbekannt"} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
     `${divider}\n` +
     "🎥 REGIE\n" +
