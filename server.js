@@ -441,8 +441,6 @@ const collectionRegistry = {
 };
 
 const collectionThemes = {
-  const collectionThemes = {
-
   "Terminator Filmreihe": {
     icon: "🤖",
     archive: "SKYNET ARCHIVE",
