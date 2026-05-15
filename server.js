@@ -704,8 +704,8 @@ let result =
 `📀 Größte Datei: ${data.largestFile}\n` +
 `📅 Zeitraum: ${data.universePeriod}\n` +
     (data.savedMovies >= data.officialTotal
-      ? "🏆 STATUS: KOMPLETT\n"
-      : "⚠️ STATUS: UNVOLLSTÄNDIG\n") +
+  ? "🏆 ARCHIV VOLLSTÄNDIG\n"
+  : "⚠️ ARCHIV UNVOLLSTÄNDIG\n") +
     (data.missingMovies.length
       ? "\n🧩 FEHLENDE FILME\n" +
         data.missingMovies.map((m) => `• ${m.title} (${m.year})`).join("\n") +
