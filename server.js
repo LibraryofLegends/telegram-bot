@@ -2830,6 +2830,45 @@ for (const season of seasons) {
     return;
   }
   
+  if (text === "/bourne") {
+  const rows = db.prepare(`
+    SELECT title, year, rating, runtime, library_id
+    FROM movies
+    WHERE LOWER(title) LIKE '%bourne%'
+       OR LOWER(collection) LIKE '%bourne%'
+    ORDER BY year ASC, title ASC
+  `).all();
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🕶️ JASON BOURNE ARCHIVE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!rows.length) {
+    result += "Noch keine Bourne-Filme gespeichert.\n";
+  } else {
+    rows.forEach((m, index) => {
+      result += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
+      result += `⭐ ${m.rating || "Unbekannt"} • ⏱ ${m.runtime || "Unbekannt"}\n`;
+      if (m.library_id) result += `🏷 ${m.library_id}\n`;
+      result += "\n";
+    });
+  }
+
+  result +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 Filme: ${rows.length}\n` +
+    "⚠️ STATUS: CLASSIFIED\n" +
+    "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result.slice(0, 4000)
+  });
+
+  return;
+}
+  
   if (text === "/collections") {
   const rows = db.prepare(`
     SELECT 
