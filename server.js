@@ -2226,6 +2226,7 @@ async function handleCommand(msg) {
       "• /movies — Filme anzeigen\n" +
       "• /collections — Filmreihen anzeigen\n" +
       "• /collection name — Filmreihe Details\n" +
+      "• /bourne — Bourne Archiv anzeigen\n" +
       "• /fixmovie alt | neu | jahr — Film korrigieren\n\n" +
 
       "📺 SERIEN\n" +
