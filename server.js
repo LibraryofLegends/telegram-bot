@@ -3189,6 +3189,55 @@ if (text === "/dashboard") {
     return;
   }
   
+  if (text === "/missingbourne") {
+  const required = [
+    { title: "Die Bourne Identität", year: "2002" },
+    { title: "Die Bourne Verschwörung", year: "2004" },
+    { title: "Das Bourne Ultimatum", year: "2007" },
+    { title: "Das Bourne Vermächtnis", year: "2012" },
+    { title: "Jason Bourne", year: "2016" }
+  ];
+
+  const rows = db.prepare(`
+    SELECT title, year
+    FROM movies
+    WHERE LOWER(title) LIKE '%bourne%'
+       OR LOWER(collection) LIKE '%bourne%'
+  `).all();
+
+  const stored = rows.map((m) => `${String(m.title).toLowerCase()}-${m.year}`);
+
+  const missing = required.filter((m) => {
+    return !stored.some((s) => s.includes(String(m.year)));
+  });
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧩 FEHLENDE BOURNE FILME\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!missing.length) {
+    result += "🏆 Bourne Collection vollständig.\n";
+  } else {
+    missing.forEach((m, index) => {
+      result += `${index + 1}. ${m.title} (${m.year})\n`;
+    });
+  }
+
+  result +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    `✅ Vorhanden: ${rows.length}/5\n` +
+    `⚠️ Fehlend: ${missing.length}/5\n` +
+    "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result
+  });
+
+  return;
+}
+  
   if (text === "/bourne") {
   const rows = db.prepare(`
     SELECT title, year, rating, runtime, library_id
