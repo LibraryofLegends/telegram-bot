@@ -1742,32 +1742,85 @@ function makeHashtags(text = "") {
 
 const movieThemes = {
   "Terminator Filmreihe": {
-  icon: "🤖",
-  archive: "📼 SKYNET ARCHIVE ENTRY",
-  status: "🔴 THREAT LEVEL: EXTREME",
-  subline: "🛰 TEMPORAL BREACH DETECTED",
-  divider: "▰▰▰▰▰▰▰▰▰▰"
-},
+    icon: "🤖",
+    archive: "📼 SKYNET ARCHIVE ENTRY",
+    status: "🔴 THREAT LEVEL: EXTREME",
+    subline: "🛰 TEMPORAL BREACH DETECTED",
+    mode: "scifi"
+  },
 
   "Bourne Filmreihe": {
     icon: "🕶️",
     archive: "📁 CIA DOSSIER",
     status: "⚫ ROGUE ASSET",
-    subline: "🧠 TREADSTONE ACTIVE"
+    subline: "🧠 TREADSTONE ACTIVE",
+    mode: "classified"
   },
 
   "Matrix Filmreihe": {
     icon: "💊",
     archive: "📟 ZION MAINFRAME ENTRY",
     status: "🟢 MATRIX SIGNAL DETECTED",
-    subline: "🧬 THE ONE PROTOCOL"
+    subline: "🧬 THE ONE PROTOCOL",
+    mode: "scifi"
+  },
+
+  "John Wick Filmreihe": {
+    icon: "🩸",
+    archive: "🪙 HIGH TABLE DOSSIER",
+    status: "🟡 EXCOMMUNICADO",
+    subline: "🔫 CONTRACT ACTIVE",
+    mode: "classified"
+  },
+
+  "Harry Potter Filmreihe": {
+    icon: "🪄",
+    archive: "📚 HOGWARTS ARCHIVE",
+    status: "✨ WIZARDING WORLD",
+    subline: "⚡ THE BOY WHO LIVED",
+    mode: "prestige"
+  }
+};
+
+const cardModes = {
+  cinema: {
+    divider: "━━━━━━━━━━━━━━━━━━",
+    label: "🎞 CINEMA MODE"
+  },
+
+  vhs: {
+    divider: "════ VHS ════",
+    label: "📼 VHS ARCHIVE"
+  },
+
+  scifi: {
+    divider: "▰▰▰ SCI-FI ▰▰▰",
+    label: "🛰 SCI-FI DOSSIER"
+  },
+
+  classified: {
+    divider: "⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛",
+    label: "⚫ CLASSIFIED FILE"
+  },
+
+  prestige: {
+    divider: "👑════════════👑",
+    label: "👑 PRESTIGE COLLECTION"
+  },
+
+  horror: {
+    divider: "🩸🩸🩸🩸🩸🩸🩸🩸",
+    label: "🧟 HORROR CASEFILE"
   }
 };
 
 function movieCaption(tmdb, extras = {}) {
   const theme = movieThemes[tmdb.collection] || {};
 
-  const divider = theme.divider || "━━━━━━━━━━━━━━━━━━";
+  const mode =
+    cardModes[theme.mode] || cardModes.cinema;
+
+  const divider = mode.divider;
 
   const mainGenre = String(tmdb.genre || "Sonstige")
     .split("/")
@@ -1833,12 +1886,20 @@ function movieCaption(tmdb, extras = {}) {
 
   const techLine = [
     extras.quality || "Unbekannt",
-    extras.resolution && extras.resolution !== "Unbekannt" ? extras.resolution : null,
-    extras.audio && extras.audio !== "Unbekannt" ? extras.audio : null,
+    extras.resolution && extras.resolution !== "Unbekannt"
+      ? extras.resolution
+      : null,
+    extras.audio && extras.audio !== "Unbekannt"
+      ? extras.audio
+      : null,
     extras.fileSize || "Unbekannt"
-  ].filter(Boolean).join(" • ");
+  ]
+    .filter(Boolean)
+    .join(" • ");
 
-  const overviewRaw = String(tmdb.overview || "Keine Beschreibung verfügbar.")
+  const overviewRaw = String(
+    tmdb.overview || "Keine Beschreibung verfügbar."
+  )
     .replace(/\s+/g, " ")
     .trim();
 
@@ -1856,36 +1917,65 @@ function movieCaption(tmdb, extras = {}) {
     if (lastSentenceEnd > 180) {
       safeOverview = safeOverview.slice(0, lastSentenceEnd + 1);
     } else {
-      safeOverview = safeOverview.slice(0, safeOverview.lastIndexOf(" "));
+      safeOverview = safeOverview.slice(
+        0,
+        safeOverview.lastIndexOf(" ")
+      );
+
       safeOverview += " …";
     }
   }
 
   return (
     `${divider}\n` +
-    `${theme.icon || genreEmoji} ${String(tmdb.title || "").toUpperCase()} • ${tmdb.year || "Unbekannt"}\n` +
+    `${theme.icon || genreEmoji} ${String(
+      tmdb.title || ""
+    ).toUpperCase()} • ${tmdb.year || "Unbekannt"}\n` +
     `${divider}\n` +
+
+    `${mode.label}\n` +
+    `${divider}\n` +
+
     (theme.archive
       ? `${theme.archive}\n${theme.status || threatLevel}\n${theme.subline || ""}\n`
       : `${threatLevel}\n`) +
+
     `${genreEmoji} ${genreText}\n` +
     `🎞 ${techLine}\n` +
+
     `${divider}\n` +
+
     `⭐ RATING: ${tmdb.rating || "Unbekannt"} IMDb\n` +
-`🎖 CLASSIFICATION: ${releaseBadge.replace("🏆 ", "").replace("🎖 ", "").replace("🎞 ", "")}\n` +
+    `🎖 CLASSIFICATION: ${releaseBadge
+      .replace("🏆 ", "")
+      .replace("🎖 ", "")
+      .replace("🎞 ", "")}\n` +
+
     `⏱ ${tmdb.runtime || "Unbekannt"} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+
     `${divider}\n` +
+
     "🎥 REGIE\n" +
     `${tmdb.director || "Unbekannt"}\n\n` +
+
     "👥 CAST\n" +
     `${castLines || "Unbekannt"}\n` +
+
     `${divider}\n` +
+
     "📖 STORY\n" +
     `» ${safeOverview}\n` +
+
     `${divider}\n` +
+
     `🏷 DATABASE ID: ${extras.libraryId || "Unbekannt"}\n` +
-    (theme.archive ? "📡 FRANCHISE DATABASE\n" : "") +
+
+    (theme.archive
+      ? "📡 FRANCHISE DATABASE\n"
+      : "") +
+
     `${divider}\n` +
+
     `${genreTags}\n` +
     "@LibraryOfLegends"
   ).slice(0, 1000);
