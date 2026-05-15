@@ -1587,7 +1587,19 @@ function movieCaption(tmdb, extras = {}) {
 );
 }
 
-function bourneKeyboard() {
+function getNextBourneMovie(title = "") {
+  const t = String(title || "").toLowerCase();
+
+  if (t.includes("ident")) return "➡️ NÄCHSTER FILM: VERSCHWÖRUNG";
+  if (t.includes("verschw") || t.includes("supremacy")) return "➡️ NÄCHSTER FILM: ULTIMATUM";
+  if (t.includes("ultimatum")) return "➡️ NÄCHSTER FILM: VERMÄCHTNIS";
+  if (t.includes("verm") || t.includes("legacy")) return "➡️ NÄCHSTER FILM: JASON BOURNE";
+  if (t.includes("jason bourne")) return "🏁 SAGA ABSCHLIESSEN";
+
+  return "➡️ NÄCHSTER FILM";
+}
+
+function bourneKeyboard(title = "") {
   return {
     inline_keyboard: [
       [
@@ -1599,7 +1611,7 @@ function bourneKeyboard() {
       [
         {
           text: "🧠 TREADSTONE",
-          callback_data: "bourne_treadstone"
+          callback_data: "bourne_programs"
         },
         {
           text: "🎞 FILMREIHE",
@@ -1608,8 +1620,8 @@ function bourneKeyboard() {
       ],
       [
         {
-          text: "🔥 WEITERE MISSIONEN",
-          callback_data: "bourne_more"
+          text: getNextBourneMovie(title),
+          callback_data: "bourne_next"
         }
       ]
     ]
