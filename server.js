@@ -294,13 +294,40 @@ function saveCollectionHubMessageId(tmdbCollectionId, messageId) {
 }
 
 function bourneHubCaption() {
-  const rows = db.prepare(`
-    SELECT title, year, library_id
-    FROM movies
-    WHERE LOWER(title) LIKE '%bourne%'
-       OR LOWER(collection) LIKE '%bourne%'
-    ORDER BY year ASC, title ASC
-  `).all();
+  const rowsRaw = db.prepare(`
+  SELECT title, year, library_id
+  FROM movies
+  WHERE LOWER(title) LIKE '%bourne%'
+     OR LOWER(collection) LIKE '%bourne%'
+`).all();
+
+const orderMap = {
+  "die bourne identität": 1,
+  "the bourne identity": 1,
+
+  "die bourne verschwörung": 2,
+  "the bourne supremacy": 2,
+
+  "das bourne ultimatum": 3,
+  "the bourne ultimatum": 3,
+
+  "das bourne vermächtnis": 4,
+  "the bourne legacy": 4,
+
+  "jason bourne": 5
+};
+
+const rows = rowsRaw.sort((a, b) => {
+  const aKey = String(a.title || "").toLowerCase();
+  const bKey = String(b.title || "").toLowerCase();
+
+  const aOrder = orderMap[aKey] || 999;
+  const bOrder = orderMap[bKey] || 999;
+
+  if (aOrder !== bOrder) return aOrder - bOrder;
+
+  return String(a.year || "").localeCompare(String(b.year || ""));
+});
   
   async function createOrUpdateBourneHub(topicId) {
   const topic = db.prepare(`
