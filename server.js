@@ -482,7 +482,7 @@ function collectionHubCaption(collectionName) {
     "🛰️ TIMELINE\n" +
     `${data.timeline}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
-    `🧩 Sammlung: ${data.progressBlocks}\n` +
+    `🧩 Sammlung: ${data.progressBlocks} ${data.totalMovies}/${data.totalMovies}\n`
     `🎬 Filme im Archiv: ${data.totalMovies}\n` +
     `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
