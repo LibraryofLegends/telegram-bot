@@ -293,6 +293,44 @@ function saveCollectionHubMessageId(tmdbCollectionId, messageId) {
   `).run(messageId, tmdbCollectionId);
 }
 
+function bourneHubCaption() {
+  const rows = db.prepare(`
+    SELECT title, year, library_id
+    FROM movies
+    WHERE LOWER(title) LIKE '%bourne%'
+       OR LOWER(collection) LIKE '%bourne%'
+    ORDER BY year ASC, title ASC
+  `).all();
+
+  let text =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🕶️ JASON BOURNE UNIVERSE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "📁 CIA ARCHIVE\n" +
+    "🧠 TREADSTONE • BLACKBRIAR • OUTCOME\n" +
+    "⚠️ STATUS: CLASSIFIED\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📀 FILMREIHENFOLGE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!rows.length) {
+    text += "Noch keine Bourne-Filme gespeichert.\n";
+  } else {
+    rows.forEach((m, index) => {
+      text += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
+      if (m.library_id) text += `     🏷 ${m.library_id}\n`;
+    });
+  }
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 Filme im Archiv: ${rows.length}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
 function collectionHubCaption(collectionName) {
   const movies = db.prepare(`
     SELECT title, year, library_id
