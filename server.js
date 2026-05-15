@@ -506,8 +506,8 @@ function collectionHubCaption(collectionName) {
   "🛰️ TIMELINE\n" +
   `${data.timeline}\n` +
   "━━━━━━━━━━━━━━━━━━\n" +
-  `🧩 Sammlung: ${data.progressBlocks} ${data.totalMovies}/${data.totalMovies}\n` +
-  `🎬 Filme im Archiv: ${data.totalMovies}\n` +
+  `🧩 Sammlung: ${data.progressBlocks} ${data.savedMovies}/${data.officialTotal}\n` +
+  `🎬 Filme im Archiv: ${data.savedMovies}\n` +
   `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
   "━━━━━━━━━━━━━━━━━━\n" +
   "@LibraryOfLegends";
