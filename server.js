@@ -441,18 +441,20 @@ const collectionRegistry = {
 };
 
 const collectionThemes = {
+  const collectionThemes = {
+
   "Terminator Filmreihe": {
     icon: "🤖",
     archive: "SKYNET ARCHIVE",
     subline: "JUDGMENT DAY PROTOCOL",
-    status: "⚠️ SKYNET ONLINE"
+    status: "🔴 SKYNET ACTIVE"
   },
 
   "Bourne Filmreihe": {
     icon: "🕶️",
     archive: "CIA ARCHIVE",
     subline: "TREADSTONE • BLACKBRIAR • OUTCOME",
-    status: "⚠️ STATUS: CLASSIFIED"
+    status: "⚫ CLASSIFIED DOSSIER"
   },
 
   "Matrix Filmreihe": {
@@ -466,7 +468,14 @@ const collectionThemes = {
     icon: "🩸",
     archive: "HIGH TABLE ARCHIVE",
     subline: "EXCOMMUNICADO DOSSIER",
-    status: "⚫ ACTIVE CONTRACT"
+    status: "🟡 HIGH TABLE ALERT"
+  },
+
+  "Mission: Impossible Filmreihe": {
+    icon: "🎯",
+    archive: "IMF ARCHIVE",
+    subline: "CLASSIFIED FIELD OPERATIONS",
+    status: "🔵 IMF SECURE CHANNEL"
   }
 };
 
