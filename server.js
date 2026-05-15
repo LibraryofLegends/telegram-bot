@@ -293,140 +293,6 @@ function saveCollectionHubMessageId(tmdbCollectionId, messageId) {
   `).run(messageId, tmdbCollectionId);
 }
 
-function buildCollectionData(collectionName = "") {
-  const rows = db.prepare(`
-    SELECT title, year, library_id
-    FROM movies
-    WHERE collection = ?
-    ORDER BY year ASC, title ASC
-  `).all(collectionName);
-
-  const totalMovies = rows.length;
-
-  const progressBlocks =
-    "█".repeat(Math.min(totalMovies, 10)) +
-    "░".repeat(Math.max(10 - totalMovies, 0));
-
-  const timeline = rows.length
-    ? rows.map((_, index) => String(index + 1).padStart(2, "0")).join(" → ")
-    : "Keine Filme";
-
-  return {
-    rows,
-    totalMovies,
-    progressBlocks,
-    timeline
-  };
-}
-
-function bourneHubCaption() {
-  const rowsRaw = db.prepare(`
-  SELECT title, year, library_id
-  FROM movies
-  WHERE LOWER(title) LIKE '%bourne%'
-     OR LOWER(collection) LIKE '%bourne%'
-`).all();
-
-const orderMap = {
-  "die bourne identität": 1,
-  "the bourne identity": 1,
-
-  "die bourne verschwörung": 2,
-  "the bourne supremacy": 2,
-
-  "das bourne ultimatum": 3,
-  "the bourne ultimatum": 3,
-
-  "das bourne vermächtnis": 4,
-  "the bourne legacy": 4,
-
-  "jason bourne": 5
-};
-
-const rows = rowsRaw.sort((a, b) => {
-  const aKey = String(a.title || "").toLowerCase();
-  const bKey = String(b.title || "").toLowerCase();
-
-  const aOrder = orderMap[aKey] || 999;
-  const bOrder = orderMap[bKey] || 999;
-
-  if (aOrder !== bOrder) return aOrder - bOrder;
-
-  return String(a.year || "").localeCompare(String(b.year || ""));
-});
-  
-  async function createOrUpdateBourneHub(topicId) {
-  const topic = db.prepare(`
-    SELECT *
-    FROM topics
-    WHERE topic_id = ?
-    AND chat_id = ?
-    LIMIT 1
-  `).get(topicId, String(MOVIE_GROUP_ID));
-
-  const text = bourneHubCaption();
-
-  if (topic?.hub_message_id) {
-    return await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-  }
-
-  const hub = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: topicId,
-    text
-  });
-
-  if (hub?.message_id) {
-    db.prepare(`
-      UPDATE topics
-      SET hub_message_id = ?
-      WHERE topic_id = ?
-      AND chat_id = ?
-    `).run(hub.message_id, topicId, String(MOVIE_GROUP_ID));
-
-    await tg("pinChatMessage", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: hub.message_id,
-      disable_notification: true
-    });
-  }
-
-  return hub;
-}
-
-  let text =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🕶️ JASON BOURNE UNIVERSE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-    "📁 CIA ARCHIVE\n" +
-    "🧠 TREADSTONE • BLACKBRIAR • OUTCOME\n" +
-    "⚠️ STATUS: CLASSIFIED\n\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📀 FILMREIHENFOLGE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
-
-  if (!rows.length) {
-    text += "Noch keine Bourne-Filme gespeichert.\n";
-  } else {
-    rows.forEach((m, index) => {
-      text += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
-      if (m.library_id) text += `     🏷 ${m.library_id}\n`;
-    });
-  }
-
-  text +=
-    "\n━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 Filme im Archiv: ${rows.length}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "@LibraryOfLegends";
-
-  return text.slice(0, 4000);
-}
-
 function bourneHubCaption() {
   const rows = db.prepare(`
     SELECT title, year, library_id
@@ -4456,6 +4322,19 @@ if (isBourne) {
     });
     return;
   }
+  
+  if (tmdb.collection && tmdb.collectionId) {
+  const existingCollection = getCollection(tmdb.collectionId);
+
+  if (!existingCollection) {
+    saveCollection({
+      collectionName: tmdb.collection,
+      tmdbCollectionId: tmdb.collectionId,
+      topicId,
+      posterUrl: tmdb.collectionPoster || tmdb.posterUrl
+    });
+  }
+}
 
   if (tmdb.collection && tmdb.collectionId) {
   const existingCollection = getCollection(tmdb.collectionId);
