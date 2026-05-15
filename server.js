@@ -440,8 +440,10 @@ function buildCollectionData(collectionName = "") {
   const totalMovies = rows.length;
 
   const progressBlocks =
-    "█".repeat(Math.min(totalMovies, 10)) +
-    "░".repeat(Math.max(10 - totalMovies, 0));
+  "█".repeat(rows.length);
+
+text +=
+  `🧩 Sammlung: ${progressBlocks} ${rows.length}/${rows.length}\n`;
 
   const timeline = rows.length
     ? rows.map((_, index) => String(index + 1).padStart(2, "0")).join(" → ")
