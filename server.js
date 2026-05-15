@@ -1563,7 +1563,6 @@ function movieCaption(tmdb, extras = {}) {
     ]
   };
 }
-}
 
 function bourneMovieCaption(tmdb, extras = {}) {
   const safeOverview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
