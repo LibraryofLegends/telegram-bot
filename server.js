@@ -498,6 +498,17 @@ const collectionThemes = {
   }
 };
 
+const collectionBanners = {
+  "Terminator Filmreihe":
+    "https://image.tmdb.org/t/p/original/9pkZesKMnblFfKxEhQx45YQ2kIe.jpg",
+
+  "Bourne Filmreihe":
+    "https://image.tmdb.org/t/p/original/lWslWelH3j6Ow23k25o66as8PGs.jpg",
+
+  "Matrix Filmreihe":
+    "https://image.tmdb.org/t/p/original/7u3pxc0K1wx32IleAkLv78MKgrw.jpg"
+};
+
 function buildCollectionData(collectionName = "") {
   const rows = db.prepare(`
     SELECT title, year, library_id, rating, runtime, file_size
@@ -4513,19 +4524,27 @@ if (tmdb.collection && tmdb.collectionId) {
   const collection = getCollection(tmdb.collectionId);
 
   if (!collection?.hub_message_id) {
+
+    const theme =
+      collectionThemes[tmdb.collection] || {};
+
+    const banner =
+      collectionBanners[tmdb.collection] ||
+      tmdb.collectionPoster ||
+      tmdb.posterUrl;
+
     await tg("sendPhoto", {
       chat_id: MOVIE_GROUP_ID,
       message_thread_id: topicId,
-      photo:
-        tmdb.collectionPoster ||
-        tmdb.posterUrl ||
-        "https://via.placeholder.com/500x750.png?text=No+Cover",
+      photo: banner,
+
       caption:
         "━━━━━━━━━━━━━━━━━━\n" +
-        `🎞 ${String(tmdb.collection || "").toUpperCase()}\n` +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "📁 COLLECTION ARCHIVE\n" +
-        "🎬 Premium Filmreihe\n" +
+        `${theme.icon || "🎞"} ${String(tmdb.collection || "").toUpperCase()}\n` +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        `📁 ${theme.archive || "COLLECTION ARCHIVE"}\n` +
+        `${theme.subline || "PREMIUM FILM COLLECTION"}\n` +
+        `${theme.status || "🎬 FILMREIHE"}\n\n` +
         "━━━━━━━━━━━━━━━━━━\n" +
         "@LibraryOfLegends"
     });
