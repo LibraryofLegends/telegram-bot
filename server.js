@@ -4042,17 +4042,28 @@ if (isBourne) {
   }
 
   if (tmdb.collection && tmdb.collectionId) {
-    let collection = getCollection(tmdb.collectionId);
+  const existingCollection = getCollection(tmdb.collectionId);
 
-    if (!collection) {
-      saveCollection({
-        collectionName: tmdb.collection,
-        tmdbCollectionId: tmdb.collectionId,
-        topicId,
-        posterUrl: tmdb.collectionPoster
-      });
-    }
+  if (!existingCollection?.hub_message_id) {
+    await tg("sendPhoto", {
+      chat_id: MOVIE_GROUP_ID,
+      message_thread_id: topicId,
+      photo:
+        tmdb.collectionPoster ||
+        tmdb.posterUrl ||
+        "https://via.placeholder.com/500x750.png?text=No+Cover",
+
+      caption:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        `🎞 ${String(tmdb.collection || "").toUpperCase()}\n` +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "📁 COLLECTION ARCHIVE\n" +
+        "🎬 Premium Filmreihe\n" +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "@LibraryOfLegends"
+    });
   }
+}
 
   await tg("sendPhoto", {
     chat_id: MOVIE_GROUP_ID,
