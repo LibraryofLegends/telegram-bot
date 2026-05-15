@@ -2051,10 +2051,6 @@ replyMarkup = null
     baseData.caption = safeCaption;
   }
   
-  if (reply_markup) {
-  baseData.reply_markup = reply_markup;
-}
-  
   if (replyMarkup) {
   baseData.reply_markup = replyMarkup;
 }
