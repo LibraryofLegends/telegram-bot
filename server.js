@@ -1023,6 +1023,18 @@ function getBourneAgentCode(title = "") {
   return "CLASSIFIED-000";
 }
 
+function getBourneCollectionNumber(title = "") {
+  const t = String(title || "").toLowerCase();
+
+  if (t.includes("ident")) return "01/05";
+  if (t.includes("verschw") || t.includes("supremacy")) return "02/05";
+  if (t.includes("ultimatum")) return "03/05";
+  if (t.includes("verm") || t.includes("legacy")) return "04/05";
+  if (t.includes("jason bourne")) return "05/05";
+
+  return "??/05";
+}
+
 function makeLibraryId(id) {
   return `#${String(id || 0).padStart(4, "0")}`;
 }
