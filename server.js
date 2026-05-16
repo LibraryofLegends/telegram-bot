@@ -1976,7 +1976,7 @@ function movieCaption(tmdb, extras = {}) {
     `🧬 ARCHIVE ID • ${extras.libraryId || "Unbekannt"}\n` +
 
     (theme.archive
-      ? "📡 FRANCHISE DATABASE\n"
+      ? "📡 FRANCHISE DB\n"
       : "") +
 
     `${divider}\n` +
