@@ -1983,7 +1983,7 @@ function movieCaption(tmdb, extras = {}) {
 
     `${genreTags}\n` +
     "@LibraryOfLegends"
-  ).slice(0, 1000);
+  ).slice(0, 4000);
 }
 
 function getNextBourneMovie(title = "") {
