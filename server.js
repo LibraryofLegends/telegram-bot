@@ -4865,6 +4865,12 @@ if (tmdb.collection && tmdb.collectionId) {
       collectionBanners[tmdb.collection] ||
       tmdb.collectionPoster ||
       tmdb.posterUrl;
+      
+      const finalBanner = await createCollectionBanner(
+  banner,
+  tmdb.collection,
+  theme
+);
 
     await tg("sendPhoto", {
       chat_id: MOVIE_GROUP_ID,
