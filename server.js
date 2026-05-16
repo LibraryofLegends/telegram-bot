@@ -4857,7 +4857,7 @@ if (isBourne) {
 if (tmdb.collection && tmdb.collectionId) {
   const collection = getCollection(tmdb.collectionId);
 
-  if (!collection?.banner_message_id) {
+  if (true) {
     const theme =
       collectionThemes[tmdb.collection] || {};
 
