@@ -2668,6 +2668,51 @@ async function tg(method, data = {}) {
   }
 }
 
+async function sendLocalPhoto({
+  chatId,
+  topicId,
+  photoPath,
+  caption
+}) {
+  try {
+    const FormData = require("form-data");
+
+    const form = new FormData();
+
+    form.append("chat_id", chatId);
+
+    if (topicId) {
+      form.append("message_thread_id", topicId);
+    }
+
+    form.append(
+      "photo",
+      fs.createReadStream(photoPath)
+    );
+
+    if (caption) {
+      form.append("caption", caption);
+    }
+
+    const res = await axios.post(
+      `${BASE_URL}/sendPhoto`,
+      form,
+      {
+        headers: form.getHeaders()
+      }
+    );
+
+    return res.data.result;
+  } catch (err) {
+    console.error(
+      "❌ Local Banner Upload Fehler:",
+      err.response?.data || err.message
+    );
+
+    return null;
+  }
+}
+
 // =============================
 // TELEGRAM TOPICS
 // =============================
