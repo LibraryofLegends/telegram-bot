@@ -1908,18 +1908,25 @@ async function createCollectionBanner(
         fill="#ff3b30"
         opacity="0.9"/>
 
-  <!-- title -->
+  <!-- title shadow -->
 
-  <text x="90" y="510"
-        font-size="82"
-        font-weight="900"
-        fill="url(#titleGradient)"
-        font-family="Arial, sans-serif">
-
-    <text x="94" y="514"
+<text x="94" y="514"
       font-size="82"
       font-weight="900"
-      fill="rgba(0,0,0,0.45)"
+      fill="#000000"
+      opacity="0.45"
+      font-family="Arial, sans-serif">
+
+  ${safeTitle}
+
+</text>
+
+<!-- title main -->
+
+<text x="90" y="510"
+      font-size="82"
+      font-weight="900"
+      fill="url(#titleGradient)"
       font-family="Arial, sans-serif">
 
   ${safeTitle}
