@@ -1933,9 +1933,6 @@ function movieCaption(tmdb, extras = {}) {
     ).toUpperCase()} • ${tmdb.year || "Unbekannt"}\n` +
     `${divider}\n` +
 
-    `${mode.label}\n` +
-    `${divider}\n` +
-
     (theme.archive
       ? `${theme.archive}\n${theme.status || threatLevel}\n${theme.subline || ""}\n`
       : `${threatLevel}\n`) +
