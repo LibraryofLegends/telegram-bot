@@ -4873,21 +4873,36 @@ if (tmdb.collection && tmdb.collectionId) {
       theme
     );
 
-    const bannerMsg = await tg("sendPhoto", {
-      chat_id: MOVIE_GROUP_ID,
-      message_thread_id: topicId,
-      photo: finalBanner,
+    console.log("🖼️ COLLECTION BANNER INPUT:", banner);
+console.log("🖼️ COLLECTION BANNER FINAL:", finalBanner);
 
-      caption:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        `${theme.icon || "🎞"} ${String(tmdb.collection || "").toUpperCase()}\n` +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        `📁 ${theme.archive || "COLLECTION ARCHIVE"}\n` +
-        `${theme.subline || "PREMIUM FILM COLLECTION"}\n` +
-        `${theme.status || "🎬 FILMREIHE"}\n\n` +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "@LibraryOfLegends"
-    });
+const bannerCaption =
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `${theme.icon || "🎞"} ${String(tmdb.collection || "").toUpperCase()}\n` +
+  "━━━━━━━━━━━━━━━━━━\n\n" +
+  `📁 ${theme.archive || "COLLECTION ARCHIVE"}\n` +
+  `${theme.subline || "PREMIUM FILM COLLECTION"}\n` +
+  `${theme.status || "🎬 FILMREIHE"}\n\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "@LibraryOfLegends";
+
+let bannerMsg = await tg("sendPhoto", {
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: topicId,
+  photo: finalBanner,
+  caption: bannerCaption
+});
+
+if (!bannerMsg?.message_id) {
+  console.error("⚠️ Generated Banner fehlgeschlagen, versuche Original:", JSON.stringify(bannerMsg, null, 2));
+
+  bannerMsg = await tg("sendPhoto", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: topicId,
+    photo: banner,
+    caption: bannerCaption
+  });
+}
 
     if (bannerMsg?.message_id) {
       db.prepare(`
