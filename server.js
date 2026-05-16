@@ -1338,6 +1338,7 @@ function makeSeriesLibraryCode(genre = "") {
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
+const TMDB_IMAGE_ORIGINAL = "https://image.tmdb.org/t/p/original";
 
 async function tmdbGet(path, params = {}) {
   try {
@@ -1376,6 +1377,11 @@ function formatRating(vote = 0) {
 function posterUrl(path) {
   if (!path) return "";
   return `${TMDB_IMAGE_BASE}${path}`;
+}
+
+function backdropUrl(path) {
+  if (!path) return "";
+  return `${TMDB_IMAGE_ORIGINAL}${path}`;
 }
 
 async function searchMovieTMDBChoices(title, year = "") {
@@ -1439,10 +1445,14 @@ async function getMovieDetailsById(tmdbId) {
     runtime: details.runtime ? `${details.runtime} Min.` : "Unbekannt",
     overview: details.overview || "Keine Beschreibung verfügbar.",
     posterUrl: posterUrl(details.poster_path),
+    backdropUrl: backdropUrl(details.backdrop_path),
     collection: details.belongs_to_collection?.name || "",
     collectionId: details.belongs_to_collection?.id || null,
     collectionPoster: details.belongs_to_collection?.poster_path
       ? posterUrl(details.belongs_to_collection.poster_path)
+      : "",
+    collectionBackdrop: details.backdrop_path
+      ? backdropUrl(details.backdrop_path)
       : "",
     director,
     cast,
@@ -1500,10 +1510,14 @@ async function searchMovieTMDB(title, year = "") {
       runtime: details.runtime ? `${details.runtime} Min.` : "Unbekannt",
       overview: details.overview || "Keine Beschreibung verfügbar.",
       posterUrl: posterUrl(details.poster_path),
+      backdropUrl: backdropUrl(details.backdrop_path),
       collection: details.belongs_to_collection?.name || "",
       collectionId: details.belongs_to_collection?.id || null,
       collectionPoster: details.belongs_to_collection?.poster_path
         ? posterUrl(details.belongs_to_collection.poster_path)
+        : "",
+      collectionBackdrop: details.backdrop_path
+        ? backdropUrl(details.backdrop_path)
         : "",
       director,
       cast,
@@ -1511,7 +1525,6 @@ async function searchMovieTMDB(title, year = "") {
     };
   }
 
-  // letzter Versuch ohne Jahr
   if (year) {
     return await searchMovieTMDB(title, "");
   }
@@ -1579,16 +1592,17 @@ async function searchSeriesTMDB(title, season, episode) {
     genre: formatGenres(details.genres),
     mainGenre: getMainGenre(details.genres),
     rating: formatRating(episodeDetails?.vote_average || details.vote_average),
-seriesRating: formatRating(details.vote_average),
-episodeRating: episodeDetails?.vote_average
-  ? formatRating(episodeDetails.vote_average)
-  : "",
+    seriesRating: formatRating(details.vote_average),
+    episodeRating: episodeDetails?.vote_average
+      ? formatRating(episodeDetails.vote_average)
+      : "",
     overview:
       episodeDetails?.overview ||
       details.overview ||
       "Keine Beschreibung verfügbar.",
     posterUrl: posterUrl(episodeDetails?.still_path || details.poster_path),
     seriesPosterUrl: posterUrl(details.poster_path),
+    seriesBackdropUrl: backdropUrl(details.backdrop_path),
     createdBy,
     cast,
     fsk
@@ -1725,6 +1739,76 @@ async function createBrandedCover(posterUrl, title = "", subtitle = "") {
   } catch (err) {
     console.error("❌ Branding Cover Fehler:", err.message);
     return posterUrl;
+  }
+}
+
+async function createCollectionBanner(imageUrl, title = "", theme = {}) {
+  try {
+    const imageRes = await axios.get(imageUrl, {
+      responseType: "arraybuffer"
+    });
+
+    const inputBuffer = Buffer.from(imageRes.data);
+
+    const safeTitle = String(title || "")
+      .toUpperCase()
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .slice(0, 38);
+
+    const safeArchive = String(theme.archive || "COLLECTION ARCHIVE")
+      .toUpperCase()
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .slice(0, 36);
+
+    const safeStatus = String(theme.status || "PREMIUM COLLECTION")
+      .toUpperCase()
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .slice(0, 36);
+
+    const outputPath = `/tmp/collection-banner-${Date.now()}.jpg`;
+
+    const overlay = Buffer.from(`
+<svg width="1280" height="720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bottom" x1="0" y1="260" x2="0" y2="720">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="55%" stop-color="#000000" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" fill="rgba(0,0,0,0.18)"/>
+  <rect x="0" y="260" width="1280" height="460" fill="url(#bottom)"/>
+
+  <text x="70" y="520" font-size="54" font-weight="900"
+        fill="#ffffff" font-family="Arial, sans-serif">${safeTitle}</text>
+
+  <text x="70" y="590" font-size="30" font-weight="800"
+        fill="#ffffff" font-family="Arial, sans-serif">${safeArchive}</text>
+
+  <text x="70" y="640" font-size="30" font-weight="800"
+        fill="#ff3b30" font-family="Arial, sans-serif">${safeStatus}</text>
+
+  <rect x="70" y="670" width="520" height="6" fill="#ffffff" opacity="0.9"/>
+</svg>
+`);
+
+    await sharp(inputBuffer)
+      .resize(1280, 720, { fit: "cover" })
+      .composite([{ input: overlay, top: 0, left: 0 }])
+      .jpeg({ quality: 92 })
+      .toFile(outputPath);
+
+    return outputPath;
+  } catch (err) {
+    console.error("❌ Collection Banner Fehler:", err.message);
+    return imageUrl;
   }
 }
 
