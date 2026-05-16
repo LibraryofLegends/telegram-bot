@@ -135,6 +135,7 @@ addColumnIfMissing("topics", "hub_message_id", "INTEGER");
 addColumnIfMissing("topics", "season_separators", "TEXT DEFAULT '{}'");
 addColumnIfMissing("series", "series_library_id", "TEXT");
 addColumnIfMissing("collections", "hub_message_id", "INTEGER");
+addColumnIfMissing("collections", "banner_message_id", "INTEGER");
 
 console.log("✅ Datenbank bereit");
 
@@ -4856,23 +4857,23 @@ if (isBourne) {
 if (tmdb.collection && tmdb.collectionId) {
   const collection = getCollection(tmdb.collectionId);
 
-  if (!collection?.hub_message_id) {
-
+  if (!collection?.banner_message_id) {
     const theme =
       collectionThemes[tmdb.collection] || {};
 
     const banner =
       collectionBanners[tmdb.collection] ||
+      tmdb.collectionBackdrop ||
       tmdb.collectionPoster ||
       tmdb.posterUrl;
-      
-      const finalBanner = await createCollectionBanner(
-  banner,
-  tmdb.collection,
-  theme
-);
 
-    await tg("sendPhoto", {
+    const finalBanner = await createCollectionBanner(
+      banner,
+      tmdb.collection,
+      theme
+    );
+
+    const bannerMsg = await tg("sendPhoto", {
       chat_id: MOVIE_GROUP_ID,
       message_thread_id: topicId,
       photo: finalBanner,
@@ -4887,6 +4888,14 @@ if (tmdb.collection && tmdb.collectionId) {
         "━━━━━━━━━━━━━━━━━━\n" +
         "@LibraryOfLegends"
     });
+
+    if (bannerMsg?.message_id) {
+      db.prepare(`
+        UPDATE collections
+        SET banner_message_id = ?
+        WHERE tmdb_collection_id = ?
+      `).run(bannerMsg.message_id, tmdb.collectionId);
+    }
   }
 
   await createOrUpdateCollectionHub(tmdb, topicId);
