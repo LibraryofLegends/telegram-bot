@@ -1794,9 +1794,9 @@ const cardModes = {
   },
 
   scifi: {
-    divider: "▰▰▰ SCI-FI ▰▰▰",
-    label: "🛰 SCI-FI DOSSIER"
-  },
+  divider: "━━━━━━━━━━━━━━",
+  label: "🛰 SCI-FI DOSSIER"
+},
 
   classified: {
     divider: "⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛",
