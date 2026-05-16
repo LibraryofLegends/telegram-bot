@@ -509,7 +509,7 @@ const collectionThemes = {
     icon: "🤖",
     archive: "SKYNET ARCHIVE",
     subline: "JUDGMENT DAY PROTOCOL",
-    status: "🔴 SKYNET ACTIVE"
+    status: "SKYNET ACTIVE"
   },
 
   "Bourne Filmreihe": {
@@ -1921,6 +1921,17 @@ async function createCollectionBanner(
 
 </text>
 
+<text x="90" y="510"
+      font-size="82"
+      font-weight="900"
+      fill="#ff3b30"
+      opacity="0.14"
+      font-family="Arial, sans-serif">
+
+  ${safeTitle}
+
+</text>
+
 <!-- title main -->
 
 <text x="90" y="510"
@@ -1988,7 +1999,7 @@ async function createCollectionBanner(
       fill="#ffffff"
       font-family="Arial">
 
-  FILMS • ${filmCount}
+  COLLECTION • ${filmCount}
 
 </text>
 
@@ -2000,7 +2011,7 @@ async function createCollectionBanner(
       fill="#ffffff"
       font-family="Arial">
 
-  SCORE • ${franchiseScore}
+  FRANCHISE • ${franchiseScore}
 
 </text>
 
@@ -2018,7 +2029,7 @@ async function createCollectionBanner(
 
 <!-- ultra hd badge -->
 
-<rect x="1035" y="666"
+<rect x="980" y="666"
       rx="10"
       ry="10"
       width="150"
