@@ -1910,19 +1910,25 @@ async function createCollectionBanner(
 
   <!-- title -->
 
-  <text x="90" y="560"
+  <text x="90" y="510"
         font-size="82"
         font-weight="900"
         fill="url(#titleGradient)"
         font-family="Arial, sans-serif">
 
-    ${safeTitle}
+    <text x="94" y="514"
+      font-size="82"
+      font-weight="900"
+      fill="rgba(0,0,0,0.45)"
+      font-family="Arial, sans-serif">
 
-  </text>
+  ${safeTitle}
+
+</text>
 
   <!-- archive -->
 
-  <text x="86" y="582"
+  <text x="86" y="555"
         font-size="34"
         font-weight="700"
         fill="#ffffff"
@@ -1935,7 +1941,7 @@ async function createCollectionBanner(
 
   <!-- status -->
 
-  <text x="86" y="628"
+  <text x="86" y="600"
         font-size="34"
         font-weight="900"
         fill="#ff3b30"
@@ -1999,13 +2005,13 @@ async function createCollectionBanner(
       fill="#ffffff"
       font-family="Arial">
 
-  TIMELINE • ${period}
+  YEARS • ${period}
 
 </text>
 
 <!-- ultra hd badge -->
 
-<rect x="1080" y="666"
+<rect x="1035" y="666"
       rx="10"
       ry="10"
       width="150"
