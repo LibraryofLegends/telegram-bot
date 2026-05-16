@@ -1787,16 +1787,16 @@ async function createCollectionBanner(imageUrl, title = "", theme = {}) {
   <rect x="0" y="0" width="1280" height="720" fill="rgba(0,0,0,0.18)"/>
   <rect x="0" y="260" width="1280" height="460" fill="url(#bottom)"/>
 
-  <text x="70" y="520" font-size="54" font-weight="900"
+  <text x="80" y="560" font-size="68" font-weight="900"
         fill="#ffffff" font-family="Arial, sans-serif">${safeTitle}</text>
 
-  <text x="70" y="590" font-size="30" font-weight="800"
+  <text x="84" y="625" font-size="34" font-weight="800"
         fill="#ffffff" font-family="Arial, sans-serif">${safeArchive}</text>
 
-  <text x="70" y="640" font-size="30" font-weight="800"
+  <text x="84" y="670" font-size="34" font-weight="800"
         fill="#ff3b30" font-family="Arial, sans-serif">${safeStatus}</text>
 
-  <rect x="70" y="670" width="520" height="6" fill="#ffffff" opacity="0.9"/>
+  <rect x="82" y="690" width="620" height="6" fill="#ffffff" opacity="0.9"/>
 </svg>
 `);
 
