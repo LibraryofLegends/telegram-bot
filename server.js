@@ -1830,6 +1830,17 @@ async function createCollectionBanner(
         stop-color="#ff2d2d"
         stop-opacity="0.0"/>
     </linearGradient>
+    
+    <linearGradient id="titleGradient"
+  x1="0" y1="0" x2="1" y2="0">
+
+  <stop offset="0%"
+    stop-color="#ffffff"/>
+
+  <stop offset="100%"
+    stop-color="#d9d9d9"/>
+
+</linearGradient>
 
   </defs>
 
@@ -1902,7 +1913,7 @@ async function createCollectionBanner(
   <text x="90" y="560"
         font-size="82"
         font-weight="900"
-        fill="#ffffff"
+        fill="url(#titleGradient)"
         font-family="Arial, sans-serif">
 
     ${safeTitle}
@@ -1949,39 +1960,70 @@ async function createCollectionBanner(
         height="60"
         fill="rgba(0,0,0,0.65)"/>
 
-  <!-- stats -->
+  <!-- stats bar -->
 
-  <text x="90" y="700"
-        font-size="24"
-        font-weight="700"
-        fill="#ffffff"
-        font-family="Arial">
+<rect x="0" y="650"
+      width="1280"
+      height="70"
+      fill="rgba(0,0,0,0.82)"/>
 
-    FILME: ${filmCount}
+<!-- films -->
 
-  </text>
+<text x="90" y="695"
+      font-size="28"
+      font-weight="800"
+      fill="#ffffff"
+      font-family="Arial">
 
-  <text x="420" y="700"
-        font-size="24"
-        font-weight="700"
-        fill="#ffffff"
-        font-family="Arial">
+  FILMS • ${filmCount}
 
-    FRANCHISE SCORE: ${franchiseScore}
+</text>
 
-  </text>
+<!-- score -->
 
-  <text x="760" y="700"
-        font-size="24"
-        font-weight="700"
-        fill="#ffffff"
-        font-family="Arial">
+<text x="470" y="695"
+      font-size="28"
+      font-weight="800"
+      fill="#ffffff"
+      font-family="Arial">
 
-    TIMELINE: ${period}
+  SCORE • ${franchiseScore}
 
-  </text>
+</text>
 
-  <!-- UHD badge -->
+<!-- timeline -->
+
+<text x="820" y="695"
+      font-size="28"
+      font-weight="800"
+      fill="#ffffff"
+      font-family="Arial">
+
+  TIMELINE • ${period}
+
+</text>
+
+<!-- ultra hd badge -->
+
+<rect x="1080" y="666"
+      rx="10"
+      ry="10"
+      width="150"
+      height="38"
+      fill="rgba(0,0,0,0.82)"
+      stroke="#ffffff"
+      stroke-width="2"/>
+
+<text x="1155" y="692"
+      text-anchor="middle"
+      font-size="24"
+      font-weight="900"
+      fill="#ffffff"
+      font-family="Arial">
+
+  ULTRA HD
+
+</text>
 
   <rect x="1090" y="672"
         rx="8"
