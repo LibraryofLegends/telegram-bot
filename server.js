@@ -1899,8 +1899,8 @@ async function createCollectionBanner(
 
   <!-- title -->
 
-  <text x="82" y="520"
-        font-size="72"
+  <text x="90" y="560"
+        font-size="82"
         font-weight="900"
         fill="#ffffff"
         font-family="Arial, sans-serif">
@@ -1988,7 +1988,7 @@ async function createCollectionBanner(
         ry="8"
         width="140"
         height="34"
-        fill="#111111"
+        fill="rgba(0,0,0,0.75)"
         stroke="#ffffff"
         stroke-width="2"/>
 
@@ -1999,7 +1999,7 @@ async function createCollectionBanner(
         fill="#ffffff"
         font-family="Arial">
 
-    UHD 4K
+    ULTRA HD
 
   </text>
 
