@@ -2207,7 +2207,7 @@ function seasonCaption(tmdb, seasonData, season) {
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends"
-  ).slice(0, 1000);
+  ).slice(0, 4000);
 }
 
 // =============================
