@@ -1881,17 +1881,25 @@ function movieCaption(tmdb, extras = {}) {
     .map((p) => p.trim())
     .filter(Boolean)
     .slice(0, 4)
-    .map((p) => `• ${p}`)
+    .map((p) => `▸ ${p}`)
     .join("\n");
+
+  const cleanResolution = String(extras.resolution || "")
+    .replace("3840x2160", "2160p")
+    .replace("1920x1080", "1080p")
+    .replace("1280x720", "720p");
 
   const techLine = [
     extras.quality || "Unbekannt",
-    extras.resolution && extras.resolution !== "Unbekannt"
-      ? extras.resolution
+
+    cleanResolution && cleanResolution !== "Unbekannt"
+      ? cleanResolution
       : null,
+
     extras.audio && extras.audio !== "Unbekannt"
       ? extras.audio
       : null,
+
     extras.fileSize || "Unbekannt"
   ]
     .filter(Boolean)
@@ -1955,17 +1963,17 @@ function movieCaption(tmdb, extras = {}) {
     "🎥 REGIE\n" +
     `${tmdb.director || "Unbekannt"}\n\n` +
 
-    "👥 CAST\n" +
+    "👥 STARRING\n" +
     `${castLines || "Unbekannt"}\n` +
 
     `${divider}\n` +
 
-    "📖 STORY\n" +
-    `» ${safeOverview}\n` +
+    "📖 STORY FILE\n" +
+    `╰➤ ${safeOverview}\n` +
 
     `${divider}\n` +
 
-    `🏷 DATABASE ID: ${extras.libraryId || "Unbekannt"}\n` +
+    `🧬 ARCHIVE ID • ${extras.libraryId || "Unbekannt"}\n` +
 
     (theme.archive
       ? "📡 FRANCHISE DATABASE\n"
