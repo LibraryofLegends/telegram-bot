@@ -1743,7 +1743,12 @@ async function createBrandedCover(posterUrl, title = "", subtitle = "") {
   }
 }
 
-async function createCollectionBanner(imageUrl, title = "", theme = {}) {
+async function createCollectionBanner(
+  imageUrl,
+  title = "",
+  theme = {},
+  collectionData = {}
+) {
   try {
     const imageRes = await axios.get(imageUrl, {
       responseType: "arraybuffer"
@@ -1758,57 +1763,270 @@ async function createCollectionBanner(imageUrl, title = "", theme = {}) {
       .replace(/>/g, "&gt;")
       .slice(0, 38);
 
-    const safeArchive = String(theme.archive || "COLLECTION ARCHIVE")
+    const safeArchive = String(
+      theme.archive || "COLLECTION ARCHIVE"
+    )
       .toUpperCase()
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .slice(0, 36);
 
-    const safeStatus = String(theme.status || "PREMIUM COLLECTION")
+    const safeStatus = String(
+      theme.status || "PREMIUM COLLECTION"
+    )
       .toUpperCase()
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .slice(0, 36);
 
-    const outputPath = `/tmp/collection-banner-${Date.now()}.jpg`;
+    const filmCount =
+      `${collectionData.savedMovies || 0}/${collectionData.officialTotal || 0}`;
+
+    const franchiseScore =
+      collectionData.franchiseRating || "0.0";
+
+    const period =
+      collectionData.universePeriod || "UNBEKANNT";
+
+    const outputPath =
+      `/tmp/collection-banner-${Date.now()}.jpg`;
 
     const overlay = Buffer.from(`
-<svg width="1280" height="720" xmlns="http://www.w3.org/2000/svg">
+<svg width="1280" height="720"
+     xmlns="http://www.w3.org/2000/svg">
+
   <defs>
-    <linearGradient id="bottom" x1="0" y1="260" x2="0" y2="720">
-      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="55%" stop-color="#000000" stop-opacity="0.72"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.95"/>
+
+    <linearGradient id="bg"
+      x1="0" y1="0" x2="0" y2="1">
+
+      <stop offset="0%"
+        stop-color="#000000"
+        stop-opacity="0.12"/>
+
+      <stop offset="55%"
+        stop-color="#000000"
+        stop-opacity="0.45"/>
+
+      <stop offset="100%"
+        stop-color="#000000"
+        stop-opacity="0.94"/>
     </linearGradient>
+
+    <linearGradient id="redGlow"
+      x1="0" y1="0" x2="1" y2="0">
+
+      <stop offset="0%"
+        stop-color="#ff2d2d"
+        stop-opacity="0.0"/>
+
+      <stop offset="50%"
+        stop-color="#ff2d2d"
+        stop-opacity="0.22"/>
+
+      <stop offset="100%"
+        stop-color="#ff2d2d"
+        stop-opacity="0.0"/>
+    </linearGradient>
+
   </defs>
 
-  <rect x="0" y="0" width="1280" height="720" fill="rgba(0,0,0,0.18)"/>
-  <rect x="0" y="260" width="1280" height="460" fill="url(#bottom)"/>
+  <!-- cinematic overlays -->
 
-  <text x="80" y="560" font-size="68" font-weight="900"
-        fill="#ffffff" font-family="Arial, sans-serif">${safeTitle}</text>
+  <rect x="0" y="0"
+        width="1280" height="720"
+        fill="rgba(0,0,0,0.18)"/>
 
-  <text x="84" y="625" font-size="34" font-weight="800"
-        fill="#ffffff" font-family="Arial, sans-serif">${safeArchive}</text>
+  <rect x="0" y="0"
+        width="1280" height="720"
+        fill="url(#bg)"/>
 
-  <text x="84" y="670" font-size="34" font-weight="800"
-        fill="#ff3b30" font-family="Arial, sans-serif">${safeStatus}</text>
+  <rect x="0" y="0"
+        width="1280" height="720"
+        fill="url(#redGlow)"/>
 
-  <rect x="82" y="690" width="620" height="6" fill="#ffffff" opacity="0.9"/>
+  <!-- scanlines -->
+
+  <g opacity="0.06">
+
+    <rect x="0" y="80"
+          width="1280" height="2"
+          fill="#ffffff"/>
+
+    <rect x="0" y="160"
+          width="1280" height="2"
+          fill="#ffffff"/>
+
+    <rect x="0" y="240"
+          width="1280" height="2"
+          fill="#ffffff"/>
+
+    <rect x="0" y="320"
+          width="1280" height="2"
+          fill="#ffffff"/>
+
+    <rect x="0" y="400"
+          width="1280" height="2"
+          fill="#ffffff"/>
+
+    <rect x="0" y="480"
+          width="1280" height="2"
+          fill="#ffffff"/>
+
+    <rect x="0" y="560"
+          width="1280" height="2"
+          fill="#ffffff"/>
+
+  </g>
+
+  <!-- HUD corner -->
+
+  <rect x="70" y="58"
+        width="420" height="3"
+        fill="#ff3b30"
+        opacity="0.9"/>
+
+  <rect x="70" y="58"
+        width="3" height="70"
+        fill="#ff3b30"
+        opacity="0.9"/>
+
+  <!-- title -->
+
+  <text x="82" y="520"
+        font-size="72"
+        font-weight="900"
+        fill="#ffffff"
+        font-family="Arial, sans-serif">
+
+    ${safeTitle}
+
+  </text>
+
+  <!-- archive -->
+
+  <text x="86" y="582"
+        font-size="34"
+        font-weight="700"
+        fill="#ffffff"
+        opacity="0.92"
+        font-family="Arial, sans-serif">
+
+    ${safeArchive}
+
+  </text>
+
+  <!-- status -->
+
+  <text x="86" y="628"
+        font-size="34"
+        font-weight="900"
+        fill="#ff3b30"
+        font-family="Arial, sans-serif">
+
+    ${safeStatus}
+
+  </text>
+
+  <!-- divider -->
+
+  <rect x="82" y="655"
+        width="620"
+        height="4"
+        fill="#ffffff"
+        opacity="0.88"/>
+
+  <!-- bottom stats bar -->
+
+  <rect x="0" y="660"
+        width="1280"
+        height="60"
+        fill="rgba(0,0,0,0.65)"/>
+
+  <!-- stats -->
+
+  <text x="90" y="700"
+        font-size="24"
+        font-weight="700"
+        fill="#ffffff"
+        font-family="Arial">
+
+    🎬 FILME: ${filmCount}
+
+  </text>
+
+  <text x="420" y="700"
+        font-size="24"
+        font-weight="700"
+        fill="#ffffff"
+        font-family="Arial">
+
+    🏆 SCORE: ${franchiseScore}
+
+  </text>
+
+  <text x="760" y="700"
+        font-size="24"
+        font-weight="700"
+        fill="#ffffff"
+        font-family="Arial">
+
+    📅 ${period}
+
+  </text>
+
+  <!-- UHD badge -->
+
+  <rect x="1090" y="672"
+        rx="8"
+        ry="8"
+        width="140"
+        height="34"
+        fill="#111111"
+        stroke="#ffffff"
+        stroke-width="2"/>
+
+  <text x="1160" y="696"
+        text-anchor="middle"
+        font-size="22"
+        font-weight="900"
+        fill="#ffffff"
+        font-family="Arial">
+
+    UHD 4K
+
+  </text>
+
 </svg>
 `);
 
     await sharp(inputBuffer)
-      .resize(1280, 720, { fit: "cover" })
-      .composite([{ input: overlay, top: 0, left: 0 }])
-      .jpeg({ quality: 92 })
+      .resize(1280, 720, {
+        fit: "cover"
+      })
+      .composite([
+        {
+          input: overlay,
+          top: 0,
+          left: 0
+        }
+      ])
+      .jpeg({
+        quality: 96
+      })
       .toFile(outputPath);
 
     return outputPath;
+
   } catch (err) {
-    console.error("❌ Collection Banner Fehler:", err.message);
+
+    console.error(
+      "❌ Collection Banner Fehler:",
+      err.message
+    );
+
     return imageUrl;
   }
 }
@@ -4913,10 +5131,11 @@ if (tmdb.collection && tmdb.collectionId) {
       tmdb.posterUrl;
 
     const finalBanner = await createCollectionBanner(
-      banner,
-      tmdb.collection,
-      theme
-    );
+  banner,
+  tmdb.collection,
+  theme,
+  buildCollectionData(tmdb.collection)
+);
 
     console.log("🖼️ COLLECTION BANNER INPUT:", banner);
 console.log("🖼️ COLLECTION BANNER FINAL:", finalBanner);
