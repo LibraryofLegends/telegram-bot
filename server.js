@@ -4931,12 +4931,27 @@ const bannerCaption =
   "━━━━━━━━━━━━━━━━━━\n" +
   "@LibraryOfLegends";
 
-let bannerMsg = await tg("sendPhoto", {
-  chat_id: MOVIE_GROUP_ID,
-  message_thread_id: topicId,
-  photo: finalBanner,
-  caption: bannerCaption
-});
+let bannerMsg = null;
+
+if (String(finalBanner).startsWith("/tmp/")) {
+
+  bannerMsg = await sendLocalPhoto({
+    chatId: MOVIE_GROUP_ID,
+    topicId,
+    photoPath: finalBanner,
+    caption: bannerCaption
+  });
+
+} else {
+
+  bannerMsg = await tg("sendPhoto", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: topicId,
+    photo: finalBanner,
+    caption: bannerCaption
+  });
+
+}
 
 if (!bannerMsg?.message_id) {
   console.error("⚠️ Generated Banner fehlgeschlagen, versuche Original:", JSON.stringify(bannerMsg, null, 2));
