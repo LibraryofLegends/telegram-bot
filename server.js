@@ -559,7 +559,7 @@ const collectionCinemaCards = {
 
 const collectionBanners = {
   "Terminator Filmreihe":
-    "https://t.me/c/3832318797/6/4034",
+    "https://image.tmdb.org/t/p/original/7u3pxc0K1wx32IleAkLv78MKgrw.jpg",
 
   "Bourne Filmreihe":
     "https://image.tmdb.org/t/p/original/lWslWelH3j6Ow23k25o66as8PGs.jpg",
