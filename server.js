@@ -4875,7 +4875,7 @@ if (tmdb.collection && tmdb.collectionId) {
     await tg("sendPhoto", {
       chat_id: MOVIE_GROUP_ID,
       message_thread_id: topicId,
-      photo: banner,
+      photo: finalBanner,
 
       caption:
         "━━━━━━━━━━━━━━━━━━\n" +
