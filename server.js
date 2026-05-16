@@ -1842,6 +1842,10 @@ async function createCollectionBanner(
   <rect x="0" y="0"
         width="1280" height="720"
         fill="url(#bg)"/>
+        
+        <rect x="0" y="0"
+      width="1280" height="720"
+      fill="rgba(120,0,0,0.12)"/>
 
   <rect x="0" y="0"
         width="1280" height="720"
@@ -1953,7 +1957,7 @@ async function createCollectionBanner(
         fill="#ffffff"
         font-family="Arial">
 
-    🎬 FILME: ${filmCount}
+    FILME: ${filmCount}
 
   </text>
 
@@ -1963,7 +1967,7 @@ async function createCollectionBanner(
         fill="#ffffff"
         font-family="Arial">
 
-    🏆 SCORE: ${franchiseScore}
+    FRANCHISE SCORE: ${franchiseScore}
 
   </text>
 
@@ -1973,7 +1977,7 @@ async function createCollectionBanner(
         fill="#ffffff"
         font-family="Arial">
 
-    📅 ${period}
+    TIMELINE: ${period}
 
   </text>
 
