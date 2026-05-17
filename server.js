@@ -2414,6 +2414,20 @@ async function createSeriesHubIfMissing({ tmdb, topicId }) {
   return null;
 }
 
+async function updateSeriesHub({ tmdb, topicId }) {
+  const topic = getSeriesHubTopic(topicId);
+
+  if (!topic?.hub_message_id) {
+    return null;
+  }
+
+  return await tg("editMessageText", {
+    chat_id: SERIES_GROUP_ID,
+    message_id: topic.hub_message_id,
+    text: seriesHubCaption(tmdb)
+  });
+}
+
 // =============================
 // SERIES SEASON CARDS
 // =============================
