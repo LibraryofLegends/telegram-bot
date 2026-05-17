@@ -2293,6 +2293,12 @@ function seriesHubCaption(tmdb) {
 const officialTotalEpisodes =
   knownSeriesTotals[tmdb.seriesTitle] ||
   totalEpisodes;
+  
+  const globalProgressBlocks =
+  "■".repeat(totalEpisodes) +
+  "□".repeat(
+    Math.max(officialTotalEpisodes - totalEpisodes, 0)
+  );
 
   const seasonCount = db.prepare(`
     SELECT COUNT(DISTINCT season) AS count
@@ -2330,6 +2336,7 @@ const timeline =
     `📀 STAFFELN • ${seasonCount}\n` +
     `🎞 EPISODEN • ${totalEpisodes}\n` +
     `🧩 ARCHIV STATUS • ${totalEpisodes}/${officialTotalEpisodes} EPISODEN\n` +
+    `📊 GESAMT: ${globalProgressBlocks} ${totalEpisodes}/${officialTotalEpisodes}\n` +
     `${divider}\n\n` +
 
     "🛰 TIMELINE\n" +
