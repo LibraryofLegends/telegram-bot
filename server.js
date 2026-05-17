@@ -4906,7 +4906,7 @@ for (let season = 1; season <= knownSeasons; season++) {
       result += "🏆 Vollständig\n\n";
     } else {
       totalMissing += missing.length;
-      result += `⚠️ Fehlend: ${missing.join(", ")}\n\n`;
+      result += `⚠️ Fehlend: ${formatEpisodeRanges(missing)}\n\n`;
     }
   }
 
@@ -5304,6 +5304,41 @@ if (text.startsWith("/seriespick")) {
     chat_id: msg.chat.id,
     text: "⚠️ Unbekannter Befehl. Nutze /admin"
   });
+}
+
+function formatEpisodeRanges(episodes = []) {
+  if (!episodes.length) return "";
+
+  const nums = episodes
+    .map((ep) => Number(String(ep).replace(/\D/g, "")))
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => a - b);
+
+  const ranges = [];
+  let start = nums[0];
+  let prev = nums[0];
+
+  for (let i = 1; i <= nums.length; i++) {
+    const current = nums[i];
+
+    if (current === prev + 1) {
+      prev = current;
+      continue;
+    }
+
+    if (start === prev) {
+      ranges.push(`E${String(start).padStart(2, "0")}`);
+    } else {
+      ranges.push(
+        `E${String(start).padStart(2, "0")}–E${String(prev).padStart(2, "0")}`
+      );
+    }
+
+    start = current;
+    prev = current;
+  }
+
+  return ranges.join(", ");
 }
 
 async function sendAdminPanel(chatId) {
