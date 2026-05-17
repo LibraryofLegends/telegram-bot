@@ -2730,9 +2730,9 @@ async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
   const separators = getSeasonSeparators(topicId);
   const seasonKey = String(season).padStart(2, "0");
 
-  if (separators[`card_${seasonKey}`]) {
-    return separators[`card_${seasonKey}`];
-  }
+  if (season !== 5 && separators[`card_${seasonKey}`]) {
+  return separators[`card_${seasonKey}`];
+}
 
   console.log("🎴 CREATE SEASON CARD:", tmdb.seriesTitle, "S" + seasonKey);
 
