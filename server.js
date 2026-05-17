@@ -2247,6 +2247,50 @@ function getSeriesRank(totalEpisodes, officialTotalEpisodes) {
   return "⚠️ INCOMPLETE";
 }
 
+function buildSeriesProgressBar(seriesTitle, current, total) {
+
+  const themes = {
+    "The Boys": {
+      filled: "■",
+      empty: "□"
+    },
+
+    "Matrix": {
+      filled: "⬢",
+      empty: "⬡"
+    },
+
+    "Bourne": {
+      filled: "⬛",
+      empty: "⬜"
+    }
+  };
+
+  const theme =
+    themes[seriesTitle] || {
+      filled: "■",
+      empty: "□"
+    };
+
+  const safeTotal = Math.max(total || 1, 1);
+
+  const percent =
+    Math.max(
+      0,
+      Math.min(1, current / safeTotal)
+    );
+
+  const totalBars = 10;
+
+  const filledBars =
+    Math.round(percent * totalBars);
+
+  return (
+    theme.filled.repeat(filledBars) +
+    theme.empty.repeat(totalBars - filledBars)
+  );
+}
+
 function formatSeasonGenres(genre = "") {
   const items = String(genre || "Sonstige")
     .split("/")
@@ -2547,6 +2591,12 @@ const seriesRank = getSeriesRank(
   officialTotalEpisodes
 );
 
+const progressBar = buildSeriesProgressBar(
+  tmdb.seriesTitle,
+  totalEpisodes,
+  officialTotalEpisodes
+);
+
   const seasonCount = db.prepare(`
     SELECT COUNT(DISTINCT season) AS count
     FROM series
@@ -2583,7 +2633,7 @@ const timeline =
     `📀 STAFFELN • ${seasonCount}\n` +
     `🎞 EPISODEN • ${totalEpisodes}\n` +
     `🧩 ARCHIV STATUS • ${totalEpisodes}/${officialTotalEpisodes} EPISODEN\n` +
-    `📊 GESAMT: ${globalProgressBlocks} ${globalPercent}% • ${totalEpisodes}/${officialTotalEpisodes}\n` +
+    `📊 GESAMT: ${progressBar} ${globalPercent}% • ${totalEpisodes}/${officialTotalEpisodes}\n` +
     `${archiveStatus}\n` +
     `🏅 SERIEN-RANG • ${seriesRank}\n` +
     `${divider}\n\n` +
