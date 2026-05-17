@@ -2191,6 +2191,16 @@ function formatCastLine(cast = "") {
 function seasonCaption(tmdb, seasonData, season) {
   const seasonKey = String(season).padStart(2, "0");
   const theme = getSeasonTheme(season);
+  const seriesTheme =
+  seriesThemes[tmdb.seriesTitle] || {
+    icon: "📺",
+    archive: "SERIES ARCHIVE",
+    subline: "PREMIUM SERIES FILE",
+    status: "🎞 SERIES ACTIVE",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  };
+
+const divider = seriesTheme.divider;
 
   const year = seasonData?.air_date?.slice(0, 4) || "Unbekannt";
   const episodeCount = seasonData?.episodes?.length || "?";
