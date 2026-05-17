@@ -2122,10 +2122,14 @@ function seriesCaption(tmdb, media, extras = {}) {
     .join(" ");
 
   return (
-    "╔══════════════════╗\n" +
-    `        📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-    `          S${media.seasonText}E${media.episodeText}\n` +
-    "╚══════════════════╝\n\n" +
+    `${divider}\n` +
+`${seriesTheme.icon} ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
+`${theme.emoji} STAFFEL ${seasonKey}\n` +
+`${divider}\n\n` +
+
+`📁 ${seriesTheme.archive}\n` +
+`${seriesTheme.subline}\n` +
+`${seriesTheme.status}\n\n` +
 
     `🎞 ${finalEpisodeTitle || "Episode"}\n` +
     `⭐ ${tmdb.rating || "Unbekannt"}\n` +
