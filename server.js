@@ -2807,6 +2807,47 @@ const pending = PENDING_MOVIE_UPLOADS.get(userId);
       text: "⚠️ Keine offene Film-Auswahl gefunden. Bitte Datei erneut senden."
     });
   }
+  
+  if (data.startsWith("seriespick_")) {
+  const tmdbId = data.replace("seriespick_", "");
+
+  const details = await tmdbGet(`/tv/${tmdbId}`, {
+    append_to_response: "credits,content_ratings"
+  });
+
+  if (!details) {
+    await tg("answerCallbackQuery", {
+      callback_query_id: callback.id,
+      text: "❌ Serie nicht gefunden"
+    });
+    return;
+  }
+
+  const poster =
+    details.poster_path
+      ? posterUrl(details.poster_path)
+      : "https://via.placeholder.com/500x750.png?text=No+Poster";
+
+  await tg("sendPhoto", {
+    chat_id: callback.message.chat.id,
+    photo: poster,
+    caption:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      `📺 ${String(details.name || "").toUpperCase()}\n` +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `⭐ ${formatRating(details.vote_average)} IMDb\n` +
+      `📅 ${details.first_air_date || "Unbekannt"}\n` +
+      `🆔 TMDB ID: ${details.id}\n\n` +
+      `${String(details.overview || "Keine Beschreibung verfügbar.").slice(0, 800)}`
+  });
+
+  await tg("answerCallbackQuery", {
+    callback_query_id: callback.id,
+    text: "✅ Serie geladen"
+  });
+
+  return;
+}
 
   PENDING_MOVIE_UPLOADS.delete(userId);
 
