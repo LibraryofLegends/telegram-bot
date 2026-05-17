@@ -2353,6 +2353,7 @@ const timeline =
     `🎞 EPISODEN • ${totalEpisodes}\n` +
     `🧩 ARCHIV STATUS • ${totalEpisodes}/${officialTotalEpisodes} EPISODEN\n` +
     `📊 GESAMT: ${globalProgressBlocks} ${globalPercent}% • ${totalEpisodes}/${officialTotalEpisodes}\n` +
+    `${archiveStatus}\n` +
     `${divider}\n\n` +
 
     "🛰 TIMELINE\n" +
