@@ -5051,7 +5051,6 @@ totalSavedEpisodes += existing.length;
   }
 
   result += "━━━━━━━━━━━━━━━━━━\n";
-  const scanRank = getSeriesRank(totalSavedEpisodes, totalKnownEpisodes);
 
 const scanRank = getSeriesRank(
   totalSavedEpisodes,
