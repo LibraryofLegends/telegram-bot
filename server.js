@@ -2310,6 +2310,11 @@ const filledBlocks = Math.round(
 const globalProgressBlocks =
   "■".repeat(filledBlocks) +
   "□".repeat(progressBarSize - filledBlocks);
+  
+  const archiveStatus =
+  totalEpisodes >= officialTotalEpisodes
+    ? "🏆 STATUS: SERIE KOMPLETT"
+    : "⚠️ STATUS: SERIE UNVOLLSTÄNDIG";
 
   const seasonCount = db.prepare(`
     SELECT COUNT(DISTINCT season) AS count
