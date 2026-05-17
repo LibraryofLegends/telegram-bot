@@ -2105,6 +2105,7 @@ function getQualityBadge(quality = "") {
 }
 
 function seriesCaption(tmdb, media, extras = {}) {
+
   const seriesTheme =
     seriesThemes[tmdb.seriesTitle] || {
       icon: "📺",
@@ -2116,10 +2117,15 @@ function seriesCaption(tmdb, media, extras = {}) {
 
   const divider = seriesTheme.divider;
 
-  const finalEpisodeTitle = tmdb.episodeTitle || media.episodeTitleFromFile || "";
-  const episodeName = finalEpisodeTitle || "Episode";
+  const finalEpisodeTitle =
+    tmdb.episodeTitle ||
+    media.episodeTitleFromFile ||
+    "Episode";
 
-  const overview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
+  const overview = String(
+    tmdb.overview ||
+    "Keine Beschreibung verfügbar."
+  )
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 320);
@@ -2132,10 +2138,51 @@ function seriesCaption(tmdb, media, extras = {}) {
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
+  const totalEpisodes =
+    getKnownSeasonEpisodeCount(
+      tmdb.seriesTitle,
+      media.season
+    ) || media.episode;
+
+  const progressBlocks =
+    "■".repeat(media.episode) +
+    "□".repeat(
+      Math.max(totalEpisodes - media.episode, 0)
+    );
+
+  const progressPercent =
+    totalEpisodes > 0
+      ? Math.round((media.episode / totalEpisodes) * 100)
+      : 0;
+
+  const missingEpisodes = [];
+
+  for (let ep = 1; ep <= totalEpisodes; ep++) {
+
+    const exists = db.prepare(`
+      SELECT id
+      FROM series
+      WHERE series_title = ?
+      AND season = ?
+      AND episode = ?
+      LIMIT 1
+    `).get(
+      tmdb.seriesTitle,
+      media.season,
+      ep
+    );
+
+    if (!exists && ep < media.episode) {
+      missingEpisodes.push(
+        `E${String(ep).padStart(2, "0")}`
+      );
+    }
+  }
+
   return (
     `${divider}\n` +
     `${seriesTheme.icon} ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-    `S${media.seasonText}E${media.episodeText} • ${episodeName}\n` +
+    `S${media.seasonText}E${media.episodeText} • ${finalEpisodeTitle}\n` +
     `${divider}\n\n` +
 
     `📁 ${seriesTheme.archive}\n` +
@@ -2144,8 +2191,25 @@ function seriesCaption(tmdb, media, extras = {}) {
 
     `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
     `🏷 ${getQualityBadge(extras.quality)} • ${extras.fileSize || "Unbekannt"}\n` +
-    (extras.resolution && extras.resolution !== "Unbekannt" ? `🎬 ${extras.resolution}\n` : "") +
-    (extras.audio && extras.audio !== "Unbekannt" ? `🎧 ${extras.audio}\n` : "") +
+
+    (extras.resolution && extras.resolution !== "Unbekannt"
+      ? `🎬 ${extras.resolution}\n`
+      : "") +
+
+    (extras.audio && extras.audio !== "Unbekannt"
+      ? `🎧 ${extras.audio}\n`
+      : "") +
+
+    `${divider}\n` +
+    "📀 EPISODEN STATUS\n" +
+    `🧩 Fortschritt • ${progressBlocks} ${media.episode}/${totalEpisodes}\n` +
+    `📊 Sammlung • ${progressPercent}%\n` +
+
+    (
+      missingEpisodes.length
+        ? `⚠️ Fehlend • ${missingEpisodes.join(", ")}\n`
+        : "✅ Keine fehlenden Episoden\n"
+    ) +
 
     `${divider}\n` +
     "📖 EPISODEN-STORY\n\n" +
@@ -2157,7 +2221,7 @@ function seriesCaption(tmdb, media, extras = {}) {
     `${divider}\n` +
     `#${String(tmdb.seriesTitle || "").replace(/\s+/g, "")} ${genreTags}\n` +
     "@LibraryOfLegends"
-  ).slice(0, 1200);
+  ).slice(0, 1400);
 }
 
 function formatSeasonGenres(genre = "") {
