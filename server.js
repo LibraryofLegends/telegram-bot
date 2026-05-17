@@ -4917,9 +4917,13 @@ totalSavedEpisodes += existing.length;
   }
 
   result += "━━━━━━━━━━━━━━━━━━\n";
-  result += totalMissing
-    ? `⚠️ FEHLENDE EPISODEN: ${totalMissing}`
-    : "✅ KOMPLETTE SERIE";
+  const scanRank = getSeriesRank(totalSavedEpisodes, totalKnownEpisodes);
+
+result += totalMissing
+  ? `⚠️ FEHLENDE EPISODEN: ${totalMissing}\n`
+  : "✅ KOMPLETTE SERIE\n";
+
+result += `🏅 SERIEN-RANG: ${scanRank}`;
 
   result += "\n@LibraryOfLegends";
 
