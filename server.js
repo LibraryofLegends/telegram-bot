@@ -2233,6 +2233,48 @@ function seasonCaption(tmdb, seasonData, season) {
   const castLine = formatCastLine(tmdb.cast);
   const genreLine = formatSeasonGenres(tmdb.genre);
 
+  const savedEpisodes = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM series
+    WHERE series_title = ?
+    AND season = ?
+  `).get(tmdb.seriesTitle, season)?.count || 0;
+
+  const totalEpisodes =
+    seasonData?.episodes?.length ||
+    savedEpisodes;
+
+  const missingEpisodes = [];
+
+  for (let ep = 1; ep <= totalEpisodes; ep++) {
+    const exists = db.prepare(`
+      SELECT id
+      FROM series
+      WHERE series_title = ?
+      AND season = ?
+      AND episode = ?
+      LIMIT 1
+    `).get(tmdb.seriesTitle, season, ep);
+
+    if (!exists) {
+      missingEpisodes.push(`E${String(ep).padStart(2, "0")}`);
+    }
+  }
+
+  const progressBlocks =
+    "■".repeat(savedEpisodes) +
+    "□".repeat(Math.max(totalEpisodes - savedEpisodes, 0));
+
+  const progressPercent =
+    totalEpisodes > 0
+      ? Math.round((savedEpisodes / totalEpisodes) * 100)
+      : 0;
+
+  const seasonStatus =
+    savedEpisodes >= totalEpisodes
+      ? "🏆 STAFFEL VOLLSTÄNDIG"
+      : "⚠️ STAFFEL UNVOLLSTÄNDIG";
+
   return (
     `${divider}\n` +
     `${seriesTheme.icon} ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
@@ -2246,6 +2288,17 @@ function seasonCaption(tmdb, seasonData, season) {
     `${divider}\n` +
     `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
     `📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+
+    `${divider}\n` +
+    "📀 STAFFEL STATUS\n" +
+    `🧩 Fortschritt • ${progressBlocks} ${savedEpisodes}/${totalEpisodes}\n` +
+    `📊 Sammlung • ${progressPercent}%\n` +
+    (
+      missingEpisodes.length
+        ? `⚠️ Fehlend • ${missingEpisodes.join(", ")}\n`
+        : "✅ Keine fehlenden Episoden\n"
+    ) +
+    `${seasonStatus}\n` +
 
     `${divider}\n` +
     "🎬 SHOWRUNNER\n" +
