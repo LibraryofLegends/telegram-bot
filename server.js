@@ -2292,13 +2292,21 @@ function seriesHubCaption(tmdb) {
     WHERE series_title = ?
   `).get(tmdb.seriesTitle)?.count || 0;
 
-  const timeline =
-    seasonCount > 0
-      ? Array.from(
-          { length: seasonCount },
-          (_, i) => `S${String(i + 1).padStart(2, "0")}`
-        ).join(" ══▶ ")
-      : "Noch keine Staffeln";
+  const existingSeasons = db.prepare(`
+  SELECT DISTINCT season
+  FROM series
+  WHERE series_title = ?
+  ORDER BY season ASC
+`).all(tmdb.seriesTitle);
+
+const timeline =
+  existingSeasons.length
+    ? existingSeasons
+        .map((s) =>
+          `S${String(s.season).padStart(2, "0")}`
+        )
+        .join(" ══▶ ")
+    : "Noch keine Staffeln";
 
   return (
     `${divider}\n` +
