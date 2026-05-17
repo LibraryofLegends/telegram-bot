@@ -4894,6 +4894,9 @@ for (let season = 1; season <= knownSeasons; season++) {
 
     const knownCount =
       getKnownSeasonEpisodeCount(seriesTitle, season) || existing.length;
+      
+      totalKnownEpisodes += knownCount;
+totalSavedEpisodes += existing.length;
 
     const missing = [];
 
