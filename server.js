@@ -5008,11 +5008,24 @@ if (text.startsWith("/checkseries")) {
     grouped[season].push(Number(row.episode || 0));
   }
 
-  let result =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🧩 FEHLENDE EPISODEN\n" +
-    `📺 ${seriesTitle.toUpperCase()}\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+  const scanTheme =
+  seriesThemes[seriesTitle] || {
+    icon: "📺",
+    archive: "SERIES ARCHIVE",
+    subline: "PREMIUM EPISODE DATABASE",
+    status: "🎞 SERIES ACTIVE",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  };
+
+let result =
+  `${scanTheme.divider}\n` +
+  `🧩 PREMIUM SERIES SCAN\n` +
+  `${scanTheme.icon} ${seriesTitle.toUpperCase()}\n` +
+  `${scanTheme.divider}\n\n` +
+  `📁 ${scanTheme.archive}\n` +
+  `${scanTheme.subline}\n` +
+  `${scanTheme.status}\n\n` +
+  `${scanTheme.divider}\n\n`;
 
   let totalMissing = 0;
   
