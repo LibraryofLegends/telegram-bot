@@ -2479,62 +2479,82 @@ const seriesThemes = {
     status: "👑 REALM STATUS: UNSTABLE",
     divider: "━━━━━━━━━━━━━━━━━━"
   },
-  
+
   "Breaking Bad": {
-  icon: "🧪",
-  archive: "ALBUQUERQUE CASE FILE",
-  subline: "HEISENBERG • BLUE METH ARCHIVE",
-  status: "🟢 COOK STATUS: ACTIVE",
-  divider: "━━━━━━━━━━━━━━━━━━"
-},
+    icon: "🧪",
+    archive: "ALBUQUERQUE CASE FILE",
+    subline: "HEISENBERG • BLUE METH ARCHIVE",
+    status: "🟢 COOK STATUS: ACTIVE",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  },
 
-"Dark": {
-  icon: "🕳",
-  archive: "WINDEN TIME ARCHIVE",
-  subline: "TIME PARADOX • SIC MUNDUS",
-  status: "🟡 TIMELINE INSTABILITY DETECTED",
-  divider: "━━━━━━━━━━━━━━━━━━"
-},
+  "Dark": {
+    icon: "🕳",
+    archive: "WINDEN TIME ARCHIVE",
+    subline: "TIME PARADOX • SIC MUNDUS",
+    status: "🟡 TIMELINE INSTABILITY DETECTED",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  },
 
-"The Walking Dead": {
-  icon: "🧟",
-  archive: "SURVIVOR DATABASE",
-  subline: "OUTBREAK • WALKER THREAT",
-  status: "🔴 HUMANITY COLLAPSED",
-  divider: "━━━━━━━━━━━━━━━━━━"
-},
+  "The Walking Dead": {
+    icon: "🧟",
+    archive: "SURVIVOR DATABASE",
+    subline: "OUTBREAK • WALKER THREAT",
+    status: "🔴 HUMANITY COLLAPSED",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  },
 
-"Peaky Blinders": {
-  icon: "🧢",
-  archive: "BIRMINGHAM GANG FILE",
-  subline: "SHELBY COMPANY LIMITED",
-  status: "⚫ RAZOR GANG ACTIVE",
-  divider: "━━━━━━━━━━━━━━━━━━"
-},
+  "Peaky Blinders": {
+    icon: "🧢",
+    archive: "BIRMINGHAM GANG FILE",
+    subline: "SHELBY COMPANY LIMITED",
+    status: "⚫ RAZOR GANG ACTIVE",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  },
 
-"The Last of Us": {
-  icon: "🍄",
-  archive: "CORDYCEPS OUTBREAK ARCHIVE",
-  subline: "FIREFLIES • INFECTED ZONES",
-  status: "🔴 PANDEMIC STATUS ACTIVE",
-  divider: "━━━━━━━━━━━━━━━━━━"
-},
+  "The Last of Us": {
+    icon: "🍄",
+    archive: "CORDYCEPS OUTBREAK ARCHIVE",
+    subline: "FIREFLIES • INFECTED ZONES",
+    status: "🔴 PANDEMIC STATUS ACTIVE",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  },
 
-"House of the Dragon": {
-  icon: "🐉",
-  archive: "TARGARYEN CHRONICLE",
-  subline: "DANCE OF DRAGONS",
-  status: "🔥 CIVIL WAR ACTIVE",
-  divider: "━━━━━━━━━━━━━━━━━━"
-},
+  "House of the Dragon": {
+    icon: "🐉",
+    archive: "TARGARYEN CHRONICLE",
+    subline: "DANCE OF DRAGONS",
+    status: "🔥 CIVIL WAR ACTIVE",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  },
 
-"Robin Hood": {
-  icon: "🏹",
-  archive: "SHERWOOD FOREST ARCHIVE",
-  subline: "OUTLAW RESISTANCE FILE",
-  status: "🟢 NOTTINGHAM UNDER WATCH",
-  divider: "━━━━━━━━━━━━━━━━━━"
-}
+  "Robin Hood": {
+    icon: "🏹",
+    archive: "SHERWOOD FOREST ARCHIVE",
+    subline: "OUTLAW RESISTANCE FILE",
+    status: "🟢 NOTTINGHAM UNDER WATCH",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  }
+};
+
+const seriesBanners = {
+  "The Boys":
+    "https://image.tmdb.org/t/p/original/mGVrXeIjyecj6TKmwPVpHlscEmw.jpg",
+
+  "Stranger Things":
+    "https://image.tmdb.org/t/p/original/56v2KjBlU4XaOv9rVYEQypROD7P.jpg",
+
+  "Game of Thrones":
+    "https://image.tmdb.org/t/p/original/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
+
+  "Breaking Bad":
+    "https://image.tmdb.org/t/p/original/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+
+  "Dark":
+    "https://image.tmdb.org/t/p/original/apbrbWs8M9lyOpJYU5WXrpFbk1Z.jpg",
+
+  "The Walking Dead":
+    "https://image.tmdb.org/t/p/original/xf9wuDcqlUPWABZNeDKPbZUjWx0.jpg"
 };
 
 function seriesHubCaption(tmdb) {
