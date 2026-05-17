@@ -2843,6 +2843,52 @@ function getSeriesRank(current, total) {
   return "⚠️ INCOMPLETE";
 }
 
+function buildSeriesProgressBar(seriesTitle, current, total) {
+  const styles = {
+    "The Boys": {
+      filled: "🟥",
+      empty: "⬛"
+    },
+
+    "Stranger Things": {
+      filled: "🟥",
+      empty: "⬜"
+    },
+
+    "Game of Thrones": {
+      filled: "🐉",
+      empty: "⬛"
+    },
+
+    "The Walking Dead": {
+      filled: "🧟",
+      empty: "⬛"
+    },
+
+    "Dark": {
+      filled: "◼",
+      empty: "◻"
+    },
+
+    default: {
+      filled: "■",
+      empty: "□"
+    }
+  };
+
+  const style = styles[seriesTitle] || styles.default;
+
+  const safeTotal = total > 0 ? total : 1;
+  const percent = Math.max(0, Math.min(1, current / safeTotal));
+  const size = 10;
+  const filledCount = Math.round(percent * size);
+
+  return (
+    style.filled.repeat(filledCount) +
+    style.empty.repeat(size - filledCount)
+  );
+}
+
 function saveHubMessageId(topicId, messageId) {
   db.prepare(`
     UPDATE topics
