@@ -2557,6 +2557,42 @@ const seriesBanners = {
     "https://image.tmdb.org/t/p/original/xf9wuDcqlUPWABZNeDKPbZUjWx0.jpg"
 };
 
+async function createSeriesHubBanner(tmdb) {
+
+  const banner =
+    seriesBanners[tmdb.seriesTitle] ||
+    tmdb.backdropUrl ||
+    tmdb.posterUrl;
+
+  if (!banner) return null;
+
+  const theme =
+    seriesThemes[tmdb.seriesTitle] || {
+      icon: "📺",
+      archive: "SERIES ARCHIVE",
+      subline: "PREMIUM EPISODE DATABASE",
+      status: "🎞 SERIES HUB ACTIVE",
+      divider: "━━━━━━━━━━━━━━━━━━"
+    };
+
+  const caption =
+    `${theme.divider}\n` +
+    `${theme.icon} ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
+    `${theme.divider}\n\n` +
+
+    `📁 ${theme.archive}\n` +
+    `${theme.subline}\n` +
+    `${theme.status}\n\n` +
+
+    `${theme.divider}\n` +
+    "@LibraryOfLegends";
+
+  return {
+    photo: banner,
+    caption
+  };
+}
+
 function seriesHubCaption(tmdb) {
   const theme =
     seriesThemes[tmdb.seriesTitle] || {
@@ -2794,16 +2830,16 @@ async function createSeriesHubIfMissing({ tmdb, topicId }) {
     return topic.hub_message_id;
   }
 
+  const bannerData = await createSeriesHubBanner(tmdb);
+
+if (bannerData) {
   await tg("sendPhoto", {
     chat_id: SERIES_GROUP_ID,
     message_thread_id: topicId,
-    photo:
-  seriesBanners[tmdb.seriesTitle] ||
-  tmdb.backdropUrl ||
-  tmdb.seriesPosterUrl ||
-  tmdb.posterUrl ||
-  "https://via.placeholder.com/500x750.png?text=No+Cover"
+    photo: bannerData.photo,
+    caption: bannerData.caption
   });
+}
 
   const hub = await tg("sendMessage", {
     chat_id: SERIES_GROUP_ID,
