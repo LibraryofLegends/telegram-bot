@@ -2105,8 +2105,19 @@ function getQualityBadge(quality = "") {
 }
 
 function seriesCaption(tmdb, media, extras = {}) {
+  const seriesTheme =
+    seriesThemes[tmdb.seriesTitle] || {
+      icon: "📺",
+      archive: "SERIES ARCHIVE",
+      subline: "PREMIUM EPISODE DATABASE",
+      status: "🎞 SERIES ACTIVE",
+      divider: "━━━━━━━━━━━━━━━━━━"
+    };
+
+  const divider = seriesTheme.divider;
+
   const finalEpisodeTitle = tmdb.episodeTitle || media.episodeTitleFromFile || "";
-  const episodeTitle = finalEpisodeTitle ? ` • ${finalEpisodeTitle}` : "";
+  const episodeName = finalEpisodeTitle || "Episode";
 
   const overview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
     .replace(/\s+/g, " ")
@@ -2123,31 +2134,30 @@ function seriesCaption(tmdb, media, extras = {}) {
 
   return (
     `${divider}\n` +
-`${seriesTheme.icon} ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-`${theme.emoji} STAFFEL ${seasonKey}\n` +
-`${divider}\n\n` +
+    `${seriesTheme.icon} ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
+    `S${media.seasonText}E${media.episodeText} • ${episodeName}\n` +
+    `${divider}\n\n` +
 
-`📁 ${seriesTheme.archive}\n` +
-`${seriesTheme.subline}\n` +
-`${seriesTheme.status}\n\n` +
+    `📁 ${seriesTheme.archive}\n` +
+    `${seriesTheme.subline}\n` +
+    `${seriesTheme.status}\n\n` +
 
-    `🎞 ${finalEpisodeTitle || "Episode"}\n` +
-    `⭐ ${tmdb.rating || "Unbekannt"}\n` +
+    `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
     `🏷 ${getQualityBadge(extras.quality)} • ${extras.fileSize || "Unbekannt"}\n` +
     (extras.resolution && extras.resolution !== "Unbekannt" ? `🎬 ${extras.resolution}\n` : "") +
     (extras.audio && extras.audio !== "Unbekannt" ? `🎧 ${extras.audio}\n` : "") +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+    `${divider}\n` +
     "📖 EPISODEN-STORY\n\n" +
     `${overview}\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🏷 ${extras.seriesLibraryId || ""}\n` +
+    `${divider}\n` +
+    `🧬 SERIES ID • ${extras.seriesLibraryId || "Unbekannt"}\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+    `${divider}\n` +
     `#${String(tmdb.seriesTitle || "").replace(/\s+/g, "")} ${genreTags}\n` +
     "@LibraryOfLegends"
-  ).slice(0, 950);
+  ).slice(0, 1200);
 }
 
 function formatSeasonGenres(genre = "") {
