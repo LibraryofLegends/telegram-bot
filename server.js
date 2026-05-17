@@ -5053,13 +5053,30 @@ totalSavedEpisodes += existing.length;
   result += "━━━━━━━━━━━━━━━━━━\n";
   const scanRank = getSeriesRank(totalSavedEpisodes, totalKnownEpisodes);
 
+const scanRank = getSeriesRank(
+  totalSavedEpisodes,
+  totalKnownEpisodes
+);
+
+const scanPercent =
+  totalKnownEpisodes > 0
+    ? Math.round((totalSavedEpisodes / totalKnownEpisodes) * 100)
+    : 0;
+
+const scanProgress = buildSeriesProgressBar(
+  seriesTitle,
+  totalSavedEpisodes,
+  totalKnownEpisodes
+);
+
+result += "━━━━━━━━━━━━━━━━━━\n";
+result += `📊 GESAMT: ${scanProgress} ${scanPercent}% • ${totalSavedEpisodes}/${totalKnownEpisodes}\n`;
 result += totalMissing
   ? `⚠️ FEHLENDE EPISODEN: ${totalMissing}\n`
   : "✅ KOMPLETTE SERIE\n";
 
-result += `🏅 SERIEN-RANG: ${scanRank}`;
-
-  result += "\n@LibraryOfLegends";
+result += `🏅 SERIEN-RANG: ${scanRank}\n`;
+result += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
