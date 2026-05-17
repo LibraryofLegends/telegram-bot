@@ -2736,7 +2736,18 @@ async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
 
   console.log("🎴 CREATE SEASON CARD:", tmdb.seriesTitle, "S" + seasonKey);
 
-  const seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
+  let seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
+
+if (!seasonData) {
+  seasonData = {
+    air_date: "",
+    overview: tmdb.overview || "Keine Beschreibung verfügbar.",
+    episodes: Array.from({
+      length: getKnownSeasonEpisodeCount(tmdb.seriesTitle, season) || 0
+    }),
+    poster_path: null
+  };
+}
 
   const caption = seasonCaption(tmdb, seasonData, season).slice(0, 950);
 
@@ -2790,7 +2801,18 @@ async function updateSeasonCard({ tmdb, topicId, season }) {
 
   if (!messageId) return null;
 
-  const seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
+  let seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
+
+if (!seasonData) {
+  seasonData = {
+    air_date: "",
+    overview: tmdb.overview || "Keine Beschreibung verfügbar.",
+    episodes: Array.from({
+      length: getKnownSeasonEpisodeCount(tmdb.seriesTitle, season) || 0
+    }),
+    poster_path: null
+  };
+}
 
   return await tg("editMessageCaption", {
     chat_id: SERIES_GROUP_ID,
