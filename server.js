@@ -1534,6 +1534,13 @@ async function searchMovieTMDB(title, year = "") {
 }
 
 async function searchSeriesTMDB(title, season, episode) {
+  const overrideId = SERIES_TMDB_OVERRIDES[String(title || "").toLowerCase().trim()];
+
+let best = null;
+
+if (overrideId) {
+  best = { id: overrideId };
+} else {
   const search = await tmdbGet("/search/tv", {
     query: title,
     include_adult: false
@@ -1541,7 +1548,8 @@ async function searchSeriesTMDB(title, season, episode) {
 
   if (!search?.results?.length) return null;
 
-  const best = search.results[0];
+  best = search.results[0];
+}
 
   const details = await tmdbGet(`/tv/${best.id}`, {
     append_to_response: "credits,content_ratings"
