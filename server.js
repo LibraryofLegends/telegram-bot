@@ -5252,6 +5252,11 @@ const copied = await copyOriginalMedia({
   seriesLibraryId: extras.seriesLibraryId
 });
 
+await updateSeriesHub({
+  tmdb,
+  topicId
+});
+
 try {
   await updateSeasonCard({
     tmdb,
