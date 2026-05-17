@@ -3403,6 +3403,7 @@ async function handleCommand(msg) {
       "• /newseries — Neue Folgen\n" +
       "• /progress name — Serien-Fortschritt\n" +
       "• /missingseries name — Fehlende Episoden\n" +
+      "• /checkseries name — Premium Serien-Scan\n" +
       "• /rebuildseasoncards name — Staffelkarten neu erstellen\n" +
       "• /fixseries alt | neu — Serie korrigieren\n\n" +
 
@@ -4744,6 +4745,90 @@ if (text.startsWith("/missingseries")) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text: result
+  });
+
+  return;
+}
+
+if (text.startsWith("/checkseries")) {
+  const query = text.replace("/checkseries", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n" +
+        "/checkseries Serienname"
+    });
+    return;
+  }
+
+  const rows = db.prepare(`
+    SELECT *
+    FROM series
+    WHERE LOWER(series_title) LIKE ?
+    ORDER BY season ASC, episode ASC
+  `).all(`%${query.toLowerCase()}%`);
+
+  if (!rows.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: `❌ Keine Serie gefunden für:\n${query}`
+    });
+    return;
+  }
+
+  const seriesTitle = rows[0].series_title;
+  const grouped = {};
+
+  for (const row of rows) {
+    const season = Number(row.season || 0);
+    if (!grouped[season]) grouped[season] = [];
+    grouped[season].push(Number(row.episode || 0));
+  }
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧩 FEHLENDE EPISODEN\n" +
+    `📺 ${seriesTitle.toUpperCase()}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  let totalMissing = 0;
+
+  for (const season of Object.keys(grouped).map(Number).sort((a, b) => a - b)) {
+    const existing = [...new Set(grouped[season])].sort((a, b) => a - b);
+
+    const knownCount =
+      getKnownSeasonEpisodeCount(seriesTitle, season) || existing.length;
+
+    const missing = [];
+
+    for (let ep = 1; ep <= knownCount; ep++) {
+      if (!existing.includes(ep)) {
+        missing.push(`E${String(ep).padStart(2, "0")}`);
+      }
+    }
+
+    result += `📀 STAFFEL ${String(season).padStart(2, "0")}\n`;
+
+    if (!missing.length) {
+      result += "🏆 Vollständig\n\n";
+    } else {
+      totalMissing += missing.length;
+      result += `⚠️ Fehlend: ${missing.join(", ")}\n\n`;
+    }
+  }
+
+  result += "━━━━━━━━━━━━━━━━━━\n";
+  result += totalMissing
+    ? `⚠️ FEHLENDE EPISODEN: ${totalMissing}`
+    : "✅ KOMPLETTE SERIE";
+
+  result += "\n@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: result.slice(0, 4000)
   });
 
   return;
