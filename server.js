@@ -2294,11 +2294,22 @@ const officialTotalEpisodes =
   knownSeriesTotals[tmdb.seriesTitle] ||
   totalEpisodes;
   
-  const globalProgressBlocks =
-  "■".repeat(totalEpisodes) +
-  "□".repeat(
-    Math.max(officialTotalEpisodes - totalEpisodes, 0)
-  );
+  const globalPercent =
+  officialTotalEpisodes > 0
+    ? Math.round(
+        (totalEpisodes / officialTotalEpisodes) * 100
+      )
+    : 0;
+
+const progressBarSize = 10;
+
+const filledBlocks = Math.round(
+  (globalPercent / 100) * progressBarSize
+);
+
+const globalProgressBlocks =
+  "■".repeat(filledBlocks) +
+  "□".repeat(progressBarSize - filledBlocks);
 
   const seasonCount = db.prepare(`
     SELECT COUNT(DISTINCT season) AS count
@@ -2336,7 +2347,7 @@ const timeline =
     `📀 STAFFELN • ${seasonCount}\n` +
     `🎞 EPISODEN • ${totalEpisodes}\n` +
     `🧩 ARCHIV STATUS • ${totalEpisodes}/${officialTotalEpisodes} EPISODEN\n` +
-    `📊 GESAMT: ${globalProgressBlocks} ${totalEpisodes}/${officialTotalEpisodes}\n` +
+    `📊 GESAMT: ${globalProgressBlocks} ${globalPercent}% • ${totalEpisodes}/${officialTotalEpisodes}\n` +
     `${divider}\n\n` +
 
     "🛰 TIMELINE\n" +
