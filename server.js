@@ -4589,6 +4589,57 @@ if (text.startsWith("/fixseries")) {
 
   return;
 }
+
+if (text.startsWith("/seriespick")) {
+
+  const query = text
+    .replace("/seriespick", "")
+    .trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Nutzung:\n/seriespick Serienname"
+    });
+
+    return;
+  }
+
+  const search = await tmdbGet("/search/tv", {
+    query,
+    include_adult: false
+  });
+
+  if (!search?.results?.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Keine Serien gefunden."
+    });
+
+    return;
+  }
+
+  const buttons = search.results
+    .slice(0, 8)
+    .map((s) => [{
+      text:
+        `${s.name} (${s.first_air_date?.slice(0,4) || "?"})`,
+      callback_data:
+        `seriespick_${s.id}`
+    }]);
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      `📺 TMDB Serien-Auswahl\n\n` +
+      `🔎 Suche: ${query}`,
+    reply_markup: {
+      inline_keyboard: buttons
+    }
+  });
+
+  return;
+}
   
   if (text === "/smartduplicates") {
   const movies = db.prepare(`
