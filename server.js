@@ -2662,6 +2662,14 @@ function getKnownSeasonEpisodeCount(seriesTitle, seasonNumber) {
   return knownCounts[seriesTitle]?.[Number(seasonNumber)] || null;
 }
 
+function getKnownSeasonCount(seriesTitle) {
+  const knownSeasonCounts = {
+    "The Boys": 5
+  };
+
+  return knownSeasonCounts[seriesTitle] || null;
+}
+
 function getSeriesHubTopic(topicId) {
   return db.prepare(`
     SELECT *
