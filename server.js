@@ -2205,16 +2205,17 @@ function formatCastLine(cast = "") {
 function seasonCaption(tmdb, seasonData, season) {
   const seasonKey = String(season).padStart(2, "0");
   const theme = getSeasonTheme(season);
-  const seriesTheme =
-  seriesThemes[tmdb.seriesTitle] || {
-    icon: "📺",
-    archive: "SERIES ARCHIVE",
-    subline: "PREMIUM SERIES FILE",
-    status: "🎞 SERIES ACTIVE",
-    divider: "━━━━━━━━━━━━━━━━━━"
-  };
 
-const divider = seriesTheme.divider;
+  const seriesTheme =
+    seriesThemes[tmdb.seriesTitle] || {
+      icon: "📺",
+      archive: "SERIES ARCHIVE",
+      subline: "PREMIUM SERIES FILE",
+      status: "🎞 SERIES ACTIVE",
+      divider: "━━━━━━━━━━━━━━━━━━"
+    };
+
+  const divider = seriesTheme.divider;
 
   const year = seasonData?.air_date?.slice(0, 4) || "Unbekannt";
   const episodeCount = seasonData?.episodes?.length || "?";
@@ -2233,30 +2234,35 @@ const divider = seriesTheme.divider;
   const genreLine = formatSeasonGenres(tmdb.genre);
 
   return (
-    "╔══════════════════╗\n" +
-    `        📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-    `            ${theme.emoji} STAFFEL ${seasonKey}\n` +
-    "╚══════════════════╝\n\n" +
+    `${divider}\n` +
+    `${seriesTheme.icon} ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
+    `${theme.emoji} STAFFEL ${seasonKey}\n` +
+    `${divider}\n\n` +
 
+    `📁 ${seriesTheme.archive}\n` +
+    `${seriesTheme.subline}\n` +
+    `${seriesTheme.status}\n\n` +
+
+    `${divider}\n` +
     `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
     `📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+    `${divider}\n` +
     "🎬 SHOWRUNNER\n" +
     `${showrunner}\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+    `${divider}\n` +
     "👑 CAST\n" +
     `${castLine}\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+    `${divider}\n` +
     "📖 ÜBER DIE STAFFEL\n\n" +
     `${overview}\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+    `${divider}\n` +
     `${genreLine}\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+    `${divider}\n` +
     "@LibraryOfLegends"
   ).slice(0, 4000);
 }
