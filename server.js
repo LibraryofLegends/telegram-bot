@@ -2285,6 +2285,14 @@ function seriesHubCaption(tmdb) {
     FROM series
     WHERE series_title = ?
   `).get(tmdb.seriesTitle)?.count || 0;
+  
+  const knownSeriesTotals = {
+  "The Boys": 39
+};
+
+const officialTotalEpisodes =
+  knownSeriesTotals[tmdb.seriesTitle] ||
+  totalEpisodes;
 
   const seasonCount = db.prepare(`
     SELECT COUNT(DISTINCT season) AS count
