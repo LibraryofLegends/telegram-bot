@@ -2371,7 +2371,14 @@ function buildEpisodeIndex(seriesTitle) {
 
     result += "━━━━━━━━━━━━━━━━━━\n";
     result += `📀 STAFFEL ${seasonText} • ${seasonEpisodes.length} EPISODEN\n`;
-    result += `🧩 Fortschritt: ${"■".repeat(seasonEpisodes.length)} ${seasonEpisodes.length}/${seasonEpisodes.length}\n`;
+    const tmdbSeasonTotal = getKnownSeasonEpisodeCount(seriesTitle, seasonNumber);
+const totalForSeason = tmdbSeasonTotal || seasonEpisodes.length;
+
+const progressBlocks =
+  "■".repeat(seasonEpisodes.length) +
+  "□".repeat(Math.max(totalForSeason - seasonEpisodes.length, 0));
+
+result += `🧩 Fortschritt: ${progressBlocks} ${seasonEpisodes.length}/${totalForSeason}\n`;
     result += "━━━━━━━━━━━━━━━━━━\n\n";
 
     seasonEpisodes.forEach((ep, index) => {
