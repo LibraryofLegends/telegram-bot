@@ -4881,6 +4881,9 @@ if (text.startsWith("/checkseries")) {
     "━━━━━━━━━━━━━━━━━━\n\n";
 
   let totalMissing = 0;
+  
+  let totalKnownEpisodes = 0;
+let totalSavedEpisodes = 0;
 
   const knownSeasons = getKnownSeasonCount(seriesTitle) ||
   Math.max(...Object.keys(grouped).map(Number));
