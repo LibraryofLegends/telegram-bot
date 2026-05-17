@@ -1615,6 +1615,7 @@ if (overrideId) {
       "Keine Beschreibung verfügbar.",
     posterUrl: posterUrl(episodeDetails?.still_path || details.poster_path),
     seriesPosterUrl: posterUrl(details.poster_path),
+    backdropUrl: posterUrl(details.backdrop_path),
     seriesBackdropUrl: backdropUrl(details.backdrop_path),
     createdBy,
     cast,
@@ -2839,10 +2840,11 @@ if (!seasonData) {
   const caption = seasonCaption(tmdb, seasonData, season).slice(0, 950);
 
   const seasonPoster =
-    posterUrl(seasonData?.poster_path) ||
-    tmdb.seriesPosterUrl ||
-    tmdb.posterUrl ||
-    "https://via.placeholder.com/500x750.png?text=No+Cover";
+  posterUrl(seasonData?.poster_path) ||
+  tmdb.backdropUrl ||
+  tmdb.seriesPosterUrl ||
+  tmdb.posterUrl ||
+  "https://via.placeholder.com/500x750.png?text=No+Cover";
 
   const brandedSeasonPoster = await createBrandedCover(
   seasonPoster,
