@@ -2393,6 +2393,9 @@ if (missingEpisodes.length) {
   result += `⚠️ Fehlend: ${missingEpisodes
     .map((ep) => `E${String(ep).padStart(2, "0")}`)
     .join(", ")}\n`;
+  result += "⚠️ STATUS: STAFFEL UNVOLLSTÄNDIG\n";
+} else {
+  result += "🏆 STATUS: STAFFEL KOMPLETT\n";
 }
     result += "━━━━━━━━━━━━━━━━━━\n\n";
 
