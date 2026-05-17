@@ -2228,7 +2228,43 @@ function seasonCaption(tmdb, seasonData, season) {
 // =============================
 // SERIES HUB LAYOUT
 // =============================
+const seriesThemes = {
+  "The Boys": {
+    icon: "🩸",
+    archive: "VOUGHT INTERNATIONAL ARCHIVE",
+    subline: "COMPOUND-V • SUPES CLASSIFIED",
+    status: "🔴 VOUGHT SURVEILLANCE ACTIVE",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  },
+
+  "Stranger Things": {
+    icon: "📼",
+    archive: "HAWKINS LAB ARCHIVE",
+    subline: "UPSIDE DOWN INCIDENT FILE",
+    status: "🔴 GATE ACTIVITY DETECTED",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  },
+
+  "Game of Thrones": {
+    icon: "🐉",
+    archive: "WESTEROS CHRONICLE",
+    subline: "IRON THRONE • HOUSE ARCHIVE",
+    status: "👑 REALM STATUS: UNSTABLE",
+    divider: "━━━━━━━━━━━━━━━━━━"
+  }
+};
+
 function seriesHubCaption(tmdb) {
+  const theme =
+    seriesThemes[tmdb.seriesTitle] || {
+      icon: "📺",
+      archive: "SERIES ARCHIVE",
+      subline: "PREMIUM EPISODE DATABASE",
+      status: "🎞 SERIES HUB ACTIVE",
+      divider: "━━━━━━━━━━━━━━━━━━"
+    };
+
+  const divider = theme.divider;
   const genreLine = formatSeasonGenres(tmdb.genre);
   const episodeIndex = buildEpisodeIndex(tmdb.seriesTitle);
 
@@ -2244,26 +2280,45 @@ function seriesHubCaption(tmdb) {
     WHERE series_title = ?
   `).get(tmdb.seriesTitle)?.count || 0;
 
+  const timeline =
+    seasonCount > 0
+      ? Array.from(
+          { length: seasonCount },
+          (_, i) => `S${String(i + 1).padStart(2, "0")}`
+        ).join(" ══▶ ")
+      : "Noch keine Staffeln";
+
   return (
-    "╔══════════════════╗\n" +
-    `        📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-    "           SERIES HUB\n" +
-    "╚══════════════════╝\n\n" +
+    `${divider}\n` +
+    `${theme.icon} ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
+    `${divider}\n\n` +
 
-    `⭐ ${tmdb.rating || "Unbekannt"}\n` +
-    `📀 ${seasonCount} Staffel(n) • 🎞 ${totalEpisodes} Episode(n)\n` +
+    `📁 ${theme.archive}\n` +
+    `${theme.subline}\n` +
+    `${theme.status}\n\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🧭 STAFFELÜBERSICHT\n\n" +
-    episodeIndex + "\n" +
+    `${divider}\n` +
+    `⭐ RATING • ${tmdb.seriesRating || tmdb.rating || "Unbekannt"} IMDb\n` +
+    `📀 STAFFELN • ${seasonCount}\n` +
+    `🎞 EPISODEN • ${totalEpisodes}\n` +
+    `${divider}\n\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰 TIMELINE\n" +
+    `${timeline}\n\n` +
+
+    `${divider}\n` +
+    "🧭 STAFFELÜBERSICHT\n" +
+    `${divider}\n\n` +
+
+    episodeIndex + "\n\n" +
+
+    `${divider}\n` +
     "🎭 GENRE\n" +
     `${genreLine}\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+    `${divider}\n` +
     "@LibraryOfLegends"
-  );
+  ).slice(0, 4000);
 }
 
 function buildEpisodeIndex(seriesTitle) {
@@ -2275,7 +2330,7 @@ function buildEpisodeIndex(seriesTitle) {
   `).all(seriesTitle);
 
   if (!episodes.length) {
-    return "📀 Staffel 01 — 0 Episode(n)\n└ Episoden werden automatisch ergänzt";
+    return "📀 STAFFEL 01 • 0 EPISODEN\n└ Episoden werden automatisch ergänzt";
   }
 
   const seasons = {};
@@ -2294,120 +2349,22 @@ function buildEpisodeIndex(seriesTitle) {
 
     if (result) result += "\n";
 
-    result += `📀 Staffel ${seasonText} — ${seasonEpisodes.length} Episode(n)\n`;
+    result += "━━━━━━━━━━━━━━━━━━\n";
+    result += `📀 STAFFEL ${seasonText} • ${seasonEpisodes.length} EPISODEN\n`;
+    result += `🧩 Fortschritt: ${"■".repeat(seasonEpisodes.length)} ${seasonEpisodes.length}/${seasonEpisodes.length}\n`;
+    result += "━━━━━━━━━━━━━━━━━━\n\n";
 
     seasonEpisodes.forEach((ep, index) => {
       const epCode =
         `S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
 
-      const prefix = index === seasonEpisodes.length - 1 ? "└" : "├";
+      const prefix = index === seasonEpisodes.length - 1 ? "┗" : "┠";
 
       result += `${prefix} ${epCode}${ep.episode_title ? ` • ${ep.episode_title}` : ""}\n`;
     });
   }
 
   return result.trim();
-}
-
-function buildSeasonProgress(seriesTitle, season, totalEpisodes = 0) {
-  const rows = db.prepare(`
-    SELECT episode
-    FROM series
-    WHERE series_title = ?
-    AND season = ?
-    ORDER BY episode ASC
-  `).all(seriesTitle, season);
-
-  const existingEpisodes = [
-    ...new Set(rows.map((r) => Number(r.episode || 0)).filter(Boolean))
-  ].sort((a, b) => a - b);
-
-  const total = Number(totalEpisodes || 0) || Math.max(...existingEpisodes, 0);
-
-  if (!existingEpisodes.length) {
-    return `✅ Verfügbar: 0/${total || "?"} Episoden`;
-  }
-
-  const missing = [];
-
-  if (total) {
-    for (let ep = 1; ep <= total; ep++) {
-      if (!existingEpisodes.includes(ep)) {
-        missing.push(ep);
-      }
-    }
-  }
-
-  let result = `✅ Verfügbar: ${existingEpisodes.length}/${total || "?"} Episoden`;
-
-  if (missing.length) {
-    result += `\n⚠️ Fehlend: ${missing
-      .map((ep) => `E${String(ep).padStart(2, "0")}`)
-      .join(", ")}`;
-  } else if (total) {
-    result += "\n🏆 Staffel vollständig";
-  }
-
-  return result;
-}
-
-function getSeriesHubTopic(topicId) {
-  return db.prepare(`
-    SELECT * FROM topics
-    WHERE topic_id = ?
-  `).get(topicId);
-}
-
-function saveHubMessageId(topicId, messageId) {
-  db.prepare(`
-    UPDATE topics
-    SET hub_message_id = ?
-    WHERE topic_id = ?
-  `).run(messageId, topicId);
-}
-
-async function updateSeriesHub({ tmdb, topicId }) {
-  const topic = getSeriesHubTopic(topicId);
-
-  if (!topic?.hub_message_id) {
-    return null;
-  }
-
-  return await tg("editMessageText", {
-    chat_id: SERIES_GROUP_ID,
-    message_id: topic.hub_message_id,
-    text: seriesHubCaption(tmdb)
-  });
-}
-
-async function createSeriesHubIfMissing({ tmdb, topicId }) {
-  const topic = getSeriesHubTopic(topicId);
-
-  if (topic?.hub_message_id) {
-    return topic.hub_message_id;
-  }
-
-  await tg("sendPhoto", {
-    chat_id: SERIES_GROUP_ID,
-    message_thread_id: topicId,
-    photo:
-      tmdb.posterUrl ||
-      "https://via.placeholder.com/500x750.png?text=No+Cover"
-  });
-  
-
-  const hub = await tg("sendMessage", {
-    chat_id: SERIES_GROUP_ID,
-    message_thread_id: topicId,
-    text: seriesHubCaption(tmdb)
-  });
-
-  if (hub?.message_id) {
-    saveHubMessageId(topicId, hub.message_id);
-    return hub.message_id;
-  }
-
-  return null;
 }
 
 // =============================
