@@ -2394,6 +2394,20 @@ result += `🧩 Fortschritt: ${progressBlocks} ${seasonEpisodes.length}/${totalF
   return result.trim();
 }
 
+function getKnownSeasonEpisodeCount(seriesTitle, seasonNumber) {
+  const knownCounts = {
+    "The Boys": {
+      1: 8,
+      2: 8,
+      3: 8,
+      4: 8,
+      5: 7
+    }
+  };
+
+  return knownCounts[seriesTitle]?.[Number(seasonNumber)] || null;
+}
+
 function getSeriesHubTopic(topicId) {
   return db.prepare(`
     SELECT *
