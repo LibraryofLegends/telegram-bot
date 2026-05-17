@@ -2329,6 +2329,7 @@ const timeline =
     `⭐ RATING • ${tmdb.seriesRating || tmdb.rating || "Unbekannt"} IMDb\n` +
     `📀 STAFFELN • ${seasonCount}\n` +
     `🎞 EPISODEN • ${totalEpisodes}\n` +
+    `🧩 ARCHIV STATUS • ${totalEpisodes}/${officialTotalEpisodes} EPISODEN\n` +
     `${divider}\n\n` +
 
     "🛰 TIMELINE\n" +
