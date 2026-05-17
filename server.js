@@ -871,6 +871,39 @@ function makeKey(value = "") {
     .replace(/^-+|-+$/g, "");
 }
 
+function normalizeSeriesTitle(title = "") {
+  const key = String(title || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+  const fixes = {
+
+    // The Boys
+    theboys: "The Boys",
+    theboy: "The Boys",
+
+    // Stranger Things
+    strangerthings: "Stranger Things",
+
+    // Game of Thrones
+    gameofthrones: "Game of Thrones",
+    got: "Game of Thrones",
+
+    // Breaking Bad
+    breakingbad: "Breaking Bad",
+
+    // The Walking Dead
+    thewalkingdead: "The Walking Dead",
+    twd: "The Walking Dead",
+
+    // House of the Dragon
+    houseofthedragon: "House of the Dragon",
+    hotd: "House of the Dragon"
+  };
+
+  return fixes[key] || title;
+}
+
 function isBourneMovie(tmdb = {}, fileName = "") {
   const text = `${tmdb.title || ""} ${tmdb.collection || ""} ${fileName || ""}`.toLowerCase();
 
@@ -5842,18 +5875,21 @@ const media = manualMovie || parseMedia(fileName);
       return;
     }
 
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "🔎 Serie erkannt — suche TMDB-Daten...\n\n" +
-        `📺 ${media.seriesTitle} S${media.seasonText}E${media.episodeText}`
-    });
+    const normalizedSeriesTitle =
+  normalizeSeriesTitle(media.seriesTitle);
 
-    const tmdb = await searchSeriesTMDB(
-      media.seriesTitle,
-      media.season,
-      media.episode
-    );
+await tg("sendMessage", {
+  chat_id: msg.chat.id,
+  text:
+    "🔎 Serie erkannt — suche TMDB-Daten...\n\n" +
+    `📺 ${normalizedSeriesTitle} S${media.seasonText}E${media.episodeText}`
+});
+
+const tmdb = await searchSeriesTMDB(
+  normalizedSeriesTitle,
+  media.season,
+  media.episode
+);
 
     if (!tmdb) {
       await tg("sendMessage", {
