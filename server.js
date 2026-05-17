@@ -2772,18 +2772,18 @@ let card = await tg("sendPhoto", {
 
   console.log("🎴 SEASON CARD RESULT:", JSON.stringify(card, null, 2));
 
-  if (!card?.message_id && tmdb.seriesPosterUrl && tmdb.seriesPosterUrl !== seasonPoster) {
-    console.log("⚠️ Staffelposter fehlgeschlagen — versuche Serienposter");
+  if (!card?.message_id && tmdb.seriesPosterUrl) {
+  console.log("⚠️ Staffelposter fehlgeschlagen — versuche Serienposter");
 
-    card = await tg("sendPhoto", {
-      chat_id: SERIES_GROUP_ID,
-      message_thread_id: topicId,
-      photo: tmdb.seriesPosterUrl,
-      caption
-    });
+  card = await tg("sendPhoto", {
+    chat_id: SERIES_GROUP_ID,
+    message_thread_id: topicId,
+    photo: tmdb.seriesPosterUrl,
+    caption
+  });
 
-    console.log("🎴 SEASON CARD FALLBACK RESULT:", JSON.stringify(card, null, 2));
-  }
+  console.log("🎴 SEASON CARD FALLBACK RESULT:", JSON.stringify(card, null, 2));
+}
 
   if (card?.message_id) {
     separators[`card_${seasonKey}`] = card.message_id;
