@@ -5053,14 +5053,16 @@ totalSavedEpisodes += existing.length;
       }
     }
 
-    result += `📀 STAFFEL ${String(season).padStart(2, "0")}\n`;
+    result += `${scanTheme.divider}\n`;
+result += `📀 STAFFEL ${String(season).padStart(2, "0")}\n`;
 
     if (!missing.length) {
-      result += "🏆 Vollständig\n\n";
-    } else {
-      totalMissing += missing.length;
-      result += `⚠️ Fehlend: ${formatEpisodeRanges(missing)}\n\n`;
-    }
+  result += "🏆 STATUS: VOLLSTÄNDIG\n\n";
+} else {
+  totalMissing += missing.length;
+  result += `⚠️ FEHLEND • ${formatEpisodeRanges(missing)}\n`;
+  result += "⚠️ STATUS: UNVOLLSTÄNDIG\n\n";
+}
   }
 
   result += "━━━━━━━━━━━━━━━━━━\n";
