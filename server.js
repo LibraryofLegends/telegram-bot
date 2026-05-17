@@ -2379,6 +2379,21 @@ const progressBlocks =
   "□".repeat(Math.max(totalForSeason - seasonEpisodes.length, 0));
 
 result += `🧩 Fortschritt: ${progressBlocks} ${seasonEpisodes.length}/${totalForSeason}\n`;
+const existingEpisodes = seasonEpisodes.map((ep) => Number(ep.episode));
+
+const missingEpisodes = [];
+
+for (let ep = 1; ep <= totalForSeason; ep++) {
+  if (!existingEpisodes.includes(ep)) {
+    missingEpisodes.push(ep);
+  }
+}
+
+if (missingEpisodes.length) {
+  result += `⚠️ Fehlend: ${missingEpisodes
+    .map((ep) => `E${String(ep).padStart(2, "0")}`)
+    .join(", ")}\n`;
+}
     result += "━━━━━━━━━━━━━━━━━━\n\n";
 
     seasonEpisodes.forEach((ep, index) => {
