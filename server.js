@@ -1533,6 +1533,10 @@ async function searchMovieTMDB(title, year = "") {
   return null;
 }
 
+const SERIES_TMDB_OVERRIDES = {
+  "robin hood": 258918
+};
+
 async function searchSeriesTMDB(title, season, episode) {
   const overrideId = SERIES_TMDB_OVERRIDES[String(title || "").toLowerCase().trim()];
 
