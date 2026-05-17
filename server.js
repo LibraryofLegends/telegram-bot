@@ -2778,9 +2778,10 @@ async function createSeriesHubIfMissing({ tmdb, topicId }) {
     chat_id: SERIES_GROUP_ID,
     message_thread_id: topicId,
     photo:
-      tmdb.seriesPosterUrl ||
-      tmdb.posterUrl ||
-      "https://via.placeholder.com/500x750.png?text=No+Cover"
+  tmdb.backdropUrl ||
+  tmdb.seriesPosterUrl ||
+  tmdb.posterUrl ||
+  "https://via.placeholder.com/500x750.png?text=No+Cover"
   });
 
   const hub = await tg("sendMessage", {
