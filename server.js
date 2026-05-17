@@ -2798,6 +2798,7 @@ async function createSeriesHubIfMissing({ tmdb, topicId }) {
     chat_id: SERIES_GROUP_ID,
     message_thread_id: topicId,
     photo:
+  seriesBanners[tmdb.seriesTitle] ||
   tmdb.backdropUrl ||
   tmdb.seriesPosterUrl ||
   tmdb.posterUrl ||
