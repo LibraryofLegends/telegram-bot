@@ -2224,6 +2224,29 @@ function seriesCaption(tmdb, media, extras = {}) {
   ).slice(0, 1400);
 }
 
+function getSeriesRank(totalEpisodes, officialTotalEpisodes) {
+  if (!officialTotalEpisodes || officialTotalEpisodes <= 0) {
+    return "⚠️ INCOMPLETE";
+  }
+
+  const percent =
+    Math.round((totalEpisodes / officialTotalEpisodes) * 100);
+
+  if (percent >= 100) {
+    return "💎 FULL COLLECTION";
+  }
+
+  if (percent >= 75) {
+    return "👑 MASTERED";
+  }
+
+  if (percent >= 35) {
+    return "🔥 TRENDING";
+  }
+
+  return "⚠️ INCOMPLETE";
+}
+
 function formatSeasonGenres(genre = "") {
   const items = String(genre || "Sonstige")
     .split("/")
@@ -2519,6 +2542,11 @@ const globalProgressBlocks =
     ? "🏆 STATUS: SERIE KOMPLETT"
     : "⚠️ STATUS: SERIE UNVOLLSTÄNDIG";
 
+const seriesRank = getSeriesRank(
+  totalEpisodes,
+  officialTotalEpisodes
+);
+
   const seasonCount = db.prepare(`
     SELECT COUNT(DISTINCT season) AS count
     FROM series
@@ -2557,6 +2585,7 @@ const timeline =
     `🧩 ARCHIV STATUS • ${totalEpisodes}/${officialTotalEpisodes} EPISODEN\n` +
     `📊 GESAMT: ${globalProgressBlocks} ${globalPercent}% • ${totalEpisodes}/${officialTotalEpisodes}\n` +
     `${archiveStatus}\n` +
+    `🏅 SERIEN-RANG • ${seriesRank}\n` +
     `${divider}\n\n` +
 
     "🛰 TIMELINE\n" +
