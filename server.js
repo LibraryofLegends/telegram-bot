@@ -4795,8 +4795,12 @@ if (text.startsWith("/checkseries")) {
 
   let totalMissing = 0;
 
-  for (const season of Object.keys(grouped).map(Number).sort((a, b) => a - b)) {
-    const existing = [...new Set(grouped[season])].sort((a, b) => a - b);
+  const knownSeasons = getKnownSeasonCount(seriesTitle) ||
+  Math.max(...Object.keys(grouped).map(Number));
+
+for (let season = 1; season <= knownSeasons; season++) {
+    const existing = [...new Set(grouped[season] || [])]
+  .sort((a, b) => a - b);
 
     const knownCount =
       getKnownSeasonEpisodeCount(seriesTitle, season) || existing.length;
