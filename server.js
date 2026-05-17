@@ -2367,6 +2367,23 @@ function buildEpisodeIndex(seriesTitle) {
   return result.trim();
 }
 
+function getSeriesHubTopic(topicId) {
+  return db.prepare(`
+    SELECT *
+    FROM topics
+    WHERE topic_id = ?
+    LIMIT 1
+  `).get(topicId);
+}
+
+function saveHubMessageId(topicId, messageId) {
+  db.prepare(`
+    UPDATE topics
+    SET hub_message_id = ?
+    WHERE topic_id = ?
+  `).run(messageId, topicId);
+}
+
 async function createSeriesHubIfMissing({ tmdb, topicId }) {
   const topic = getSeriesHubTopic(topicId);
 
