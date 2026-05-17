@@ -2816,6 +2816,33 @@ function getSeriesHubTopic(topicId) {
   `).get(topicId);
 }
 
+function getSeriesRank(current, total) {
+
+  if (!total || total <= 0) {
+    return "📼 ARCHIVED";
+  }
+
+  const percent = Math.round((current / total) * 100);
+
+  if (percent >= 100) {
+    return "👑 MASTERED";
+  }
+
+  if (percent >= 90) {
+    return "💎 FULL COLLECTION";
+  }
+
+  if (percent >= 60) {
+    return "🔥 TRENDING";
+  }
+
+  if (percent >= 30) {
+    return "📀 GROWING ARCHIVE";
+  }
+
+  return "⚠️ INCOMPLETE";
+}
+
 function saveHubMessageId(topicId, messageId) {
   db.prepare(`
     UPDATE topics
