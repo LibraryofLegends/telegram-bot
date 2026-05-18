@@ -2749,6 +2749,24 @@ const seriesBanners = {
     "https://image.tmdb.org/t/p/original/xf9wuDcqlUPWABZNeDKPbZUjWx0.jpg"
 };
 
+const genreBanners = {
+  Action: "DEIN_ACTION_BANNER_LINK",
+  Abenteuer: "DEIN_ABENTEUER_BANNER_LINK",
+  Komödie: "DEIN_KOMÖDIE_BANNER_LINK",
+  Drama: "DEIN_DRAMA_BANNER_LINK",
+  Familie: "DEIN_FAMILIE_BANNER_LINK",
+  Fantasy: "DEIN_FANTASY_BANNER_LINK",
+  Krimi: "DEIN_KRIMI_BANNER_LINK",
+  Horror: "DEIN_HORROR_BANNER_LINK",
+  Thriller: "DEIN_THRILLER_BANNER_LINK",
+  Mystery: "DEIN_MYSTERY_BANNER_LINK",
+  "Science Fiction": "DEIN_SCIENCE_FICTION_BANNER_LINK",
+  Kriegsfilme: "DEIN_KRIEGSFILME_BANNER_LINK",
+  Dokumentarfilme: "DEIN_DOKUMENTARFILME_BANNER_LINK",
+  Historie: "DEIN_HISTORIE_BANNER_LINK",
+  Liebesfilme: "DEIN_LIEBESFILME_BANNER_LINK"
+};
+
 async function createSeriesHubBanner(tmdb) {
 
   const banner =
