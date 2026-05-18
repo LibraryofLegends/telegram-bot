@@ -2778,6 +2778,66 @@ const genreBanners = {
   Liebesfilme: "DEIN_LIEBESFILME_BANNER_LINK"
 };
 
+const genreThemes = {
+
+  Action: {
+    icon: "💥",
+    archive: "TACTICAL ACTION ARCHIVE",
+    subline: "HIGH RISK • ELITE OPERATIONS",
+    status: "🔥 ACTION STATUS ACTIVE"
+  },
+
+  Horror: {
+    icon: "👻",
+    archive: "HORROR VAULT",
+    subline: "CLASSIFIED NIGHTMARE FILES",
+    status: "🔴 ENTITY DETECTED"
+  },
+
+  Thriller: {
+    icon: "🔪",
+    archive: "SUSPENSE ARCHIVE",
+    subline: "PSYCHOLOGICAL CASE FILES",
+    status: "⚠️ THREAT LEVEL CRITICAL"
+  },
+
+  Fantasy: {
+    icon: "🐉",
+    archive: "FANTASY REALM ARCHIVE",
+    subline: "MAGIC • KINGDOMS • LEGENDS",
+    status: "✨ REALM PORTAL ACTIVE"
+  },
+
+  Abenteuer: {
+    icon: "🗺️",
+    archive: "ADVENTURE EXPEDITION ARCHIVE",
+    subline: "LOST WORLDS • TREASURE FILES",
+    status: "🧭 EXPLORATION ACTIVE"
+  },
+
+  Drama: {
+    icon: "🎭",
+    archive: "DRAMA CINEMA ARCHIVE",
+    subline: "EMOTIONAL STORY DATABASE",
+    status: "🎬 CINEMATIC STATUS ACTIVE"
+  },
+
+  Komödie: {
+    icon: "😂",
+    archive: "COMEDY CENTRAL ARCHIVE",
+    subline: "LAUGHTER • CHAOS • CULT CLASSICS",
+    status: "🤣 HUMOR LEVEL MAXIMUM"
+  },
+
+  Krimi: {
+    icon: "🕵️",
+    archive: "CRIME INVESTIGATION ARCHIVE",
+    subline: "DETECTIVE • UNDERCOVER FILES",
+    status: "🚨 INVESTIGATION ACTIVE"
+  }
+
+};
+
 async function createSeriesHubBanner(tmdb) {
 
   const banner =
