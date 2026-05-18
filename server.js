@@ -134,6 +134,8 @@ addColumnIfMissing("movies", "hdr", "TEXT");
 addColumnIfMissing("topics", "hub_message_id", "INTEGER");
 addColumnIfMissing("topics", "season_separators", "TEXT DEFAULT '{}'");
 addColumnIfMissing("topics", "series_banner_message_id", "INTEGER");
+addColumnIfMissing("topics", "movie_hub_message_id", "INTEGER");
+addColumnIfMissing("topics", "movie_banner_message_id", "INTEGER");
 addColumnIfMissing("series", "series_library_id", "TEXT");
 addColumnIfMissing("collections", "hub_message_id", "INTEGER");
 addColumnIfMissing("collections", "banner_message_id", "INTEGER");
