@@ -5983,6 +5983,15 @@ replyMarkup: isBourne ? bourneKeyboard(tmdb.title) : null
 });
 
 try {
+  await updateMovieHub({
+    topicId,
+    topicName: finalTopicName
+  });
+} catch (err) {
+  console.error("⚠️ Movie Hub Update Fehler:", err.message);
+}
+
+try {
   if (isBourne) {
     await createOrUpdateBourneHub(topicId);
   } else if (tmdb.collection && tmdb.collectionId) {
