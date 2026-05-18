@@ -2230,6 +2230,19 @@ const averageRating =
   ratings.length
     ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
     : "Unbekannt";
+    
+    const collectionStats = {};
+
+for (const movie of movies) {
+  if (!movie.collection) continue;
+
+  collectionStats[movie.collection] =
+    (collectionStats[movie.collection] || 0) + 1;
+}
+
+const topCollections = Object.entries(collectionStats)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 3);
 
   let result =
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -2245,6 +2258,13 @@ const averageRating =
     `🏅 ARCHIV-RANG • ${archiveRank}\n` +
     `💾 SPEICHER • ${totalStorage}\n` +
     `⭐ Ø IMDb • ${averageRating}\n` +
+    (
+  topCollections.length
+    ? `🏆 TOP COLLECTIONS • ${topCollections
+        .map(([name, count]) => `${name} (${count})`)
+        .join(" • ")}\n`
+    : ""
+) +
     `📊 QUALITÄT • ${qualityLine}\n` +
     (topMovie
   ? `👑 TOP FILM • ${topMovie.title} • ⭐ ${topMovie.rating}\n`
