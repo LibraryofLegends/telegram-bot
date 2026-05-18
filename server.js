@@ -2147,6 +2147,13 @@ const qualityLine =
         parseFloat(a.rating || 0)
       );
     })[0];
+    
+    const collectionCount =
+  new Set(
+    movies
+      .map((m) => m.collection)
+      .filter(Boolean)
+  ).size;
 
   let result =
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -2157,6 +2164,7 @@ const qualityLine =
     `${genreTheme.status}\n\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎞 FILME • ${movieCount}\n` +
+    `🎞 COLLECTIONS • ${collectionCount}\n` +
     `📊 QUALITÄT • ${qualityLine}\n` +
     (topMovie
   ? `👑 TOP FILM • ${topMovie.title} • ⭐ ${topMovie.rating}\n`
