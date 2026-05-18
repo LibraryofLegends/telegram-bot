@@ -2154,6 +2154,15 @@ const qualityLine =
       .map((m) => m.collection)
       .filter(Boolean)
   ).size;
+  
+  const years = movies
+  .map((m) => Number(m.year))
+  .filter((y) => Number.isFinite(y));
+
+const yearRange =
+  years.length
+    ? `${Math.min(...years)} → ${Math.max(...years)}`
+    : "Unbekannt";
 
   let result =
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -2165,6 +2174,7 @@ const qualityLine =
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎞 FILME • ${movieCount}\n` +
     `🎞 COLLECTIONS • ${collectionCount}\n` +
+    `📅 ZEITRAUM • ${yearRange}\n` +
     `📊 QUALITÄT • ${qualityLine}\n` +
     (topMovie
   ? `👑 TOP FILM • ${topMovie.title} • ⭐ ${topMovie.rating}\n`
