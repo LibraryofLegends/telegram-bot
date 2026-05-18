@@ -1247,9 +1247,29 @@ function detectHDR(fileName = "") {
 }
 
 function getMediaExtras(fileName, msg) {
+  const resolution = detectResolution(msg.video);
+  const detectedQuality = detectQuality(fileName, msg.video);
+
+  let autoQuality = "SD";
+
+  const width =
+    parseInt(String(resolution || "").split("x")[0]) || 0;
+
+  if (width >= 3800) {
+    autoQuality = "UHD";
+  } else if (width >= 1900) {
+    autoQuality = "FHD";
+  } else if (width >= 1200) {
+    autoQuality = "HD";
+  }
+
   return {
-    quality: detectQuality(fileName, msg.video),
-    resolution: detectResolution(msg.video),
+    quality:
+      detectedQuality && detectedQuality !== "Unbekannt"
+        ? detectedQuality
+        : autoQuality,
+
+    resolution,
     fileSize: formatFileSize(msg.video?.file_size || msg.document?.file_size),
     audio: detectAudio(fileName),
     source: detectSource(fileName),
