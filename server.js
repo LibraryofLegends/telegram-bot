@@ -2163,6 +2163,9 @@ const yearRange =
   years.length
     ? `${Math.min(...years)} → ${Math.max(...years)}`
     : "Unbekannt";
+    
+    const archiveRank =
+  getMovieArchiveRank(movieCount);
 
   let result =
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -2175,6 +2178,7 @@ const yearRange =
     `🎞 FILME • ${movieCount}\n` +
     `🎞 COLLECTIONS • ${collectionCount}\n` +
     `📅 ZEITRAUM • ${yearRange}\n` +
+    `🏅 ARCHIV-RANG • ${archiveRank}\n` +
     `📊 QUALITÄT • ${qualityLine}\n` +
     (topMovie
   ? `👑 TOP FILM • ${topMovie.title} • ⭐ ${topMovie.rating}\n`
@@ -3175,6 +3179,27 @@ function getSeriesRank(current, total) {
   }
 
   return "⚠️ INCOMPLETE";
+}
+
+function getMovieArchiveRank(movieCount = 0) {
+
+  if (movieCount >= 100) {
+    return "👑 ELITE ARCHIVE";
+  }
+
+  if (movieCount >= 50) {
+    return "💎 PREMIUM ARCHIVE";
+  }
+
+  if (movieCount >= 25) {
+    return "🔥 ADVANCED ARCHIVE";
+  }
+
+  if (movieCount >= 10) {
+    return "🎬 ACTIVE ARCHIVE";
+  }
+
+  return "📁 STARTER ARCHIVE";
 }
 
 function buildSeriesProgressBar(seriesTitle, current, total) {
