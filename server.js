@@ -2230,6 +2230,23 @@ async function createMovieHubIfMissing({
   return null;
 }
 
+async function updateMovieHub({
+  topicId,
+  topicName
+}) {
+  const topic = getMovieHubTopic(topicId);
+
+  if (!topic?.movie_hub_message_id) {
+    return null;
+  }
+
+  return await tg("editMessageText", {
+    chat_id: MOVIE_GROUP_ID,
+    message_id: topic.movie_hub_message_id,
+    text: movieHubCaption(topicName)
+  });
+}
+
 function bourneMovieCaption(tmdb, extras = {}) {
   const safeOverview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
     .replace(/\s+/g, " ")
