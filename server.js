@@ -2118,6 +2118,26 @@ function movieHubCaption(topicName = "") {
   `).all(topicName);
 
   const movieCount = movies.length;
+  
+  const qualityStats = {};
+
+for (const movie of movies) {
+
+  const q =
+    movie.quality || "Unbekannt";
+
+  qualityStats[q] =
+    (qualityStats[q] || 0) + 1;
+
+}
+
+const qualityLine =
+  Object.entries(qualityStats)
+    .map(([quality, count]) =>
+      `${quality}: ${count}`
+    )
+    .join(" • ") ||
+  "Keine Daten";
 
   let result =
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -2128,6 +2148,7 @@ function movieHubCaption(topicName = "") {
     `${genreTheme.status}\n\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎞 FILME • ${movieCount}\n` +
+    `📊 QUALITÄT • ${qualityLine}\n` +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
   if (!movies.length) {
