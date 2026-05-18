@@ -2097,6 +2097,14 @@ function movieHubCaption(topicName = "") {
     .replace(/^🎬\s*/g, "")
     .trim();
 
+  const genreTheme =
+    genreThemes[cleanTopic] || {
+      icon: "🎬",
+      archive: "MOVIE ARCHIVE HUB",
+      subline: "PREMIUM FILM DATABASE",
+      status: "🎞 MOVIE HUB ACTIVE"
+    };
+
   const movies = db.prepare(`
     SELECT title, year, rating, runtime, quality, file_size, collection, library_id
     FROM movies
@@ -2113,11 +2121,11 @@ function movieHubCaption(topicName = "") {
 
   let result =
     "━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 ${cleanTopic.toUpperCase()} ARCHIVE\n` +
+    `${genreTheme.icon} ${cleanTopic.toUpperCase()} ARCHIVE\n` +
     "━━━━━━━━━━━━━━━━━━\n\n" +
-    "📁 MOVIE ARCHIVE HUB\n" +
-    "PREMIUM FILM DATABASE\n" +
-    "🎞 MOVIE HUB ACTIVE\n\n" +
+    `📁 ${genreTheme.archive}\n` +
+    `${genreTheme.subline}\n` +
+    `${genreTheme.status}\n\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎞 FILME • ${movieCount}\n` +
     "━━━━━━━━━━━━━━━━━━\n\n";
@@ -2136,13 +2144,8 @@ function movieHubCaption(topicName = "") {
       if (m.file_size) result += ` • ${m.file_size}`;
       result += "\n";
 
-      if (m.collection) {
-        result += `🎞 ${m.collection}\n`;
-      }
-
-      if (m.library_id) {
-        result += `🏷 ${m.library_id}\n`;
-      }
+      if (m.collection) result += `🎞 ${m.collection}\n`;
+      if (m.library_id) result += `🏷 ${m.library_id}\n`;
 
       result += "\n";
     });
