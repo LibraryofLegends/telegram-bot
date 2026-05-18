@@ -2186,6 +2186,38 @@ const yearRange =
     
     const archiveRank =
   getMovieArchiveRank(movieCount);
+  
+  let totalSizeMB = 0;
+
+for (const movie of movies) {
+
+  const size =
+    String(movie.file_size || "")
+      .toUpperCase()
+      .trim();
+
+  const gbMatch =
+    size.match(/([\d.]+)\s*GB/);
+
+  const mbMatch =
+    size.match(/([\d.]+)\s*MB/);
+
+  if (gbMatch) {
+    totalSizeMB +=
+      parseFloat(gbMatch[1]) * 1024;
+  }
+
+  else if (mbMatch) {
+    totalSizeMB +=
+      parseFloat(mbMatch[1]);
+  }
+
+}
+
+const totalStorage =
+  totalSizeMB >= 1024
+    ? `${(totalSizeMB / 1024).toFixed(1)} GB`
+    : `${Math.round(totalSizeMB)} MB`;
 
   let result =
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -2199,6 +2231,7 @@ const yearRange =
     `🎞 COLLECTIONS • ${collectionCount}\n` +
     `📅 ZEITRAUM • ${yearRange}\n` +
     `🏅 ARCHIV-RANG • ${archiveRank}\n` +
+    `💾 SPEICHER • ${totalStorage}\n` +
     `📊 QUALITÄT • ${qualityLine}\n` +
     (topMovie
   ? `👑 TOP FILM • ${topMovie.title} • ⭐ ${topMovie.rating}\n`
