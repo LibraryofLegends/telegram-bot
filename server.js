@@ -2138,6 +2138,15 @@ const qualityLine =
     )
     .join(" • ") ||
   "Keine Daten";
+  
+  const topMovie =
+  [...movies]
+    .sort((a, b) => {
+      return (
+        parseFloat(b.rating || 0) -
+        parseFloat(a.rating || 0)
+      );
+    })[0];
 
   let result =
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -2149,6 +2158,9 @@ const qualityLine =
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎞 FILME • ${movieCount}\n` +
     `📊 QUALITÄT • ${qualityLine}\n` +
+    (topMovie
+  ? `👑 TOP FILM • ${topMovie.title} • ⭐ ${topMovie.rating}\n`
+  : "") +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
   if (!movies.length) {
