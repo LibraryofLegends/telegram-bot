@@ -2218,6 +2218,18 @@ const totalStorage =
   totalSizeMB >= 1024
     ? `${(totalSizeMB / 1024).toFixed(1)} GB`
     : `${Math.round(totalSizeMB)} MB`;
+    
+    const ratings = movies
+  .map((m) => {
+    const match = String(m.rating || "").match(/(\d+(\.\d+)?)/g);
+    return match ? Number(match.pop()) : null;
+  })
+  .filter((r) => Number.isFinite(r));
+
+const averageRating =
+  ratings.length
+    ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
+    : "Unbekannt";
 
   let result =
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -2232,6 +2244,7 @@ const totalStorage =
     `📅 ZEITRAUM • ${yearRange}\n` +
     `🏅 ARCHIV-RANG • ${archiveRank}\n` +
     `💾 SPEICHER • ${totalStorage}\n` +
+    `⭐ Ø IMDb • ${averageRating}\n` +
     `📊 QUALITÄT • ${qualityLine}\n` +
     (topMovie
   ? `👑 TOP FILM • ${topMovie.title} • ⭐ ${topMovie.rating}\n`
