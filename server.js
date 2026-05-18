@@ -2212,20 +2212,31 @@ async function createMovieHubIfMissing({
   }
 
   const hub = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: topicId,
-    text: movieHubCaption(topicName)
-  });
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: topicId,
+  text: movieHubCaption(topicName)
+});
 
-  if (hub?.message_id) {
-
-    saveMovieHubMessageId(
-      topicId,
-      hub.message_id
-    );
-
-    return hub.message_id;
+if (hub?.message_id) {
+  try {
+    await tg("pinChatMessage", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: hub.message_id,
+      disable_notification: true
+    });
+  } catch (err) {
+    console.error("⚠️ Movie Hub Pin Fehler:", err.message);
   }
+}
+
+if (hub?.message_id) {
+  saveMovieHubMessageId(
+    topicId,
+    hub.message_id
+  );
+
+  return hub.message_id;
+}
 
   return null;
 }
