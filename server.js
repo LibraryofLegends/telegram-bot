@@ -2155,6 +2155,81 @@ function movieHubCaption(topicName = "") {
   return result.slice(0, 4000);
 }
 
+function getMovieHubTopic(topicId) {
+  return db.prepare(`
+    SELECT *
+    FROM topics
+    WHERE topic_id = ?
+    LIMIT 1
+  `).get(topicId);
+}
+
+function saveMovieHubMessageId(topicId, messageId) {
+  db.prepare(`
+    UPDATE topics
+    SET movie_hub_message_id = ?
+    WHERE topic_id = ?
+  `).run(messageId, topicId);
+}
+
+async function createMovieHubIfMissing({
+  topicId,
+  topicName,
+  banner
+}) {
+
+  const topic = getMovieHubTopic(topicId);
+
+  if (topic?.movie_hub_message_id) {
+    return topic.movie_hub_message_id;
+  }
+
+  if (banner) {
+
+    const bannerMsg = await tg("sendPhoto", {
+      chat_id: MOVIE_GROUP_ID,
+      message_thread_id: topicId,
+      photo: banner,
+      caption:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        `🎬 ${String(topicName || "").toUpperCase()}\n` +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        "📁 PREMIUM MOVIE ARCHIVE\n" +
+        "🎞 CINEMATIC COLLECTION ACTIVE\n\n" +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "@LibraryOfLegends"
+    });
+
+    if (bannerMsg?.message_id) {
+
+      db.prepare(`
+        UPDATE topics
+        SET movie_banner_message_id = ?
+        WHERE topic_id = ?
+      `).run(bannerMsg.message_id, topicId);
+
+    }
+  }
+
+  const hub = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: topicId,
+    text: movieHubCaption(topicName)
+  });
+
+  if (hub?.message_id) {
+
+    saveMovieHubMessageId(
+      topicId,
+      hub.message_id
+    );
+
+    return hub.message_id;
+  }
+
+  return null;
+}
+
 function bourneMovieCaption(tmdb, extras = {}) {
   const safeOverview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
     .replace(/\s+/g, " ")
