@@ -2091,6 +2091,70 @@ function bourneKeyboard(title = "") {
   };
 }
 
+function movieHubCaption(topicName = "") {
+  const cleanTopic = String(topicName || "Filme")
+    .replace(/^🎞\s*/g, "")
+    .replace(/^🎬\s*/g, "")
+    .trim();
+
+  const movies = db.prepare(`
+    SELECT title, year, rating, runtime, quality, file_size, collection, library_id
+    FROM movies
+    WHERE topic_id = (
+      SELECT topic_id
+      FROM topics
+      WHERE name = ?
+      LIMIT 1
+    )
+    ORDER BY title ASC, year ASC
+  `).all(topicName);
+
+  const movieCount = movies.length;
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 ${cleanTopic.toUpperCase()} ARCHIVE\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "📁 MOVIE ARCHIVE HUB\n" +
+    "PREMIUM FILM DATABASE\n" +
+    "🎞 MOVIE HUB ACTIVE\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎞 FILME • ${movieCount}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!movies.length) {
+    result += "Noch keine Filme gespeichert.\n\n";
+  } else {
+    movies.forEach((m, index) => {
+      result += `${String(index + 1).padStart(2, "0")} • ${m.title}`;
+      if (m.year) result += ` (${m.year})`;
+      result += "\n";
+
+      result += `⭐ ${m.rating || "Unbekannt"}`;
+      if (m.runtime) result += ` • ⏱ ${m.runtime}`;
+      if (m.quality) result += ` • ${m.quality}`;
+      if (m.file_size) result += ` • ${m.file_size}`;
+      result += "\n";
+
+      if (m.collection) {
+        result += `🎞 ${m.collection}\n`;
+      }
+
+      if (m.library_id) {
+        result += `🏷 ${m.library_id}\n`;
+      }
+
+      result += "\n";
+    });
+  }
+
+  result +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return result.slice(0, 4000);
+}
+
 function bourneMovieCaption(tmdb, extras = {}) {
   const safeOverview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
     .replace(/\s+/g, " ")
