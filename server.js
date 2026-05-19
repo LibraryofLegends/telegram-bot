@@ -1005,6 +1005,19 @@ function collectionHubCaption(collectionName) {
   return result.slice(0, 4000);
 }
 
+function buildUniverseProgressBar(current = 0, total = 0) {
+  const size = 10;
+
+  if (!total || total <= 0) {
+    return "□□□□□□□□□□";
+  }
+
+  const percent = Math.max(0, Math.min(1, current / total));
+  const filled = Math.round(percent * size);
+
+  return "■".repeat(filled) + "□".repeat(size - filled);
+}
+
 function universeHubCaption(universeName = "") {
 
   const config =
@@ -2703,6 +2716,25 @@ const qualityLine =
       .map((m) => m.collection)
       .filter(Boolean)
   ).size;
+  
+  const officialMovieTotal = Object.values(config.phases || {})
+  .reduce((sum, entries) => sum + entries.length, 0);
+
+const officialSeriesTotal = config.series?.length || 0;
+
+const officialTotal =
+  officialMovieTotal + officialSeriesTotal;
+
+const savedTotal =
+  movieCount + seriesCount;
+
+const universePercent =
+  officialTotal > 0
+    ? Math.round((savedTotal / officialTotal) * 100)
+    : 0;
+
+const universeProgress =
+  buildUniverseProgressBar(savedTotal, officialTotal);
   
   const years = movies
   .map((m) => Number(m.year))
