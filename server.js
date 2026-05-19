@@ -6657,14 +6657,6 @@ if (universeData?.universeName) {
   finalTopicType = "collection";
 }
 
-if (isBourne) {
-  finalTopicName = "🎞 Bourne Filmreihe";
-  finalTopicType = "collection";
-} else if (tmdb.collection && tmdb.collectionId) {
-  finalTopicName = `🎞 ${tmdb.collection}`;
-  finalTopicType = "collection";
-}
-
   const topicId = await createOrGetTopic({
     chatId: MOVIE_GROUP_ID,
     name: finalTopicName,
