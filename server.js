@@ -6635,10 +6635,27 @@ async function processMovieUpload({ msg, media, tmdb }) {
 
   const isBourne = isBourneMovie(tmdb, fileName);
 
+const universeData =
+  detectUniverse(
+    tmdb.title,
+    tmdb.collection
+  );
+
 const genreTopicName = tmdb.mainGenre || "Sonstige";
 
 let finalTopicName = genreTopicName;
 let finalTopicType = "movie_genre";
+
+if (universeData?.universeName) {
+  finalTopicName = universeData.universeName;
+  finalTopicType = "universe";
+} else if (isBourne) {
+  finalTopicName = "🎞 Bourne Filmreihe";
+  finalTopicType = "collection";
+} else if (tmdb.collection && tmdb.collectionId) {
+  finalTopicName = `🎞 ${tmdb.collection}`;
+  finalTopicType = "collection";
+}
 
 if (isBourne) {
   finalTopicName = "🎞 Bourne Filmreihe";
@@ -6796,12 +6813,6 @@ replyMarkup: isBourne ? bourneKeyboard(tmdb.title) : null
     });
     return;
   }
-  
-  const universeData =
-  detectUniverse(
-    tmdb.title,
-    tmdb.collection
-  );
 
 saveMovie({
   title: tmdb.title,
