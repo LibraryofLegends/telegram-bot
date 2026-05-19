@@ -212,9 +212,10 @@ function saveMovie(data) {
       poster_url, file_name, file_id, unique_key,
       telegram_message_id, topic_id,
       collection, quality, audio, source, fsk, director, cast, library_id,
-      resolution, file_size, video_codec, audio_codec, audio_channels, hdr
+      resolution, file_size, video_codec, audio_codec, audio_channels, hdr,
+      universe, universe_phase
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.title,
     data.year,
@@ -243,7 +244,10 @@ function saveMovie(data) {
     data.videoCodec,
     data.audioCodec,
     data.audioChannels,
-    data.hdr
+    data.hdr,
+
+    data.universe,
+    data.universePhase
   );
 }
 
