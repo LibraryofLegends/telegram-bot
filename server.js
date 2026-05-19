@@ -255,28 +255,56 @@ function saveSeries(data) {
   return db.prepare(`
     INSERT OR IGNORE INTO series
     (
-      series_title, season, episode, episode_title,
-      genre, rating, overview, poster_url,
-      file_name, file_id, unique_key,
-      telegram_message_id, topic_id,
-      series_library_id
+      series_title,
+      season,
+      episode,
+      episode_title,
+
+      genre,
+      rating,
+      overview,
+      poster_url,
+
+      file_name,
+      file_id,
+      unique_key,
+
+      telegram_message_id,
+      topic_id,
+
+      series_library_id,
+
+      universe,
+      universe_phase
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (
+      ?, ?, ?, ?,
+      ?, ?, ?, ?,
+      ?, ?, ?, ?,
+      ?, ?, ?, ?
+    )
   `).run(
     data.seriesTitle,
     data.season,
     data.episode,
     data.episodeTitle,
+
     data.genre,
     data.rating,
     data.overview,
     data.posterUrl,
+
     data.fileName,
     data.fileId,
     data.uniqueKey,
+
     data.telegramMessageId,
     data.topicId,
-    data.seriesLibraryId
+
+    data.seriesLibraryId,
+
+    data.universe,
+    data.universePhase
   );
 }
 
@@ -6946,6 +6974,12 @@ const copied = await copyOriginalMedia({
       });
       return;
     }
+    
+    const seriesUniverseData =
+  detectUniverse(
+    tmdb.seriesTitle,
+    ""
+  );
 
     saveSeries({
   seriesTitle: tmdb.seriesTitle,
@@ -6961,7 +6995,13 @@ const copied = await copyOriginalMedia({
   uniqueKey: media.uniqueKey,
   telegramMessageId: copied.message_id,
   topicId,
-  seriesLibraryId: extras.seriesLibraryId
+  seriesLibraryId: extras.seriesLibraryId,
+
+universe:
+  seriesUniverseData?.universeName || null,
+
+universePhase:
+  seriesUniverseData?.phase || null
 });
 
 try {
