@@ -964,6 +964,195 @@ function collectionHubCaption(collectionName) {
   return result.slice(0, 4000);
 }
 
+function universeHubCaption(universeName = "") {
+
+  const config =
+    Object.values(universeConfigs)
+      .find((u) =>
+        u.topicName === universeName
+      );
+
+  if (!config) {
+    return "❌ Universe nicht gefunden";
+  }
+
+  const movies = db.prepare(`
+    SELECT title, year, rating, universe_phase
+    FROM movies
+    WHERE universe = ?
+    ORDER BY year ASC, title ASC
+  `).all(universeName);
+
+  const series = db.prepare(`
+    SELECT DISTINCT series_title
+    FROM series
+    WHERE universe = ?
+    ORDER BY series_title ASC
+  `).all(universeName);
+
+  const movieCount = movies.length;
+  const seriesCount = series.length;
+
+  const years = movies
+    .map((m) => Number(m.year))
+    .filter((y) => Number.isFinite(y));
+
+  const period =
+    years.length
+      ? `${Math.min(...years)} → ${Math.max(...years)}`
+      : "Unbekannt";
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${config.icon} ${universeName.toUpperCase()}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `📁 ${config.archive}\n` +
+    `${config.subline}\n` +
+    `${config.status}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+
+    `🎬 FILME • ${movieCount}\n` +
+    `📺 SERIEN • ${seriesCount}\n` +
+    `📅 ZEITRAUM • ${period}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (Object.keys(config.phases || {}).length) {
+
+    result +=
+      "🧭 TIMELINE\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n";
+
+    for (const [phase, entries] of Object.entries(config.phases)) {
+
+      result += `${phase}\n`;
+
+      entries.forEach((title, index) => {
+
+        const prefix =
+          index === entries.length - 1
+            ? "┗"
+            : "┠";
+
+        result += `${prefix} ${title}\n`;
+
+      });
+
+      result += "\n";
+    }
+  }
+
+  if (series.length) {
+
+    result +=
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📺 SERIEN\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n";
+
+    series.forEach((s) => {
+      result += `• ${s.series_title}\n`;
+    });
+
+    result += "\n";
+  }
+
+  result +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return result.slice(0, 4000);
+}
+
+function getUniverseByName(universeName = "") {
+  return db.prepare(`
+    SELECT *
+    FROM universes
+    WHERE universe_name = ?
+    LIMIT 1
+  `).get(universeName);
+}
+
+function saveUniverseHubMessageId(universeName, messageId) {
+  db.prepare(`
+    UPDATE universes
+    SET hub_message_id = ?
+    WHERE universe_name = ?
+  `).run(messageId, universeName);
+}
+
+async function createOrUpdateUniverseHub(universeName = "") {
+  if (!universeName) return null;
+
+  const config = Object.values(universeConfigs)
+    .find((u) => u.topicName === universeName);
+
+  if (!config) return null;
+
+  let universe = getUniverseByName(universeName);
+
+  if (!universe) {
+    db.prepare(`
+      INSERT OR IGNORE INTO universes
+      (universe_name)
+      VALUES (?)
+    `).run(universeName);
+
+    universe = getUniverseByName(universeName);
+  }
+
+  let topicId = universe?.topic_id;
+
+  if (!topicId) {
+    topicId = await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: config.topicName,
+      type: "universe"
+    });
+
+    if (topicId) {
+      db.prepare(`
+        UPDATE universes
+        SET topic_id = ?
+        WHERE universe_name = ?
+      `).run(topicId, universeName);
+    }
+  }
+
+  const text = universeHubCaption(universeName);
+
+  if (universe?.hub_message_id) {
+    return await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: universe.hub_message_id,
+      text
+    });
+  }
+
+  const hub = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: topicId,
+    text
+  });
+
+  if (hub?.message_id) {
+    saveUniverseHubMessageId(universeName, hub.message_id);
+
+    try {
+      await tg("pinChatMessage", {
+        chat_id: MOVIE_GROUP_ID,
+        message_id: hub.message_id,
+        disable_notification: true
+      });
+    } catch (err) {
+      console.error("⚠️ Universe Hub Pin Fehler:", err.message);
+    }
+  }
+
+  return hub;
+}
+
 async function createOrUpdateCollectionHub(tmdb, topicId) {
   if (!tmdb.collection || !tmdb.collectionId) return null;
 
