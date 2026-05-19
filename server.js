@@ -791,6 +791,19 @@ const collectionBanners = {
     "https://image.tmdb.org/t/p/original/7u3pxc0K1wx32IleAkLv78MKgrw.jpg"
 };
 
+const universeBanners = {
+
+  "🧬 Marvel Cinematic Universe":
+    "https://image.tmdb.org/t/p/original/yFuKvT4Vm3sKHdFY4eG6I4ldAnn.jpg",
+
+  "🦇 DC Universe":
+    "https://image.tmdb.org/t/p/original/nMKdUUepR0i5zn0y1T4CsSB5chy.jpg",
+
+  "🌌 Star Wars Universe":
+    "https://image.tmdb.org/t/p/original/4iJfYYoQzZcONB9hNzg0J0wWyPH.jpg"
+
+};
+
 function buildCollectionData(collectionName = "") {
   const rows = db.prepare(`
     SELECT title, year, library_id, rating, runtime, file_size
@@ -1119,10 +1132,62 @@ async function createOrUpdateUniverseHub(universeName = "") {
       `).run(topicId, universeName);
     }
   }
+  
+  const banner =
+  universeBanners[universeName];
 
-  const text = universeHubCaption(universeName);
+const text =
+  universeHubCaption(universeName);
 
-  if (universe?.hub_message_id) {
+if (
+  banner &&
+  !universe?.banner_message_id
+) {
+
+  try {
+
+    const bannerMsg =
+      await tg("sendPhoto", {
+        chat_id: MOVIE_GROUP_ID,
+        message_thread_id: topicId,
+        photo: banner,
+
+        caption:
+          "━━━━━━━━━━━━━━━━━━\n" +
+          `${config.icon} ${universeName.toUpperCase()}\n` +
+          "━━━━━━━━━━━━━━━━━━\n\n" +
+          `${config.archive}\n` +
+          `${config.subline}\n` +
+          `${config.status}\n\n` +
+          "━━━━━━━━━━━━━━━━━━\n" +
+          "@LibraryOfLegends"
+      });
+
+    if (bannerMsg?.message_id) {
+
+      db.prepare(`
+        UPDATE universes
+        SET banner_message_id = ?
+        WHERE universe_name = ?
+      `).run(
+        bannerMsg.message_id,
+        universeName
+      );
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "⚠️ Universe Banner Fehler:",
+      err.message
+    );
+
+  }
+
+}
+
+if (universe?.hub_message_id) {
     return await tg("editMessageText", {
       chat_id: MOVIE_GROUP_ID,
       message_id: universe.hub_message_id,
