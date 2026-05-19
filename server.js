@@ -2731,25 +2731,6 @@ const qualityLine =
       .filter(Boolean)
   ).size;
   
-  const officialMovieTotal = Object.values(config.phases || {})
-  .reduce((sum, entries) => sum + entries.length, 0);
-
-const officialSeriesTotal = config.series?.length || 0;
-
-const officialTotal =
-  officialMovieTotal + officialSeriesTotal;
-
-const savedTotal =
-  movieCount + seriesCount;
-
-const universePercent =
-  officialTotal > 0
-    ? Math.round((savedTotal / officialTotal) * 100)
-    : 0;
-
-const universeProgress =
-  buildUniverseProgressBar(savedTotal, officialTotal);
-  
   const years = movies
   .map((m) => Number(m.year))
   .filter((y) => Number.isFinite(y));
