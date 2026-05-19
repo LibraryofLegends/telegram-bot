@@ -6715,6 +6715,25 @@ try {
   console.error("⚠️ Collection/Bourne Hub Update Fehler:", err.message);
 }
 
+try {
+
+  if (universeData?.universeName) {
+
+    await createOrUpdateUniverseHub(
+      universeData.universeName
+    );
+
+  }
+
+} catch (err) {
+
+  console.error(
+    "⚠️ Universe Hub Fehler:",
+    err.message
+  );
+
+}
+
 await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
