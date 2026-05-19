@@ -7023,7 +7023,26 @@ try {
   console.error("⚠️ Hub Update Fehler:", err.message);
 }
 
-    await tg("sendMessage", {
+try {
+
+  if (seriesUniverseData?.universeName) {
+
+    await createOrUpdateUniverseHub(
+      seriesUniverseData.universeName
+    );
+
+  }
+
+} catch (err) {
+
+  console.error(
+    "⚠️ Serien Universe Hub Fehler:",
+    err.message
+  );
+
+}
+
+await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
         "✅ Serie erfolgreich einsortiert:\n\n" +
