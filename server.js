@@ -102,6 +102,15 @@ CREATE TABLE IF NOT EXISTS collections (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS universes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  universe_name TEXT UNIQUE,
+  topic_id INTEGER,
+  hub_message_id INTEGER,
+  banner_message_id INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   type TEXT,
@@ -139,6 +148,16 @@ addColumnIfMissing("topics", "movie_banner_message_id", "INTEGER");
 addColumnIfMissing("series", "series_library_id", "TEXT");
 addColumnIfMissing("collections", "hub_message_id", "INTEGER");
 addColumnIfMissing("collections", "banner_message_id", "INTEGER");
+addColumnIfMissing("movies", "universe", "TEXT");
+addColumnIfMissing("movies", "universe_phase", "TEXT");
+addColumnIfMissing("movies", "universe_order", "INTEGER");
+
+addColumnIfMissing("series", "universe", "TEXT");
+addColumnIfMissing("series", "universe_phase", "TEXT");
+addColumnIfMissing("series", "universe_order", "INTEGER");
+
+addColumnIfMissing("topics", "universe_hub_message_id", "INTEGER");
+addColumnIfMissing("topics", "universe_banner_message_id", "INTEGER");
 
 console.log("✅ Datenbank bereit");
 
@@ -543,6 +562,203 @@ const collectionThemes = {
     status: "🔵 IMF SECURE CHANNEL"
   }
 };
+
+const universeConfigs = {
+  Marvel: {
+    topicName: "🧬 Marvel Cinematic Universe",
+    icon: "🧬",
+    archive: "MARVEL MULTIVERSE ARCHIVE",
+    subline: "PHASES • TIMELINE • SACRED CONTINUITY",
+    status: "🔴 MULTIVERSE STATUS ACTIVE",
+
+    aliases: [
+      "marvel",
+      "mcu",
+      "avengers",
+      "iron man",
+      "captain america",
+      "thor",
+      "guardians of the galaxy",
+      "black panther",
+      "doctor strange",
+      "spider man",
+      "spider-man",
+      "ant-man",
+      "loki",
+      "wanda",
+      "wandavision",
+      "moon knight",
+      "daredevil",
+      "punisher"
+    ],
+
+    phases: {
+      "PHASE 1": [
+        "Iron Man",
+        "Der unglaubliche Hulk",
+        "Iron Man 2",
+        "Thor",
+        "Captain America: The First Avenger",
+        "Marvel's The Avengers"
+      ],
+
+      "PHASE 2": [
+        "Iron Man 3",
+        "Thor: The Dark Kingdom",
+        "The Return of the First Avenger",
+        "Guardians of the Galaxy",
+        "Avengers: Age of Ultron",
+        "Ant-Man"
+      ],
+
+      "PHASE 3": [
+        "The First Avenger: Civil War",
+        "Doctor Strange",
+        "Guardians of the Galaxy Vol. 2",
+        "Spider-Man: Homecoming",
+        "Thor: Tag der Entscheidung",
+        "Black Panther",
+        "Avengers: Infinity War",
+        "Ant-Man and the Wasp",
+        "Captain Marvel",
+        "Avengers: Endgame",
+        "Spider-Man: Far From Home"
+      ]
+    },
+
+    series: [
+      "WandaVision",
+      "The Falcon and the Winter Soldier",
+      "Loki",
+      "Hawkeye",
+      "Moon Knight",
+      "Ms. Marvel",
+      "She-Hulk",
+      "Daredevil",
+      "The Punisher"
+    ]
+  },
+
+  DC: {
+    topicName: "🦇 DC Universe",
+    icon: "🦇",
+    archive: "DC MULTIVERSE ARCHIVE",
+    subline: "GOTHAM • METROPOLIS • JUSTICE FILES",
+    status: "⚡ HERO DATABASE ACTIVE",
+
+    aliases: [
+      "dc",
+      "batman",
+      "superman",
+      "wonder woman",
+      "aquaman",
+      "justice league",
+      "joker",
+      "harley quinn",
+      "the flash"
+    ],
+
+    phases: {},
+
+    series: [
+      "Peacemaker",
+      "Gotham",
+      "The Flash",
+      "Arrow",
+      "Titans"
+    ]
+  },
+
+  StarWars: {
+    topicName: "🌌 Star Wars Universe",
+    icon: "🌌",
+    archive: "GALACTIC REPUBLIC ARCHIVE",
+    subline: "JEDI • SITH • GALACTIC TIMELINE",
+    status: "🛰 FORCE SIGNAL DETECTED",
+
+    aliases: [
+      "star wars",
+      "jedi",
+      "sith",
+      "mandalorian",
+      "obi wan",
+      "andor",
+      "ahsoka"
+    ],
+
+    phases: {
+      "SKYWALKER SAGA": [
+        "Star Wars: Episode I",
+        "Star Wars: Episode II",
+        "Star Wars: Episode III",
+        "Star Wars: Episode IV",
+        "Star Wars: Episode V",
+        "Star Wars: Episode VI",
+        "Star Wars: Episode VII",
+        "Star Wars: Episode VIII",
+        "Star Wars: Episode IX"
+      ],
+
+      "STANDALONE": [
+        "Rogue One",
+        "Solo"
+      ]
+    },
+
+    series: [
+      "The Mandalorian",
+      "Andor",
+      "Ahsoka",
+      "Obi-Wan Kenobi",
+      "The Book of Boba Fett"
+    ]
+  }
+};
+
+function detectUniverse(title = "", collection = "") {
+
+  const search =
+    `${title} ${collection}`
+      .toLowerCase();
+
+  for (const [key, config] of Object.entries(universeConfigs)) {
+
+    const matched =
+      config.aliases.some((alias) =>
+        search.includes(
+          String(alias).toLowerCase()
+        )
+      );
+
+    if (matched) {
+
+      let detectedPhase = null;
+
+      for (const [phase, movies] of Object.entries(config.phases || {})) {
+
+        const phaseMatch =
+          movies.some((movieTitle) =>
+            search.includes(
+              String(movieTitle).toLowerCase()
+            )
+          );
+
+        if (phaseMatch) {
+          detectedPhase = phase;
+          break;
+        }
+      }
+
+      return {
+        universeKey: key,
+        universeName: config.topicName,
+        phase: detectedPhase
+      };
+    }
+  }
+
+  return null;
+}
 
 const collectionCinemaCards = {
   "Terminator Filmreihe": [
