@@ -6673,14 +6673,16 @@ if (universeData?.universeName) {
     return;
   }
   
+  if (!universeData?.universeName) {
   await createMovieHubIfMissing({
-  topicId,
-  topicName: finalTopicName,
-  banner:
-    genreBanners?.[finalTopicName] ||
-    genreBanners?.[tmdb.mainGenre] ||
-    null
-});
+    topicId,
+    topicName: finalTopicName,
+    banner:
+      genreBanners?.[finalTopicName] ||
+      genreBanners?.[tmdb.mainGenre] ||
+      null
+  });
+}
   
   if (tmdb.collection && tmdb.collectionId) {
   const existingCollection = getCollection(tmdb.collectionId);
