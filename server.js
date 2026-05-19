@@ -6845,13 +6845,35 @@ try {
 }
 
 try {
+
   if (isBourne) {
-    await createOrUpdateBourneHub(topicId);
-  } else if (tmdb.collection && tmdb.collectionId) {
-    await createOrUpdateCollectionHub(tmdb, topicId);
+
+    await createOrUpdateBourneHub(
+      topicId
+    );
+
   }
+
+  else if (
+    tmdb.collection &&
+    tmdb.collectionId &&
+    !universeData?.universeName
+  ) {
+
+    await createOrUpdateCollectionHub(
+      tmdb,
+      topicId
+    );
+
+  }
+
 } catch (err) {
-  console.error("⚠️ Collection/Bourne Hub Update Fehler:", err.message);
+
+  console.error(
+    "⚠️ Collection/Bourne Hub Update Fehler:",
+    err.message
+  );
+
 }
 
 try {
