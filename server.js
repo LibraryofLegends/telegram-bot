@@ -6464,8 +6464,14 @@ replyMarkup: isBourne ? bourneKeyboard(tmdb.title) : null
     });
     return;
   }
+  
+  const universeData =
+  detectUniverse(
+    tmdb.title,
+    tmdb.collection
+  );
 
-  saveMovie({
+saveMovie({
   title: tmdb.title,
   year: tmdb.year,
   genre: tmdb.genre,
@@ -6491,7 +6497,10 @@ replyMarkup: isBourne ? bourneKeyboard(tmdb.title) : null
   videoCodec: extras.videoCodec,
   audioCodec: extras.audioCodec,
   audioChannels: extras.audioChannels,
-  hdr: extras.hdr
+  hdr: extras.hdr,
+
+  universe: universeData?.universeName || null,
+  universePhase: universeData?.phase || null
 });
 
 try {
