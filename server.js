@@ -1067,9 +1067,11 @@ function universeHubCaption(universeName = "") {
 
     "━━━━━━━━━━━━━━━━━━\n" +
 
-    `🎬 FILME • ${movieCount}\n` +
-    `📺 SERIEN • ${seriesCount}\n` +
-    `📅 ZEITRAUM • ${period}\n` +
+    `🎬 FILME • ${movieCount}/${officialMovieTotal || movieCount}\n` +
+`📺 SERIEN • ${seriesCount}/${officialSeriesTotal || seriesCount}\n` +
+`🧩 UNIVERSE STATUS • ${savedTotal}/${officialTotal || savedTotal}\n` +
+`📊 FORTSCHRITT • ${universeProgress} ${universePercent}%\n` +
+`📅 ZEITRAUM • ${period}\n` +
 
     "━━━━━━━━━━━━━━━━━━\n\n";
 
