@@ -1034,28 +1034,47 @@ function universeHubCaption(universeName = "") {
 
   if (Object.keys(config.phases || {}).length) {
 
+  result +=
+    "🧭 TIMELINE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  for (const [phase, entries] of Object.entries(config.phases)) {
+
+    const savedInPhase =
+      movies.filter((m) =>
+        entries.includes(m.title)
+      ).length;
+
+    const completed =
+      savedInPhase >= entries.length;
+
     result +=
-      "🧭 TIMELINE\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n";
+      `${phase} • ${savedInPhase}/${entries.length} ` +
+      (completed ? "✅" : "⚠️") +
+      "\n";
 
-    for (const [phase, entries] of Object.entries(config.phases)) {
+    entries.forEach((title, index) => {
 
-      result += `${phase}\n`;
+      const exists =
+        movies.some((m) =>
+          m.title === title
+        );
 
-      entries.forEach((title, index) => {
+      const prefix =
+        index === entries.length - 1
+          ? "┗"
+          : "┠";
 
-        const prefix =
-          index === entries.length - 1
-            ? "┗"
-            : "┠";
+      result +=
+        `${prefix} ` +
+        (exists ? "✅ " : "⬜ ") +
+        `${title}\n`;
 
-        result += `${prefix} ${title}\n`;
+    });
 
-      });
-
-      result += "\n";
-    }
+    result += "\n";
   }
+}
 
   if (series.length) {
 
