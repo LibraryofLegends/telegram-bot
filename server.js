@@ -6684,7 +6684,7 @@ if (universeData?.universeName) {
   });
 }
   
-  if (tmdb.collection && tmdb.collectionId) {
+  if (tmdb.collection && tmdb.collectionId && !universeData?.universeName) {
   const existingCollection = getCollection(tmdb.collectionId);
 
   if (!existingCollection) {
@@ -6697,7 +6697,7 @@ if (universeData?.universeName) {
   }
 }
 
-if (tmdb.collection && tmdb.collectionId) {
+if (tmdb.collection && tmdb.collectionId && !universeData?.universeName) {
   const collection = getCollection(tmdb.collectionId);
 
   if (true) {
