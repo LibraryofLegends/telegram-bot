@@ -6840,13 +6840,15 @@ saveMovie({
   universePhase: universeData?.phase || null
 });
 
-try {
-  await updateMovieHub({
-    topicId,
-    topicName: finalTopicName
-  });
-} catch (err) {
-  console.error("⚠️ Movie Hub Update Fehler:", err.message);
+if (!universeData?.universeName) {
+  try {
+    await updateMovieHub({
+      topicId,
+      topicName: finalTopicName
+    });
+  } catch (err) {
+    console.error("⚠️ Movie Hub Update Fehler:", err.message);
+  }
 }
 
 try {
