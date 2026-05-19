@@ -1119,19 +1119,31 @@ function universeHubCaption(universeName = "") {
   }
 }
 
-  if (series.length) {
+  if (config.series?.length) {
+
+  result +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📺 SERIEN\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  config.series.forEach((seriesTitle, index) => {
+    const exists = series.some((s) =>
+      s.series_title === seriesTitle
+    );
+
+    const prefix =
+      index === config.series.length - 1
+        ? "┗"
+        : "┠";
 
     result +=
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "📺 SERIEN\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n";
+      `${prefix} ` +
+      (exists ? "✅ " : "⬜ ") +
+      `${seriesTitle}\n`;
+  });
 
-    series.forEach((s) => {
-      result += `• ${s.series_title}\n`;
-    });
-
-    result += "\n";
-  }
+  result += "\n";
+}
 
   result +=
     "━━━━━━━━━━━━━━━━━━\n" +
