@@ -2111,6 +2111,14 @@ function bourneKeyboard(title = "") {
   };
 }
 
+function buildMovieArchiveProgressBar(movieCount = 0) {
+  const size = 10;
+  const percent = movieCount >= 100 ? 1 : movieCount / 100;
+  const filled = Math.round(percent * size);
+
+  return "■".repeat(filled) + "□".repeat(size - filled);
+}
+
 function movieHubCaption(topicName = "") {
   const cleanTopic = String(topicName || "Filme")
     .replace(/^🎞\s*/g, "")
@@ -2942,7 +2950,7 @@ const genreBanners = {
   Action: "DEIN_ACTION_BANNER_LINK",
   Abenteuer: "DEIN_ABENTEUER_BANNER_LINK",
   Komödie: "DEIN_KOMÖDIE_BANNER_LINK",
-  Drama: "DEIN_DRAMA_BANNER_LINK",
+  Drama: null,
   Familie: "DEIN_FAMILIE_BANNER_LINK",
   Fantasy: "DEIN_FANTASY_BANNER_LINK",
   Krimi: "DEIN_KRIMI_BANNER_LINK",
