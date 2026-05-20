@@ -1046,6 +1046,38 @@ function universeHubCaption(universeName = "") {
 
   const movieCount = movies.length;
   const seriesCount = series.length;
+  
+  const officialMovieTotal = Object.values(config.phases || {})
+  .reduce((sum, entries) => sum + entries.length, 0);
+
+const officialSeriesTotal = config.series?.length || 0;
+
+const officialTotal =
+  officialMovieTotal + officialSeriesTotal;
+
+const savedTotal =
+  movieCount + seriesCount;
+
+const universePercent =
+  officialTotal > 0
+    ? Math.round((savedTotal / officialTotal) * 100)
+    : 0;
+
+let multiverseStatus =
+  "🟢 SACRED TIMELINE STABLE";
+
+if (universePercent < 100) {
+  multiverseStatus =
+    "🟠 TIMELINE INSTABILITY DETECTED";
+}
+
+if (universePercent < 60) {
+  multiverseStatus =
+    "🔴 INCURSIONS DETECTED";
+}
+
+const universeProgress =
+  buildUniverseProgressBar(savedTotal, officialTotal);
 
   const years = movies
     .map((m) => Number(m.year))
