@@ -3913,12 +3913,52 @@ if (missingEpisodes.length) {
 
 function getKnownSeasonEpisodeCount(seriesTitle, seasonNumber) {
   const knownCounts = {
+
     "The Boys": {
       1: 8,
       2: 8,
       3: 8,
       4: 8,
       5: 7
+    },
+
+    "The Mandalorian": {
+      1: 8,
+      2: 8,
+      3: 8
+    },
+
+    "Andor": {
+      1: 12
+    },
+
+    "Ahsoka": {
+      1: 8
+    },
+
+    "Loki": {
+      1: 6,
+      2: 6
+    },
+
+    "WandaVision": {
+      1: 9
+    },
+
+    "Moon Knight": {
+      1: 6
+    },
+
+    "The Falcon and the Winter Soldier": {
+      1: 6
+    },
+
+    "Obi-Wan Kenobi": {
+      1: 6
+    },
+
+    "The Book of Boba Fett": {
+      1: 7
     }
   };
 
@@ -3927,7 +3967,26 @@ function getKnownSeasonEpisodeCount(seriesTitle, seasonNumber) {
 
 function getKnownSeasonCount(seriesTitle) {
   const knownSeasonCounts = {
-    "The Boys": 5
+
+    "The Boys": 5,
+
+    "The Mandalorian": 3,
+
+    "Andor": 2,
+
+    "Ahsoka": 1,
+
+    "Loki": 2,
+
+    "WandaVision": 1,
+
+    "Moon Knight": 1,
+
+    "The Falcon and the Winter Soldier": 1,
+
+    "Obi-Wan Kenobi": 1,
+
+    "The Book of Boba Fett": 1
   };
 
   return knownSeasonCounts[seriesTitle] || null;
@@ -4160,6 +4219,25 @@ let card = await tg("sendPhoto", {
   }
 
   return null;
+}
+
+function buildSeasonProgressBar(current = 0, total = 0) {
+  const size = 10;
+
+  if (!total || total <= 0) {
+    return "□□□□□□□□□□";
+  }
+
+  const percent =
+    Math.max(0, Math.min(1, current / total));
+
+  const filled =
+    Math.round(percent * size);
+
+  return (
+    "■".repeat(filled) +
+    "□".repeat(size - filled)
+  );
 }
 
 async function updateSeasonCard({ tmdb, topicId, season }) {
