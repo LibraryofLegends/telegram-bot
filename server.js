@@ -6640,6 +6640,10 @@ const universeData =
     tmdb.title,
     tmdb.collection
   );
+  
+  console.log("🌌 TMDB TITLE:", tmdb.title);
+console.log("🌌 TMDB COLLECTION:", tmdb.collection);
+console.log("🌌 UNIVERSE DATA:", universeData);
 
 const genreTopicName = tmdb.mainGenre || "Sonstige";
 
