@@ -7078,7 +7078,7 @@ const copied = await copyOriginalMedia({
     ""
   );
 
-    saveSeries({
+saveSeries({
   seriesTitle: tmdb.seriesTitle,
   season: media.season,
   episode: media.episode,
@@ -7094,11 +7094,8 @@ const copied = await copyOriginalMedia({
   topicId,
   seriesLibraryId: extras.seriesLibraryId,
 
-universe:
-  seriesUniverseData?.universeName || null,
-
-universePhase:
-  seriesUniverseData?.phase || null
+  universe: seriesUniverseData?.universeName || null,
+  universePhase: seriesUniverseData?.phase || null
 });
 
 try {
