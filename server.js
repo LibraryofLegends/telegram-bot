@@ -1687,6 +1687,52 @@ function buildMovieSearchVariants(title = "") {
   )];
 }
 
+function parseManualSeriesCommand(text = "") {
+  const raw = String(text || "")
+    .replace(/^\/series/i, "")
+    .trim();
+
+  if (!raw) return null;
+
+  let title = "";
+  let season = null;
+  let episode = null;
+
+  const pipeMatch = raw.match(/^(.+?)\s*\|\s*S?(\d{1,2})E?(\d{1,2})$/i);
+  const normalMatch = raw.match(/^(.+?)\s+S(\d{1,2})E(\d{1,2})$/i);
+
+  if (pipeMatch) {
+    title = pipeMatch[1].trim();
+    season = Number(pipeMatch[2]);
+    episode = Number(pipeMatch[3]);
+  } else if (normalMatch) {
+    title = normalMatch[1].trim();
+    season = Number(normalMatch[2]);
+    episode = Number(normalMatch[3]);
+  }
+
+  if (!title || !season || !episode) {
+    return null;
+  }
+
+  const seasonText = String(season).padStart(2, "0");
+  const episodeText = String(episode).padStart(2, "0");
+
+  title = normalizeSeriesTitle(title);
+
+  return {
+    type: "series",
+    isSeries: true,
+    seriesTitle: title,
+    season,
+    episode,
+    seasonText,
+    episodeText,
+    episodeTitleFromFile: "",
+    uniqueKey: makeKey(`${title}-s${seasonText}-e${episodeText}`)
+  };
+}
+
 function parseManualMovieCaption(caption = "") {
   const text = String(caption || "").trim();
 
@@ -6994,9 +7040,20 @@ async function handleUpload(msg) {
   console.log("🚀 HANDLE UPLOAD TRIGGERED");
   console.log("📁 Datei:", fileName);
 
-  const manualMovie = parseManualMovieCaption(msg.caption || "");
+  const manualMovie =
+  parseManualMovieCaption(
+    msg.caption || ""
+  );
 
-const media = manualMovie || parseMedia(fileName);
+const manualSeries =
+  parseManualSeriesCommand(
+    msg.caption || ""
+  );
+
+const media =
+  manualMovie ||
+  manualSeries ||
+  parseMedia(fileName);
 
   console.log("🧠 Parsed:", media);
 
