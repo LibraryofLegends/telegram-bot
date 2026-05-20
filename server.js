@@ -4766,6 +4766,7 @@ async function handleCommand(msg) {
 
       "📺 SERIEN\n" +
       "• /series — Serien anzeigen\n" +
+"• /series Titel | S01E01 — Manuelle Serien-Erkennung\n" +
       "• /seriesaz — Serien A–Z\n" +
       "• /serieshub — Serien Dashboard\n" +
       "• /newseries — Neue Folgen\n" +
