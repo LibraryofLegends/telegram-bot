@@ -3785,6 +3785,11 @@ const seriesRank = getSeriesRank(
   officialTotalEpisodes
 );
 
+const seriesTags = getSeriesStatusTags(
+  totalEpisodes,
+  officialTotalEpisodes
+);
+
 const progressBar = buildSeriesProgressBar(
   tmdb.seriesTitle,
   totalEpisodes,
@@ -3830,6 +3835,7 @@ const timeline =
     `📊 GESAMT: ${progressBar} ${globalPercent}% • ${totalEpisodes}/${officialTotalEpisodes}\n` +
     `${archiveStatus}\n` +
     `🏅 SERIEN-RANG • ${seriesRank}\n` +
+    `🏷 STATUS TAGS • ${seriesTags}\n` +
     `${divider}\n\n` +
 
     "🛰 TIMELINE\n" +
