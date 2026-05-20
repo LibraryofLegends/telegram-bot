@@ -748,32 +748,54 @@ const universeConfigs = {
 };
 
 function detectUniverse(title = "", collection = "") {
-
   const search =
     `${title} ${collection}`
       .toLowerCase();
 
   for (const [key, config] of Object.entries(universeConfigs)) {
-
-    const matched =
-      config.aliases.some((alias) =>
-        search.includes(
-          String(alias).toLowerCase()
-        )
+    const aliasMatch =
+      (config.aliases || []).some((alias) =>
+        search.includes(String(alias).toLowerCase())
       );
 
-    if (matched) {
+    const seriesMatch =
+      (config.series || []).some((seriesTitle) => {
+        const searchKey = makeKey(search);
+        const seriesKey = makeKey(seriesTitle);
 
+        return (
+          searchKey.includes(seriesKey) ||
+          seriesKey.includes(searchKey)
+        );
+      });
+
+    const phaseMatchFound =
+      Object.values(config.phases || {})
+        .flat()
+        .some((movieTitle) => {
+          const searchKey = makeKey(search);
+          const movieKey = makeKey(movieTitle);
+
+          return (
+            searchKey.includes(movieKey) ||
+            movieKey.includes(searchKey)
+          );
+        });
+
+    if (aliasMatch || seriesMatch || phaseMatchFound) {
       let detectedPhase = null;
 
       for (const [phase, movies] of Object.entries(config.phases || {})) {
-
         const phaseMatch =
-          movies.some((movieTitle) =>
-            search.includes(
-              String(movieTitle).toLowerCase()
-            )
-          );
+          movies.some((movieTitle) => {
+            const searchKey = makeKey(search);
+            const movieKey = makeKey(movieTitle);
+
+            return (
+              searchKey.includes(movieKey) ||
+              movieKey.includes(searchKey)
+            );
+          });
 
         if (phaseMatch) {
           detectedPhase = phase;
