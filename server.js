@@ -6814,16 +6814,6 @@ if (isBourne) {
   }
 }
 
-if (universeData?.universeName) {
-  try {
-    await createOrUpdateUniverseHub(
-      universeData.universeName
-    );
-  } catch (err) {
-    console.error("⚠️ Universe Hub Vorab-Update Fehler:", err.message);
-  }
-}
-
   await tg("sendPhoto", {
     chat_id: MOVIE_GROUP_ID,
     message_thread_id: topicId,
@@ -6885,6 +6875,16 @@ saveMovie({
   universe: universeData?.universeName || null,
   universePhase: universeData?.phase || null
 });
+
+if (universeData?.universeName) {
+  try {
+    await createOrUpdateUniverseHub(
+      universeData.universeName
+    );
+  } catch (err) {
+    console.error("⚠️ Universe Hub Update Fehler:", err.message);
+  }
+}
 
 if (!universeData?.universeName) {
   try {
