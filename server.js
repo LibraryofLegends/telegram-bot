@@ -1501,9 +1501,9 @@ function normalizeSeriesTitle(title = "") {
     theboy: "The Boys",
     
     dermandalorianer: "The Mandalorian",
-mandalorianer: "The Mandalorian",
-themandalorian: "The Mandalorian",
-mandalorian: "The Mandalorian"
+    mandalorianer: "The Mandalorian",
+    themandalorian: "The Mandalorian",
+    mandalorian: "The Mandalorian"
 
     // Stranger Things
     strangerthings: "Stranger Things",
