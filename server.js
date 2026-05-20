@@ -3741,7 +3741,17 @@ function seriesHubCaption(tmdb) {
   `).get(tmdb.seriesTitle)?.count || 0;
   
   const knownSeriesTotals = {
-  "The Boys": 39
+  "The Boys": 39,
+
+  "The Mandalorian": 24,
+  "Andor": 24,
+  "Ahsoka": 8,
+  "Loki": 12,
+  "WandaVision": 9,
+  "Moon Knight": 6,
+  "The Falcon and the Winter Soldier": 6,
+  "Obi-Wan Kenobi": 6,
+  "The Book of Boba Fett": 7
 };
 
 const officialTotalEpisodes =
