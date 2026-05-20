@@ -1495,31 +1495,24 @@ function normalizeSeriesTitle(title = "") {
     .replace(/[^a-z0-9]/g, "");
 
   const fixes = {
-
-    // The Boys
     theboys: "The Boys",
     theboy: "The Boys",
-    
+
     dermandalorianer: "The Mandalorian",
     mandalorianer: "The Mandalorian",
     themandalorian: "The Mandalorian",
-    mandalorian: "The Mandalorian"
+    mandalorian: "The Mandalorian",
 
-    // Stranger Things
     strangerthings: "Stranger Things",
 
-    // Game of Thrones
     gameofthrones: "Game of Thrones",
     got: "Game of Thrones",
 
-    // Breaking Bad
     breakingbad: "Breaking Bad",
 
-    // The Walking Dead
     thewalkingdead: "The Walking Dead",
     twd: "The Walking Dead",
 
-    // House of the Dragon
     houseofthedragon: "House of the Dragon",
     hotd: "House of the Dragon"
   };
