@@ -4044,6 +4044,34 @@ function getSeriesRank(current, total) {
   return "⚠️ INCOMPLETE";
 }
 
+function getSeriesStatusTags(current, total) {
+  if (!total || total <= 0) {
+    return "⚠️ UNKNOWN";
+  }
+
+  const percent = Math.round((current / total) * 100);
+  const tags = [];
+
+  if (percent >= 100) {
+    tags.push("👑 MASTERED");
+    tags.push("💎 FULL COLLECTION");
+  } else if (percent >= 90) {
+    tags.push("💎 FULL COLLECTION");
+  } else if (percent >= 60) {
+    tags.push("🔥 TRENDING");
+  } else if (percent >= 30) {
+    tags.push("📀 GROWING ARCHIVE");
+  } else {
+    tags.push("⚠️ INCOMPLETE");
+  }
+
+  if (percent <= 15) {
+    tags.push("🌱 STARTER");
+  }
+
+  return tags.join(" • ");
+}
+
 function getMovieArchiveRank(movieCount = 0) {
 
   if (movieCount >= 100) {
