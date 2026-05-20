@@ -3866,7 +3866,7 @@ for (
 
     `${divider}\n` +
     `⭐ RATING • ${tmdb.seriesRating || tmdb.rating || "Unbekannt"} IMDb\n` +
-    `📀 STAFFELN • ${seasonCount}\n` +
+    `📀 STAFFELN • ${seasonCount}/${officialSeasonCount}\n` +
     `🎞 EPISODEN • ${totalEpisodes}\n` +
     `🧩 ARCHIV STATUS • ${totalEpisodes}/${officialTotalEpisodes} EPISODEN\n` +
     `📊 GESAMT: ${progressBar} ${globalPercent}% • ${totalEpisodes}/${officialTotalEpisodes}\n` +
