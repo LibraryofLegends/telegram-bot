@@ -1116,9 +1116,17 @@ const universeProgress =
   for (const [phase, entries] of Object.entries(config.phases)) {
 
     const savedInPhase =
-      movies.filter((m) =>
-        entries.includes(m.title)
-      ).length;
+  entries.filter((title) =>
+    movies.some((m) => {
+      const movieKey = makeKey(m.title);
+      const titleKey = makeKey(title);
+
+      return (
+        movieKey.includes(titleKey) ||
+        titleKey.includes(movieKey)
+      );
+    })
+  ).length;
 
     const completed =
       savedInPhase >= entries.length;
@@ -1131,9 +1139,15 @@ const universeProgress =
     entries.forEach((title, index) => {
 
       const exists =
-        movies.some((m) =>
-          m.title === title
-        );
+  movies.some((m) => {
+    const movieKey = makeKey(m.title);
+    const titleKey = makeKey(title);
+
+    return (
+      movieKey.includes(titleKey) ||
+      titleKey.includes(movieKey)
+    );
+  });
 
       const prefix =
         index === entries.length - 1
