@@ -720,16 +720,16 @@ const universeConfigs = {
 
     phases: {
       "SKYWALKER SAGA": [
-        "Star Wars: Episode I",
-        "Star Wars: Episode II",
-        "Star Wars: Episode III",
-        "Star Wars: Episode IV",
-        "Star Wars: Episode V",
-        "Star Wars: Episode VI",
-        "Star Wars: Episode VII",
-        "Star Wars: Episode VIII",
-        "Star Wars: Episode IX"
-      ],
+  "Star Wars: Episode I",
+  "Star Wars: Episode II",
+  "Star Wars: Episode III",
+  "Krieg der Sterne",
+  "Das Imperium schlägt zurück",
+  "Die Rückkehr der Jedi-Ritter",
+  "Das Erwachen der Macht",
+  "Die letzten Jedi",
+  "Der Aufstieg Skywalkers"
+],
 
       "STANDALONE": [
         "Rogue One",
