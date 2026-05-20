@@ -3809,14 +3809,51 @@ const progressBar = buildSeriesProgressBar(
   ORDER BY season ASC
 `).all(tmdb.seriesTitle);
 
-const timeline =
-  existingSeasons.length
-    ? existingSeasons
-        .map((s) =>
-          `S${String(s.season).padStart(2, "0")}`
-        )
-        .join(" ══▶ ")
-    : "Noch keine Staffeln";
+const officialSeasonCount =
+  getKnownSeasonCount(
+    tmdb.seriesTitle
+  ) || seasonCount;
+
+let timeline = "";
+
+for (
+  let season = 1;
+  season <= officialSeasonCount;
+  season++
+) {
+
+  const currentEpisodes = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM series
+    WHERE series_title = ?
+    AND season = ?
+  `).get(
+    tmdb.seriesTitle,
+    season
+  )?.count || 0;
+
+  const officialEpisodes =
+    getKnownSeasonEpisodeCount(
+      tmdb.seriesTitle,
+      season
+    ) || currentEpisodes;
+
+  const seasonProgress =
+    buildSeriesProgressBar(
+      tmdb.seriesTitle,
+      currentEpisodes,
+      officialEpisodes
+    );
+
+  const completed =
+    currentEpisodes >= officialEpisodes;
+
+  timeline +=
+    `📀 STAFFEL ${String(season).padStart(2, "0")} • ` +
+    `${seasonProgress} ` +
+    `${currentEpisodes}/${officialEpisodes} ` +
+    `${completed ? "✅" : "⚠️"}\n`;
+}
 
   return (
     `${divider}\n` +
