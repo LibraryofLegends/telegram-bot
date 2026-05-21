@@ -1695,12 +1695,44 @@ function parseManualSeriesCommand(text = "") {
 
   if (!raw) return null;
 
-  let title = "";
-  let season = null;
-  let episode = null;
+  const specialDoubleMatch = raw.match(
+    /^(.+?)\s*\|\s*S?(\d{1,2})\s*E?(\d{1,3})a\s*&\s*E?\d{1,3}b\s*-\s*(.+)$/i
+  );
+
+  if (specialDoubleMatch) {
+    const title = normalizeSeriesTitle(
+      normalizeTitle(specialDoubleMatch[1].trim())
+    );
+
+    const season = Number(specialDoubleMatch[2]);
+    const episode = Number(specialDoubleMatch[3]);
+
+    const seasonText = String(season).padStart(2, "0");
+    const episodeText = String(episode).padStart(2, "0");
+
+    return {
+      type: "series",
+      isSeries: true,
+      seriesTitle: title,
+      season,
+      episode,
+      episodeEnd: episode,
+      seasonText,
+      episodeText,
+      episodeEndText: episodeText,
+      isDoubleEpisode: true,
+      isSplitEpisode: true,
+      episodeTitleFromFile: specialDoubleMatch[4].trim(),
+      uniqueKey: makeKey(`${title}-s${seasonText}-e${episodeText}-ab`)
+    };
+  }
 
   const pipeMatch = raw.match(/^(.+?)\s*\|\s*S?(\d{1,2})E?(\d{1,2})$/i);
   const normalMatch = raw.match(/^(.+?)\s+S(\d{1,2})E(\d{1,2})$/i);
+
+  let title = "";
+  let season = null;
+  let episode = null;
 
   if (pipeMatch) {
     title = pipeMatch[1].trim();
