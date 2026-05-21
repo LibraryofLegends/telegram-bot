@@ -7294,6 +7294,8 @@ const tmdb = await searchSeriesTMDB(
       name: tmdb.seriesTitle,
       type: "series"
     });
+    
+    console.log("🧵 SERIES TOPIC ID:", topicId, tmdb.seriesTitle);
 
     if (!topicId) {
       await tg("sendMessage", {
