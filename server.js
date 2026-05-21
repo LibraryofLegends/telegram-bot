@@ -1567,13 +1567,12 @@ function detectSeries(fileName = "") {
     .trim();
 
   const patterns = [
-    /\bS\s?(\d{1,2})\s?E\s?(\d{1,3})\s*(?:E|-|_)?\s*(\d{1,3})\b/i,
-    /\bS\s?(\d{1,2})\s?E\s?(\d{1,3})\b/i,
-    /\bS\s?(\d{1,2})\s*[- ]\s?E\s?(\d{1,3})\b/i,
-    /\b(\d{1,2})x(\d{1,3})\b/i,
-    /\bStaffel\s*(\d{1,2})\s*Folge\s*(\d{1,3})\b/i,
-    /\bSeason\s*(\d{1,2})\s*Episode\s*(\d{1,3})\b/i
-  ];
+  /\bS\s?(\d{1,2})\s?E\s?(\d{1,3})\b/i,
+  /\bS\s?(\d{1,2})\s*[- ]\s?E\s?(\d{1,3})\b/i,
+  /\b(\d{1,2})x(\d{1,3})\b/i,
+  /\bStaffel\s*(\d{1,2})\s*Folge\s*(\d{1,3})\b/i,
+  /\bSeason\s*(\d{1,2})\s*Episode\s*(\d{1,3})\b/i
+];
 
   for (const pattern of patterns) {
     const match = normalized.match(pattern);
