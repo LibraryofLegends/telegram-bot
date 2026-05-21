@@ -1567,6 +1567,7 @@ function detectSeries(fileName = "") {
     .trim();
 
   const patterns = [
+    /\bS\s?(\d{1,2})\s?E\s?(\d{1,3})\s*(?:E|-|_)?\s*(\d{1,3})\b/i,
     /\bS\s?(\d{1,2})\s?E\s?(\d{1,3})\b/i,
     /\bS\s?(\d{1,2})\s*[- ]\s?E\s?(\d{1,3})\b/i,
     /\b(\d{1,2})x(\d{1,3})\b/i,
@@ -1580,6 +1581,7 @@ function detectSeries(fileName = "") {
 
     const season = parseInt(match[1], 10);
     const episode = parseInt(match[2], 10);
+    const episodeEnd = match[3] ? parseInt(match[3], 10) : episode;
 
     const beforeCode = normalized.slice(0, match.index).trim();
     const afterCode = normalized.slice(match.index + match[0].length).trim();
@@ -1587,14 +1589,10 @@ function detectSeries(fileName = "") {
     let titleClean = cleanFileName(beforeCode);
     let episodeTitleFromFile = "";
 
-    // Fall 1:
-    // Game of Thrones S01E09 Baelor
     if (titleClean) {
       episodeTitleFromFile = cleanFileName(afterCode);
     }
 
-    // Fall 2:
-    // S01E09 Game of Thrones - Baelor
     if (!titleClean && afterCode) {
       const parts = afterCode.split(/\s+-\s+/);
 
@@ -1629,11 +1627,14 @@ function detectSeries(fileName = "") {
 
     return {
       isSeries: true,
-      seriesTitle: normalizeTitle(titleClean),
+      seriesTitle: normalizeSeriesTitle(normalizeTitle(titleClean)),
       season,
       episode,
+      episodeEnd,
       seasonText: String(season).padStart(2, "0"),
       episodeText: String(episode).padStart(2, "0"),
+      episodeEndText: String(episodeEnd).padStart(2, "0"),
+      isDoubleEpisode: episodeEnd > episode,
       episodeTitleFromFile
     };
   }
