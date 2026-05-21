@@ -3910,7 +3910,7 @@ for (
     "🧭 STAFFELÜBERSICHT\n" +
     `${divider}\n\n` +
 
-    episodeIndex + "\n\n" +
+    buildCompactSeasonIndex(tmdb.seriesTitle) + "\n\n" +
 
     `${divider}\n` +
     "🎭 GENRE\n" +
@@ -3987,6 +3987,39 @@ if (missingEpisodes.length) {
 
       result += `${prefix} ${epCode}${ep.episode_title ? ` • ${ep.episode_title}` : ""}\n`;
     });
+  }
+
+  return result.trim();
+}
+
+function buildCompactSeasonIndex(seriesTitle) {
+  const episodes = db.prepare(`
+    SELECT season, episode
+    FROM series
+    WHERE series_title = ?
+    ORDER BY season ASC, episode ASC
+  `).all(seriesTitle);
+
+  if (!episodes.length) {
+    return "Noch keine Episoden gespeichert.";
+  }
+
+  const seasons = {};
+
+  for (const ep of episodes) {
+    const season = Number(ep.season || 0);
+    if (!seasons[season]) seasons[season] = [];
+    seasons[season].push(Number(ep.episode || 0));
+  }
+
+  let result = "";
+
+  for (const season of Object.keys(seasons).map(Number).sort((a, b) => a - b)) {
+    const saved = [...new Set(seasons[season])].length;
+    const total = getKnownSeasonEpisodeCount(seriesTitle, season) || saved;
+    const bar = buildSeriesProgressBar(seriesTitle, saved, total);
+
+    result += `📀 STAFFEL ${String(season).padStart(2, "0")} • ${bar} ${saved}/${total}\n`;
   }
 
   return result.trim();
