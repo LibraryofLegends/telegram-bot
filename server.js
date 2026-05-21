@@ -7353,52 +7353,25 @@ const copied = await copyOriginalMedia({
     ""
   );
 
-const episodeEnd =
-  media.episodeEnd || media.episode;
+saveSeries({
+  seriesTitle: tmdb.seriesTitle,
+  season: media.season,
+  episode: media.episode,
+  episodeTitle: tmdb.episodeTitle || media.episodeTitleFromFile || "",
+  genre: tmdb.genre,
+  rating: tmdb.rating,
+  overview: tmdb.overview,
+  posterUrl: tmdb.posterUrl,
+  fileName,
+  fileId,
+  uniqueKey: media.uniqueKey,
+  telegramMessageId: copied.message_id,
+  topicId,
+  seriesLibraryId: extras.seriesLibraryId,
 
-for (
-  let ep = media.episode;
-  ep <= episodeEnd;
-  ep++
-) {
-
-  saveSeries({
-    seriesTitle: tmdb.seriesTitle,
-    season: media.season,
-    episode: ep,
-
-    episodeTitle:
-      ep === media.episode
-        ? (
-            tmdb.episodeTitle ||
-            media.episodeTitleFromFile ||
-            ""
-          )
-        : "",
-
-    genre: tmdb.genre,
-    rating: tmdb.rating,
-    overview: tmdb.overview,
-    posterUrl: tmdb.posterUrl,
-    fileName,
-    fileId,
-
-    uniqueKey: makeKey(
-      `${tmdb.seriesTitle}-s${media.seasonText}-e${String(ep).padStart(2, "0")}`
-    ),
-
-    telegramMessageId: copied.message_id,
-    topicId,
-    seriesLibraryId: extras.seriesLibraryId,
-
-    universe:
-      seriesUniverseData?.universeName || null,
-
-    universePhase:
-      seriesUniverseData?.phase || null
-  });
-
-}
+  universe: seriesUniverseData?.universeName || null,
+  universePhase: seriesUniverseData?.phase || null
+});
 
 try {
   await updateSeasonCard({
