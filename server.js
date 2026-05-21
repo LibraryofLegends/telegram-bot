@@ -4007,6 +4007,11 @@ function getKnownSeasonEpisodeCount(seriesTitle, seasonNumber) {
       4: 8,
       5: 7
     },
+    
+    "Die Ewoks": {
+  1: 13,
+  2: 22
+},
 
     "The Mandalorian": {
       1: 8,
