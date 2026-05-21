@@ -1580,7 +1580,6 @@ function detectSeries(fileName = "") {
 
     const season = parseInt(match[1], 10);
     const episode = parseInt(match[2], 10);
-    const episodeEnd = match[3] ? parseInt(match[3], 10) : episode;
 
     const beforeCode = normalized.slice(0, match.index).trim();
     const afterCode = normalized.slice(match.index + match[0].length).trim();
@@ -1629,11 +1628,8 @@ function detectSeries(fileName = "") {
       seriesTitle: normalizeSeriesTitle(normalizeTitle(titleClean)),
       season,
       episode,
-      episodeEnd,
       seasonText: String(season).padStart(2, "0"),
       episodeText: String(episode).padStart(2, "0"),
-      episodeEndText: String(episodeEnd).padStart(2, "0"),
-      isDoubleEpisode: episodeEnd > episode,
       episodeTitleFromFile
     };
   }
