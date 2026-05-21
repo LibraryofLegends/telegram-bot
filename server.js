@@ -719,31 +719,45 @@ const universeConfigs = {
     ],
 
     phases: {
-      "SKYWALKER SAGA": [
-  "Star Wars: Episode I",
-  "Star Wars: Episode II",
-  "Star Wars: Episode III",
-  "Krieg der Sterne",
-  "Das Imperium schlägt zurück",
-  "Die Rückkehr der Jedi-Ritter",
-  "Das Erwachen der Macht",
-  "Die letzten Jedi",
-  "Der Aufstieg Skywalkers"
-],
+  "SKYWALKER SAGA": [
+    "Star Wars: Episode I",
+    "Star Wars: Episode II",
+    "Star Wars: Episode III",
+    "Krieg der Sterne",
+    "Das Imperium schlägt zurück",
+    "Die Rückkehr der Jedi-Ritter",
+    "Das Erwachen der Macht",
+    "Die letzten Jedi",
+    "Der Aufstieg Skywalkers"
+  ],
 
-      "STANDALONE": [
-        "Rogue One",
-        "Solo"
-      ]
-    },
+  "STANDALONE": [
+    "Rogue One",
+    "Solo"
+  ],
+
+  "EWOK ADVENTURES": [
+    "Die Ewoks - Karawane der Tapferen",
+    "Kampf um Endor"
+  ],
+
+  "ANIMATED MOVIES": [
+    "Star Wars: The Clone Wars"
+  ]
+},
 
     series: [
-      "The Mandalorian",
-      "Andor",
-      "Ahsoka",
-      "Obi-Wan Kenobi",
-      "The Book of Boba Fett"
-    ]
+  "Star Wars: The Clone Wars",
+  "Star Wars Rebels",
+  "Star Wars Resistance",
+  "Star Wars: The Bad Batch",
+  "The Mandalorian",
+  "Andor",
+  "Ahsoka",
+  "Obi-Wan Kenobi",
+  "The Book of Boba Fett",
+  "Die Ewoks"
+]
   }
 };
 
