@@ -52,6 +52,25 @@ async function testPostgresConnection() {
   }
 }
 
+async function ensurePostgresTables() {
+  if (!pgPool) return;
+
+  await pgPool.query(`
+    CREATE TABLE IF NOT EXISTS topics (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      chat_id TEXT NOT NULL,
+      topic_id INTEGER NOT NULL,
+      unique_key TEXT UNIQUE,
+      hub_message_id INTEGER,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
+  console.log("✅ Supabase Tabellen bereit");
+}
+
 let CURRENT_SERIES_NAME = "";
 
 let LAST_RESTORE_FILE_ID = "";
