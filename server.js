@@ -1571,6 +1571,37 @@ function bourneButtons() {
   };
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const UPLOAD_QUEUE = [];
+let UPLOAD_QUEUE_RUNNING = false;
+
+async function enqueueUpload(job) {
+  UPLOAD_QUEUE.push(job);
+
+  if (UPLOAD_QUEUE_RUNNING) {
+    return;
+  }
+
+  UPLOAD_QUEUE_RUNNING = true;
+
+  while (UPLOAD_QUEUE.length) {
+    const nextJob = UPLOAD_QUEUE.shift();
+
+    try {
+      await nextJob();
+    } catch (err) {
+      console.error("❌ Upload Queue Fehler:", err.message);
+    }
+
+    await sleep(4000);
+  }
+
+  UPLOAD_QUEUE_RUNNING = false;
+}
+
 function extractYear(text = "") {
   const match = String(text).match(/\b(19\d{2}|20\d{2})\b|(?:^|[^0-9])(19\d{2}|20\d{2})(?:[^0-9]|$)/);
   return match ? (match[1] || match[2]) : "";
@@ -4799,7 +4830,11 @@ async function handleUpdate(update) {
 
 if (msg.video || msg.document) {
   console.log("🎥 Video/Datei erkannt");
-  await handleUpload(msg);
+
+  await enqueueUpload(async () => {
+    await handleUpload(msg);
+  });
+
   return;
 }
 
