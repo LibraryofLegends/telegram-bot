@@ -6060,6 +6060,25 @@ if (text === "/qualitystats") {
   return;
 }
 
+if (text === "/health") {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🩺 SYSTEM HEALTH\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "✅ Bot: Online\n" +
+      `📥 Queue: ${UPLOAD_QUEUE.length}\n` +
+      `⚙️ Queue aktiv: ${UPLOAD_QUEUE_RUNNING ? "Ja" : "Nein"}\n` +
+      `🧩 Aktive Uploads: ${ACTIVE_UPLOADS.size}\n` +
+      `🕒 Zeit: ${new Date().toLocaleString("de-DE")}\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
 if (text.startsWith("/progress")) {
   const query = text.replace("/progress", "").trim();
 
