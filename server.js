@@ -5180,6 +5180,9 @@ app.post(`/webhook/${TOKEN}`, async (req, res) => {
 async function handleUpdate(update) {
   const callback = update.callback_query;
 
+  // =============================
+  // BUTTON CALLBACKS
+  // =============================
   if (callback) {
     const userId = String(callback.from?.id || "");
 
@@ -5187,7 +5190,9 @@ async function handleUpdate(update) {
     console.log("USER ID:", userId);
 
     if (userId !== ADMIN_ID) {
-      console.log("⛔ Button ignored - nicht Admin");
+      if (process.env.DEBUG === "true") {
+        console.log("⛔ Button ignored - nicht Admin");
+      }
       return;
     }
 
@@ -5195,6 +5200,9 @@ async function handleUpdate(update) {
     return;
   }
 
+  // =============================
+  // NORMAL MESSAGES
+  // =============================
   const msg = update.message || update.edited_message;
   if (!msg) return;
 
@@ -5204,47 +5212,59 @@ async function handleUpdate(update) {
   console.log("CHAT ID:", msg.chat?.id, "CHAT TITLE:", msg.chat?.title);
 
   if (userId !== ADMIN_ID) {
-  if (process.env.DEBUG === "true") {
-    console.log("⛔ Ignored - nicht Admin");
+    if (process.env.DEBUG === "true") {
+      console.log("⛔ Ignored - nicht Admin");
+    }
+    return;
   }
-  return;
-}
 
+  // =============================
+  // COMMANDS
+  // =============================
   if (msg.text) {
     await handleCommand(msg);
     return;
   }
 
+  // =============================
+  // DATABASE RESTORE FILE
+  // =============================
   if (msg.document) {
-  const fileName = msg.document.file_name || "";
+    const fileName = msg.document.file_name || "";
 
-  if (fileName === "library.db") {
-    LAST_RESTORE_FILE_ID = msg.document.file_id;
+    if (fileName === "library.db") {
+      LAST_RESTORE_FILE_ID = msg.document.file_id;
 
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "✅ Backup-Datei erkannt.\n\n" +
-        "Sende jetzt:\n/restoredb"
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "✅ Backup-Datei erkannt.\n\n" +
+          "Sende jetzt:\n/restoredb"
+      });
+
+      return;
+    }
+  }
+
+  // =============================
+  // MEDIA UPLOAD QUEUE
+  // =============================
+  if (msg.video || msg.document) {
+    console.log("🎥 Video/Datei erkannt");
+
+    await enqueueUpload(async () => {
+      await handleUpload(msg);
     });
 
     return;
   }
-}
-
-if (msg.video || msg.document) {
-  console.log("🎥 Video/Datei erkannt");
-
-  await enqueueUpload(async () => {
-    await handleUpload(msg);
-  });
-
-  return;
-}
 
   console.log("⚠️ Unbekannter Nachrichtentyp");
 }
 
+// =============================
+// CALLBACK HANDLER
+// =============================
 async function handleCallback(callback) {
   const data = callback.data;
   const chatId = callback.message.chat.id;
@@ -5254,260 +5274,243 @@ async function handleCallback(callback) {
   });
 
   console.log("✅ Callback verarbeitet:", data);
-  
-  if (data.startsWith("moviepick:")) {
-  const userId = String(callback.from?.id || "");
-const tmdbId = Number(data.replace("moviepick:", ""));
-const pending = PENDING_MOVIE_UPLOADS.get(userId);
 
-  if (!pending) {
-    return await tg("sendMessage", {
-      chat_id: chatId,
-      text: "⚠️ Keine offene Film-Auswahl gefunden. Bitte Datei erneut senden."
-    });
-  }
-  
+  // =============================
+  // SERIES TMDB PICK
+  // =============================
   if (data.startsWith("seriespick_")) {
-  const tmdbId = data.replace("seriespick_", "");
+    const tmdbId = data.replace("seriespick_", "");
 
-  const details = await tmdbGet(`/tv/${tmdbId}`, {
-    append_to_response: "credits,content_ratings"
-  });
-
-  if (!details) {
-    await tg("answerCallbackQuery", {
-      callback_query_id: callback.id,
-      text: "❌ Serie nicht gefunden"
+    const details = await tmdbGet(`/tv/${tmdbId}`, {
+      append_to_response: "credits,content_ratings"
     });
+
+    if (!details) {
+      return await tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ Serie nicht gefunden."
+      });
+    }
+
+    const poster =
+      details.poster_path
+        ? posterUrl(details.poster_path)
+        : "https://via.placeholder.com/500x750.png?text=No+Poster";
+
+    await tg("sendPhoto", {
+      chat_id: chatId,
+      photo: poster,
+      caption:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        `📺 ${String(details.name || "").toUpperCase()}\n` +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        `⭐ ${formatRating(details.vote_average)} IMDb\n` +
+        `📅 ${details.first_air_date || "Unbekannt"}\n` +
+        `🆔 TMDB ID: ${details.id}\n\n` +
+        `${String(details.overview || "Keine Beschreibung verfügbar.").slice(0, 800)}`
+    });
+
     return;
   }
 
-  const poster =
-    details.poster_path
-      ? posterUrl(details.poster_path)
-      : "https://via.placeholder.com/500x750.png?text=No+Poster";
+  // =============================
+  // MOVIE TMDB PICK
+  // =============================
+  if (data.startsWith("moviepick:")) {
+    const userId = String(callback.from?.id || "");
+    const tmdbId = Number(data.replace("moviepick:", ""));
+    const pending = PENDING_MOVIE_UPLOADS.get(userId);
 
-  await tg("sendPhoto", {
-    chat_id: callback.message.chat.id,
-    photo: poster,
-    caption:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      `📺 ${String(details.name || "").toUpperCase()}\n` +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `⭐ ${formatRating(details.vote_average)} IMDb\n` +
-      `📅 ${details.first_air_date || "Unbekannt"}\n` +
-      `🆔 TMDB ID: ${details.id}\n\n` +
-      `${String(details.overview || "Keine Beschreibung verfügbar.").slice(0, 800)}`
-  });
+    if (!pending) {
+      return await tg("sendMessage", {
+        chat_id: chatId,
+        text: "⚠️ Keine offene Film-Auswahl gefunden. Bitte Datei erneut senden."
+      });
+    }
 
-  await tg("answerCallbackQuery", {
-    callback_query_id: callback.id,
-    text: "✅ Serie geladen"
-  });
+    PENDING_MOVIE_UPLOADS.delete(userId);
 
-  return;
-}
+    const tmdb = await getMovieDetailsById(tmdbId);
 
-  PENDING_MOVIE_UPLOADS.delete(userId);
+    if (!tmdb) {
+      return await tg("sendMessage", {
+        chat_id: chatId,
+        text: "❌ TMDB-Details konnten nicht geladen werden."
+      });
+    }
 
-  const tmdb = await getMovieDetailsById(tmdbId);
+    return await processMovieUpload({
+      msg: pending.msg,
+      media: {
+        ...pending.media,
+        title: tmdb.title,
+        year: tmdb.year,
+        uniqueKey: makeKey(`${tmdb.title}-${tmdb.year || "unknown"}`)
+      },
+      tmdb
+    });
+  }
 
-  if (!tmdb) {
+  // =============================
+  // BOURNE BUTTONS
+  // =============================
+  if (data === "bourne_dossier") {
     return await tg("sendMessage", {
       chat_id: chatId,
-      text: "❌ TMDB-Details konnten nicht geladen werden."
+      text:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "📁 CIA DOSSIER\n" +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        "🕶️ SUBJECT: Jason Bourne\n" +
+        "📛 REAL NAME: David Webb\n" +
+        "🧠 PROGRAM: TREADSTONE\n" +
+        "⚠️ STATUS: ROGUE AGENT\n" +
+        "🎯 CLEARANCE: BLACK\n\n" +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "Er weiß nicht, wer er ist.\n" +
+        "Aber sie haben Angst davor.\n" +
+        "━━━━━━━━━━━━━━━━━━"
     });
   }
 
-  return await processMovieUpload({
-    msg: pending.msg,
-    media: {
-      ...pending.media,
-      title: tmdb.title,
-      year: tmdb.year,
-      uniqueKey: makeKey(`${tmdb.title}-${tmdb.year || "unknown"}`)
-    },
-    tmdb
-  });
-}
-
-if (data === "bourne_dossier") {
-  return await tg("sendMessage", {
-    chat_id: chatId,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "📁 CIA DOSSIER\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      "🕶️ SUBJECT: Jason Bourne\n" +
-      "📛 REAL NAME: David Webb\n" +
-      "🧠 PROGRAM: TREADSTONE\n" +
-      "⚠️ STATUS: ROGUE AGENT\n" +
-      "🎯 CLEARANCE: BLACK\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "Er weiß nicht, wer er ist.\n" +
-      "Aber sie haben Angst davor.\n" +
-      "━━━━━━━━━━━━━━━━━━"
-  });
-}
-
-if (data === "bourne_programs") {
-  return await tg("sendMessage", {
-    chat_id: chatId,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🧠 BOURNE PROGRAMME\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      "01 • TREADSTONE\n" +
-      "Geheimes CIA-Programm zur Ausbildung perfekter Attentäter.\n\n" +
-      "02 • BLACKBRIAR\n" +
-      "Nachfolger von Treadstone — aggressiver, geheimer, gefährlicher.\n\n" +
-      "03 • OUTCOME\n" +
-      "Erweitertes Agentenprogramm mit körperlicher und mentaler Optimierung.\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "⚠️ STATUS: CLASSIFIED"
-  });
-}
-
-if (data === "bourne_archive") {
-  const rows = db.prepare(`
-    SELECT title, year, library_id
-    FROM movies
-    WHERE LOWER(title) LIKE '%bourne%'
-       OR LOWER(collection) LIKE '%bourne%'
-    ORDER BY year ASC, title ASC
-  `).all();
-
-  let text =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🛰️ BOURNE ARCHIVE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
-
-  if (!rows.length) {
-    text += "Noch keine Bourne-Filme gespeichert.\n";
-  } else {
-    rows.forEach((m, index) => {
-      text += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
-      if (m.library_id) text += `     🏷 ${m.library_id}\n`;
+  if (data === "bourne_programs") {
+    return await tg("sendMessage", {
+      chat_id: chatId,
+      text:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "🧠 BOURNE PROGRAMME\n" +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        "01 • TREADSTONE\n" +
+        "Geheimes CIA-Programm zur Ausbildung perfekter Attentäter.\n\n" +
+        "02 • BLACKBRIAR\n" +
+        "Nachfolger von Treadstone — aggressiver, geheimer, gefährlicher.\n\n" +
+        "03 • OUTCOME\n" +
+        "Erweitertes Agentenprogramm mit körperlicher und mentaler Optimierung.\n\n" +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "⚠️ STATUS: CLASSIFIED"
     });
   }
 
-  text +=
-    "\n━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 Filme im Archiv: ${rows.length}\n` +
-    "⚠️ STATUS: CLASSIFIED";
+  if (data === "bourne_archive") {
+    const rows = db.prepare(`
+      SELECT title, year, library_id
+      FROM movies
+      WHERE LOWER(title) LIKE '%bourne%'
+         OR LOWER(collection) LIKE '%bourne%'
+      ORDER BY year ASC, title ASC
+    `).all();
 
-  return await tg("sendMessage", {
-    chat_id: chatId,
-    text: text.slice(0, 4000)
-  });
-}
-
-if (data === "bourne_collection") {
-  return await tg("sendMessage", {
-    chat_id: chatId,
-    text: bourneHubCaption()
-  });
-}
-
-if (data === "bourne_next") {
-  return await tg("sendMessage", {
-    chat_id: chatId,
-    text:
+    let text =
       "━━━━━━━━━━━━━━━━━━\n" +
-      "➡️ NÄCHSTE MISSION\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      "Öffne das Bourne Archive, um den nächsten gespeicherten Film in der Collection zu finden.\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🛰️ Tipp: Nutze den Button BOURNE ARCHIVE\n" +
-      "⚠️ STATUS: CLASSIFIED"
-  });
-}
+      "🛰️ BOURNE ARCHIVE\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n";
 
-if (data === "panel_missing_bourne") {
-  return await handleCommand({ chat: { id: chatId }, text: "/missingbourne" });
-}
+    if (!rows.length) {
+      text += "Noch keine Bourne-Filme gespeichert.\n";
+    } else {
+      rows.forEach((m, index) => {
+        text += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
+        if (m.library_id) text += `     🏷 ${m.library_id}\n`;
+      });
+    }
 
-if (data === "panel_bourne") {
-  return await handleCommand({ chat: { id: chatId }, text: "/bourne" });
-}
+    text +=
+      "\n━━━━━━━━━━━━━━━━━━\n" +
+      `🎬 Filme im Archiv: ${rows.length}\n` +
+      "⚠️ STATUS: CLASSIFIED";
 
-if (data === "panel_bourne_hub") {
-  return await handleCommand({ chat: { id: chatId }, text: "/rebuildbournehub" });
-}
-
-if (data === "panel_rebuild_collections") {
-  return await handleCommand({ chat: { id: chatId }, text: "/rebuildcollections" });
-}
-
-  if (data === "panel_movies") {
-    return await handleCommand({ chat: { id: chatId }, text: "/movies" });
+    return await tg("sendMessage", {
+      chat_id: chatId,
+      text: text.slice(0, 4000)
+    });
   }
 
-  if (data === "panel_series") {
-    return await handleCommand({ chat: { id: chatId }, text: "/series" });
+  if (data === "bourne_collection") {
+    return await tg("sendMessage", {
+      chat_id: chatId,
+      text: bourneHubCaption()
+    });
   }
 
-  if (data === "panel_serieshub") {
-    return await handleCommand({ chat: { id: chatId }, text: "/serieshub" });
+  if (data === "bourne_next") {
+    return await tg("sendMessage", {
+      chat_id: chatId,
+      text:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "➡️ NÄCHSTE MISSION\n" +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        "Öffne das Bourne Archive, um den nächsten gespeicherten Film in der Collection zu finden.\n\n" +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "🛰️ Tipp: Nutze den Button BOURNE ARCHIVE\n" +
+        "⚠️ STATUS: CLASSIFIED"
+    });
   }
 
-  if (data === "panel_seriesaz") {
-    return await handleCommand({ chat: { id: chatId }, text: "/seriesaz" });
+  // =============================
+  // PANEL BUTTONS
+  // =============================
+  const panelCommands = {
+    panel_missing_bourne: "/missingbourne",
+    panel_bourne: "/bourne",
+    panel_bourne_hub: "/rebuildbournehub",
+    panel_rebuild_collections: "/rebuildcollections",
+    panel_movies: "/movies",
+    panel_series: "/series",
+    panel_serieshub: "/serieshub",
+    panel_seriesaz: "/seriesaz",
+    panel_newseries: "/newseries",
+    panel_trending: "/trendingseries",
+    panel_featured: "/featuredseries",
+    panel_az: "/az",
+    panel_duplicates: "/duplicates",
+    panel_dashboard: "/dashboard",
+    panel_stats: "/stats",
+    panel_clearseries: "/clearseries"
+  };
+
+  if (panelCommands[data]) {
+    return await handleCommand({
+      chat: { id: chatId },
+      text: panelCommands[data]
+    });
   }
 
-  if (data === "panel_newseries") {
-    return await handleCommand({ chat: { id: chatId }, text: "/newseries" });
-  }
-
-  if (data === "panel_trending") {
-    return await handleCommand({ chat: { id: chatId }, text: "/trendingseries" });
-  }
-
-  if (data === "panel_featured") {
-    return await handleCommand({ chat: { id: chatId }, text: "/featuredseries" });
-  }
-
-  if (data === "panel_az") {
-    return await handleCommand({ chat: { id: chatId }, text: "/az" });
-  }
-
-  if (data === "panel_duplicates") {
-    return await handleCommand({ chat: { id: chatId }, text: "/duplicates" });
-  }
-  
-  if (data === "panel_dashboard") {
-  return await handleCommand({ chat: { id: chatId }, text: "/dashboard" });
-}
-
-  if (data === "panel_stats") {
-    return await handleCommand({ chat: { id: chatId }, text: "/stats" });
-  }
-
+  // =============================
+  // PANEL HELP BUTTONS
+  // =============================
   if (data === "panel_missing_help") {
     return await tg("sendMessage", {
       chat_id: chatId,
-      text: "🧩 Nutzung:\n/missingseries Serienname\n\nBeispiel:\n/missingseries Game of Thrones"
+      text:
+        "🧩 Nutzung:\n" +
+        "/missingseries Serienname\n\n" +
+        "Beispiel:\n/missingseries Game of Thrones"
     });
   }
 
   if (data === "panel_search_help") {
     return await tg("sendMessage", {
       chat_id: chatId,
-      text: "🔎 Nutzung:\n/search titel\n\nBeispiel:\n/search Game of Thrones"
+      text:
+        "🔎 Nutzung:\n" +
+        "/search titel\n\n" +
+        "Beispiel:\n/search Game of Thrones"
     });
   }
 
   if (data === "panel_setseries_help") {
     return await tg("sendMessage", {
       chat_id: chatId,
-      text: "📌 Nutzung:\n/setseries Serienname\n\nBeispiel:\n/setseries Timon und Pumbaa"
+      text:
+        "📌 Nutzung:\n" +
+        "/setseries Serienname\n\n" +
+        "Beispiel:\n/setseries Timon und Pumbaa"
     });
   }
 
-  if (data === "panel_clearseries") {
-    return await handleCommand({ chat: { id: chatId }, text: "/clearseries" });
-  }
-
+  // =============================
+  // UNKNOWN BUTTON
+  // =============================
   return await tg("sendMessage", {
     chat_id: chatId,
     text: "⚠️ Button noch nicht verbunden."
