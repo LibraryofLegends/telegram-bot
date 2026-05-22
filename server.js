@@ -4772,16 +4772,28 @@ async function ensureCommandCenters() {
     "🏆 MASTERED"
   ];
 
-  for (const name of movieCenters) {
+  for (const name of seriesCenters) {
 
-    await createOrGetTopic({
-      chatId: MOVIE_GROUP_ID,
-      name,
-      type: "system_hub"
-    });
+  await createOrGetTopic({
+    chatId: SERIES_GROUP_ID,
+    name,
+    type: "system_hub"
+  });
 
-    await sleep(1500);
-  }
+  await sleep(1500);
+}
+
+await createOrUpdateCommandCenter({
+  chatId: MOVIE_GROUP_ID,
+  topicName: "🎛 MOVIE COMMAND CENTER",
+  caption: movieCommandCenterCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🎛 SERIES COMMAND CENTER",
+  caption: seriesCommandCenterCaption()
+});
 
   for (const name of seriesCenters) {
 
