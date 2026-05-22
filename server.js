@@ -1663,31 +1663,66 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// =============================
+// UPLOAD QUEUE V2
+// =============================
 const UPLOAD_QUEUE = [];
 let UPLOAD_QUEUE_RUNNING = false;
+let UPLOAD_QUEUE_COUNTER = 0;
 
-async function enqueueUpload(job) {
-  UPLOAD_QUEUE.push(job);
+async function enqueueUpload(job, label = "Upload") {
+  const id = ++UPLOAD_QUEUE_COUNTER;
 
-  if (UPLOAD_QUEUE_RUNNING) {
-    return;
+  UPLOAD_QUEUE.push({
+    id,
+    label,
+    job,
+    createdAt: Date.now()
+  });
+
+  console.log(
+    `📥 Queue #${id} hinzugefügt: ${label} | Wartend: ${UPLOAD_QUEUE.length}`
+  );
+
+  if (!UPLOAD_QUEUE_RUNNING) {
+    runUploadQueue();
   }
+
+  return id;
+}
+
+async function runUploadQueue() {
+  if (UPLOAD_QUEUE_RUNNING) return;
 
   UPLOAD_QUEUE_RUNNING = true;
 
-  while (UPLOAD_QUEUE.length) {
-    const nextJob = UPLOAD_QUEUE.shift();
+  while (UPLOAD_QUEUE.length > 0) {
+    const item = UPLOAD_QUEUE.shift();
+
+    console.log(
+      `🚀 Queue #${item.id} startet: ${item.label} | Rest: ${UPLOAD_QUEUE.length}`
+    );
 
     try {
-      await nextJob();
+      await item.job();
+
+      console.log(
+        `✅ Queue #${item.id} fertig: ${item.label}`
+      );
+
     } catch (err) {
-      console.error("❌ Upload Queue Fehler:", err.message);
+      console.error(
+        `❌ Queue #${item.id} Fehler:`,
+        err.message
+      );
     }
 
-    await sleep(4000);
+    await sleep(5000);
   }
 
   UPLOAD_QUEUE_RUNNING = false;
+
+  console.log("🏁 Upload Queue leer");
 }
 
 function extractYear(text = "") {
