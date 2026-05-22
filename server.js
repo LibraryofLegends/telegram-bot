@@ -89,7 +89,7 @@ async function ensurePostgresTables() {
     source TEXT,
     fsk TEXT,
     director TEXT,
-    cast TEXT,
+    cast_list TEXT,
     library_id TEXT,
     resolution TEXT,
     file_size TEXT,
