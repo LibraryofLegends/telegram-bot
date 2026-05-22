@@ -30,39 +30,6 @@ let LAST_RESTORE_FILE_ID = "";
 const PENDING_MOVIE_UPLOADS = new Map();
 
 // =============================
-// GLOBAL ERROR HANDLER
-// =============================
-process.on("unhandledRejection", async (reason) => {
-  console.error("❌ Unhandled Rejection:", reason);
-
-  try {
-    await tg("sendMessage", {
-      chat_id: ADMIN_ID,
-      text:
-        "🚨 UNHANDLED PROMISE REJECTION\n\n" +
-        String(reason).slice(0, 3500)
-    });
-  } catch (err) {
-    console.error("❌ Fehler beim Senden:", err.message);
-  }
-});
-
-process.on("uncaughtException", async (err) => {
-  console.error("💥 Uncaught Exception:", err);
-
-  try {
-    await tg("sendMessage", {
-      chat_id: ADMIN_ID,
-      text:
-        "💥 UNCAUGHT EXCEPTION\n\n" +
-        String(err.stack || err.message).slice(0, 3500)
-    });
-  } catch (sendErr) {
-    console.error("❌ Crash Nachricht fehlgeschlagen:", sendErr.message);
-  }
-});
-
-// =============================
 // DUPLICATE SHIELD
 // =============================
 const ACTIVE_UPLOADS = new Set();
@@ -8248,3 +8215,58 @@ if (process.env.CREATE_COMMAND_CENTERS === "true") {
     }
   })();
 }
+
+// =============================
+// AUTO ERROR RECOVERY
+// =============================
+process.on("unhandledRejection", async (err) => {
+
+  console.error(
+    "❌ UNHANDLED REJECTION:",
+    err
+  );
+
+  try {
+
+    await tg("sendMessage", {
+      chat_id: ADMIN_ID,
+      text:
+        "⚠️ Unhandled Rejection erkannt\n\n" +
+        String(err).slice(0, 3500)
+    });
+
+  } catch (e) {
+
+    console.error(
+      "❌ Fehler-Notification fehlgeschlagen:",
+      e.message
+    );
+  }
+});
+
+process.on("uncaughtException", async (err) => {
+
+  console.error(
+    "💥 UNCAUGHT EXCEPTION:",
+    err
+  );
+
+  try {
+
+    await tg("sendMessage", {
+      chat_id: ADMIN_ID,
+      text:
+        "💥 Bot Crash erkannt\n\n" +
+        String(err).slice(0, 3500)
+    });
+
+  } catch (e) {
+
+    console.error(
+      "❌ Crash-Notification fehlgeschlagen:",
+      e.message
+    );
+  }
+
+  process.exit(1);
+});
