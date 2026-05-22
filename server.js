@@ -7607,6 +7607,12 @@ await tg("sendMessage", {
   );
 }
 
+try {
+  await refreshCommandCenters();
+} catch (err) {
+  console.error("⚠️ Command Center Refresh Fehler:", err.message);
+}
+
   logToDb("movie_saved", `${tmdb.title} ${tmdb.year || ""}`);
 }
 
@@ -7827,6 +7833,12 @@ await tg("sendMessage", {
     "⚠️ Command Center Refresh Fehler:",
     err.message
   );
+}
+
+try {
+  await refreshCommandCenters();
+} catch (err) {
+  console.error("⚠️ Command Center Refresh Fehler:", err.message);
 }
 
     logToDb("series_saved", `${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}`);
