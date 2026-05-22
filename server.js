@@ -5203,8 +5203,11 @@ async function handleUpdate(update) {
   console.log("USER ID:", userId);
   console.log("CHAT ID:", msg.chat?.id, "CHAT TITLE:", msg.chat?.title);
 
+  if (userId !== ADMIN_ID) {
   if (process.env.DEBUG === "true") {
-  console.log("⛔ Ignored - nicht Admin");
+    console.log("⛔ Ignored - nicht Admin");
+  }
+  return;
 }
 
   if (msg.text) {
@@ -7524,10 +7527,6 @@ const universeData =
     tmdb.title,
     tmdb.collection
   );
-  
-  console.log("🌌 TMDB TITLE:", tmdb.title);
-console.log("🌌 TMDB COLLECTION:", tmdb.collection);
-console.log("🌌 UNIVERSE DATA:", universeData);
 
 const genreTopicName = tmdb.mainGenre || "Sonstige";
 
@@ -7782,16 +7781,18 @@ try {
 }
 
 await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "✅ Film erfolgreich einsortiert:\n\n" +
-      `🎬 ${tmdb.title}\n` +
-      `🎭 Thema: ${finalTopicName}\n` +
-      (tmdb.collection ? `🎞 Filmreihe: ${tmdb.collection}\n` : "") +
-      `🏷 ${extras.libraryId}`
-  });
-  
-  try {
+  chat_id: msg.chat.id,
+  text:
+    "✅ Film erfolgreich einsortiert:\n\n" +
+    `🎬 ${tmdb.title}\n` +
+    `🎭 Thema: ${finalTopicName}\n` +
+    (tmdb.collection
+      ? `🎞 Filmreihe: ${tmdb.collection}\n`
+      : "") +
+    `🏷 ${extras.libraryId}`
+});
+
+try {
   await refreshCommandCenters();
 } catch (err) {
   console.error(
@@ -7800,14 +7801,10 @@ await tg("sendMessage", {
   );
 }
 
-try {
-  await refreshCommandCenters();
-} catch (err) {
-  console.error("⚠️ Command Center Refresh Fehler:", err.message);
-}
-
-  logToDb("movie_saved", `${tmdb.title} ${tmdb.year || ""}`);
-}
+logToDb(
+  "movie_saved",
+  `${tmdb.title} ${tmdb.year || ""}`
+);
 
 // =============================
 // UPLOAD HANDLER
@@ -8012,21 +8009,12 @@ try {
 }
 
 await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "✅ Serie erfolgreich einsortiert:\n\n" +
-        `📺 ${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}\n` +
-        `🧵 Thema: ${tmdb.seriesTitle}`
-    });
-    
-    try {
-  await refreshCommandCenters();
-} catch (err) {
-  console.error(
-    "⚠️ Command Center Refresh Fehler:",
-    err.message
-  );
-}
+  chat_id: msg.chat.id,
+  text:
+    "✅ Serie erfolgreich einsortiert:\n\n" +
+    `📺 ${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}\n` +
+    `🧵 Thema: ${tmdb.seriesTitle}`
+});
 
 try {
   await refreshCommandCenters();
@@ -8034,9 +8022,12 @@ try {
   console.error("⚠️ Command Center Refresh Fehler:", err.message);
 }
 
-    logToDb("series_saved", `${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}`);
-    return;
-  }
+logToDb(
+  "series_saved",
+  `${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}`
+);
+
+return;
 
   if (media.type === "movie") {
   await tg("sendMessage", {
