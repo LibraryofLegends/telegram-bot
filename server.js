@@ -5995,7 +5995,9 @@ if (text === "/health") {
       `📥 Queue: ${UPLOAD_QUEUE.length}\n` +
       `⚙️ Queue aktiv: ${UPLOAD_QUEUE_RUNNING ? "Ja" : "Nein"}\n` +
       `🧩 Aktive Uploads: ${ACTIVE_UPLOADS.size}\n` +
-      `🕒 Zeit: ${new Date().toLocaleString("de-DE")}\n\n` +
+      `🕒 Zeit: ${new Date().toLocaleString("de-DE", {
+        timeZone: "Europe/Berlin"
+    })}\n\n` +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
@@ -8149,7 +8151,9 @@ async function notifyStartup() {
       text:
         "✅ Bot ist online\n\n" +
         "⚙️ Render Neustart erkannt\n" +
-        `🕒 ${new Date().toLocaleString("de-DE")}`
+        `🕒 Zeit: ${new Date().toLocaleString("de-DE", {
+  timeZone: "Europe/Berlin"
+})}\n\n` +
     });
   } catch (err) {
     console.error("❌ Startup Notification Fehler:", err.message);
