@@ -30,6 +30,14 @@ let LAST_RESTORE_FILE_ID = "";
 const PENDING_MOVIE_UPLOADS = new Map();
 
 // =============================
+// TMDB CACHE
+// =============================
+const TMDB_CACHE = new Map();
+
+const TMDB_CACHE_TTL =
+  1000 * 60 * 60 * 6;
+
+// =============================
 // DUPLICATE SHIELD
 // =============================
 const ACTIVE_UPLOADS = new Set();
@@ -46,6 +54,23 @@ setInterval(() => {
     );
 
     ACTIVE_UPLOADS.clear();
+  }
+
+}, 1000 * 60 * 30);
+
+// =============================
+// TMDB CACHE CLEANUP
+// =============================
+setInterval(() => {
+
+  const now = Date.now();
+
+  for (const [key, value] of TMDB_CACHE.entries()) {
+
+    if (now - value.time > TMDB_CACHE_TTL) {
+
+      TMDB_CACHE.delete(key);
+    }
   }
 
 }, 1000 * 60 * 30);
@@ -2301,14 +2326,23 @@ function makeSeriesLibraryCode(genre = "") {
 }
 
 // =============================
-// TMDB API
+// TMDB API + CACHE
 // =============================
-
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 const TMDB_IMAGE_ORIGINAL = "https://image.tmdb.org/t/p/original";
 
+const TMDB_CACHE = new Map();
+const TMDB_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 Stunden
+
 async function tmdbGet(path, params = {}) {
+  const cacheKey = JSON.stringify({ path, params });
+
+  const cached = TMDB_CACHE.get(cacheKey);
+  if (cached && Date.now() - cached.time < TMDB_CACHE_TTL) {
+    return cached.data;
+  }
+
   try {
     const res = await axios.get(`${TMDB_BASE}${path}`, {
       params: {
@@ -2318,6 +2352,11 @@ async function tmdbGet(path, params = {}) {
       }
     });
 
+    TMDB_CACHE.set(cacheKey, {
+      time: Date.now(),
+      data: res.data
+    });
+
     return res.data;
   } catch (err) {
     console.error("❌ TMDB Fehler:", err.response?.data || err.message);
@@ -2325,33 +2364,96 @@ async function tmdbGet(path, params = {}) {
   }
 }
 
+setInterval(() => {
+  const now = Date.now();
+
+  for (const [key, value] of TMDB_CACHE.entries()) {
+    if (now - value.time > TMDB_CACHE_TTL) {
+      TMDB_CACHE.delete(key);
+    }
+  }
+}, 1000 * 60 * 30);
+
+// =============================
+// TMDB FORMAT HELPERS
+// =============================
 function formatGenres(genres = []) {
-  if (!Array.isArray(genres) || genres.length === 0) return "Sonstige";
-  return genres.map((g) => g.name).join(" / ");
+  if (!Array.isArray(genres) || !genres.length) return "Sonstige";
+  return genres.map((g) => g.name).filter(Boolean).join(" / ");
 }
 
 function getMainGenre(genres = []) {
-  if (!Array.isArray(genres) || genres.length === 0) return "Sonstige";
-  return genres[0].name || "Sonstige";
+  if (!Array.isArray(genres) || !genres.length) return "Sonstige";
+  return genres[0]?.name || "Sonstige";
 }
 
 function formatRating(vote = 0) {
   const rating = Number(vote || 0).toFixed(1);
-  const stars = Math.round(Number(vote || 0) / 2);
+  const stars = Math.max(0, Math.min(5, Math.round(Number(vote || 0) / 2)));
 
   return "★".repeat(stars) + "☆".repeat(5 - stars) + ` • ${rating}`;
 }
 
 function posterUrl(path) {
-  if (!path) return "";
-  return `${TMDB_IMAGE_BASE}${path}`;
+  return path ? `${TMDB_IMAGE_BASE}${path}` : "";
 }
 
 function backdropUrl(path) {
-  if (!path) return "";
-  return `${TMDB_IMAGE_ORIGINAL}${path}`;
+  return path ? `${TMDB_IMAGE_ORIGINAL}${path}` : "";
 }
 
+// =============================
+// MOVIE DETAILS FORMATTER
+// =============================
+function buildMovieTmdbObject(details, fallbackTitle = "", fallbackYear = "") {
+  if (!details) return null;
+
+  const director =
+    details.credits?.crew?.find((p) => p.job === "Director")?.name ||
+    "Unbekannt";
+
+  const cast =
+    details.credits?.cast
+      ?.slice(0, 3)
+      .map((p) => p.name)
+      .filter(Boolean)
+      .join(" • ") || "Unbekannt";
+
+  const deRelease = details.release_dates?.results?.find(
+    (r) => r.iso_3166_1 === "DE"
+  );
+
+  const cert =
+    deRelease?.release_dates?.find((r) => r.certification)?.certification || "";
+
+  return {
+    tmdbId: details.id,
+    title: details.title || details.original_title || fallbackTitle || "Unbekannt",
+    year: details.release_date ? details.release_date.slice(0, 4) : fallbackYear,
+    genre: formatGenres(details.genres),
+    mainGenre: getMainGenre(details.genres),
+    rating: formatRating(details.vote_average),
+    runtime: details.runtime ? `${details.runtime} Min.` : "Unbekannt",
+    overview: details.overview || "Keine Beschreibung verfügbar.",
+    posterUrl: posterUrl(details.poster_path),
+    backdropUrl: backdropUrl(details.backdrop_path),
+    collection: details.belongs_to_collection?.name || "",
+    collectionId: details.belongs_to_collection?.id || null,
+    collectionPoster: details.belongs_to_collection?.poster_path
+      ? posterUrl(details.belongs_to_collection.poster_path)
+      : "",
+    collectionBackdrop: details.backdrop_path
+      ? backdropUrl(details.backdrop_path)
+      : "",
+    director,
+    cast,
+    fsk: cert ? `FSK ${cert}` : "FSK Unbekannt"
+  };
+}
+
+// =============================
+// MOVIE SEARCH
+// =============================
 async function searchMovieTMDBChoices(title, year = "") {
   const variants = buildMovieSearchVariants(title);
 
@@ -2371,9 +2473,7 @@ async function searchMovieTMDBChoices(title, year = "") {
     }
   }
 
-  if (year) {
-    return await searchMovieTMDBChoices(title, "");
-  }
+  if (year) return await searchMovieTMDBChoices(title, "");
 
   return [];
 }
@@ -2383,49 +2483,7 @@ async function getMovieDetailsById(tmdbId) {
     append_to_response: "credits,release_dates"
   });
 
-  if (!details) return null;
-
-  const director =
-    details.credits?.crew?.find((p) => p.job === "Director")?.name ||
-    "Unbekannt";
-
-  const cast =
-    details.credits?.cast
-      ?.slice(0, 3)
-      .map((p) => p.name)
-      .join(" • ") || "Unbekannt";
-
-  const deRelease = details.release_dates?.results?.find(
-    (r) => r.iso_3166_1 === "DE"
-  );
-
-  const fsk =
-    deRelease?.release_dates?.find((r) => r.certification)?.certification ||
-    "";
-
-  return {
-    tmdbId: details.id,
-    title: details.title || details.original_title || "Unbekannt",
-    year: details.release_date ? details.release_date.slice(0, 4) : "",
-    genre: formatGenres(details.genres),
-    mainGenre: getMainGenre(details.genres),
-    rating: formatRating(details.vote_average),
-    runtime: details.runtime ? `${details.runtime} Min.` : "Unbekannt",
-    overview: details.overview || "Keine Beschreibung verfügbar.",
-    posterUrl: posterUrl(details.poster_path),
-    backdropUrl: backdropUrl(details.backdrop_path),
-    collection: details.belongs_to_collection?.name || "",
-    collectionId: details.belongs_to_collection?.id || null,
-    collectionPoster: details.belongs_to_collection?.poster_path
-      ? posterUrl(details.belongs_to_collection.poster_path)
-      : "",
-    collectionBackdrop: details.backdrop_path
-      ? backdropUrl(details.backdrop_path)
-      : "",
-    director,
-    cast,
-    fsk: fsk ? `FSK ${fsk}` : "FSK Unbekannt"
-  };
+  return buildMovieTmdbObject(details);
 }
 
 async function searchMovieTMDB(title, year = "") {
@@ -2448,79 +2506,40 @@ async function searchMovieTMDB(title, year = "") {
       append_to_response: "credits,release_dates"
     });
 
-    if (!details) continue;
-
-    const director =
-      details.credits?.crew?.find((p) => p.job === "Director")?.name ||
-      "Unbekannt";
-
-    const cast =
-      details.credits?.cast
-        ?.slice(0, 3)
-        .map((p) => p.name)
-        .join(" • ") || "Unbekannt";
-
-    const deRelease = details.release_dates?.results?.find(
-      (r) => r.iso_3166_1 === "DE"
-    );
-
-    const fsk =
-      deRelease?.release_dates?.find((r) => r.certification)?.certification ||
-      "";
-
-    return {
-      tmdbId: details.id,
-      title: details.title || queryTitle,
-      year: details.release_date ? details.release_date.slice(0, 4) : year,
-      genre: formatGenres(details.genres),
-      mainGenre: getMainGenre(details.genres),
-      rating: formatRating(details.vote_average),
-      runtime: details.runtime ? `${details.runtime} Min.` : "Unbekannt",
-      overview: details.overview || "Keine Beschreibung verfügbar.",
-      posterUrl: posterUrl(details.poster_path),
-      backdropUrl: backdropUrl(details.backdrop_path),
-      collection: details.belongs_to_collection?.name || "",
-      collectionId: details.belongs_to_collection?.id || null,
-      collectionPoster: details.belongs_to_collection?.poster_path
-        ? posterUrl(details.belongs_to_collection.poster_path)
-        : "",
-      collectionBackdrop: details.backdrop_path
-        ? backdropUrl(details.backdrop_path)
-        : "",
-      director,
-      cast,
-      fsk: fsk ? `FSK ${fsk}` : "FSK Unbekannt"
-    };
+    const movie = buildMovieTmdbObject(details, queryTitle, year);
+    if (movie) return movie;
   }
 
-  if (year) {
-    return await searchMovieTMDB(title, "");
-  }
+  if (year) return await searchMovieTMDB(title, "");
 
   return null;
 }
 
+// =============================
+// SERIES SEARCH
+// =============================
 const SERIES_TMDB_OVERRIDES = {
   "robin hood": 258918
 };
 
 async function searchSeriesTMDB(title, season, episode) {
-  const overrideId = SERIES_TMDB_OVERRIDES[String(title || "").toLowerCase().trim()];
+  const titleKey = String(title || "").toLowerCase().trim();
+  const overrideId = SERIES_TMDB_OVERRIDES[titleKey];
 
-let best = null;
+  let best = null;
 
-if (overrideId) {
-  best = { id: overrideId };
-} else {
-  const search = await tmdbGet("/search/tv", {
-    query: title,
-    include_adult: false
-  });
+  if (overrideId) {
+    best = { id: overrideId };
+  } else {
+    const search = await tmdbGet("/search/tv", {
+      query: title,
+      include_adult: false
+    });
 
-  if (!search?.results?.length) return null;
+    if (!search?.results?.length) return null;
 
-  best = search.results[0];
-}
+    best = search.results[0];
+  }
 
   const details = await tmdbGet(`/tv/${best.id}`, {
     append_to_response: "credits,content_ratings"
@@ -2528,15 +2547,9 @@ if (overrideId) {
 
   if (!details) return null;
 
-  let episodeDetails = null;
-
-  try {
-    episodeDetails = await tmdbGet(
-      `/tv/${best.id}/season/${season}/episode/${episode}`
-    );
-  } catch (err) {
-    episodeDetails = null;
-  }
+  const episodeDetails = await tmdbGet(
+    `/tv/${best.id}/season/${season}/episode/${episode}`
+  );
 
   const createdBy =
     details.created_by
@@ -2548,6 +2561,7 @@ if (overrideId) {
     details.credits?.cast
       ?.slice(0, 5)
       .map((p) => p.name)
+      .filter(Boolean)
       .join(" • ") || "Unbekannt";
 
   const deRating = details.content_ratings?.results?.find(
@@ -2561,9 +2575,7 @@ if (overrideId) {
   const fsk =
     deRating?.rating
       ? `FSK ${deRating.rating}`
-      : usRating?.rating
-        ? usRating.rating
-        : "FSK Unbekannt";
+      : usRating?.rating || "FSK Unbekannt";
 
   return {
     tmdbId: details.id,
@@ -2592,52 +2604,22 @@ if (overrideId) {
 
 async function getSeasonTMDB(tvId, season) {
   if (!tvId || !season) return null;
-
   return await tmdbGet(`/tv/${tvId}/season/${season}`);
 }
 
+// =============================
+// SEASON THEME
+// =============================
 function getSeasonTheme(season = 1) {
   const themes = {
-    1: {
-      name: "ICE BLUE",
-      color: "#4DA6FF",
-      emoji: "❄️"
-    },
-    2: {
-      name: "ROYAL GOLD",
-      color: "#D4AF37",
-      emoji: "👑"
-    },
-    3: {
-      name: "BLOOD RED",
-      color: "#8B0000",
-      emoji: "🩸"
-    },
-    4: {
-      name: "MIDNIGHT PURPLE",
-      color: "#4B0082",
-      emoji: "🌌"
-    },
-    5: {
-      name: "FOREST GREEN",
-      color: "#228B22",
-      emoji: "🌲"
-    },
-    6: {
-      name: "EMBER ORANGE",
-      color: "#FF6A00",
-      emoji: "🔥"
-    },
-    7: {
-      name: "STEEL SILVER",
-      color: "#A9A9A9",
-      emoji: "⚔️"
-    },
-    8: {
-      name: "NIGHT BLACK",
-      color: "#111111",
-      emoji: "🌑"
-    }
+    1: { name: "ICE BLUE", color: "#4DA6FF", emoji: "❄️" },
+    2: { name: "ROYAL GOLD", color: "#D4AF37", emoji: "👑" },
+    3: { name: "BLOOD RED", color: "#8B0000", emoji: "🩸" },
+    4: { name: "MIDNIGHT PURPLE", color: "#4B0082", emoji: "🌌" },
+    5: { name: "FOREST GREEN", color: "#228B22", emoji: "🌲" },
+    6: { name: "EMBER ORANGE", color: "#FF6A00", emoji: "🔥" },
+    7: { name: "STEEL SILVER", color: "#A9A9A9", emoji: "⚔️" },
+    8: { name: "NIGHT BLACK", color: "#111111", emoji: "🌑" }
   };
 
   return themes[Number(season)] || {
@@ -2647,26 +2629,18 @@ function getSeasonTheme(season = 1) {
   };
 }
 
-async function createBrandedCover(posterUrl, title = "", subtitle = "") {
+// =============================
+// BRANDED COVER GENERATOR
+// =============================
+async function createBrandedCover(posterUrlValue, title = "", subtitle = "") {
   try {
-    console.log("LOGO CHECK logo.png.PNG:", fs.existsSync("logo.png.PNG"));
-    console.log("WATERMARK CHECK watermark.png.PNG:", fs.existsSync("watermark.png.PNG"));
+    if (!posterUrlValue) return "";
 
-    const imageRes = await axios.get(posterUrl, {
+    const imageRes = await axios.get(posterUrlValue, {
       responseType: "arraybuffer"
     });
 
     const inputBuffer = Buffer.from(imageRes.data);
-
-    const logo = await sharp("logo.png.PNG")
-      .resize(230)
-      .png()
-      .toBuffer();
-
-    const watermark = await sharp("watermark.png.PNG")
-      .resize(70)
-      .png()
-      .toBuffer();
 
     const safeTitle = String(title || "")
       .toUpperCase()
@@ -2685,7 +2659,7 @@ async function createBrandedCover(posterUrl, title = "", subtitle = "") {
     const overlay = Buffer.from(`
 <svg width="500" height="750" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="g" x1="0" y1="360" x2="0" y2="750" gradientUnits="userSpaceOnUse">
+    <linearGradient id="g" x1="0" y1="360" x2="0" y2="750">
       <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
       <stop offset="65%" stop-color="#000000" stop-opacity="0.72"/>
       <stop offset="100%" stop-color="#000000" stop-opacity="0.92"/>
@@ -2708,18 +2682,14 @@ async function createBrandedCover(posterUrl, title = "", subtitle = "") {
 
     await sharp(inputBuffer)
       .resize(500, 750)
-      .composite([
-        { input: overlay, top: 0, left: 0 },
-        { input: logo, gravity: "south" },
-        { input: watermark, gravity: "southeast" }
-      ])
+      .composite([{ input: overlay, top: 0, left: 0 }])
       .jpeg({ quality: 95 })
       .toFile(outputPath);
 
     return outputPath;
   } catch (err) {
     console.error("❌ Branding Cover Fehler:", err.message);
-    return posterUrl;
+    return posterUrlValue;
   }
 }
 
