@@ -143,6 +143,11 @@ addColumnIfMissing("movies", "hdr", "TEXT");
 addColumnIfMissing("topics", "hub_message_id", "INTEGER");
 addColumnIfMissing("topics", "season_separators", "TEXT DEFAULT '{}'");
 addColumnIfMissing("topics", "series_banner_message_id", "INTEGER");
+addColumnIfMissing(
+  "topics",
+  "episode_list_message_id",
+  "INTEGER"
+);
 addColumnIfMissing("topics", "movie_hub_message_id", "INTEGER");
 addColumnIfMissing("topics", "movie_banner_message_id", "INTEGER");
 addColumnIfMissing("series", "series_library_id", "TEXT");
@@ -4004,6 +4009,55 @@ if (missingEpisodes.length) {
   }
 
   return result.trim();
+}
+
+function fullEpisodeListCaption(seriesTitle) {
+  const episodes = db.prepare(`
+    SELECT season, episode, episode_title
+    FROM series
+    WHERE series_title = ?
+    ORDER BY season ASC, episode ASC
+  `).all(seriesTitle);
+
+  if (!episodes.length) {
+    return "Keine Episoden gespeichert.";
+  }
+
+  const grouped = {};
+
+  for (const ep of episodes) {
+    const season = Number(ep.season || 0);
+    if (!grouped[season]) grouped[season] = [];
+    grouped[season].push(ep);
+  }
+
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📜 EPISODENLISTE\n" +
+    `📺 ${seriesTitle.toUpperCase()}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  for (const season of Object.keys(grouped).map(Number).sort((a, b) => a - b)) {
+    result += `📀 STAFFEL ${String(season).padStart(2, "0")}\n`;
+
+    grouped[season].forEach((ep, index) => {
+      const prefix = index === grouped[season].length - 1 ? "┗" : "┠";
+
+      result += `${prefix} S${String(ep.season).padStart(2, "0")}E${String(ep.episode).padStart(2, "0")}`;
+
+      if (ep.episode_title) result += ` • ${ep.episode_title}`;
+
+      result += "\n";
+    });
+
+    result += "\n";
+  }
+
+  result +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return result.slice(0, 4000);
 }
 
 function buildCompactSeasonIndex(seriesTitle) {
