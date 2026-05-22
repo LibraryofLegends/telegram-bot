@@ -5274,7 +5274,23 @@ async function createOrUpdateCommandCenter({
 }) {
   const uniqueKey = makeKey(`system_hub-${chatId}-${topicName}`);
 
-  const topic = getTopic(uniqueKey);
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [uniqueKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(uniqueKey);
+  }
 
   if (!topic?.topic_id) {
     return null;
@@ -5295,11 +5311,22 @@ async function createOrUpdateCommandCenter({
   });
 
   if (msg?.message_id) {
-    db.prepare(`
-      UPDATE topics
-      SET hub_message_id = ?
-      WHERE unique_key = ?
-    `).run(msg.message_id, uniqueKey);
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, uniqueKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(msg.message_id, uniqueKey);
+    }
   }
 
   return msg;
