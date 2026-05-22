@@ -4060,6 +4060,48 @@ function fullEpisodeListCaption(seriesTitle) {
   return result.slice(0, 4000);
 }
 
+async function createOrUpdateEpisodeList({
+  topicId,
+  seriesTitle
+}) {
+  if (!topicId || !seriesTitle) return null;
+
+  const topic = db.prepare(`
+    SELECT *
+    FROM topics
+    WHERE topic_id = ?
+    LIMIT 1
+  `).get(topicId);
+
+  if (!topic) return null;
+
+  const text = fullEpisodeListCaption(seriesTitle);
+
+  if (topic.episode_list_message_id) {
+    return await tg("editMessageText", {
+      chat_id: SERIES_GROUP_ID,
+      message_id: topic.episode_list_message_id,
+      text
+    });
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: SERIES_GROUP_ID,
+    message_thread_id: topicId,
+    text
+  });
+
+  if (msg?.message_id) {
+    db.prepare(`
+      UPDATE topics
+      SET episode_list_message_id = ?
+      WHERE topic_id = ?
+    `).run(msg.message_id, topicId);
+  }
+
+  return msg;
+}
+
 function buildCompactSeasonIndex(seriesTitle) {
   const episodes = db.prepare(`
     SELECT season, episode
