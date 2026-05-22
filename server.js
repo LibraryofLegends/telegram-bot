@@ -4735,17 +4735,63 @@ replyMarkup = null
 }
 
 // =============================
-// TELEGRAM API HELPER
+// TELEGRAM SAFE REQUEST
 // =============================
-async function tg(method, data = {}) {
+async function telegramRequest(
+  method,
+  payload = {},
+  retry = true
+) {
   try {
-    const res = await axios.post(`${BASE_URL}/${method}`, data);
-    return res.data.result;
-  } catch (err) {
-    const errorData = err.response?.data || err.message;
 
-    console.error(`❌ Telegram API Fehler bei ${method}:`);
-    console.error(JSON.stringify(errorData, null, 2));
+    const response = await axios.post(
+      `${BASE_URL}/${method}`,
+      payload
+    );
+
+    return response.data.result;
+
+  } catch (err) {
+
+    const errorData =
+      err.response?.data || err.message;
+
+    console.error(
+      `❌ Telegram API Fehler (${method}):`
+    );
+
+    console.error(
+      JSON.stringify(errorData, null, 2)
+    );
+
+    // =============================
+    // RATE LIMIT AUTO RETRY
+    // =============================
+    if (
+      retry &&
+      errorData?.error_code === 429
+    ) {
+
+      const retryAfter =
+        errorData.parameters?.retry_after || 5;
+
+      console.log(
+        `⏳ Telegram Rate Limit erkannt → warte ${retryAfter}s`
+      );
+
+      await new Promise((resolve) =>
+        setTimeout(
+          resolve,
+          (retryAfter + 1) * 1000
+        )
+      );
+
+      return telegramRequest(
+        method,
+        payload,
+        false
+      );
+    }
 
     return {
       __error: true,
@@ -4753,6 +4799,16 @@ async function tg(method, data = {}) {
       error: errorData
     };
   }
+}
+
+// =============================
+// TELEGRAM WRAPPER
+// =============================
+async function tg(method, payload = {}) {
+  return await telegramRequest(
+    method,
+    payload
+  );
 }
 
 async function sendLocalPhoto({
