@@ -4913,6 +4913,21 @@ function movieCommandCenterCaption() {
 const eliteCount =
   eliteMovies.filter(isEliteMovie).length;
   
+  const fskRows = db.prepare(`
+  SELECT fsk, COUNT(*) AS count
+  FROM movies
+  WHERE fsk IS NOT NULL
+  GROUP BY fsk
+  ORDER BY count DESC
+`).all();
+
+const fskLine =
+  fskRows.length
+    ? fskRows
+        .map((r) => `• FSK ${r.fsk} (${r.count})`)
+        .join("\n")
+    : "Noch keine FSK-Daten";
+  
   const genreRows = db.prepare(`
   SELECT genre, COUNT(*) AS count
   FROM movies
@@ -4969,6 +4984,8 @@ const genreLine =
     `${genreLine}\n\n` +
     "📅 DECADES\n" +
     `${decadeLine}\n\n` +
+    "🔞 FSK ARCHIVE\n" +
+    `${fskLine}\n\n` +
     "🧭 NAVIGATION\n" +
     "🌌 Universes\n" +
     "🎞 Collections\n" +
