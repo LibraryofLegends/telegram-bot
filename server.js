@@ -8146,17 +8146,24 @@ return;
 // =============================
 async function notifyStartup() {
   try {
+
     await tg("sendMessage", {
       chat_id: ADMIN_ID,
       text:
         "✅ Bot ist online\n\n" +
         "⚙️ Render Neustart erkannt\n" +
         `🕒 Zeit: ${new Date().toLocaleString("de-DE", {
-  timeZone: "Europe/Berlin"
-})}\n\n` +
+          timeZone: "Europe/Berlin"
+        })}`
     });
+
   } catch (err) {
-    console.error("❌ Startup Notification Fehler:", err.message);
+
+    console.error(
+      "❌ Startup Notification Fehler:",
+      err.message
+    );
+
   }
 }
 
