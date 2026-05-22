@@ -4992,7 +4992,8 @@ const genreLine =
     `🏆 ELITE ARCHIVE • ${eliteCount}\n` +
     "🎭 Genres\n" +
     "📅 Decades\n" +
-    "🏆 Elite Archive\n\n" +
+    "🏆 Elite Archive\n" +
+    "🔞 FSK Archive\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends"
