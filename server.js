@@ -4874,6 +4874,22 @@ function movieCommandCenterCaption() {
     FROM movies
     WHERE collection IS NOT NULL
   `).get()?.count || 0;
+  
+  const genreRows = db.prepare(`
+  SELECT genre, COUNT(*) AS count
+  FROM movies
+  WHERE genre IS NOT NULL
+  GROUP BY genre
+  ORDER BY count DESC
+  LIMIT 8
+`).all();
+
+const genreLine =
+  genreRows.length
+    ? genreRows
+        .map((g) => `• ${g.genre} (${g.count})`)
+        .join("\n")
+    : "Noch keine Genres";
 
   return (
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -4889,6 +4905,8 @@ function movieCommandCenterCaption() {
     `🎞 COLLECTIONS • ${collectionCount}\n` +
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
+    "🎭 TOP GENRES\n" +
+    `${genreLine}\n\n` +
     "🧭 NAVIGATION\n" +
     "🌌 Universes\n" +
     "🎞 Collections\n" +
