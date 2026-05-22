@@ -7915,8 +7915,9 @@ logToDb(
 );
 
 return;
+}
 
-  if (media.type === "movie") {
+if (media.type === "movie") {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
