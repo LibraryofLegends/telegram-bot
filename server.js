@@ -5671,6 +5671,8 @@ async function handleCommand(msg) {
       "📊 SYSTEM\n" +
       "• /dashboard — Premium Dashboard\n" +
       "• /stats — Statistik\n" +
+      "• /health — Systemstatus prüfen\n" +
+      "• /queue — Upload-Warteschlange prüfen\n" +
       "• /qualitystats — Qualitäts-Statistik\n" +
       "• /search titel — Suche\n" +
       "• /backup — Datenbank sichern"
