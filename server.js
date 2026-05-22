@@ -4,6 +4,7 @@ const Database = require("better-sqlite3");
 const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
+const { Pool } = require("pg");
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -22,6 +23,34 @@ const ADMIN_ID = String(process.env.ADMIN_ID || "");
 const BOT_USERNAME = process.env.BOT_USERNAME || "";
 
 const BASE_URL = `https://api.telegram.org/bot${TOKEN}`;
+
+// =============================
+// POSTGRES / SUPABASE
+// =============================
+const DATABASE_URL = process.env.DATABASE_URL || "";
+
+const pgPool = DATABASE_URL
+  ? new Pool({
+      connectionString: DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    })
+  : null;
+
+async function testPostgresConnection() {
+  if (!pgPool) {
+    console.log("⚠️ Keine DATABASE_URL gesetzt — nutze SQLite");
+    return;
+  }
+
+  try {
+    const result = await pgPool.query("SELECT NOW() AS now");
+    console.log("✅ Supabase verbunden:", result.rows[0].now);
+  } catch (err) {
+    console.error("❌ Supabase Verbindung Fehler:", err.message);
+  }
+}
 
 let CURRENT_SERIES_NAME = "";
 
@@ -8272,6 +8301,7 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, async () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
+  await testPostgresConnection();
   await notifyStartup();
 });
 
