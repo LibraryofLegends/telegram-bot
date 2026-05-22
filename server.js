@@ -1738,7 +1738,12 @@ async function runUploadQueue() {
       );
     }
 
-    await sleep(5000);
+    const waitTime =
+  UPLOAD_QUEUE.length > 5
+    ? 8000
+    : 5000;
+
+await sleep(waitTime);
   }
 
   UPLOAD_QUEUE_RUNNING = false;
