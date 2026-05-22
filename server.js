@@ -5812,7 +5812,19 @@ await tg("sendMessage", {
 
 if (text === "/backup") {
   try {
-    const backupPath = path.join("/tmp", `library-backup-${Date.now()}.db`);
+    const now = new Date();
+
+    const stamp = now
+      .toLocaleString("de-DE", {
+        timeZone: "Europe/Berlin"
+      })
+      .replace(/[.:,\s]/g, "-");
+
+    const backupFileName =
+      `library-backup-${stamp}.db`;
+
+    const backupPath =
+      path.join("/tmp", backupFileName);
 
     await db.backup(backupPath);
 
@@ -5826,13 +5838,26 @@ if (text === "/backup") {
     const form = new FormData();
 
     form.append("chat_id", msg.chat.id);
-    form.append("document", fs.createReadStream(backupPath), "library.db");
+    form.append(
+      "document",
+      fs.createReadStream(backupPath),
+      backupFileName
+    );
+
     form.append(
       "caption",
-      "✅ Datenbank Backup\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "💾 DATENBANK BACKUP\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `📁 Datei: ${backupFileName}\n` +
+      `🕒 Zeit: ${now.toLocaleString("de-DE", {
+        timeZone: "Europe/Berlin"
+      })}\n\n` +
       `🎬 Filme: ${stats.movies}\n` +
       `📺 Serien-Episoden: ${stats.series}\n` +
-      `🧵 Themen: ${stats.topics}`
+      `🧵 Themen: ${stats.topics}\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
     );
 
     await axios.post(`${BASE_URL}/sendDocument`, form, {
