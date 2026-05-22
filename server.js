@@ -7494,6 +7494,9 @@ async function sendAdminPanel(chatId) {
   return panelResult;
 }
 
+// =============================
+// MOVIE UPLOAD PROCESSOR
+// =============================
 async function processMovieUpload({ msg, media, tmdb }) {
   const fileName =
     msg.document?.file_name ||
@@ -7506,9 +7509,7 @@ async function processMovieUpload({ msg, media, tmdb }) {
     msg.document?.file_id ||
     "";
 
-  const exists = movieExists(media.uniqueKey);
-
-  if (exists) {
+  if (movieExists(media.uniqueKey)) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
@@ -7523,29 +7524,21 @@ async function processMovieUpload({ msg, media, tmdb }) {
     libraryId: makeLibraryCode(tmdb.genre)
   };
 
-  const isBourne = isBourneMovie(tmdb, fileName);
-
-const universeData =
-  detectUniverse(
+  const universeData = detectUniverse(
     tmdb.title,
     tmdb.collection
   );
 
-const genreTopicName = tmdb.mainGenre || "Sonstige";
+  let finalTopicName = tmdb.mainGenre || "Sonstige";
+  let finalTopicType = "movie_genre";
 
-let finalTopicName = genreTopicName;
-let finalTopicType = "movie_genre";
-
-if (universeData?.universeName) {
-  finalTopicName = universeData.universeName;
-  finalTopicType = "universe";
-} else if (isBourne) {
-  finalTopicName = "🎞 Bourne Filmreihe";
-  finalTopicType = "collection";
-} else if (tmdb.collection && tmdb.collectionId) {
-  finalTopicName = `🎞 ${tmdb.collection}`;
-  finalTopicType = "collection";
-}
+  if (universeData?.universeName) {
+    finalTopicName = universeData.universeName;
+    finalTopicType = "universe";
+  } else if (tmdb.collection && tmdb.collectionId) {
+    finalTopicName = `🎞 ${tmdb.collection}`;
+    finalTopicType = "collection";
+  }
 
   const topicId = await createOrGetTopic({
     chatId: MOVIE_GROUP_ID,
@@ -7562,111 +7555,34 @@ if (universeData?.universeName) {
     });
     return;
   }
-  
-  if (!universeData?.universeName) {
-  await createMovieHubIfMissing({
-    topicId,
-    topicName: finalTopicName,
-    banner:
-      genreBanners?.[finalTopicName] ||
-      genreBanners?.[tmdb.mainGenre] ||
-      null
-  });
-}
-  
-  if (tmdb.collection && tmdb.collectionId && !universeData?.universeName) {
-  const existingCollection = getCollection(tmdb.collectionId);
 
-  if (!existingCollection) {
-    saveCollection({
-      collectionName: tmdb.collection,
-      tmdbCollectionId: tmdb.collectionId,
+  if (!universeData?.universeName) {
+    await createMovieHubIfMissing({
       topicId,
-      posterUrl: tmdb.collectionPoster || tmdb.posterUrl
+      topicName: finalTopicName,
+      banner:
+        genreBanners?.[finalTopicName] ||
+        genreBanners?.[tmdb.mainGenre] ||
+        null
     });
   }
-}
 
-if (tmdb.collection && tmdb.collectionId && !universeData?.universeName) {
-  const collection = getCollection(tmdb.collectionId);
+  if (
+    tmdb.collection &&
+    tmdb.collectionId &&
+    !universeData?.universeName
+  ) {
+    const existingCollection = getCollection(tmdb.collectionId);
 
-  if (true) {
-    const theme =
-      collectionThemes[tmdb.collection] || {};
-
-    const banner =
-      collectionBanners[tmdb.collection] ||
-      tmdb.collectionBackdrop ||
-      tmdb.collectionPoster ||
-      tmdb.posterUrl;
-
-    const finalBanner = banner;
-
-    console.log("🖼️ COLLECTION BANNER INPUT:", banner);
-console.log("🖼️ COLLECTION BANNER FINAL:", finalBanner);
-
-const bannerCaption =
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `${theme.icon || "🎞"} ${String(tmdb.collection || "").toUpperCase()}\n` +
-  "━━━━━━━━━━━━━━━━━━\n\n" +
-  `📁 ${theme.archive || "COLLECTION ARCHIVE"}\n` +
-  `${theme.subline || "PREMIUM FILM COLLECTION"}\n` +
-  `${theme.status || "🎬 FILMREIHE"}\n\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "@LibraryOfLegends";
-
-let bannerMsg = null;
-
-if (String(finalBanner).startsWith("/tmp/")) {
-
-  bannerMsg = await sendLocalPhoto({
-    chatId: MOVIE_GROUP_ID,
-    topicId,
-    photoPath: finalBanner,
-    caption: bannerCaption
-  });
-
-} else {
-
-  bannerMsg = await tg("sendPhoto", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: topicId,
-    photo: finalBanner,
-    caption: bannerCaption
-  });
-
-}
-
-if (!bannerMsg?.message_id) {
-  console.error("⚠️ Generated Banner fehlgeschlagen, versuche Original:", JSON.stringify(bannerMsg, null, 2));
-
-  bannerMsg = await tg("sendPhoto", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: topicId,
-    photo: banner,
-    caption: bannerCaption
-  });
-}
-
-    if (bannerMsg?.message_id) {
-      db.prepare(`
-        UPDATE collections
-        SET banner_message_id = ?
-        WHERE tmdb_collection_id = ?
-      `).run(bannerMsg.message_id, tmdb.collectionId);
+    if (!existingCollection) {
+      saveCollection({
+        collectionName: tmdb.collection,
+        tmdbCollectionId: tmdb.collectionId,
+        topicId,
+        posterUrl: tmdb.collectionPoster || tmdb.posterUrl
+      });
     }
   }
-
-  await createOrUpdateCollectionHub(tmdb, topicId);
-}
-
-if (isBourne) {
-  try {
-    await createOrUpdateBourneHub(topicId);
-  } catch (err) {
-    console.error("⚠️ Bourne Hub Vorab-Update Fehler:", err.message);
-  }
-}
 
   await tg("sendPhoto", {
     chat_id: MOVIE_GROUP_ID,
@@ -7676,19 +7592,16 @@ if (isBourne) {
       "https://via.placeholder.com/500x750.png?text=No+Cover"
   });
 
-const copied = await copyOriginalMedia({
-  fromChatId: msg.chat.id,
-  messageId: msg.message_id,
-  targetChatId: MOVIE_GROUP_ID,
-  topicId,
-  caption: isBourne
-    ? bourneMovieCaption(tmdb, extras)
-    : movieCaption(tmdb, extras),
+  const copied = await copyOriginalMedia({
+    fromChatId: msg.chat.id,
+    messageId: msg.message_id,
+    targetChatId: MOVIE_GROUP_ID,
+    topicId,
+    caption: movieCaption(tmdb, extras),
     fileId,
-isVideo: !!msg.video,
-adminChatId: msg.chat.id,
-replyMarkup: isBourne ? bourneKeyboard(tmdb.title) : null
-});
+    isVideo: !!msg.video,
+    adminChatId: msg.chat.id
+  });
 
   if (!copied?.message_id) {
     await tg("sendMessage", {
@@ -7698,116 +7611,87 @@ replyMarkup: isBourne ? bourneKeyboard(tmdb.title) : null
     return;
   }
 
-saveMovie({
-  title: tmdb.title,
-  year: tmdb.year,
-  genre: tmdb.genre,
-  rating: tmdb.rating,
-  runtime: tmdb.runtime,
-  overview: tmdb.overview,
-  posterUrl: tmdb.posterUrl,
-  fileName,
-  fileId,
-  uniqueKey: media.uniqueKey,
-  telegramMessageId: copied.message_id,
-  topicId,
-  collection: tmdb.collection,
-  quality: extras.quality,
-  audio: extras.audio,
-  source: extras.source,
-  fsk: tmdb.fsk,
-  director: tmdb.director,
-  cast: tmdb.cast,
-  libraryId: extras.libraryId,
-  resolution: extras.resolution,
-  fileSize: extras.fileSize,
-  videoCodec: extras.videoCodec,
-  audioCodec: extras.audioCodec,
-  audioChannels: extras.audioChannels,
-  hdr: extras.hdr,
+  saveMovie({
+    title: tmdb.title,
+    year: tmdb.year,
+    genre: tmdb.genre,
+    rating: tmdb.rating,
+    runtime: tmdb.runtime,
+    overview: tmdb.overview,
+    posterUrl: tmdb.posterUrl,
+    fileName,
+    fileId,
+    uniqueKey: media.uniqueKey,
+    telegramMessageId: copied.message_id,
+    topicId,
+    collection: tmdb.collection,
+    quality: extras.quality,
+    audio: extras.audio,
+    source: extras.source,
+    fsk: tmdb.fsk,
+    director: tmdb.director,
+    cast: tmdb.cast,
+    libraryId: extras.libraryId,
+    resolution: extras.resolution,
+    fileSize: extras.fileSize,
+    videoCodec: extras.videoCodec,
+    audioCodec: extras.audioCodec,
+    audioChannels: extras.audioChannels,
+    hdr: extras.hdr,
+    universe: universeData?.universeName || null,
+    universePhase: universeData?.phase || null
+  });
 
-  universe: universeData?.universeName || null,
-  universePhase: universeData?.phase || null
-});
+  if (universeData?.universeName) {
+    try {
+      await createOrUpdateUniverseHub(
+        universeData.universeName
+      );
+    } catch (err) {
+      console.error("⚠️ Universe Hub Update Fehler:", err.message);
+    }
+  } else {
+    try {
+      await updateMovieHub({
+        topicId,
+        topicName: finalTopicName
+      });
+    } catch (err) {
+      console.error("⚠️ Movie Hub Update Fehler:", err.message);
+    }
 
-if (universeData?.universeName) {
+    if (tmdb.collection && tmdb.collectionId) {
+      try {
+        await createOrUpdateCollectionHub(tmdb, topicId);
+      } catch (err) {
+        console.error("⚠️ Collection Hub Fehler:", err.message);
+      }
+    }
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Film erfolgreich einsortiert:\n\n" +
+      `🎬 ${tmdb.title}\n` +
+      `🎭 Thema: ${finalTopicName}\n` +
+      (tmdb.collection
+        ? `🎞 Filmreihe: ${tmdb.collection}\n`
+        : "") +
+      `🏷 ${extras.libraryId}`
+  });
+
   try {
-    await createOrUpdateUniverseHub(
-      universeData.universeName
-    );
+    await refreshCommandCenters();
   } catch (err) {
-    console.error("⚠️ Universe Hub Update Fehler:", err.message);
-  }
-}
-
-if (!universeData?.universeName) {
-  try {
-    await updateMovieHub({
-      topicId,
-      topicName: finalTopicName
-    });
-  } catch (err) {
-    console.error("⚠️ Movie Hub Update Fehler:", err.message);
-  }
-}
-
-try {
-
-  if (isBourne) {
-
-    await createOrUpdateBourneHub(
-      topicId
-    );
-
+    console.error("⚠️ Command Center Refresh Fehler:", err.message);
   }
 
-  else if (
-    tmdb.collection &&
-    tmdb.collectionId &&
-    !universeData?.universeName
-  ) {
-
-    await createOrUpdateCollectionHub(
-      tmdb,
-      topicId
-    );
-
-  }
-
-} catch (err) {
-
-  console.error(
-    "⚠️ Collection/Bourne Hub Update Fehler:",
-    err.message
-  );
-
-}
-
-await tg("sendMessage", {
-  chat_id: msg.chat.id,
-  text:
-    "✅ Film erfolgreich einsortiert:\n\n" +
-    `🎬 ${tmdb.title}\n` +
-    `🎭 Thema: ${finalTopicName}\n` +
-    (tmdb.collection
-      ? `🎞 Filmreihe: ${tmdb.collection}\n`
-      : "") +
-    `🏷 ${extras.libraryId}`
-});
-
-try {
-  await refreshCommandCenters();
-} catch (err) {
-  console.error(
-    "⚠️ Command Center Refresh Fehler:",
-    err.message
+  logToDb(
+    "movie_saved",
+    `${tmdb.title} ${tmdb.year || ""}`
   );
 }
-
-logToDb(
-  "movie_saved",
-  `${tmdb.title} ${tmdb.year || ""}`
-);
 
 // =============================
 // UPLOAD HANDLER
