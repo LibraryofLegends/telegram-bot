@@ -4795,6 +4795,51 @@ async function ensureCommandCenters() {
   }
 }
 
+function movieCommandCenterCaption() {
+
+  const movieCount = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM movies
+  `).get()?.count || 0;
+
+  const universeCount = db.prepare(`
+    SELECT COUNT(DISTINCT universe) AS count
+    FROM movies
+    WHERE universe IS NOT NULL
+  `).get()?.count || 0;
+
+  const collectionCount = db.prepare(`
+    SELECT COUNT(DISTINCT collection) AS count
+    FROM movies
+    WHERE collection IS NOT NULL
+  `).get()?.count || 0;
+
+  return (
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎛 MOVIE COMMAND CENTER\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "📁 PREMIUM FILM ARCHIVE\n" +
+    "🎬 AUTOMATED MEDIA SYSTEM\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎞 FILME • ${movieCount}\n` +
+    `🌌 UNIVERSES • ${universeCount}\n` +
+    `🎞 COLLECTIONS • ${collectionCount}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "🧭 NAVIGATION\n" +
+    "🌌 Universes\n" +
+    "🎞 Collections\n" +
+    "🎭 Genres\n" +
+    "📅 Decades\n" +
+    "🏆 Elite Archive\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
 // =============================
 // STARTSEITE
 // =============================
