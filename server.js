@@ -4933,6 +4933,28 @@ async function createOrUpdateCommandCenter({
   return msg;
 }
 
+async function refreshCommandCenters() {
+  try {
+    await createOrUpdateCommandCenter({
+      chatId: MOVIE_GROUP_ID,
+      topicName: "🎛 MOVIE COMMAND CENTER",
+      caption: movieCommandCenterCaption()
+    });
+  } catch (err) {
+    console.error("❌ Movie Command Center Update Fehler:", err.message);
+  }
+
+  try {
+    await createOrUpdateCommandCenter({
+      chatId: SERIES_GROUP_ID,
+      topicName: "🎛 SERIES COMMAND CENTER",
+      caption: seriesCommandCenterCaption()
+    });
+  } catch (err) {
+    console.error("❌ Series Command Center Update Fehler:", err.message);
+  }
+}
+
 // =============================
 // STARTSEITE
 // =============================
