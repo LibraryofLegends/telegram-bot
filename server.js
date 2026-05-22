@@ -1502,6 +1502,55 @@ function normalizeTitle(title = "") {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function normalizeGenreName(genre = "") {
+
+  const g =
+    String(genre || "")
+      .trim()
+      .toLowerCase();
+
+  const map = {
+
+    "science fiction": "Sci-Fi",
+    "sci-fi": "Sci-Fi",
+    "sci fi": "Sci-Fi",
+
+    "action & adventure": "Action",
+    "action-adventure": "Action",
+
+    "animation": "Animation",
+
+    "comedy": "Comedy",
+
+    "crime": "Crime",
+
+    "documentary": "Documentary",
+
+    "drama": "Drama",
+
+    "fantasy": "Fantasy",
+
+    "history": "History",
+
+    "horror": "Horror",
+
+    "music": "Music",
+
+    "mystery": "Mystery",
+
+    "romance": "Romance",
+
+    "thriller": "Thriller",
+
+    "war": "War",
+
+    "western": "Western"
+
+  };
+
+  return map[g] || genre;
+}
+
 function makeKey(value = "") {
   return String(value)
     .toLowerCase()
