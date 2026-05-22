@@ -372,7 +372,112 @@ function seriesExists(uniqueKey) {
   `).get(uniqueKey);
 }
 
-function saveMovie(data) {
+async function saveMovie(data) {
+
+  if (pgPool) {
+
+    return await pgPool.query(
+      `
+      INSERT INTO movies
+      (
+        title,
+        year,
+        genre,
+        rating,
+        runtime,
+        overview,
+
+        poster_url,
+
+        file_name,
+        file_id,
+        unique_key,
+
+        telegram_message_id,
+        topic_id,
+
+        collection,
+        quality,
+        audio,
+        source,
+
+        fsk,
+        director,
+        cast_list,
+
+        library_id,
+
+        resolution,
+        file_size,
+
+        video_codec,
+        audio_codec,
+        audio_channels,
+
+        hdr,
+
+        universe,
+        universe_phase
+      )
+      VALUES (
+        $1, $2, $3, $4, $5, $6,
+        $7,
+        $8, $9, $10,
+        $11, $12,
+        $13, $14, $15, $16,
+        $17, $18, $19,
+        $20,
+        $21, $22,
+        $23, $24, $25,
+        $26,
+        $27, $28
+      )
+      ON CONFLICT (unique_key)
+      DO NOTHING
+      `,
+      [
+        data.title,
+        data.year,
+        data.genre,
+        data.rating,
+        data.runtime,
+        data.overview,
+
+        data.posterUrl,
+
+        data.fileName,
+        data.fileId,
+        data.uniqueKey,
+
+        data.telegramMessageId,
+        data.topicId,
+
+        data.collection,
+        data.quality,
+        data.audio,
+        data.source,
+
+        data.fsk,
+        data.director,
+        data.cast,
+
+        data.libraryId,
+
+        data.resolution,
+        data.fileSize,
+
+        data.videoCodec,
+        data.audioCodec,
+        data.audioChannels,
+
+        data.hdr,
+
+        data.universe,
+        data.universePhase
+      ]
+    );
+  }
+
   return db.prepare(`
     INSERT OR IGNORE INTO movies
     (
