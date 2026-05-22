@@ -8354,9 +8354,10 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, async () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
+
   await testPostgresConnection();
-await ensurePostgresTables();
-await notifyStartup();
+  await ensurePostgresTables();
+  await notifyStartup();
 });
 
 if (process.env.CREATE_COMMAND_CENTERS === "true") {
