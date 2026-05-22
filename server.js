@@ -5343,9 +5343,14 @@ async function handleUpdate(update) {
   if (msg.video || msg.document) {
     console.log("🎥 Video/Datei erkannt");
 
-    await enqueueUpload(async () => {
-      await handleUpload(msg);
-    });
+    await enqueueUpload(
+  async () => {
+    await handleUpload(msg);
+  },
+  msg.document?.file_name ||
+  msg.video?.file_name ||
+  "Unbekannte Datei"
+);
 
     return;
   }
