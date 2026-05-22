@@ -68,11 +68,6 @@ process.on("uncaughtException", async (err) => {
 const ACTIVE_UPLOADS = new Set();
 
 // =============================
-// DUPLICATE SHIELD
-// =============================
-const ACTIVE_UPLOADS = new Set();
-
-// =============================
 // ACTIVE UPLOAD CLEANUP
 // =============================
 setInterval(() => {
