@@ -5997,7 +5997,7 @@ if (text === "/health") {
       `🧩 Aktive Uploads: ${ACTIVE_UPLOADS.size}\n` +
       `🕒 Zeit: ${new Date().toLocaleString("de-DE", {
         timeZone: "Europe/Berlin"
-    })}\n\n` +
+      })}\n\n` +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
