@@ -67,6 +67,41 @@ async function ensurePostgresTables() {
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
+  
+  await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS movies (
+    id SERIAL PRIMARY KEY,
+    title TEXT,
+    year TEXT,
+    genre TEXT,
+    rating TEXT,
+    runtime TEXT,
+    overview TEXT,
+    poster_url TEXT,
+    file_name TEXT,
+    file_id TEXT,
+    unique_key TEXT UNIQUE,
+    telegram_message_id INTEGER,
+    topic_id INTEGER,
+    collection TEXT,
+    quality TEXT,
+    audio TEXT,
+    source TEXT,
+    fsk TEXT,
+    director TEXT,
+    cast TEXT,
+    library_id TEXT,
+    resolution TEXT,
+    file_size TEXT,
+    video_codec TEXT,
+    audio_codec TEXT,
+    audio_channels TEXT,
+    hdr TEXT,
+    universe TEXT,
+    universe_phase TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+`);
 
   console.log("✅ Supabase Tabellen bereit");
 }
@@ -306,9 +341,26 @@ function saveTopic({ name, type, chatId, topicId, uniqueKey }) {
   `).run(name, type, String(chatId), topicId, uniqueKey);
 }
 
-function movieExists(uniqueKey) {
+async function movieExists(uniqueKey) {
+
+  if (pgPool) {
+
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM movies
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [uniqueKey]
+    );
+
+    return result.rows[0] || null;
+  }
+
   return db.prepare(`
-    SELECT * FROM movies
+    SELECT *
+    FROM movies
     WHERE unique_key = ?
   `).get(uniqueKey);
 }
