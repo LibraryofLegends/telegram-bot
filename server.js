@@ -1565,6 +1565,22 @@ function getDecadeLabel(year) {
   return `${decade}s`;
 }
 
+function isEliteMovie(movie) {
+  const ratingMatch =
+    String(movie.rating || "").match(/(\d+(\.\d+)?)/g);
+
+  const rating =
+    ratingMatch ? Number(ratingMatch.pop()) : 0;
+
+  const isHighRated = rating >= 8.0;
+  const isUHD =
+    String(movie.quality || "")
+      .toUpperCase()
+      .includes("UHD");
+
+  return isHighRated || isUHD;
+}
+
 function makeKey(value = "") {
   return String(value)
     .toLowerCase()
@@ -4888,6 +4904,14 @@ function movieCommandCenterCaption() {
     FROM movies
     WHERE collection IS NOT NULL
   `).get()?.count || 0;
+  
+  const eliteMovies = db.prepare(`
+  SELECT rating, quality
+  FROM movies
+`).all();
+
+const eliteCount =
+  eliteMovies.filter(isEliteMovie).length;
   
   const genreRows = db.prepare(`
   SELECT genre, COUNT(*) AS count
