@@ -148,6 +148,11 @@ addColumnIfMissing(
   "episode_list_message_id",
   "INTEGER"
 );
+addColumnIfMissing(
+  "topics",
+  "hub_message_id",
+  "INTEGER"
+);
 addColumnIfMissing("topics", "movie_hub_message_id", "INTEGER");
 addColumnIfMissing("topics", "movie_banner_message_id", "INTEGER");
 addColumnIfMissing("series", "series_library_id", "TEXT");
