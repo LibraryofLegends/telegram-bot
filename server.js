@@ -1725,18 +1725,42 @@ async function runUploadQueue() {
     );
 
     try {
-      await item.job();
 
-      console.log(
-        `✅ Queue #${item.id} fertig: ${item.label}`
-      );
+  await item.job();
 
-    } catch (err) {
-      console.error(
-        `❌ Queue #${item.id} Fehler:`,
-        err.message
-      );
-    }
+  console.log(
+    `✅ Queue #${item.id} fertig`
+  );
+
+} catch (err) {
+
+  console.error(
+    `❌ Queue #${item.id} Fehler:`,
+    err.message
+  );
+
+  // =============================
+  // AUTO RECOVERY
+  // =============================
+  try {
+
+    await tg("sendMessage", {
+      chat_id: ADMIN_ID,
+      text:
+        "⚠️ Upload Fehler erkannt\n\n" +
+        `📥 Queue ID: ${item.id}\n` +
+        `📁 Datei: ${item.label}\n\n` +
+        `❌ ${String(err.message).slice(0, 1000)}`
+    });
+
+  } catch (notifyErr) {
+
+    console.error(
+      "❌ Fehler-Notification fehlgeschlagen:",
+      notifyErr.message
+    );
+  }
+}
 
     const waitTime =
   UPLOAD_QUEUE.length > 5
