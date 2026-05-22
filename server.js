@@ -8098,21 +8098,14 @@ app.listen(PORT, () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
 
-(async () => {
-  try {
-
-    console.log("🎛 Erstelle Command Centers...");
-
-    await ensureCommandCenters();
-
-    console.log("✅ Command Centers bereit");
-
-  } catch (err) {
-
-    console.error(
-      "❌ Command Center Fehler:",
-      err.message
-    );
-
-  }
-})();
+if (process.env.CREATE_COMMAND_CENTERS === "true") {
+  (async () => {
+    try {
+      console.log("🎛 Erstelle Command Centers...");
+      await ensureCommandCenters();
+      console.log("✅ Command Centers bereit");
+    } catch (err) {
+      console.error("❌ Command Center Fehler:", err.message);
+    }
+  })();
+}
