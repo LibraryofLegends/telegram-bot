@@ -30,14 +30,6 @@ let LAST_RESTORE_FILE_ID = "";
 const PENDING_MOVIE_UPLOADS = new Map();
 
 // =============================
-// TMDB CACHE
-// =============================
-const TMDB_CACHE = new Map();
-
-const TMDB_CACHE_TTL =
-  1000 * 60 * 60 * 6;
-
-// =============================
 // DUPLICATE SHIELD
 // =============================
 const ACTIVE_UPLOADS = new Set();
