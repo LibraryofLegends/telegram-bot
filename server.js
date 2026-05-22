@@ -8159,12 +8159,30 @@ return;
 }
 
 // =============================
+// STARTUP NOTIFICATION
+// =============================
+async function notifyStartup() {
+  try {
+    await tg("sendMessage", {
+      chat_id: ADMIN_ID,
+      text:
+        "✅ Bot ist online\n\n" +
+        "⚙️ Render Neustart erkannt\n" +
+        `🕒 ${new Date().toLocaleString("de-DE")}`
+    });
+  } catch (err) {
+    console.error("❌ Startup Notification Fehler:", err.message);
+  }
+}
+
+// =============================
 // SERVER START
 // =============================
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
+  await notifyStartup();
 });
 
 if (process.env.CREATE_COMMAND_CENTERS === "true") {
