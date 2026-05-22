@@ -4840,6 +4840,87 @@ function movieCommandCenterCaption() {
   );
 }
 
+function seriesCommandCenterCaption() {
+  const seriesCount = db.prepare(`
+    SELECT COUNT(DISTINCT series_title) AS count
+    FROM series
+  `).get()?.count || 0;
+
+  const episodeCount = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM series
+  `).get()?.count || 0;
+
+  const universeSeriesCount = db.prepare(`
+    SELECT COUNT(DISTINCT universe) AS count
+    FROM series
+    WHERE universe IS NOT NULL
+  `).get()?.count || 0;
+
+  return (
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎛 SERIES COMMAND CENTER\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "📁 PREMIUM SERIES ARCHIVE\n" +
+    "📺 AUTOMATED EPISODE SYSTEM\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `📺 SERIEN • ${seriesCount}\n` +
+    `🎞 EPISODEN • ${episodeCount}\n` +
+    `🌌 UNIVERSES • ${universeSeriesCount}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "🧭 NAVIGATION\n" +
+    "🌌 Universes\n" +
+    "📺 Series Library\n" +
+    "🔥 Trending\n" +
+    "🧩 Incomplete\n" +
+    "🏆 Mastered\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function createOrUpdateCommandCenter({
+  chatId,
+  topicName,
+  caption
+}) {
+  const uniqueKey = makeKey(`system_hub-${chatId}-${topicName}`);
+
+  const topic = getTopic(uniqueKey);
+
+  if (!topic?.topic_id) {
+    return null;
+  }
+
+  if (topic.hub_message_id) {
+    return await tg("editMessageText", {
+      chat_id: chatId,
+      message_id: topic.hub_message_id,
+      text: caption
+    });
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: chatId,
+    message_thread_id: topic.topic_id,
+    text: caption
+  });
+
+  if (msg?.message_id) {
+    db.prepare(`
+      UPDATE topics
+      SET hub_message_id = ?
+      WHERE unique_key = ?
+    `).run(msg.message_id, uniqueKey);
+  }
+
+  return msg;
+}
+
 // =============================
 // STARTSEITE
 // =============================
