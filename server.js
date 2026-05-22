@@ -1551,6 +1551,20 @@ function normalizeGenreName(genre = "") {
   return map[g] || genre;
 }
 
+function getDecadeLabel(year) {
+
+  const y = Number(year || 0);
+
+  if (!y) {
+    return "Unknown";
+  }
+
+  const decade =
+    Math.floor(y / 10) * 10;
+
+  return `${decade}s`;
+}
+
 function makeKey(value = "") {
   return String(value)
     .toLowerCase()
@@ -5035,6 +5049,22 @@ async function createGenreTopicIfMissing(genreName = "") {
     chatId: MOVIE_GROUP_ID,
     name: topicName,
     type: "movie_genre"
+  });
+}
+
+async function createDecadeTopicIfMissing(year) {
+
+  const decade =
+    getDecadeLabel(year);
+
+  if (!decade || decade === "Unknown") {
+    return null;
+  }
+
+  return await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: `📅 ${decade}`,
+    type: "movie_decade"
   });
 }
 
