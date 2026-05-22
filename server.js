@@ -35,6 +35,22 @@ const PENDING_MOVIE_UPLOADS = new Map();
 const ACTIVE_UPLOADS = new Set();
 
 // =============================
+// ACTIVE UPLOAD CLEANUP
+// =============================
+setInterval(() => {
+
+  if (ACTIVE_UPLOADS.size > 1000) {
+
+    console.log(
+      "⚠️ ACTIVE_UPLOADS Reset Schutz aktiviert"
+    );
+
+    ACTIVE_UPLOADS.clear();
+  }
+
+}, 1000 * 60 * 30);
+
+// =============================
 // CHECK
 // =============================
 if (!TOKEN) console.error("❌ TOKEN fehlt");
