@@ -6331,6 +6331,22 @@ if (text === "/dashboard") {
   return;
 }
 
+if (text === "/cache") {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "⚡ TMDB CACHE\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `📦 Einträge: ${TMDB_CACHE.size}\n` +
+      `⏳ TTL: 6 Stunden\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
   if (text.startsWith("/search")) {
     const query = text.replace("/search", "").trim().toLowerCase();
 
