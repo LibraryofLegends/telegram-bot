@@ -4972,6 +4972,7 @@ const genreLine =
     "🧭 NAVIGATION\n" +
     "🌌 Universes\n" +
     "🎞 Collections\n" +
+    `🏆 ELITE ARCHIVE • ${eliteCount}\n` +
     "🎭 Genres\n" +
     "📅 Decades\n" +
     "🏆 Elite Archive\n\n" +
