@@ -4943,6 +4943,8 @@ const genreLine =
 
     "🎭 TOP GENRES\n" +
     `${genreLine}\n\n` +
+    "📅 DECADES\n" +
+    `${decadeLine}\n\n` +
     "🧭 NAVIGATION\n" +
     "🌌 Universes\n" +
     "🎞 Collections\n" +
