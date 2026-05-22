@@ -6347,6 +6347,26 @@ if (text === "/cache") {
   return;
 }
 
+if (text === "/clearcache") {
+
+  const before = TMDB_CACHE.size;
+
+  TMDB_CACHE.clear();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🧹 CACHE GELEERT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `⚡ Entfernte Einträge: ${before}\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
   if (text.startsWith("/search")) {
     const query = text.replace("/search", "").trim().toLowerCase();
 
