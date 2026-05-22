@@ -5004,6 +5004,22 @@ async function refreshCommandCenters() {
   }
 }
 
+async function createGenreTopicIfMissing(genreName = "") {
+  if (!genreName) return null;
+
+  const cleanGenre =
+    normalizeGenreName(genreName);
+
+  const topicName =
+    `🎭 ${cleanGenre}`;
+
+  return await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: topicName,
+    type: "movie_genre"
+  });
+}
+
 // =============================
 // STARTSEITE
 // =============================
