@@ -35,6 +35,22 @@ const PENDING_MOVIE_UPLOADS = new Map();
 const ACTIVE_UPLOADS = new Set();
 
 // =============================
+// MEMORY CLEANUP
+// =============================
+setInterval(() => {
+
+  if (PENDING_MOVIE_UPLOADS.size > 50) {
+
+    console.log(
+      "🧹 PENDING_MOVIE_UPLOADS Reset"
+    );
+
+    PENDING_MOVIE_UPLOADS.clear();
+  }
+
+}, 1000 * 60 * 30);
+
+// =============================
 // ACTIVE UPLOAD CLEANUP
 // =============================
 setInterval(() => {
