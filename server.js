@@ -4973,29 +4973,63 @@ async function sendLocalPhoto({
 async function createOrGetTopic({ chatId, name, type }) {
   const uniqueKey = makeKey(`${type}-${chatId}-${name}`);
 
-  const existing = getTopic(uniqueKey);
-  if (existing) {
-    return existing.topic_id;
+  if (pgPool) {
+    const existing = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [uniqueKey]
+    );
+
+    if (existing.rows.length) {
+      return existing.rows[0].topic_id;
+    }
+  } else {
+    const existing = getTopic(uniqueKey);
+    if (existing) {
+      return existing.topic_id;
+    }
   }
 
   const topic = await tg("createForumTopic", {
     chat_id: chatId,
-    name: name
+    name
   });
 
   if (!topic?.message_thread_id) {
-  console.error("❌ Thema konnte nicht erstellt werden:", name);
-  console.error("Telegram Antwort:", JSON.stringify(topic, null, 2));
-  return null;
-}
+    console.error("❌ Thema konnte nicht erstellt werden:", name);
+    console.error("Telegram Antwort:", JSON.stringify(topic, null, 2));
+    return null;
+  }
 
-  saveTopic({
-    name,
-    type,
-    chatId,
-    topicId: topic.message_thread_id,
-    uniqueKey
-  });
+  if (pgPool) {
+    await pgPool.query(
+      `
+      INSERT INTO topics
+      (name, type, chat_id, topic_id, unique_key)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (unique_key) DO NOTHING
+      `,
+      [
+        name,
+        type,
+        String(chatId),
+        topic.message_thread_id,
+        uniqueKey
+      ]
+    );
+  } else {
+    saveTopic({
+      name,
+      type,
+      chatId,
+      topicId: topic.message_thread_id,
+      uniqueKey
+    });
+  }
 
   console.log("✅ Thema erstellt:", name, topic.message_thread_id);
 
