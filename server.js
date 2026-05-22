@@ -4900,6 +4900,10 @@ async function sendLocalPhoto({
       form.append("caption", caption);
     }
 
+    for (let attempt = 1; attempt <= 3; attempt++) {
+
+  try {
+
     const res = await axios.post(
       `${BASE_URL}/sendPhoto`,
       form,
@@ -4909,6 +4913,21 @@ async function sendLocalPhoto({
     );
 
     return res.data.result;
+
+  } catch (err) {
+
+    console.error(
+      `❌ Local Banner Upload Fehler Versuch ${attempt}:`,
+      err.response?.data || err.message
+    );
+
+    if (attempt >= 3) {
+      return null;
+    }
+
+    await sleep(2000 * attempt);
+  }
+}
   } catch (err) {
     console.error(
       "❌ Local Banner Upload Fehler:",
