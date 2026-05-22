@@ -4772,28 +4772,16 @@ async function ensureCommandCenters() {
     "🏆 MASTERED"
   ];
 
-  for (const name of seriesCenters) {
+  for (const name of movieCenters) {
 
-  await createOrGetTopic({
-    chatId: SERIES_GROUP_ID,
-    name,
-    type: "system_hub"
-  });
+    await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name,
+      type: "system_hub"
+    });
 
-  await sleep(1500);
-}
-
-await createOrUpdateCommandCenter({
-  chatId: MOVIE_GROUP_ID,
-  topicName: "🎛 MOVIE COMMAND CENTER",
-  caption: movieCommandCenterCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🎛 SERIES COMMAND CENTER",
-  caption: seriesCommandCenterCaption()
-});
+    await sleep(1500);
+  }
 
   for (const name of seriesCenters) {
 
@@ -4805,6 +4793,18 @@ await createOrUpdateCommandCenter({
 
     await sleep(1500);
   }
+
+  await createOrUpdateCommandCenter({
+    chatId: MOVIE_GROUP_ID,
+    topicName: "🎛 MOVIE COMMAND CENTER",
+    caption: movieCommandCenterCaption()
+  });
+
+  await createOrUpdateCommandCenter({
+    chatId: SERIES_GROUP_ID,
+    topicName: "🎛 SERIES COMMAND CENTER",
+    caption: seriesCommandCenterCaption()
+  });
 }
 
 function movieCommandCenterCaption() {
@@ -7575,6 +7575,15 @@ await tg("sendMessage", {
       (tmdb.collection ? `🎞 Filmreihe: ${tmdb.collection}\n` : "") +
       `🏷 ${extras.libraryId}`
   });
+  
+  try {
+  await refreshCommandCenters();
+} catch (err) {
+  console.error(
+    "⚠️ Command Center Refresh Fehler:",
+    err.message
+  );
+}
 
   logToDb("movie_saved", `${tmdb.title} ${tmdb.year || ""}`);
 }
@@ -7788,6 +7797,15 @@ await tg("sendMessage", {
         `📺 ${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}\n` +
         `🧵 Thema: ${tmdb.seriesTitle}`
     });
+    
+    try {
+  await refreshCommandCenters();
+} catch (err) {
+  console.error(
+    "⚠️ Command Center Refresh Fehler:",
+    err.message
+  );
+}
 
     logToDb("series_saved", `${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}`);
     return;
