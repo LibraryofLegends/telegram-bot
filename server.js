@@ -6244,6 +6244,23 @@ if (text === "/dashboard") {
     });
     return;
   }
+  
+  if (text === "/queue") {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📥 UPLOAD QUEUE\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `⏳ Wartend: ${UPLOAD_QUEUE.length}\n` +
+      `⚙️ Aktiv: ${UPLOAD_QUEUE_RUNNING ? "Ja" : "Nein"}\n` +
+      `🧩 Aktive Uploads: ${ACTIVE_UPLOADS.size}\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
 
   if (text.startsWith("/search")) {
     const query = text.replace("/search", "").trim().toLowerCase();
