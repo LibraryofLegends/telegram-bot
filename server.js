@@ -186,10 +186,14 @@ function logToDb(type, message) {
 }
 
 function getTopic(uniqueKey) {
+
   return db.prepare(`
-    SELECT * FROM topics
+    SELECT *
+    FROM topics
     WHERE unique_key = ?
+    LIMIT 1
   `).get(uniqueKey);
+
 }
 
 function saveTopic({ name, type, chatId, topicId, uniqueKey }) {
