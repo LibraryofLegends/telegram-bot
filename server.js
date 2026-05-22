@@ -5092,10 +5092,9 @@ async function handleUpdate(update) {
   console.log("USER ID:", userId);
   console.log("CHAT ID:", msg.chat?.id, "CHAT TITLE:", msg.chat?.title);
 
-  if (userId !== ADMIN_ID) {
-    console.log("⛔ Ignored - nicht Admin");
-    return;
-  }
+  if (process.env.DEBUG === "true") {
+  console.log("⛔ Ignored - nicht Admin");
+}
 
   if (msg.text) {
     await handleCommand(msg);
