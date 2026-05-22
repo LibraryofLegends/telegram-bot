@@ -30,6 +30,11 @@ let LAST_RESTORE_FILE_ID = "";
 const PENDING_MOVIE_UPLOADS = new Map();
 
 // =============================
+// DUPLICATE SHIELD
+// =============================
+const ACTIVE_UPLOADS = new Set();
+
+// =============================
 // CHECK
 // =============================
 if (!TOKEN) console.error("❌ TOKEN fehlt");
@@ -7793,6 +7798,7 @@ async function processMovieUpload({ msg, media, tmdb }) {
 // UPLOAD HANDLER
 // =============================
 async function handleUpload(msg) {
+
   const fileName =
     msg.document?.file_name ||
     msg.video?.file_name ||
@@ -7806,6 +7812,26 @@ async function handleUpload(msg) {
 
   console.log("🚀 HANDLE UPLOAD TRIGGERED");
   console.log("📁 Datei:", fileName);
+
+  // =============================
+  // DUPLICATE SHIELD
+  // =============================
+  const uploadKey =
+    `${fileName}-${fileId}`;
+
+  if (ACTIVE_UPLOADS.has(uploadKey)) {
+
+    console.log(
+      "⚠️ Doppelter Upload blockiert:",
+      fileName
+    );
+
+    return;
+  }
+
+  ACTIVE_UPLOADS.add(uploadKey);
+
+  try {
 
   const manualMovie =
   parseManualMovieCaption(
@@ -8013,51 +8039,60 @@ logToDb(
 return;
 }
 
-if (media.type === "movie") {
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "🔎 Film erkannt — suche TMDB-Daten...\n\n" +
-      `🎬 ${media.title} ${media.year || ""}`
-  });
-
-  const tmdb = await searchMovieTMDB(media.title, media.year);
-
-  if (!tmdb) {
-    const choices = await searchMovieTMDBChoices(media.title, media.year);
-
-    if (!choices.length) {
-      await tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text:
-          "❌ Keine TMDB-Daten gefunden:\n\n" +
-          `🎬 ${media.title}\n\n` +
-          "💡 Tipp:\n/movie Exakter Filmtitel | Jahr"
-      });
-      return;
-    }
-
-    PENDING_MOVIE_UPLOADS.set(String(msg.from.id), { msg, media });
-
+  if (media.type === "movie") {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "🎬 Mehrere mögliche TMDB-Treffer gefunden.\n\n" +
-        "Bitte wähle den richtigen Film:",
-      reply_markup: {
-        inline_keyboard: choices.map((m) => [
-          {
-            text: `🎬 ${m.title} (${m.year})`,
-            callback_data: `moviepick:${m.id}`
-          }
-        ])
-      }
+        "🔎 Film erkannt — suche TMDB-Daten...\n\n" +
+        `🎬 ${media.title} ${media.year || ""}`
     });
 
-    return;
+    const tmdb = await searchMovieTMDB(media.title, media.year);
+
+    if (!tmdb) {
+      const choices = await searchMovieTMDBChoices(media.title, media.year);
+
+      if (!choices.length) {
+        await tg("sendMessage", {
+          chat_id: msg.chat.id,
+          text:
+            "❌ Keine TMDB-Daten gefunden:\n\n" +
+            `🎬 ${media.title}\n\n` +
+            "💡 Tipp:\n/movie Exakter Filmtitel | Jahr"
+        });
+        return;
+      }
+
+      PENDING_MOVIE_UPLOADS.set(String(msg.from.id), { msg, media });
+
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "🎬 Mehrere mögliche TMDB-Treffer gefunden.\n\n" +
+          "Bitte wähle den richtigen Film:",
+        reply_markup: {
+          inline_keyboard: choices.map((m) => [
+            {
+              text: `🎬 ${m.title} (${m.year})`,
+              callback_data: `moviepick:${m.id}`
+            }
+          ])
+        }
+      });
+
+      return;
+    }
+
+    return await processMovieUpload({ msg, media, tmdb });
   }
 
-  return await processMovieUpload({ msg, media, tmdb });
+} finally {
+  ACTIVE_UPLOADS.delete(uploadKey);
+
+  console.log(
+    "🧹 Upload freigegeben:",
+    fileName
+  );
 }
 }
 
