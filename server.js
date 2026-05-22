@@ -7533,6 +7533,15 @@ try {
 }
 
 try {
+  await createOrUpdateEpisodeList({
+    topicId,
+    seriesTitle: tmdb.seriesTitle
+  });
+} catch (err) {
+  console.error("⚠️ Episodenliste Update Fehler:", err.message);
+}
+
+try {
 
   if (seriesUniverseData?.universeName) {
 
