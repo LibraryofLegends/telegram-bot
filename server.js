@@ -4747,6 +4747,49 @@ async function createOrGetTopic({ chatId, name, type }) {
   return topic.message_thread_id;
 }
 
+async function ensureCommandCenters() {
+
+  const movieCenters = [
+    "🎛 MOVIE COMMAND CENTER",
+    "🌌 UNIVERSES",
+    "🎞 COLLECTIONS",
+    "🎭 GENRES",
+    "📅 DECADES",
+    "🏆 ELITE ARCHIVE"
+  ];
+
+  const seriesCenters = [
+    "🎛 SERIES COMMAND CENTER",
+    "🌌 UNIVERSES",
+    "📺 SERIES LIBRARY",
+    "🔥 TRENDING",
+    "🧩 INCOMPLETE",
+    "🏆 MASTERED"
+  ];
+
+  for (const name of movieCenters) {
+
+    await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name,
+      type: "system_hub"
+    });
+
+    await sleep(1500);
+  }
+
+  for (const name of seriesCenters) {
+
+    await createOrGetTopic({
+      chatId: SERIES_GROUP_ID,
+      name,
+      type: "system_hub"
+    });
+
+    await sleep(1500);
+  }
+}
+
 // =============================
 // STARTSEITE
 // =============================
