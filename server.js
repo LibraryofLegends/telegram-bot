@@ -7550,9 +7550,6 @@ if (universeData?.universeName) {
     name: finalTopicName,
     type: finalTopicType
   });
-  
-  await createDecadeTopicIfMissing(tmdb.year);
-  await createFskTopicIfMissing(tmdb.fsk);
 
   if (!topicId) {
     await tg("sendMessage", {
