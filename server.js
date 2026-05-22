@@ -4898,6 +4898,28 @@ function movieCommandCenterCaption() {
   LIMIT 8
 `).all();
 
+const decadeRows = db.prepare(`
+  SELECT year, COUNT(*) AS count
+  FROM movies
+  WHERE year IS NOT NULL
+  GROUP BY year
+  ORDER BY year ASC
+`).all();
+
+const decadeStats = {};
+
+for (const row of decadeRows) {
+  const decade = getDecadeLabel(row.year);
+  decadeStats[decade] =
+    (decadeStats[decade] || 0) + row.count;
+}
+
+const decadeLine =
+  Object.entries(decadeStats)
+    .map(([decade, count]) => `• ${decade} (${count})`)
+    .join("\n") ||
+  "Noch keine Jahrzehnte";
+
 const genreLine =
   genreRows.length
     ? genreRows
@@ -7469,6 +7491,8 @@ if (universeData?.universeName) {
     name: finalTopicName,
     type: finalTopicType
   });
+  
+  await createDecadeTopicIfMissing(tmdb.year);
 
   if (!topicId) {
     await tg("sendMessage", {
