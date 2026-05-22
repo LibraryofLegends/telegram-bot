@@ -5134,6 +5134,16 @@ async function createDecadeTopicIfMissing(year) {
   });
 }
 
+async function createFskTopicIfMissing(fsk = "") {
+  if (!fsk) return null;
+
+  return await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: `🔞 FSK ${fsk}`,
+    type: "movie_fsk"
+  });
+}
+
 // =============================
 // STARTSEITE
 // =============================
@@ -7537,6 +7547,7 @@ if (universeData?.universeName) {
   });
   
   await createDecadeTopicIfMissing(tmdb.year);
+  await createFskTopicIfMissing(tmdb.fsk);
 
   if (!topicId) {
     await tg("sendMessage", {
