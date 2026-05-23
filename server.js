@@ -1760,17 +1760,35 @@ async function createOrUpdateUniverseHub(universeName = "") {
 
   let universe = await getUniverseByName(universeName);
 
-  if (!universe) {
+if (!universe) {
+
+  if (pgPool) {
+
+    await pgPool.query(
+      `
+      INSERT INTO universes
+      (universe_name)
+      VALUES ($1)
+      ON CONFLICT (universe_name)
+      DO NOTHING
+      `,
+      [universeName]
+    );
+
+  } else {
+
     db.prepare(`
       INSERT OR IGNORE INTO universes
       (universe_name)
       VALUES (?)
     `).run(universeName);
 
-    universe = await getUniverseByName(universeName);
   }
 
-  let topicId = universe?.topic_id;
+  universe = await getUniverseByName(universeName);
+}
+
+let topicId = universe?.topic_id;
 
   if (!topicId) {
     topicId = await createOrGetTopic({
