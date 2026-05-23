@@ -3507,19 +3507,24 @@ FROM movies
   } else {
 
     movies = db.prepare(`
-      SELECT
-        title,
-        year,
-        rating,
-        runtime,
-        quality,
-        file_size,
-        collection,
-        library_id
-      FROM movies
-      WHERE LOWER(collection) LIKE LOWER(?)
-      ORDER BY year ASC, title ASC
-    `).all(`%${shortName}%`);
+  SELECT
+    title,
+    year,
+    rating,
+    runtime,
+    quality,
+    file_size,
+    collection,
+    library_id,
+    genre
+  FROM movies
+  WHERE LOWER(collection) LIKE LOWER(?)
+     OR LOWER(genre) LIKE LOWER(?)
+  ORDER BY year ASC, title ASC
+`).all(
+  `%${shortName}%`,
+  `%${shortName}%`
+);
 
   }
 
