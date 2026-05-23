@@ -3781,11 +3781,13 @@ async function createMovieHubIfMissing({
 // AUTO LOAD BANNER
 // =============================
 if (!banner) {
-
-  banner =
-    getCollectionBanner(topicName);
-
+  banner = getCollectionBanner(topicName);
 }
+
+console.log("🖼 MOVIE HUB BANNER CHECK:", {
+  topicName,
+  banner
+});
 
   // =============================
   // CREATE BANNER
