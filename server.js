@@ -6605,6 +6605,39 @@ if (text === "/clearseries") {
 }
 
 // =============================
+// PG STATS DEBUG
+// =============================
+if (text === "/pgstats") {
+  if (!pgPool) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Supabase/pgPool ist nicht aktiv."
+    });
+    return;
+  }
+
+  const movies = await pgPool.query(`SELECT COUNT(*) AS count FROM movies`);
+  const collections = await pgPool.query(`
+    SELECT COUNT(DISTINCT collection) AS count
+    FROM movies
+    WHERE collection IS NOT NULL
+  `);
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🧪 SUPABASE DEBUG\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `🎬 Filme: ${movies.rows[0].count}\n` +
+      `🎞 Collections: ${collections.rows[0].count}\n\n` +
+      "━━━━━━━━━━━━━━━━━━"
+  });
+
+  return;
+}
+
+// =============================
 // FIND MOVIE / FILM SUCHEN
 // =============================
 if (text.startsWith("/findmovie")) {
