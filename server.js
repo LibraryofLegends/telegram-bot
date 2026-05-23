@@ -6755,22 +6755,110 @@ if (text.startsWith("/deletemovie")) {
     text.replace("/deletemovie", "").trim();
 
   if (!query) {
-
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
         "⚠️ Nutzung:\n\n" +
-        "/deletemovie Filmname\n\n" +
-        "Beispiel:\n" +
-        "/deletemovie Fight Club"
+        "/deletemovie Filmname\n" +
+        "/deletemovie hangover-2009"
     });
-
     return;
   }
 
+  const search =
+    query.toLowerCase();
+
   let movie = null;
 
-    // =============================
+  // =============================
+  // SUPABASE SEARCH
+  // =============================
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM movies
+      WHERE LOWER(title) LIKE $1
+         OR LOWER(unique_key) LIKE $1
+         OR LOWER(file_name) LIKE $1
+      ORDER BY created_at DESC
+      LIMIT 1
+      `,
+      [`%${search}%`]
+    );
+
+    movie = result.rows[0] || null;
+  }
+
+  // =============================
+  // SQLITE FALLBACK
+  // =============================
+  if (!movie) {
+    movie = db.prepare(`
+      SELECT *
+      FROM movies
+      WHERE LOWER(title) LIKE ?
+         OR LOWER(unique_key) LIKE ?
+         OR LOWER(file_name) LIKE ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).get(
+      `%${search}%`,
+      `%${search}%`,
+      `%${search}%`
+    );
+  }
+
+  if (!movie) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Film nicht gefunden:\n\n" +
+        query
+    });
+    return;
+  }
+
+  // =============================
+  // DELETE FROM SUPABASE
+  // =============================
+  if (pgPool) {
+    await pgPool.query(
+      `
+      DELETE FROM movies
+      WHERE unique_key = $1
+      `,
+      [movie.unique_key]
+    );
+  }
+
+  // =============================
+  // DELETE FROM SQLITE FALLBACK
+  // =============================
+  db.prepare(`
+    DELETE FROM movies
+    WHERE unique_key = ?
+  `).run(movie.unique_key);
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🗑 FILM GELÖSCHT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `🎬 ${movie.title} ${movie.year || ""}\n` +
+      `🔑 ${movie.unique_key}\n\n` +
+      "✅ Film aus Supabase entfernt\n" +
+      "✅ Film aus SQLite entfernt\n\n" +
+      "Du kannst ihn jetzt erneut hochladen.\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
+// =============================
 // DELETE TOPIC / THEMA LÖSCHEN
 // =============================
 if (text.startsWith("/deletetopic")) {
