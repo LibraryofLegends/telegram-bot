@@ -847,144 +847,10 @@ async function saveCollectionHubMessageId(
   `).run(messageId, tmdbCollectionId);
 }
 
-function bourneHubCaption() {
-  const rows = db.prepare(`
-    SELECT title, year, library_id
-    FROM movies
-    WHERE LOWER(title) LIKE '%bourne%'
-       OR LOWER(collection) LIKE '%bourne%'
-    ORDER BY year ASC, title ASC
-  `).all();
-
-  let text =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🕶️ JASON BOURNE UNIVERSE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-    "📁 CIA ARCHIVE\n" +
-    "🧠 TREADSTONE • BLACKBRIAR • OUTCOME\n" +
-    "⚠️ STATUS: CLASSIFIED\n\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📀 FILMREIHENFOLGE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
-
-  if (!rows.length) {
-    text += "Noch keine Bourne-Filme gespeichert.\n";
-  } else {
-    rows.forEach((m, index) => {
-      text += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
-      if (m.library_id) text += `     🏷 ${m.library_id}\n`;
-    });
-  }
-
-  const timeline = rows.length
-  ? rows
-      .map((m, index) => {
-        const nr = String(index + 1).padStart(2, "0");
-        return nr;
-      })
-      .join(" → ")
-  : "Noch keine Timeline verfügbar";
-
-const totalBourneMovies = 5;
-const savedBourneMovies = Math.min(rows.length, totalBourneMovies);
-const missingBourneSlots = Math.max(totalBourneMovies - savedBourneMovies, 0);
-
-const progressBlocks =
-  "█".repeat(savedBourneMovies) +
-  "░".repeat(missingBourneSlots);
-
-const requiredBourneMovies = [
-  { title: "Die Bourne Identität", year: "2002" },
-  { title: "Die Bourne Verschwörung", year: "2004" },
-  { title: "Das Bourne Ultimatum", year: "2007" },
-  { title: "Das Bourne Vermächtnis", year: "2012" },
-  { title: "Jason Bourne", year: "2016" }
-];
-
-const storedYears = rows.map((m) => String(m.year || ""));
-
-const missingMovies = requiredBourneMovies.filter((m) => {
-  return !storedYears.includes(m.year);
-});
-
-let missingText = "";
-
-if (missingMovies.length) {
-  missingText =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🧩 FEHLENDE MISSIONEN\n" +
-    missingMovies
-      .map((m) => `• ${m.title} (${m.year})`)
-      .join("\n") +
-    "\n";
-}
-
-const collectionStatus =
-  missingMovies.length === 0
-    ? "🏆 STATUS: KOMPLETT"
-    : "⚠️ STATUS: UNVOLLSTÄNDIG";
-
-text +=
-  "\n━━━━━━━━━━━━━━━━━━\n" +
-  "🛰️ TIMELINE\n" +
-  `${timeline}\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `🧩 Sammlung: ${progressBlocks} ${savedBourneMovies}/${totalBourneMovies}\n` +
-  `🎬 Filme im Archiv: ${rows.length}\n` +
-  missingText +
-  `${collectionStatus}\n` +
-  `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "@LibraryOfLegends";
-
-  return text.slice(0, 4000);
-}
-
-async function createOrUpdateBourneHub(topicId) {
-  const topic = db.prepare(`
-    SELECT *
-    FROM topics
-    WHERE topic_id = ?
-    AND chat_id = ?
-    LIMIT 1
-  `).get(topicId, String(MOVIE_GROUP_ID));
-
-  const text = bourneHubCaption();
-
-  if (topic?.hub_message_id) {
-    return await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-  }
-
-  const hub = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: topicId,
-    text
-  });
-
-  if (hub?.message_id) {
-    db.prepare(`
-      UPDATE topics
-      SET hub_message_id = ?
-      WHERE topic_id = ?
-      AND chat_id = ?
-    `).run(hub.message_id, topicId, String(MOVIE_GROUP_ID));
-
-    await tg("pinChatMessage", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: hub.message_id,
-      disable_notification: true
-    });
-  }
-
-  return hub;
-}
-
+// =============================
+// COLLECTION REGISTRY
+// =============================
 const chronologyRegistry = {
-
   "Terminator Filmreihe": [
     "1984",
     "1991",
@@ -994,14 +860,11 @@ const chronologyRegistry = {
     "2019"
   ],
 
-  "Bourne Filmreihe": [
-    "2002",
-    "2004",
-    "2007",
-    "2012",
-    "2016"
+  "Matrix Filmreihe": [
+    "1999",
+    "2003",
+    "2021"
   ]
-
 };
 
 const collectionRegistry = {
@@ -1012,88 +875,54 @@ const collectionRegistry = {
     { title: "Terminator: Die Erlösung", year: "2009" },
     { title: "Terminator: Genisys", year: "2015" },
     { title: "Terminator: Dark Fate", year: "2019" }
+  ],
+
+  "Matrix Filmreihe": [
+    { title: "Matrix", year: "1999" },
+    { title: "Matrix Reloaded", year: "2003" },
+    { title: "Matrix Revolutions", year: "2003" },
+    { title: "Matrix Resurrections", year: "2021" }
   ]
 };
 
-const universeRegistry = {
-  "Terminator Universe": [
-    "Terminator Filmreihe"
-  ],
-
-  "Bourne Universe": [
-    "Bourne Filmreihe"
-  ],
-
-  "Matrix Universe": [
-    "Matrix Filmreihe"
-  ]
-};
-
-const universeThemes = {
-  "Terminator Universe": {
-    icon: "🌍",
-    archive: "MULTIVERSE DATABASE",
-    status: "🔴 SKYNET GLOBAL NETWORK"
-  },
-
-  "Matrix Universe": {
-    icon: "🧬",
-    archive: "MACHINE MAINFRAME",
-    status: "🟢 MATRIX SYSTEM ACTIVE"
-  }
-};
-
-const spinOffRegistry = {
-  "Breaking Bad Universe": [
-    "Breaking Bad",
-    "Better Call Saul",
-    "El Camino"
-  ],
-
-  "Conjuring Universe": [
-    "Conjuring Filmreihe",
-    "Annabelle Filmreihe",
-    "The Nun Filmreihe"
-  ]
-};
-
+// =============================
+// COLLECTION THEMES
+// =============================
 const collectionThemes = {
-  "Terminator Filmreihe": {
-    icon: "🤖",
-    archive: "SKYNET ARCHIVE",
-    subline: "JUDGMENT DAY PROTOCOL",
-    status: "SKYNET ACTIVE"
+  "Hangover Filmreihe": {
+    emoji: "🍻",
+    subline: "VEGAS • CHAOS • BLACKOUT"
   },
 
-  "Bourne Filmreihe": {
-    icon: "🕶️",
-    archive: "CIA ARCHIVE",
-    subline: "TREADSTONE • BLACKBRIAR • OUTCOME",
-    status: "⚫ CLASSIFIED DOSSIER"
+  "Terminator Filmreihe": {
+    emoji: "🤖",
+    subline: "SKYNET • JUDGMENT DAY • RESISTANCE"
   },
 
   "Matrix Filmreihe": {
-    icon: "💊",
-    archive: "ZION ARCHIVE",
-    subline: "THE ONE • MACHINE WAR",
-    status: "🟢 MATRIX DETECTED"
+    emoji: "💊",
+    subline: "ZION • THE ONE • MACHINE WAR"
   },
 
   "John Wick Filmreihe": {
-    icon: "🩸",
-    archive: "HIGH TABLE ARCHIVE",
-    subline: "EXCOMMUNICADO DOSSIER",
-    status: "🟡 HIGH TABLE ALERT"
+    emoji: "🩸",
+    subline: "HIGH TABLE • EXCOMMUNICADO • REVENGE"
   },
 
   "Mission: Impossible Filmreihe": {
-    icon: "🎯",
-    archive: "IMF ARCHIVE",
-    subline: "CLASSIFIED FIELD OPERATIONS",
-    status: "🔵 IMF SECURE CHANNEL"
+    emoji: "🎯",
+    subline: "IMF • CLASSIFIED OPS • FIELD MISSION"
+  },
+
+  "Fast & Furious Filmreihe": {
+    emoji: "🏎",
+    subline: "SPEED • FAMILY • HEISTS"
   }
 };
 
+// =============================
+// UNIVERSE CONFIGS
+// =============================
 const universeConfigs = {
   Marvel: {
     topicName: "🧬 Marvel Cinematic Universe",
@@ -1186,7 +1015,10 @@ const universeConfigs = {
       "justice league",
       "joker",
       "harley quinn",
-      "the flash"
+      "the flash",
+      "shazam",
+      "black adam",
+      "suicide squad"
     ],
 
     phases: {},
@@ -1213,57 +1045,123 @@ const universeConfigs = {
       "sith",
       "mandalorian",
       "obi wan",
+      "obi-wan",
       "andor",
-      "ahsoka"
+      "ahsoka",
+      "boba fett",
+      "clone wars",
+      "bad batch"
     ],
 
     phases: {
-  "SKYWALKER SAGA": [
-    "Star Wars: Episode I",
-    "Star Wars: Episode II",
-    "Star Wars: Episode III",
-    "Krieg der Sterne",
-    "Das Imperium schlägt zurück",
-    "Die Rückkehr der Jedi-Ritter",
-    "Das Erwachen der Macht",
-    "Die letzten Jedi",
-    "Der Aufstieg Skywalkers"
-  ],
+      "SKYWALKER SAGA": [
+        "Star Wars: Episode I",
+        "Star Wars: Episode II",
+        "Star Wars: Episode III",
+        "Krieg der Sterne",
+        "Das Imperium schlägt zurück",
+        "Die Rückkehr der Jedi-Ritter",
+        "Das Erwachen der Macht",
+        "Die letzten Jedi",
+        "Der Aufstieg Skywalkers"
+      ],
 
-  "STANDALONE": [
-    "Rogue One",
-    "Solo"
-  ],
+      "STANDALONE": [
+        "Rogue One",
+        "Solo"
+      ],
 
-  "EWOK ADVENTURES": [
-    "Die Ewoks - Karawane der Tapferen",
-    "Kampf um Endor"
-  ],
-
-  "ANIMATED MOVIES": [
-    "Star Wars: The Clone Wars"
-  ]
-},
+      "ANIMATED MOVIES": [
+        "Star Wars: The Clone Wars"
+      ]
+    },
 
     series: [
-  "Star Wars: The Clone Wars",
-  "Star Wars Rebels",
-  "Star Wars Resistance",
-  "Star Wars: The Bad Batch",
-  "The Mandalorian",
-  "Andor",
-  "Ahsoka",
-  "Obi-Wan Kenobi",
-  "The Book of Boba Fett",
-  "Die Ewoks"
-]
+      "Star Wars: The Clone Wars",
+      "Star Wars Rebels",
+      "Star Wars Resistance",
+      "Star Wars: The Bad Batch",
+      "The Mandalorian",
+      "Andor",
+      "Ahsoka",
+      "Obi-Wan Kenobi",
+      "The Book of Boba Fett",
+      "Die Ewoks"
+    ]
+  },
+
+  Disney: {
+    topicName: "🏰 Disney Universe",
+    icon: "🏰",
+    archive: "DISNEY MAGIC ARCHIVE",
+    subline: "CLASSICS • PIXAR • FAIRYTALES",
+    status: "✨ MAGIC KINGDOM ACTIVE",
+
+    aliases: [
+      "disney",
+      "pixar",
+      "toy story",
+      "cars",
+      "findet nemo",
+      "finding nemo",
+      "die eiskönigin",
+      "frozen",
+      "könig der löwen",
+      "lion king",
+      "aladdin",
+      "mulan",
+      "moana",
+      "vaiana",
+      "encanto",
+      "coco",
+      "zootopia",
+      "zoomania",
+      "rapunzel",
+      "tangled",
+      "monster ag",
+      "monsters inc",
+      "inside out",
+      "alles steht kopf"
+    ],
+
+    phases: {
+      "DISNEY CLASSICS": [
+        "Schneewittchen",
+        "Cinderella",
+        "Dornröschen",
+        "Arielle",
+        "Die Schöne und das Biest",
+        "Aladdin",
+        "Der König der Löwen",
+        "Mulan",
+        "Vaiana",
+        "Encanto"
+      ],
+
+      "PIXAR": [
+        "Toy Story",
+        "Das große Krabbeln",
+        "Monster AG",
+        "Findet Nemo",
+        "Cars",
+        "Ratatouille",
+        "WALL·E",
+        "Oben",
+        "Alles steht Kopf",
+        "Coco"
+      ]
+    },
+
+    series: []
   }
 };
 
+// =============================
+// UNIVERSE DETECTION
+// =============================
 function detectUniverse(title = "", collection = "") {
   const search =
-    `${title} ${collection}`
-      .toLowerCase();
+    `${title} ${collection}`.toLowerCase();
 
   for (const [key, config] of Object.entries(universeConfigs)) {
     const aliasMatch =
@@ -1327,35 +1225,21 @@ function detectUniverse(title = "", collection = "") {
   return null;
 }
 
-const collectionCinemaCards = {
-  "Terminator Filmreihe": [
-    "🤖 SKYNET CORE",
-    "Threat Level: RED",
-    "Temporal Breaches: DETECTED",
-    "Resistance Activity: ACTIVE"
-  ],
-
-  "Bourne Filmreihe": [
-    "🕶️ CIA DOSSIER",
-    "Operation: TREADSTONE",
-    "Asset Status: ROGUE",
-    "Clearance: BLACK"
-  ]
-};
-
+// =============================
+// COLLECTION BANNERS
+// =============================
 const collectionBanners = {
   "Terminator Filmreihe":
     "https://image.tmdb.org/t/p/original/9pkZesKMnblFfKxEhQx45YQ2kIe.jpg",
-
-  "Bourne Filmreihe":
-    "https://image.tmdb.org/t/p/original/lWslWelH3j6Ow23k25o66as8PGs.jpg",
 
   "Matrix Filmreihe":
     "https://image.tmdb.org/t/p/original/7u3pxc0K1wx32IleAkLv78MKgrw.jpg"
 };
 
+// =============================
+// UNIVERSE BANNERS
+// =============================
 const universeBanners = {
-
   "🧬 Marvel Cinematic Universe":
     "https://image.tmdb.org/t/p/original/yFuKvT4Vm3sKHdFY4eG6I4ldAnn.jpg",
 
@@ -1363,8 +1247,10 @@ const universeBanners = {
     "https://image.tmdb.org/t/p/original/nMKdUUepR0i5zn0y1T4CsSB5chy.jpg",
 
   "🌌 Star Wars Universe":
-    "https://image.tmdb.org/t/p/original/4iJfYYoQzZcONB9hNzg0J0wWyPH.jpg"
+    "https://image.tmdb.org/t/p/original/4iJfYYoQzZcONB9hNzg0J0wWyPH.jpg",
 
+  "🏰 Disney Universe":
+    "https://image.tmdb.org/t/p/original/6ELJEzQJ3Y45HczvreC3dg0GV5R.jpg"
 };
 
 // =============================
