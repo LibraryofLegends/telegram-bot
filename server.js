@@ -6586,13 +6586,13 @@ if (text.startsWith("/findmovie")) {
 
   for (const m of rows) {
     resultText +=
-      `🆔 ID: ${m.id}\n` +
-      `🎬 Titel: ${m.title}\n` +
-      `📅 Jahr: ${m.year || "?"}\n` +
-      `🔑 Key: ${m.unique_key}\n` +
-      `📁 Datei: ${m.file_name || "?"}\n\n`;
-      `🎞 Collection: ${m.collection || "leer"}\n` +
-      `🧵 Topic ID: ${m.topic_id || "leer"}\n\n`;
+  `🆔 ID: ${m.id}\n` +
+  `🎬 Titel: ${m.title}\n` +
+  `📅 Jahr: ${m.year || "?"}\n` +
+  `🔑 Key: ${m.unique_key}\n` +
+  `📁 Datei: ${m.file_name || "?"}\n` +
+  `🎞 Collection: ${m.collection || "leer"}\n` +
+  `🧵 Topic ID: ${m.topic_id || "leer"}\n\n`;
   }
 
   await tg("sendMessage", {
