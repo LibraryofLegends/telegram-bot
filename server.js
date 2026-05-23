@@ -2156,38 +2156,6 @@ function normalizeSeriesTitle(title = "") {
   return fixes[key] || title;
 }
 
-function isBourneMovie(tmdb = {}, fileName = "") {
-  const text = `${tmdb.title || ""} ${tmdb.collection || ""} ${fileName || ""}`.toLowerCase();
-
-  return (
-    text.includes("bourne") ||
-    text.includes("treadstone") ||
-    text.includes("blackbriar")
-  );
-}
-
-function getBourneProgram(title = "") {
-  const t = String(title || "").toLowerCase();
-
-  if (t.includes("legacy") || t.includes("vermächtnis")) return "OUTCOME";
-  if (t.includes("ultimatum")) return "BLACKBRIAR";
-  return "TREADSTONE";
-}
-
-function bourneButtons() {
-  return {
-    inline_keyboard: [
-      [
-        { text: "📁 CIA DOSSIER", callback_data: "bourne_dossier" },
-        { text: "🧠 PROGRAMME", callback_data: "bourne_programs" }
-      ],
-      [
-        { text: "🛰️ BOURNE ARCHIVE", callback_data: "bourne_archive" }
-      ]
-    ]
-  };
-}
-
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -2699,44 +2667,6 @@ function getMediaExtras(fileName, msg) {
   };
 }
 
-function getBourneAgentCode(title = "") {
-  const t = String(title).toLowerCase();
-
-  if (t.includes("ident")) {
-    return "TREADSTONE-001";
-  }
-
-  if (t.includes("verschw")) {
-    return "BLACKBRIAR-002";
-  }
-
-  if (t.includes("ultimatum")) {
-    return "OUTCOME-003";
-  }
-
-  if (t.includes("verm")) {
-    return "LEGACY-004";
-  }
-
-  if (t.includes("jason bourne")) {
-    return "CROSS-005";
-  }
-
-  return "CLASSIFIED-000";
-}
-
-function getBourneCollectionNumber(title = "") {
-  const t = String(title || "").toLowerCase();
-
-  if (t.includes("ident")) return "01/05";
-  if (t.includes("verschw") || t.includes("supremacy")) return "02/05";
-  if (t.includes("ultimatum")) return "03/05";
-  if (t.includes("verm") || t.includes("legacy")) return "04/05";
-  if (t.includes("jason bourne")) return "05/05";
-
-  return "??/05";
-}
-
 function makeLibraryId(id) {
   return `#${String(id || 0).padStart(4, "0")}`;
 }
@@ -3188,26 +3118,22 @@ function makeHashtags(text = "") {
     .join(" ");
 }
 
+// =============================
+// MOVIE THEMES
+// =============================
 const movieThemes = {
+
   "Terminator Filmreihe": {
     icon: "🤖",
-    archive: "📼 SKYNET ARCHIVE ENTRY",
-    status: "🔴 THREAT LEVEL: EXTREME",
+    archive: "📼 SKYNET ARCHIVE",
+    status: "🔴 JUDGMENT DAY PROTOCOL",
     subline: "🛰 TEMPORAL BREACH DETECTED",
     mode: "scifi"
   },
 
-  "Bourne Filmreihe": {
-    icon: "🕶️",
-    archive: "📁 CIA DOSSIER",
-    status: "⚫ ROGUE ASSET",
-    subline: "🧠 TREADSTONE ACTIVE",
-    mode: "classified"
-  },
-
   "Matrix Filmreihe": {
     icon: "💊",
-    archive: "📟 ZION MAINFRAME ENTRY",
+    archive: "📟 ZION MAINFRAME",
     status: "🟢 MATRIX SIGNAL DETECTED",
     subline: "🧬 THE ONE PROTOCOL",
     mode: "scifi"
@@ -3224,13 +3150,50 @@ const movieThemes = {
   "Harry Potter Filmreihe": {
     icon: "🪄",
     archive: "📚 HOGWARTS ARCHIVE",
-    status: "✨ WIZARDING WORLD",
+    status: "✨ WIZARDING WORLD ACTIVE",
     subline: "⚡ THE BOY WHO LIVED",
     mode: "prestige"
+  },
+
+  "Marvel Collection": {
+    icon: "🧬",
+    archive: "🦸 MULTIVERSE ARCHIVE",
+    status: "🔴 AVENGERS PROTOCOL",
+    subline: "🌌 SACRED TIMELINE",
+    mode: "cinema"
+  },
+
+  "DC Collection": {
+    icon: "🦇",
+    archive: "🦸 JUSTICE ARCHIVE",
+    status: "⚡ META HUMAN DATABASE",
+    subline: "🌃 GOTHAM FILES",
+    mode: "cinema"
+  },
+
+  "Star Wars Collection": {
+    icon: "🌌",
+    archive: "🛰 GALACTIC ARCHIVE",
+    status: "⚔ FORCE SIGNAL DETECTED",
+    subline: "🛸 REPUBLIC DATABASE",
+    mode: "scifi"
+  },
+
+  "Disney Collection": {
+    icon: "🏰",
+    archive: "✨ MAGIC KINGDOM ARCHIVE",
+    status: "🌟 FAIRYTALE DATABASE",
+    subline: "🎬 CLASSIC COLLECTION",
+    mode: "prestige"
   }
+
 };
 
+// =============================
+// CARD MODES
+// =============================
 const cardModes = {
+
   cinema: {
     divider: "━━━━━━━━━━━━━━━━━━",
     label: "🎞 CINEMA MODE"
@@ -3242,9 +3205,9 @@ const cardModes = {
   },
 
   scifi: {
-  divider: "━━━━━━━━━━━━━━",
-  label: "🛰 SCI-FI DOSSIER"
-},
+    divider: "━━━━━━━━━━━━━━",
+    label: "🛰 SCI-FI DOSSIER"
+  },
 
   classified: {
     divider: "⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛",
@@ -3260,6 +3223,7 @@ const cardModes = {
     divider: "🩸🩸🩸🩸🩸🩸🩸🩸",
     label: "🧟 HORROR CASEFILE"
   }
+
 };
 
 function movieCaption(tmdb, extras = {}) {
@@ -3432,47 +3396,6 @@ function movieCaption(tmdb, extras = {}) {
     `${genreTags}\n` +
     "@LibraryOfLegends"
   ).slice(0, 4000);
-}
-
-function getNextBourneMovie(title = "") {
-  const t = String(title || "").toLowerCase();
-
-  if (t.includes("ident")) return "➡️ NÄCHSTER FILM: VERSCHWÖRUNG";
-  if (t.includes("verschw") || t.includes("supremacy")) return "➡️ NÄCHSTER FILM: ULTIMATUM";
-  if (t.includes("ultimatum")) return "➡️ NÄCHSTER FILM: VERMÄCHTNIS";
-  if (t.includes("verm") || t.includes("legacy")) return "➡️ NÄCHSTER FILM: JASON BOURNE";
-  if (t.includes("jason bourne")) return "🏁 SAGA ABSCHLIESSEN";
-
-  return "➡️ NÄCHSTER FILM";
-}
-
-function bourneKeyboard(title = "") {
-  return {
-    inline_keyboard: [
-      [
-        {
-          text: "🛰️ BOURNE ARCHIVE",
-          callback_data: "bourne_archive"
-        }
-      ],
-      [
-        {
-          text: "🧠 TREADSTONE",
-          callback_data: "bourne_programs"
-        },
-        {
-          text: "🎞 FILMREIHE",
-          callback_data: "bourne_collection"
-        }
-      ],
-      [
-        {
-          text: getNextBourneMovie(title),
-          callback_data: "bourne_next"
-        }
-      ]
-    ]
-  };
 }
 
 function buildMovieArchiveProgressBar(movieCount = 0) {
@@ -3901,45 +3824,6 @@ async function updateMovieHub({
   });
 }
 
-function bourneMovieCaption(tmdb, extras = {}) {
-  const safeOverview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 360);
-
-  const program = getBourneProgram(tmdb.title);
-  
-  const agentCode = getBourneAgentCode(tmdb.title);
-  
-  const collectionNumber = getBourneCollectionNumber(tmdb.title);
-
-  return (
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🕶️ ${String(tmdb.title || "").toUpperCase()} (${tmdb.year || "Unbekannt"})\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📁 CIA ARCHIVE • CLASSIFIED\n" +
-    `🧠 PROGRAMM: ${program}\n` +
-    `🛰️ AGENT CODE: ${agentCode}\n` +
-    `📀 COLLECTION: ${collectionNumber}\n` +
-    `🔥 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}\n` +
-    `🎭 ${String(tmdb.genre || "Action / Thriller").replace(/\s*\/\s*/g, " • ")}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `⭐ ${tmdb.rating || "Unbekannt"}\n` +
-    `⏱ ${tmdb.runtime || "Unbekannt"} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-    `🎥 ${tmdb.director || "Unbekannt"}\n` +
-    `👥 ${tmdb.cast || "Unbekannt"}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📖 MISSION FILE\n" +
-    `${safeOverview}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🏷 ${extras.libraryId || ""}\n` +
-    "⚠️ STATUS: CLASSIFIED\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "#JasonBourne #Bourne #CIA #Treadstone #Action #Thriller\n" +
-    "@LibraryOfLegends"
-  ).slice(0, 900);
-}
-
 function getQualityBadge(quality = "") {
   const q = String(quality || "").toUpperCase();
 
@@ -4107,10 +3991,25 @@ function buildSeriesProgressBar(seriesTitle, current, total) {
       empty: "⬡"
     },
 
-    "Bourne": {
-      filled: "⬛",
-      empty: "⬜"
-    }
+    "Star Wars": {
+  filled: "⬢",
+  empty: "⬡"
+},
+
+"Marvel": {
+  filled: "🟥",
+  empty: "⬜"
+},
+
+"DC": {
+  filled: "🟦",
+  empty: "⬜"
+},
+
+"Disney": {
+  filled: "✨",
+  empty: "▫️"
+}
   };
 
   const theme =
@@ -6212,107 +6111,9 @@ async function handleCallback(callback) {
   }
 
   // =============================
-  // BOURNE BUTTONS
-  // =============================
-  if (data === "bourne_dossier") {
-    return await tg("sendMessage", {
-      chat_id: chatId,
-      text:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "📁 CIA DOSSIER\n" +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        "🕶️ SUBJECT: Jason Bourne\n" +
-        "📛 REAL NAME: David Webb\n" +
-        "🧠 PROGRAM: TREADSTONE\n" +
-        "⚠️ STATUS: ROGUE AGENT\n" +
-        "🎯 CLEARANCE: BLACK\n\n" +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "Er weiß nicht, wer er ist.\n" +
-        "Aber sie haben Angst davor.\n" +
-        "━━━━━━━━━━━━━━━━━━"
-    });
-  }
-
-  if (data === "bourne_programs") {
-    return await tg("sendMessage", {
-      chat_id: chatId,
-      text:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "🧠 BOURNE PROGRAMME\n" +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        "01 • TREADSTONE\n" +
-        "Geheimes CIA-Programm zur Ausbildung perfekter Attentäter.\n\n" +
-        "02 • BLACKBRIAR\n" +
-        "Nachfolger von Treadstone — aggressiver, geheimer, gefährlicher.\n\n" +
-        "03 • OUTCOME\n" +
-        "Erweitertes Agentenprogramm mit körperlicher und mentaler Optimierung.\n\n" +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "⚠️ STATUS: CLASSIFIED"
-    });
-  }
-
-  if (data === "bourne_archive") {
-    const rows = db.prepare(`
-      SELECT title, year, library_id
-      FROM movies
-      WHERE LOWER(title) LIKE '%bourne%'
-         OR LOWER(collection) LIKE '%bourne%'
-      ORDER BY year ASC, title ASC
-    `).all();
-
-    let text =
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🛰️ BOURNE ARCHIVE\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n";
-
-    if (!rows.length) {
-      text += "Noch keine Bourne-Filme gespeichert.\n";
-    } else {
-      rows.forEach((m, index) => {
-        text += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
-        if (m.library_id) text += `     🏷 ${m.library_id}\n`;
-      });
-    }
-
-    text +=
-      "\n━━━━━━━━━━━━━━━━━━\n" +
-      `🎬 Filme im Archiv: ${rows.length}\n` +
-      "⚠️ STATUS: CLASSIFIED";
-
-    return await tg("sendMessage", {
-      chat_id: chatId,
-      text: text.slice(0, 4000)
-    });
-  }
-
-  if (data === "bourne_collection") {
-    return await tg("sendMessage", {
-      chat_id: chatId,
-      text: bourneHubCaption()
-    });
-  }
-
-  if (data === "bourne_next") {
-    return await tg("sendMessage", {
-      chat_id: chatId,
-      text:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "➡️ NÄCHSTE MISSION\n" +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        "Öffne das Bourne Archive, um den nächsten gespeicherten Film in der Collection zu finden.\n\n" +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "🛰️ Tipp: Nutze den Button BOURNE ARCHIVE\n" +
-        "⚠️ STATUS: CLASSIFIED"
-    });
-  }
-
-  // =============================
   // PANEL BUTTONS
   // =============================
   const panelCommands = {
-    panel_missing_bourne: "/missingbourne",
-    panel_bourne: "/bourne",
-    panel_bourne_hub: "/rebuildbournehub",
     panel_rebuild_collections: "/rebuildcollections",
     panel_movies: "/movies",
     panel_series: "/series",
@@ -7337,13 +7138,6 @@ if (text === "/dashboard") {
   const topicCount = db.prepare("SELECT COUNT(*) AS count FROM topics").get().count;
   const collectionCount = db.prepare("SELECT COUNT(*) AS count FROM collections").get().count;
 
-  const bourneCount = db.prepare(`
-    SELECT COUNT(*) AS count
-    FROM movies
-    WHERE LOWER(title) LIKE '%bourne%'
-       OR LOWER(collection) LIKE '%bourne%'
-  `).get().count;
-
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
@@ -7352,7 +7146,6 @@ if (text === "/dashboard") {
       "━━━━━━━━━━━━━━━━━━\n\n" +
       `🎬 Filme: ${movieCount}\n` +
       `🎞 Collections: ${collectionCount}\n` +
-      `🕶️ Bourne Archiv: ${bourneCount}/5\n` +
       `📺 Serien-Episoden: ${seriesCount}\n` +
       `🧵 Themen: ${topicCount}\n\n` +
       "━━━━━━━━━━━━━━━━━━\n" +
@@ -7486,191 +7279,6 @@ if (text === "/clearcache") {
     });
     return;
   }
-  
-  if (text === "/bournehelp") {
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🕶️ BOURNE COMMAND CENTER\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      "🛰️ /bourne — Bourne Archiv anzeigen\n" +
-      "🧩 /missingbourne — Fehlende Bourne Filme prüfen\n" +
-      "📌 /rebuildbournehub — Bourne Hub neu erstellen\n" +
-      "⚙️ /bournesetup — Bourne System aktualisieren\n" +
-      "🎛 /dashboard — Premium Dashboard\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "⚠️ STATUS: CLASSIFIED\n" +
-      "@LibraryOfLegends"
-  });
-
-  return;
-}
-  
-  if (text === "/bournesetup") {
-  const topic = db.prepare(`
-    SELECT *
-    FROM topics
-    WHERE name = ?
-    AND chat_id = ?
-    LIMIT 1
-  `).get("🎞 Bourne Filmreihe", String(MOVIE_GROUP_ID));
-
-  if (topic?.topic_id) {
-    await createOrUpdateBourneHub(topic.topic_id);
-  }
-
-  const bourneCount = db.prepare(`
-    SELECT COUNT(*) AS count
-    FROM movies
-    WHERE LOWER(title) LIKE '%bourne%'
-       OR LOWER(collection) LIKE '%bourne%'
-  `).get().count;
-
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🕶️ BOURNE SETUP\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `📌 Hub: ${topic?.topic_id ? "Aktualisiert" : "Nicht gefunden"}\n` +
-      `🎬 Filme: ${bourneCount}/5\n\n` +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "Nutze danach:\n" +
-      "/missingbourne\n" +
-      "/bourne\n" +
-      "/dashboard\n" +
-      "━━━━━━━━━━━━━━━━━━"
-  });
-
-  return;
-}
-  
-  if (text === "/missingbourne") {
-  const required = [
-    { title: "Die Bourne Identität", year: "2002" },
-    { title: "Die Bourne Verschwörung", year: "2004" },
-    { title: "Das Bourne Ultimatum", year: "2007" },
-    { title: "Das Bourne Vermächtnis", year: "2012" },
-    { title: "Jason Bourne", year: "2016" }
-  ];
-
-  const rows = db.prepare(`
-    SELECT title, year
-    FROM movies
-    WHERE LOWER(title) LIKE '%bourne%'
-       OR LOWER(collection) LIKE '%bourne%'
-  `).all();
-
-  const stored = rows.map((m) => `${String(m.title).toLowerCase()}-${m.year}`);
-
-  const missing = required.filter((m) => {
-    return !stored.some((s) => s.includes(String(m.year)));
-  });
-
-  let result =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🧩 FEHLENDE BOURNE FILME\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
-
-  if (!missing.length) {
-    result += "🏆 Bourne Collection vollständig.\n";
-  } else {
-    missing.forEach((m, index) => {
-      result += `${index + 1}. ${m.title} (${m.year})\n`;
-    });
-  }
-
-  result +=
-    "\n━━━━━━━━━━━━━━━━━━\n" +
-    `✅ Vorhanden: ${savedBourneMovies}/${totalBourneMovies}\n` +
-    `⚠️ Fehlend: ${missing.length}/5\n` +
-    "@LibraryOfLegends";
-
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: result
-  });
-
-  return;
-}
-  
-  if (text === "/bourne") {
-  const rows = db.prepare(`
-    SELECT title, year, rating, runtime, library_id
-    FROM movies
-    WHERE LOWER(title) LIKE '%bourne%'
-       OR LOWER(collection) LIKE '%bourne%'
-    ORDER BY year ASC, title ASC
-  `).all();
-
-  let result =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🕶️ JASON BOURNE ARCHIVE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
-
-  if (!rows.length) {
-    result += "Noch keine Bourne-Filme gespeichert.\n";
-  } else {
-    rows.forEach((m, index) => {
-      result += `${String(index + 1).padStart(2, "0")} • ${m.title} (${m.year || "Unbekannt"})\n`;
-      result += `⭐ ${m.rating || "Unbekannt"} • ⏱ ${m.runtime || "Unbekannt"}\n`;
-      if (m.library_id) result += `🏷 ${m.library_id}\n`;
-      result += "\n";
-    });
-  }
-
-  result +=
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 Filme: ${rows.length}\n` +
-    "⚠️ STATUS: CLASSIFIED\n" +
-    "@LibraryOfLegends";
-
-  await tg("sendMessage", {
-  chat_id: msg.chat.id,
-  text: result.slice(0, 4000),
-  reply_markup: {
-    inline_keyboard: [
-      [
-        { text: "📌 HUB AKTUALISIEREN", callback_data: "panel_bourne_hub" }
-      ],
-      [
-        { text: "🧩 FEHLENDE FILME", callback_data: "panel_missing_bourne" },
-        { text: "🎛 DASHBOARD", callback_data: "panel_dashboard" }
-      ]
-    ]
-  }
-});
-
-  return;
-}
-
-if (text === "/rebuildbournehub") {
-  const topic = db.prepare(`
-    SELECT *
-    FROM topics
-    WHERE name = ?
-    AND chat_id = ?
-    LIMIT 1
-  `).get("🎞 Bourne Filmreihe", String(MOVIE_GROUP_ID));
-
-  if (!topic?.topic_id) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: "❌ Bourne-Thema nicht gefunden. Lade zuerst einen Bourne-Film hoch."
-    });
-    return;
-  }
-
-  await createOrUpdateBourneHub(topic.topic_id);
-
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: "✅ Premium Bourne-Hub wurde erstellt/aktualisiert."
-  });
-
-  return;
-}
 
 if (text === "/rebuildcollections") {
   const collections = db.prepare(`
@@ -8787,12 +8395,9 @@ async function sendAdminPanel(chatId) {
           { text: "🎬 Filme", callback_data: "panel_movies" },
           { text: "📺 Serien", callback_data: "panel_series" }
         ],
-        [
-  { text: "🕶️ Bourne Archiv", callback_data: "panel_bourne" },
-  { text: "🔄 Bourne Hub", callback_data: "panel_bourne_hub" }
-],
-[
-  { text: "🎞 Collections Rebuild", callback_data: "panel_rebuild_collections" }
+       [
+  { text: "🎞 Collection Hubs", callback_data: "panel_rebuild_collections" },
+  { text: "🌌 Universe Hub", callback_data: "panel_dashboard" }
 ],
         [
           { text: "📺 Serien Hub", callback_data: "panel_serieshub" },
