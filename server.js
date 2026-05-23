@@ -3572,7 +3572,7 @@ function buildMovieArchiveProgressBar(movieCount = 0) {
   return "■".repeat(filled) + "□".repeat(size - filled);
 }
 
-function movieHubCaption(topicName = "") {
+async function movieHubCaption(topicName = "") {
   const cleanTopic = String(topicName || "Filme")
     .replace(/^🎞\s*/g, "")
     .replace(/^🎬\s*/g, "")
@@ -3586,17 +3586,41 @@ function movieHubCaption(topicName = "") {
       status: "🎞 MOVIE HUB ACTIVE"
     };
 
-  const movies = db.prepare(`
-    SELECT title, year, rating, runtime, quality, file_size, collection, library_id
-    FROM movies
-    WHERE topic_id = (
-      SELECT topic_id
-      FROM topics
-      WHERE name = ?
-      LIMIT 1
-    )
-    ORDER BY title ASC, year ASC
-  `).all(topicName);
+    // =============================
+  // LOAD MOVIES FOR HUB
+  // =============================
+  let movies = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT title, year, rating, runtime, quality, file_size, collection, library_id
+      FROM movies
+      WHERE topic_id = (
+        SELECT topic_id
+        FROM topics
+        WHERE name = $1
+        LIMIT 1
+      )
+      ORDER BY title ASC, year ASC
+      `,
+      [topicName]
+    );
+
+    movies = result.rows;
+  } else {
+    movies = db.prepare(`
+      SELECT title, year, rating, runtime, quality, file_size, collection, library_id
+      FROM movies
+      WHERE topic_id = (
+        SELECT topic_id
+        FROM topics
+        WHERE name = ?
+        LIMIT 1
+      )
+      ORDER BY title ASC, year ASC
+    `).all(topicName);
+  }
 
   const movieCount = movies.length;
   
