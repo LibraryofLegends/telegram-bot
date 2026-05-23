@@ -1300,6 +1300,15 @@ function getCollectionBanner(collectionName = "") {
   return null;
 }
 
+function getCollectionBanner(collectionName = "") {
+  ...
+}
+
+// =============================
+// COLLECTION CINEMA CARDS
+// =============================
+const collectionCinemaCards = {};
+
 // =============================
 // COLLECTION DATA BUILDER
 // =============================
