@@ -1708,7 +1708,21 @@ const universeProgress =
   return result.slice(0, 4000);
 }
 
-function getUniverseByName(universeName = "") {
+async function getUniverseByName(universeName = "") {
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM universes
+      WHERE universe_name = $1
+      LIMIT 1
+      `,
+      [universeName]
+    );
+
+    return result.rows[0] || null;
+  }
+
   return db.prepare(`
     SELECT *
     FROM universes
@@ -1717,8 +1731,19 @@ function getUniverseByName(universeName = "") {
   `).get(universeName);
 }
 
-function saveUniverseHubMessageId(universeName, messageId) {
-  db.prepare(`
+async function saveUniverseHubMessageId(universeName, messageId) {
+  if (pgPool) {
+    return await pgPool.query(
+      `
+      UPDATE universes
+      SET hub_message_id = $1
+      WHERE universe_name = $2
+      `,
+      [messageId, universeName]
+    );
+  }
+
+  return db.prepare(`
     UPDATE universes
     SET hub_message_id = ?
     WHERE universe_name = ?
