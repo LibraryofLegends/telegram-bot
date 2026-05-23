@@ -6291,6 +6291,10 @@ if (text === "/clearseries") {
   return;
 }
 
+  // =============================
+  // BACKUP / RESTORE COMMANDS
+  // =============================
+
 if (text === "/restoredb") {
   if (!LAST_RESTORE_FILE_ID) {
     await tg("sendMessage", {
