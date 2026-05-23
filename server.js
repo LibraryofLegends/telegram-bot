@@ -3924,21 +3924,26 @@ if (hub?.message_id) {
   return null;
 }
 
+// =============================
+// UPDATE MOVIE HUB
+// =============================
 async function updateMovieHub({
   topicId,
   topicName
 }) {
-  const topic = getMovieHubTopic(topicId);
+  const topic =
+    await getMovieHubTopic(topicId);
 
   if (!topic?.movie_hub_message_id) {
     return null;
   }
 
   return await tg("editMessageText", {
-  chat_id: MOVIE_GROUP_ID,
-  message_id: topic.movie_hub_message_id,
-  text: await movieHubCaption(topicName)
-});
+    chat_id: MOVIE_GROUP_ID,
+    message_id: topic.movie_hub_message_id,
+    text: await movieHubCaption(topicName)
+  });
+}
 
 function bourneMovieCaption(tmdb, extras = {}) {
   const safeOverview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
