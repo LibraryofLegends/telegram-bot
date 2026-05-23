@@ -3591,35 +3591,46 @@ async function movieHubCaption(topicName = "") {
   // =============================
   let movies = [];
 
+  const searchTopic =
+    cleanTopic.toLowerCase();
+
   if (pgPool) {
+
     const result = await pgPool.query(
       `
       SELECT title, year, rating, runtime, quality, file_size, collection, library_id
       FROM movies
-      WHERE topic_id = (
-        SELECT topic_id
-        FROM topics
-        WHERE name = $1
-        LIMIT 1
-      )
+      WHERE LOWER(collection) = LOWER($1)
+         OR LOWER(collection) = LOWER($2)
+         OR LOWER($1) LIKE '%' || LOWER(collection) || '%'
+         OR LOWER(title) LIKE '%' || LOWER($2) || '%'
       ORDER BY title ASC, year ASC
       `,
-      [topicName]
+      [
+        cleanTopic,
+        searchTopic.replace(" filmreihe", "").trim()
+      ]
     );
 
     movies = result.rows;
+
   } else {
+
     movies = db.prepare(`
       SELECT title, year, rating, runtime, quality, file_size, collection, library_id
       FROM movies
-      WHERE topic_id = (
-        SELECT topic_id
-        FROM topics
-        WHERE name = ?
-        LIMIT 1
-      )
+      WHERE LOWER(collection) = LOWER(?)
+         OR LOWER(collection) = LOWER(?)
+         OR LOWER(?) LIKE '%' || LOWER(collection) || '%'
+         OR LOWER(title) LIKE '%' || LOWER(?) || '%'
       ORDER BY title ASC, year ASC
-    `).all(topicName);
+    `).all(
+      cleanTopic,
+      searchTopic.replace(" filmreihe", "").trim(),
+      cleanTopic,
+      searchTopic.replace(" filmreihe", "").trim()
+    );
+
   }
 
   const movieCount = movies.length;
