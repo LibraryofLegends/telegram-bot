@@ -1797,12 +1797,26 @@ let topicId = universe?.topic_id;
       type: "universe"
     });
 
-    if (topicId) {
-      db.prepare(`
-        UPDATE universes
-        SET topic_id = ?
-        WHERE universe_name = ?
-      `).run(topicId, universeName);
+    if (pgPool) {
+
+  await pgPool.query(
+    `
+    UPDATE universes
+    SET topic_id = $1
+    WHERE universe_name = $2
+    `,
+    [topicId, universeName]
+  );
+
+} else {
+
+  db.prepare(`
+    UPDATE universes
+    SET topic_id = ?
+    WHERE universe_name = ?
+  `).run(topicId, universeName);
+
+}
     }
   }
   
