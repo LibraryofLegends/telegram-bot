@@ -126,6 +126,19 @@ await pgPool.query(`
   );
 `);
 
+await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS collections (
+    id SERIAL PRIMARY KEY,
+    collection_name TEXT,
+    tmdb_collection_id INTEGER UNIQUE,
+    topic_id INTEGER,
+    poster_url TEXT,
+    hub_message_id INTEGER,
+    banner_message_id INTEGER,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+`);
+
   console.log("✅ Supabase Tabellen bereit");
 }
 
@@ -685,14 +698,55 @@ async function saveSeries(data) {
   );
 }
 
-function getCollection(tmdbCollectionId) {
+async function getCollection(tmdbCollectionId) {
+
+  if (pgPool) {
+
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM collections
+      WHERE tmdb_collection_id = $1
+      LIMIT 1
+      `,
+      [tmdbCollectionId]
+    );
+
+    return result.rows[0] || null;
+  }
+
   return db.prepare(`
     SELECT * FROM collections
     WHERE tmdb_collection_id = ?
   `).get(tmdbCollectionId);
 }
 
-function saveCollection(data) {
+async function saveCollection(data) {
+
+  if (pgPool) {
+
+    return await pgPool.query(
+      `
+      INSERT INTO collections
+      (
+        collection_name,
+        tmdb_collection_id,
+        topic_id,
+        poster_url
+      )
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (tmdb_collection_id)
+      DO NOTHING
+      `,
+      [
+        data.collectionName,
+        data.tmdbCollectionId,
+        data.topicId,
+        data.posterUrl
+      ]
+    );
+  }
+
   return db.prepare(`
     INSERT INTO collections
     (
@@ -710,15 +764,47 @@ function saveCollection(data) {
   );
 }
 
-function getCollectionById(tmdbCollectionId) {
+async function getCollectionById(tmdbCollectionId) {
+
+  if (pgPool) {
+
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM collections
+      WHERE tmdb_collection_id = $1
+      LIMIT 1
+      `,
+      [tmdbCollectionId]
+    );
+
+    return result.rows[0] || null;
+  }
+
   return db.prepare(`
     SELECT * FROM collections
     WHERE tmdb_collection_id = ?
   `).get(tmdbCollectionId);
 }
 
-function saveCollectionHubMessageId(tmdbCollectionId, messageId) {
-  db.prepare(`
+async function saveCollectionHubMessageId(
+  tmdbCollectionId,
+  messageId
+) {
+
+  if (pgPool) {
+
+    return await pgPool.query(
+      `
+      UPDATE collections
+      SET hub_message_id = $1
+      WHERE tmdb_collection_id = $2
+      `,
+      [messageId, tmdbCollectionId]
+    );
+  }
+
+  return db.prepare(`
     UPDATE collections
     SET hub_message_id = ?
     WHERE tmdb_collection_id = ?
