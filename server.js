@@ -8829,10 +8829,35 @@ if (text.startsWith("/seriespick")) {
     return;
   }
 
+  // =============================
+// REBUILD COMMAND CENTERS
+// =============================
+if (text === "/rebuildcommandcenters") {
+  await ensureCommandCenters();
+  await refreshCommandCenters();
+
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: "⚠️ Unbekannter Befehl. Nutze /admin"
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🎛 COMMAND CENTERS AKTUALISIERT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "✅ Movie Command Center aktualisiert\n" +
+      "✅ Series Command Center aktualisiert\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
   });
+
+  return;
+}
+
+// =============================
+// UNKNOWN COMMAND
+// =============================
+await tg("sendMessage", {
+  chat_id: msg.chat.id,
+  text: "⚠️ Unbekannter Befehl. Nutze /admin"
+});
 }
 
 function formatEpisodeRanges(episodes = []) {
