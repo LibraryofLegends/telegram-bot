@@ -1229,11 +1229,37 @@ function detectUniverse(title = "", collection = "") {
 // COLLECTION BANNERS
 // =============================
 const collectionBanners = {
+
+  "Hangover Filmreihe":
+    "https://image.tmdb.org/t/p/original/dGPy6Q0ao8huXCreyiWnJJQTVgU.jpg",
+
+  "John Wick Filmreihe":
+    "https://image.tmdb.org/t/p/original/7dzngS8pLkGJpyeskCFcjPO9qLF.jpg",
+
+  "Fast & Furious Filmreihe":
+    "https://image.tmdb.org/t/p/original/jNoDUINh7ABjv7mmc8SccN3bA05.jpg",
+
+  "Harry Potter Filmreihe":
+    "https://image.tmdb.org/t/p/original/n5A7brJCjejceZmHyujwUTVgQNC.jpg",
+
   "Terminator Filmreihe":
     "https://image.tmdb.org/t/p/original/9pkZesKMnblFfKxEhQx45YQ2kIe.jpg",
 
   "Matrix Filmreihe":
-    "https://image.tmdb.org/t/p/original/7u3pxc0K1wx32IleAkLv78MKgrw.jpg"
+    "https://image.tmdb.org/t/p/original/7u3pxc0K1wx32IleAkLv78MKgrw.jpg",
+
+  "Marvel Collection":
+    "https://image.tmdb.org/t/p/original/7RyHsO4yDXtBv1zUU3mTpHeQ0d5.jpg",
+
+  "DC Collection":
+    "https://image.tmdb.org/t/p/original/uFh3OrBvkwKSU3N5y0XnXOhqBJz.jpg",
+
+  "Star Wars Collection":
+    "https://image.tmdb.org/t/p/original/4iJfYYoQzZcONB9hNzg0J0wWyPH.jpg",
+
+  "Disney Collection":
+    "https://image.tmdb.org/t/p/original/6ELJEzQJ3Y45HczvreC3dg0GV5R.jpg"
+
 };
 
 // =============================
