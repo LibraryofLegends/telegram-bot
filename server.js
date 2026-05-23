@@ -8272,10 +8272,10 @@ async function processMovieUpload({ msg, media, tmdb }) {
     tmdb.collectionId &&
     !universeData?.universeName
   ) {
-    const existingCollection = getCollection(tmdb.collectionId);
+    const existingCollection = await getCollection(tmdb.collectionId);
 
     if (!existingCollection) {
-      saveCollection({
+      await saveCollection({
         collectionName: tmdb.collection,
         tmdbCollectionId: tmdb.collectionId,
         topicId,
