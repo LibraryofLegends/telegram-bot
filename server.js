@@ -1758,7 +1758,7 @@ async function createOrUpdateUniverseHub(universeName = "") {
 
   if (!config) return null;
 
-  let universe = getUniverseByName(universeName);
+  let universe = await getUniverseByName(universeName);
 
   if (!universe) {
     db.prepare(`
@@ -1767,7 +1767,7 @@ async function createOrUpdateUniverseHub(universeName = "") {
       VALUES (?)
     `).run(universeName);
 
-    universe = getUniverseByName(universeName);
+    universe = await getUniverseByName(universeName);
   }
 
   let topicId = universe?.topic_id;
@@ -1857,7 +1857,7 @@ if (universe?.hub_message_id) {
   });
 
   if (hub?.message_id) {
-    saveUniverseHubMessageId(universeName, hub.message_id);
+    await saveUniverseHubMessageId(universeName, hub.message_id);
 
     try {
       await tg("pinChatMessage", {
