@@ -6508,50 +6508,77 @@ async function handleCommand(msg) {
   // =============================
 
   if (text === "/start" || text === "/admin") {
+
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
 
+      "📁 PREMIUM MEDIA SYSTEM\n" +
+      "🎬 CINEMATIC ARCHIVE CORE\n\n" +
+
+      "━━━━━━━━━━━━━━━━━━\n" +
       "🎬 FILME\n" +
-"• /movies — Filme anzeigen\n" +
-"• /collections — Filmreihen anzeigen\n" +
-"• /collection name — Filmreihe Details\n" +
-"• /bourne — Bourne Archiv anzeigen\n" +
-"• /bournehelp — Bourne Hilfe anzeigen\n" +
-"• /missingbourne — Fehlende Bourne Filme\n" +
-"• /rebuildbournehub — Bourne Hub neu erstellen\n" +
-"• /bournesetup — Bourne System aktualisieren\n" +
-"• /rebuildcollections — Alle Collection Hubs aktualisieren\n" +
-"• /fixmovie alt | neu | jahr — Film korrigieren\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
 
+      "• /movies — Filmarchiv\n" +
+      "• /collections — Filmreihen\n" +
+      "• /collection NAME — Collection öffnen\n" +
+      "• /universes — Universen anzeigen\n" +
+      "• /genres — Genre Archive\n" +
+      "• /decades — Jahrzehnte\n" +
+      "• /elite — Elite Filme\n" +
+      "• /search TITEL — Filmsuche\n\n" +
+
+      "🛠 MOVIE TOOLS\n" +
+      "• /fixmovie ALT | NEU | JAHR\n" +
+      "• /deletemovie NAME\n" +
+      "• /deletetopic NAME\n" +
+      "• /rebuildcollections\n" +
+      "• /rebuildcommandcenters\n\n" +
+
+      "━━━━━━━━━━━━━━━━━━\n" +
       "📺 SERIEN\n" +
-      "• /series — Serien anzeigen\n" +
-"• /series Titel | S01E01 — Manuelle Serien-Erkennung\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+
+      "• /series — Serienarchiv\n" +
       "• /seriesaz — Serien A–Z\n" +
       "• /serieshub — Serien Dashboard\n" +
       "• /newseries — Neue Folgen\n" +
-      "• /progress name — Serien-Fortschritt\n" +
-      "• /missingseries name — Fehlende Episoden\n" +
-      "• /checkseries name — Premium Serien-Scan\n" +
-      "• /rebuildseasoncards name — Staffelkarten neu erstellen\n" +
-      "• /fixseries alt | neu — Serie korrigieren\n\n" +
+      "• /progress NAME\n" +
+      "• /missingseries NAME\n" +
+      "• /checkseries NAME\n\n" +
 
+      "🛠 SERIES TOOLS\n" +
+      "• /series TITEL | S01E01\n" +
+      "• /fixseries ALT | NEU\n" +
+      "• /deleteseries NAME S01E01\n" +
+      "• /rebuildseasoncards NAME\n\n" +
+
+      "━━━━━━━━━━━━━━━━━━\n" +
       "🧹 VERWALTUNG\n" +
-      "• /az — Gesamt A–Z\n" +
-      "• /duplicates — Duplikate prüfen\n" +
-      "• /smartduplicates — Smart-Duplikate\n" +
-      "• /deletemovie name — Film löschen\n" +
-      "• /deleteseries name S01E01 — Episode löschen\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
 
-      "📊 SYSTEM\n" +
       "• /dashboard — Premium Dashboard\n" +
-      "• /stats — Statistik\n" +
-      "• /health — Systemstatus prüfen\n" +
-      "• /queue — Upload-Warteschlange prüfen\n" +
-      "• /qualitystats — Qualitäts-Statistik\n" +
-      "• /search titel — Suche\n" +
-      "• /backup — Datenbank sichern"
+      "• /stats — Statistiken\n" +
+      "• /health — Systemstatus\n" +
+      "• /queue — Upload Queue\n" +
+      "• /qualitystats — Qualitätsdaten\n" +
+      "• /duplicates — Duplikate\n" +
+      "• /smartduplicates — Smart Scan\n" +
+      "• /pgstats — Supabase Debug\n\n" +
+
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "💾 DATENBANK\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+
+      "• /backup — Backup erstellen\n" +
+      "• /restoredb — Backup laden\n\n" +
+
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
   });
 
   return;
@@ -6856,6 +6883,28 @@ if (text === "/backup") {
       text: "❌ Backup fehlgeschlagen:\n" + err.message
     });
   }
+
+  return;
+}
+
+// =============================
+// REBUILD COMMAND CENTERS
+// =============================
+if (text === "/rebuildcommandcenters") {
+  await ensureCommandCenters();
+  await refreshCommandCenters();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🎛 COMMAND CENTERS AKTUALISIERT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "✅ Movie Command Center aktualisiert\n" +
+      "✅ Series Command Center aktualisiert\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
 
   return;
 }
