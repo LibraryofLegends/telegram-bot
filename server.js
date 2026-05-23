@@ -3890,18 +3890,25 @@ function saveMovieHubMessageId(topicId, messageId) {
   `).run(messageId, topicId);
 }
 
+// =============================
+// CREATE MOVIE HUB IF MISSING
+// =============================
 async function createMovieHubIfMissing({
   topicId,
   topicName,
   banner
 }) {
 
-  const topic = await getMovieHubTopic(topicId);
+  const topic =
+    await getMovieHubTopic(topicId);
 
   if (topic?.movie_hub_message_id) {
     return topic.movie_hub_message_id;
   }
 
+  // =============================
+  // CREATE BANNER
+  // =============================
   if (banner) {
 
     const bannerMsg = await tg("sendPhoto", {
@@ -3920,41 +3927,54 @@ async function createMovieHubIfMissing({
 
     if (bannerMsg?.message_id) {
 
-      db.prepare(`
-        UPDATE topics
-        SET movie_banner_message_id = ?
-        WHERE topic_id = ?
-      `).run(bannerMsg.message_id, topicId);
+      if (pgPool) {
+        await pgPool.query(
+          `
+          UPDATE topics
+          SET movie_banner_message_id = $1
+          WHERE topic_id = $2
+          `,
+          [bannerMsg.message_id, topicId]
+        );
+      } else {
+        db.prepare(`
+          UPDATE topics
+          SET movie_banner_message_id = ?
+          WHERE topic_id = ?
+        `).run(bannerMsg.message_id, topicId);
+      }
 
     }
   }
 
+  // =============================
+  // CREATE HUB
+  // =============================
   const hub = await tg("sendMessage", {
-  chat_id: MOVIE_GROUP_ID,
-  message_thread_id: topicId,
-  text: await movieHubCaption(topicName)
-});
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: topicId,
+    text: await movieHubCaption(topicName)
+  });
 
-if (hub?.message_id) {
-  try {
-    await tg("pinChatMessage", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: hub.message_id,
-      disable_notification: true
-    });
-  } catch (err) {
-    console.error("⚠️ Movie Hub Pin Fehler:", err.message);
+  if (hub?.message_id) {
+
+    try {
+      await tg("pinChatMessage", {
+        chat_id: MOVIE_GROUP_ID,
+        message_id: hub.message_id,
+        disable_notification: true
+      });
+    } catch (err) {
+      console.error("⚠️ Movie Hub Pin Fehler:", err.message);
+    }
+
+    await saveMovieHubMessageId(
+      topicId,
+      hub.message_id
+    );
+
+    return hub.message_id;
   }
-}
-
-if (hub?.message_id) {
-  saveMovieHubMessageId(
-    topicId,
-    hub.message_id
-  );
-
-  return hub.message_id;
-}
 
   return null;
 }
