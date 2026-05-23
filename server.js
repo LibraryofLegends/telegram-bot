@@ -139,6 +139,17 @@ await pgPool.query(`
   );
 `);
 
+await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS universes (
+    id SERIAL PRIMARY KEY,
+    universe_name TEXT UNIQUE,
+    topic_id INTEGER,
+    hub_message_id INTEGER,
+    banner_message_id INTEGER,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+`);
+
   console.log("✅ Supabase Tabellen bereit");
 }
 
