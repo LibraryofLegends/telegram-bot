@@ -3915,11 +3915,10 @@ async function updateMovieHub({
   }
 
   return await tg("editMessageText", {
-    chat_id: MOVIE_GROUP_ID,
-    message_id: topic.movie_hub_message_id,
-    text: movieHubCaption(topicName)
-  });
-}
+  chat_id: MOVIE_GROUP_ID,
+  message_id: topic.movie_hub_message_id,
+  text: await movieHubCaption(topicName)
+});
 
 function bourneMovieCaption(tmdb, extras = {}) {
   const safeOverview = String(tmdb.overview || "Keine Beschreibung verfügbar.")
