@@ -1342,112 +1342,196 @@ const universeBanners = {
 
 };
 
-function buildCollectionData(collectionName = "") {
-  const rows = db.prepare(`
-    SELECT title, year, library_id, rating, runtime, file_size
-    FROM movies
-    WHERE collection = ?
-    ORDER BY year ASC, title ASC
-  `).all(collectionName);
+// =============================
+// COLLECTION DATA BUILDER
+// =============================
+async function buildCollectionData(collectionName = "") {
 
-  const requiredMovies = collectionRegistry[collectionName] || [];
+  // =============================
+  // LOAD COLLECTION MOVIES
+  // =============================
+  let rows = [];
 
-  const officialTotal = requiredMovies.length || rows.length;
-  const savedMovies = rows.length;
+  if (pgPool) {
+
+    const result = await pgPool.query(
+      `
+      SELECT title, year, library_id, rating, runtime, file_size
+      FROM movies
+      WHERE collection = $1
+      ORDER BY year ASC, title ASC
+      `,
+      [collectionName]
+    );
+
+    rows = result.rows;
+
+  } else {
+
+    rows = db.prepare(`
+      SELECT title, year, library_id, rating, runtime, file_size
+      FROM movies
+      WHERE collection = ?
+      ORDER BY year ASC, title ASC
+    `).all(collectionName);
+
+  }
+
+  // =============================
+  // BASIC COUNTS
+  // =============================
+  const requiredMovies =
+    collectionRegistry[collectionName] || [];
+
+  const officialTotal =
+    requiredMovies.length || rows.length;
+
+  const savedMovies =
+    rows.length;
+
+  // =============================
+  // RATING STATS
+  // =============================
   const ratingValues = rows
-  .map((m) => {
-    const match = String(m.rating || "").match(/(\d+(\.\d+)?)/g);
-    return match ? Number(match[match.length - 1]) : null;
-  })
-  .filter((n) => Number.isFinite(n));
+    .map((m) => {
+      const match =
+        String(m.rating || "").match(/(\d+(\.\d+)?)/g);
 
-const franchiseRating = ratingValues.length
-  ? (ratingValues.reduce((sum, n) => sum + n, 0) / ratingValues.length).toFixed(1)
-  : "Unbekannt";
+      return match
+        ? Number(match[match.length - 1])
+        : null;
+    })
+    .filter((n) => Number.isFinite(n));
 
-const bestMovie = ratingValues.length
-  ? rows
-      .filter((m) => String(m.rating || "").match(/(\d+(\.\d+)?)/g))
-      .sort((a, b) => {
-        const ar = Number(String(a.rating).match(/(\d+(\.\d+)?)/g).pop());
-        const br = Number(String(b.rating).match(/(\d+(\.\d+)?)/g).pop());
-        return br - ar;
-      })[0]
-  : null;
-  
+  const franchiseRating =
+    ratingValues.length
+      ? (
+          ratingValues.reduce((sum, n) => sum + n, 0) /
+          ratingValues.length
+        ).toFixed(1)
+      : "Unbekannt";
+
+  const bestMovie =
+    ratingValues.length
+      ? rows
+          .filter((m) =>
+            String(m.rating || "").match(/(\d+(\.\d+)?)/g)
+          )
+          .sort((a, b) => {
+            const ar =
+              Number(String(a.rating).match(/(\d+(\.\d+)?)/g).pop());
+
+            const br =
+              Number(String(b.rating).match(/(\d+(\.\d+)?)/g).pop());
+
+            return br - ar;
+          })[0]
+      : null;
+
+  // =============================
+  // RUNTIME STATS
+  // =============================
   const totalRuntimeMinutes = rows.reduce((sum, m) => {
-  const match = String(m.runtime || "").match(/\d+/);
-  return sum + (match ? Number(match[0]) : 0);
-}, 0);
+    const match =
+      String(m.runtime || "").match(/\d+/);
 
-const runtimeHours = Math.floor(totalRuntimeMinutes / 60);
-const runtimeMinutes = totalRuntimeMinutes % 60;
+    return sum + (match ? Number(match[0]) : 0);
+  }, 0);
 
-const totalRuntimeText =
-  totalRuntimeMinutes > 0
-    ? `${runtimeHours}h ${runtimeMinutes}m`
-    : "Unbekannt";
+  const totalRuntimeText =
+    totalRuntimeMinutes > 0
+      ? `${Math.floor(totalRuntimeMinutes / 60)}h ${totalRuntimeMinutes % 60}m`
+      : "Unbekannt";
 
-const fileSizes = rows
-  .map((m) => parseFloat(String(m.file_size || "0")))
-  .filter((n) => Number.isFinite(n));
+  // =============================
+  // FILE SIZE STATS
+  // =============================
+  const fileSizes = rows
+    .map((m) =>
+      parseFloat(String(m.file_size || "0"))
+    )
+    .filter((n) => Number.isFinite(n));
 
-const largestFile =
-  fileSizes.length
-    ? `${Math.max(...fileSizes).toFixed(2)} GB`
-    : "Unbekannt";
+  const largestFile =
+    fileSizes.length
+      ? `${Math.max(...fileSizes).toFixed(2)} GB`
+      : "Unbekannt";
 
-const years = rows
-  .map((m) => Number(m.year))
-  .filter((y) => Number.isFinite(y));
+  // =============================
+  // YEAR RANGE
+  // =============================
+  const years = rows
+    .map((m) => Number(m.year))
+    .filter((y) => Number.isFinite(y));
 
-const universePeriod =
-  years.length
-    ? `${Math.min(...years)} → ${Math.max(...years)}`
-    : "Unbekannt";
+  const universePeriod =
+    years.length
+      ? `${Math.min(...years)} → ${Math.max(...years)}`
+      : "Unbekannt";
 
-  const missingSlots = Math.max(officialTotal - savedMovies, 0);
+  // =============================
+  // COMPLETION PROGRESS
+  // =============================
+  const missingSlots =
+    Math.max(officialTotal - savedMovies, 0);
 
   const progressBlocks =
-  "■".repeat(savedMovies) +
-  "□".repeat(missingSlots);
+    "■".repeat(savedMovies) +
+    "□".repeat(missingSlots);
 
-  const storedYears = rows.map((m) => String(m.year || ""));
+  const storedYears =
+    rows.map((m) => String(m.year || ""));
 
-  const missingMovies = requiredMovies.filter((m) => {
-    return !storedYears.includes(String(m.year));
-  });
+  const missingMovies =
+    requiredMovies.filter((m) => {
+      return !storedYears.includes(String(m.year));
+    });
 
-  const chronology = chronologyRegistry[collectionName] || [];
+  // =============================
+  // CHRONOLOGY / TIMELINE
+  // =============================
+  const chronology =
+    chronologyRegistry[collectionName] || [];
 
-const sortedRows = chronology.length
-  ? rows.sort((a, b) => {
-      const aIndex = chronology.indexOf(String(a.year));
-      const bIndex = chronology.indexOf(String(b.year));
+  const sortedRows =
+    chronology.length
+      ? rows.sort((a, b) => {
+          const aIndex =
+            chronology.indexOf(String(a.year));
 
-      return aIndex - bIndex;
-    })
-  : rows;
+          const bIndex =
+            chronology.indexOf(String(b.year));
 
-const timeline = sortedRows.length
-  ? sortedRows
-      .map((m, index) => `${String(index + 1).padStart(2, "0")}•${m.year || "????"}`)
-      .join(" ══▶ ")
-  : "Keine Filme";
+          return aIndex - bIndex;
+        })
+      : rows;
 
+  const timeline =
+    sortedRows.length
+      ? sortedRows
+          .map(
+            (m, index) =>
+              `${String(index + 1).padStart(2, "0")}•${m.year || "????"}`
+          )
+          .join(" ══▶ ")
+      : "Keine Filme";
+
+  // =============================
+  // FINAL DATA OBJECT
+  // =============================
   return {
-  rows: sortedRows,
-  savedMovies,
-  officialTotal,
-  progressBlocks,
-  timeline,
-  missingMovies,
-  franchiseRating,
-  bestMovie,
-  totalRuntimeText,
-  largestFile,
-  universePeriod
-};
+    rows: sortedRows,
+    savedMovies,
+    officialTotal,
+    progressBlocks,
+    timeline,
+    missingMovies,
+    franchiseRating,
+    bestMovie,
+    totalRuntimeText,
+    largestFile,
+    universePeriod
+  };
 }
 
 function collectionHubCaption(collectionName) {
