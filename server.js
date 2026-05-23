@@ -6573,10 +6573,13 @@ if (text.startsWith("/deletemovie")) {
 
   let movie = null;
 
-  // =============================
+    // =============================
   // SUPABASE SEARCH
   // =============================
   if (pgPool) {
+
+    const search =
+      query.toLowerCase();
 
     const result =
       await pgPool.query(
@@ -6584,12 +6587,15 @@ if (text.startsWith("/deletemovie")) {
         SELECT *
         FROM movies
         WHERE LOWER(title) LIKE $1
-           OR unique_key LIKE $1
+           OR LOWER(unique_key) LIKE $1
+           OR LOWER(file_name) LIKE $1
+           OR year = $2
         ORDER BY created_at DESC
         LIMIT 1
         `,
         [
-          `%${query.toLowerCase()}%`
+          `%${search}%`,
+          query.match(/\b(19\d{2}|20\d{2})\b/)?.[1] || ""
         ]
       );
 
