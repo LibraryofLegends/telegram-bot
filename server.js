@@ -3877,7 +3877,7 @@ async function createMovieHubIfMissing({
   const hub = await tg("sendMessage", {
   chat_id: MOVIE_GROUP_ID,
   message_thread_id: topicId,
-  text: movieHubCaption(topicName)
+  text: await movieHubCaption(topicName)
 });
 
 if (hub?.message_id) {
