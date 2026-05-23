@@ -6057,6 +6057,9 @@ async function createOrUpdateCommandCenter({
   return msg;
 }
 
+// =============================
+// REFRESH COMMAND CENTERS
+// =============================
 async function refreshCommandCenters() {
   try {
     await createOrUpdateCommandCenter({
