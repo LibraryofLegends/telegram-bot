@@ -3813,9 +3813,13 @@ async function movieHubCaption(topicName = "") {
       result +=
         `${String(index + 1).padStart(2, "0")} • ${m.title}\n`;
 
-      result +=
-        `     ${m.year || "????"} • ` +
-        `⭐ ${String(m.rating || "?").replace("•", "").trim()}`;
+      const cleanRating =
+  String(m.rating || "?")
+    .replace(/⭐/g, "")
+    .trim();
+
+result +=
+  `     ${m.year || "????"} • ${cleanRating}`;
 
       if (m.runtime) {
         result += ` • ⏱ ${m.runtime}`;
