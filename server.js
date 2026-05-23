@@ -3882,7 +3882,28 @@ async function getMovieHubTopic(topicId) {
   `).get(topicId);
 }
 
-function saveMovieHubMessageId(topicId, messageId) {
+// =============================
+// SAVE MOVIE HUB MESSAGE ID
+// =============================
+async function saveMovieHubMessageId(
+  topicId,
+  messageId
+) {
+
+  if (pgPool) {
+
+    await pgPool.query(
+      `
+      UPDATE topics
+      SET movie_hub_message_id = $1
+      WHERE topic_id = $2
+      `,
+      [messageId, topicId]
+    );
+
+    return;
+  }
+
   db.prepare(`
     UPDATE topics
     SET movie_hub_message_id = ?
