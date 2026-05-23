@@ -6771,32 +6771,47 @@ if (text.startsWith("/deletemovie")) {
   let movie = null;
 
     // =============================
+// DELETE TOPIC / THEMA LÖSCHEN
+// =============================
+if (text.startsWith("/deletetopic")) {
+
+  const query =
+    text.replace("/deletetopic", "").trim();
+
+  if (!query) {
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/deletetopic Themenname\n\n" +
+        "Beispiel:\n" +
+        "/deletetopic Hangover Filmreihe"
+    });
+
+    return;
+  }
+
+  let topic = null;
+
+  // =============================
   // SUPABASE SEARCH
   // =============================
   if (pgPool) {
-
-    const search =
-      query.toLowerCase();
 
     const result =
       await pgPool.query(
         `
         SELECT *
-        FROM movies
-        WHERE LOWER(title) LIKE $1
-           OR LOWER(unique_key) LIKE $1
-           OR LOWER(file_name) LIKE $1
-           OR year = $2
+        FROM topics
+        WHERE LOWER(name) LIKE $1
         ORDER BY created_at DESC
         LIMIT 1
         `,
-        [
-          `%${search}%`,
-          query.match(/\b(19\d{2}|20\d{2})\b/)?.[1] || ""
-        ]
+        [`%${query.toLowerCase()}%`]
       );
 
-    movie =
+    topic =
       result.rows[0] || null;
 
   } else {
@@ -6804,15 +6819,13 @@ if (text.startsWith("/deletemovie")) {
     // =============================
     // SQLITE FALLBACK
     // =============================
-    movie = db.prepare(`
+    topic = db.prepare(`
       SELECT *
-      FROM movies
-      WHERE LOWER(title) LIKE ?
-         OR unique_key LIKE ?
+      FROM topics
+      WHERE LOWER(name) LIKE ?
       ORDER BY created_at DESC
       LIMIT 1
     `).get(
-      `%${query.toLowerCase()}%`,
       `%${query.toLowerCase()}%`
     );
 
@@ -6821,12 +6834,12 @@ if (text.startsWith("/deletemovie")) {
   // =============================
   // NOT FOUND
   // =============================
-  if (!movie) {
+  if (!topic) {
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "❌ Film nicht gefunden:\n\n" +
+        "❌ Thema nicht gefunden:\n\n" +
         query
     });
 
@@ -6834,26 +6847,27 @@ if (text.startsWith("/deletemovie")) {
   }
 
   // =============================
-  // DELETE MOVIE
+  // DELETE FROM SUPABASE
   // =============================
   if (pgPool) {
 
     await pgPool.query(
       `
-      DELETE FROM movies
+      DELETE FROM topics
       WHERE id = $1
       `,
-      [movie.id]
+      [topic.id]
     );
 
-  } else {
-
-    db.prepare(`
-      DELETE FROM movies
-      WHERE id = ?
-    `).run(movie.id);
-
   }
+
+  // =============================
+  // DELETE FROM SQLITE
+  // =============================
+  db.prepare(`
+    DELETE FROM topics
+    WHERE id = ?
+  `).run(topic.id);
 
   // =============================
   // SUCCESS
@@ -6862,12 +6876,12 @@ if (text.startsWith("/deletemovie")) {
     chat_id: msg.chat.id,
     text:
       "━━━━━━━━━━━━━━━━━━\n" +
-      "🗑 FILM GELÖSCHT\n" +
+      "🗑 THEMA GELÖSCHT\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
-      `🎬 ${movie.title} ${movie.year || ""}\n\n` +
-      "✅ Film aus Archiv entfernt\n" +
-      "✅ Duplikat-Schutz entfernt\n\n" +
-      "Du kannst den Film jetzt erneut hochladen.\n\n" +
+      `🧵 ${topic.name}\n\n` +
+      "✅ Topic aus Supabase entfernt\n" +
+      "✅ Topic aus SQLite entfernt\n\n" +
+      "Der Bot erstellt das Thema beim nächsten Upload neu.\n\n" +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
