@@ -5542,85 +5542,145 @@ async function ensureCommandCenters() {
   });
 }
 
-function movieCommandCenterCaption() {
+// =============================
+// MOVIE COMMAND CENTER CAPTION
+// =============================
+async function movieCommandCenterCaption() {
+  let movieCount = 0;
+  let universeCount = 0;
+  let collectionCount = 0;
+  let eliteCount = 0;
+  let fskRows = [];
+  let genreRows = [];
+  let decadeRows = [];
 
-  const movieCount = db.prepare(`
-    SELECT COUNT(*) AS count
-    FROM movies
-  `).get()?.count || 0;
+  if (pgPool) {
+    movieCount = Number((await pgPool.query(`
+      SELECT COUNT(*) AS count
+      FROM movies
+    `)).rows[0]?.count || 0);
 
-  const universeCount = db.prepare(`
-    SELECT COUNT(DISTINCT universe) AS count
-    FROM movies
-    WHERE universe IS NOT NULL
-  `).get()?.count || 0;
+    universeCount = Number((await pgPool.query(`
+      SELECT COUNT(DISTINCT universe) AS count
+      FROM movies
+      WHERE universe IS NOT NULL
+    `)).rows[0]?.count || 0);
 
-  const collectionCount = db.prepare(`
-    SELECT COUNT(DISTINCT collection) AS count
-    FROM movies
-    WHERE collection IS NOT NULL
-  `).get()?.count || 0;
-  
-  const eliteMovies = db.prepare(`
-  SELECT rating, quality
-  FROM movies
-`).all();
+    collectionCount = Number((await pgPool.query(`
+      SELECT COUNT(DISTINCT collection) AS count
+      FROM movies
+      WHERE collection IS NOT NULL
+    `)).rows[0]?.count || 0);
 
-const eliteCount =
-  eliteMovies.filter(isEliteMovie).length;
-  
-  const fskRows = db.prepare(`
-  SELECT fsk, COUNT(*) AS count
-  FROM movies
-  WHERE fsk IS NOT NULL
-  GROUP BY fsk
-  ORDER BY count DESC
-`).all();
+    const eliteMovies = (await pgPool.query(`
+      SELECT rating, quality
+      FROM movies
+    `)).rows;
 
-const fskLine =
-  fskRows.length
-    ? fskRows
-        .map((r) => `• FSK ${r.fsk} (${r.count})`)
-        .join("\n")
-    : "Noch keine FSK-Daten";
-  
-  const genreRows = db.prepare(`
-  SELECT genre, COUNT(*) AS count
-  FROM movies
-  WHERE genre IS NOT NULL
-  GROUP BY genre
-  ORDER BY count DESC
-  LIMIT 8
-`).all();
+    eliteCount = eliteMovies.filter(isEliteMovie).length;
 
-const decadeRows = db.prepare(`
-  SELECT year, COUNT(*) AS count
-  FROM movies
-  WHERE year IS NOT NULL
-  GROUP BY year
-  ORDER BY year ASC
-`).all();
+    fskRows = (await pgPool.query(`
+      SELECT fsk, COUNT(*) AS count
+      FROM movies
+      WHERE fsk IS NOT NULL
+      GROUP BY fsk
+      ORDER BY count DESC
+    `)).rows;
 
-const decadeStats = {};
+    genreRows = (await pgPool.query(`
+      SELECT genre, COUNT(*) AS count
+      FROM movies
+      WHERE genre IS NOT NULL
+      GROUP BY genre
+      ORDER BY count DESC
+      LIMIT 8
+    `)).rows;
 
-for (const row of decadeRows) {
-  const decade = getDecadeLabel(row.year);
-  decadeStats[decade] =
-    (decadeStats[decade] || 0) + row.count;
-}
+    decadeRows = (await pgPool.query(`
+      SELECT year, COUNT(*) AS count
+      FROM movies
+      WHERE year IS NOT NULL
+      GROUP BY year
+      ORDER BY year ASC
+    `)).rows;
+  } else {
+    movieCount = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM movies
+    `).get()?.count || 0;
 
-const decadeLine =
-  Object.entries(decadeStats)
-    .map(([decade, count]) => `• ${decade} (${count})`)
-    .join("\n") ||
-  "Noch keine Jahrzehnte";
+    universeCount = db.prepare(`
+      SELECT COUNT(DISTINCT universe) AS count
+      FROM movies
+      WHERE universe IS NOT NULL
+    `).get()?.count || 0;
 
-const genreLine =
-  genreRows.length
-    ? genreRows
-        .map((g) => `• ${g.genre} (${g.count})`)
-        .join("\n")
-    : "Noch keine Genres";
+    collectionCount = db.prepare(`
+      SELECT COUNT(DISTINCT collection) AS count
+      FROM movies
+      WHERE collection IS NOT NULL
+    `).get()?.count || 0;
+
+    const eliteMovies = db.prepare(`
+      SELECT rating, quality
+      FROM movies
+    `).all();
+
+    eliteCount = eliteMovies.filter(isEliteMovie).length;
+
+    fskRows = db.prepare(`
+      SELECT fsk, COUNT(*) AS count
+      FROM movies
+      WHERE fsk IS NOT NULL
+      GROUP BY fsk
+      ORDER BY count DESC
+    `).all();
+
+    genreRows = db.prepare(`
+      SELECT genre, COUNT(*) AS count
+      FROM movies
+      WHERE genre IS NOT NULL
+      GROUP BY genre
+      ORDER BY count DESC
+      LIMIT 8
+    `).all();
+
+    decadeRows = db.prepare(`
+      SELECT year, COUNT(*) AS count
+      FROM movies
+      WHERE year IS NOT NULL
+      GROUP BY year
+      ORDER BY year ASC
+    `).all();
+  }
+
+  const fskLine =
+    fskRows.length
+      ? fskRows
+          .map((r) => `• ${r.fsk} (${r.count})`)
+          .join("\n")
+      : "Noch keine FSK-Daten";
+
+  const decadeStats = {};
+
+  for (const row of decadeRows) {
+    const decade = getDecadeLabel(row.year);
+    decadeStats[decade] =
+      (decadeStats[decade] || 0) + Number(row.count || 0);
+  }
+
+  const decadeLine =
+    Object.entries(decadeStats)
+      .map(([decade, count]) => `• ${decade} (${count})`)
+      .join("\n") ||
+    "Noch keine Jahrzehnte";
+
+  const genreLine =
+    genreRows.length
+      ? genreRows
+          .map((g) => `• ${g.genre} (${g.count})`)
+          .join("\n")
+      : "Noch keine Genres";
 
   return (
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -5642,13 +5702,13 @@ const genreLine =
     `${decadeLine}\n\n` +
     "🔞 FSK ARCHIVE\n" +
     `${fskLine}\n\n` +
+
     "🧭 NAVIGATION\n" +
     "🌌 Universes\n" +
     "🎞 Collections\n" +
     `🏆 ELITE ARCHIVE • ${eliteCount}\n` +
     "🎭 Genres\n" +
     "📅 Decades\n" +
-    "🏆 Elite Archive\n" +
     "🔞 FSK Archive\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -5656,22 +5716,47 @@ const genreLine =
   );
 }
 
-function seriesCommandCenterCaption() {
-  const seriesCount = db.prepare(`
-    SELECT COUNT(DISTINCT series_title) AS count
-    FROM series
-  `).get()?.count || 0;
+// =============================
+// SERIES COMMAND CENTER CAPTION
+// =============================
+async function seriesCommandCenterCaption() {
+  let seriesCount = 0;
+  let episodeCount = 0;
+  let universeSeriesCount = 0;
 
-  const episodeCount = db.prepare(`
-    SELECT COUNT(*) AS count
-    FROM series
-  `).get()?.count || 0;
+  if (pgPool) {
+    seriesCount = Number((await pgPool.query(`
+      SELECT COUNT(DISTINCT series_title) AS count
+      FROM series
+    `)).rows[0]?.count || 0);
 
-  const universeSeriesCount = db.prepare(`
-    SELECT COUNT(DISTINCT universe) AS count
-    FROM series
-    WHERE universe IS NOT NULL
-  `).get()?.count || 0;
+    episodeCount = Number((await pgPool.query(`
+      SELECT COUNT(*) AS count
+      FROM series
+    `)).rows[0]?.count || 0);
+
+    universeSeriesCount = Number((await pgPool.query(`
+      SELECT COUNT(DISTINCT universe) AS count
+      FROM series
+      WHERE universe IS NOT NULL
+    `)).rows[0]?.count || 0);
+  } else {
+    seriesCount = db.prepare(`
+      SELECT COUNT(DISTINCT series_title) AS count
+      FROM series
+    `).get()?.count || 0;
+
+    episodeCount = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM series
+    `).get()?.count || 0;
+
+    universeSeriesCount = db.prepare(`
+      SELECT COUNT(DISTINCT universe) AS count
+      FROM series
+      WHERE universe IS NOT NULL
+    `).get()?.count || 0;
+  }
 
   return (
     "━━━━━━━━━━━━━━━━━━\n" +
