@@ -103,6 +103,29 @@ async function ensurePostgresTables() {
   );
 `);
 
+await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS series (
+    id SERIAL PRIMARY KEY,
+    series_title TEXT,
+    season INTEGER,
+    episode INTEGER,
+    episode_title TEXT,
+    genre TEXT,
+    rating TEXT,
+    overview TEXT,
+    poster_url TEXT,
+    file_name TEXT,
+    file_id TEXT,
+    unique_key TEXT UNIQUE,
+    telegram_message_id INTEGER,
+    topic_id INTEGER,
+    series_library_id TEXT,
+    universe TEXT,
+    universe_phase TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+`);
+
   console.log("✅ Supabase Tabellen bereit");
 }
 
@@ -365,9 +388,24 @@ async function movieExists(uniqueKey) {
   `).get(uniqueKey);
 }
 
-function seriesExists(uniqueKey) {
+async function seriesExists(uniqueKey) {
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM series
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [uniqueKey]
+    );
+
+    return result.rows[0] || null;
+  }
+
   return db.prepare(`
-    SELECT * FROM series
+    SELECT *
+    FROM series
     WHERE unique_key = ?
   `).get(uniqueKey);
 }
