@@ -5532,13 +5532,13 @@ async function ensureCommandCenters() {
   await createOrUpdateCommandCenter({
     chatId: MOVIE_GROUP_ID,
     topicName: "🎛 MOVIE COMMAND CENTER",
-    caption: movieCommandCenterCaption()
+    caption: await movieCommandCenterCaption()
   });
 
   await createOrUpdateCommandCenter({
     chatId: SERIES_GROUP_ID,
     topicName: "🎛 SERIES COMMAND CENTER",
-    caption: seriesCommandCenterCaption()
+    caption: await seriesCommandCenterCaption()
   });
 }
 
@@ -5854,7 +5854,7 @@ async function refreshCommandCenters() {
     await createOrUpdateCommandCenter({
       chatId: MOVIE_GROUP_ID,
       topicName: "🎛 MOVIE COMMAND CENTER",
-      caption: movieCommandCenterCaption()
+      caption: await movieCommandCenterCaption()
     });
   } catch (err) {
     console.error("❌ Movie Command Center Update Fehler:", err.message);
@@ -5864,7 +5864,7 @@ async function refreshCommandCenters() {
     await createOrUpdateCommandCenter({
       chatId: SERIES_GROUP_ID,
       topicName: "🎛 SERIES COMMAND CENTER",
-      caption: seriesCommandCenterCaption()
+      caption: await seriesCommandCenterCaption()
     });
   } catch (err) {
     console.error("❌ Series Command Center Update Fehler:", err.message);
