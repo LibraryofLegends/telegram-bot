@@ -6189,6 +6189,10 @@ async function handleCallback(callback) {
 // =============================
 async function handleCommand(msg) {
   const text = msg.text || "";
+  
+  // =============================
+  // ADMIN / START COMMANDS
+  // =============================
 
   if (text === "/start" || text === "/admin") {
   await tg("sendMessage", {
