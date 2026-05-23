@@ -3485,16 +3485,18 @@ async function movieHubCaption(topicName = "") {
     const result = await pgPool.query(
       `
       SELECT
-        title,
-        year,
-        rating,
-        runtime,
-        quality,
-        file_size,
-        collection,
-        library_id
-      FROM movies
+  title,
+  year,
+  rating,
+  runtime,
+  quality,
+  file_size,
+  collection,
+  library_id,
+  genre
+FROM movies
       WHERE LOWER(collection) LIKE LOWER($1)
+   OR LOWER(genre) LIKE LOWER($1)
       ORDER BY year ASC, title ASC
       `,
       [`%${shortName}%`]
