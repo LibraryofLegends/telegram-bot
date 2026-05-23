@@ -1283,16 +1283,21 @@ const universeBanners = {
 // GET COLLECTION BANNER
 // =============================
 function getCollectionBanner(collectionName = "") {
+  const name = String(collectionName || "").toLowerCase();
 
-  if (!collectionName) {
-    return null;
+  for (const [key, url] of Object.entries(collectionBanners)) {
+    const cleanKey = key.toLowerCase();
+
+    if (
+      name === cleanKey ||
+      name.includes(cleanKey) ||
+      cleanKey.includes(name)
+    ) {
+      return url;
+    }
   }
 
-  return (
-    collectionBanners[collectionName] ||
-    null
-  );
-
+  return null;
 }
 
 // =============================
