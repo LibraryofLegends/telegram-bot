@@ -3574,9 +3574,8 @@ function buildMovieArchiveProgressBar(movieCount = 0) {
 
 async function movieHubCaption(topicName = "") {
   const cleanTopic = String(topicName || "Filme")
-    .replace(/^🎞\s*/g, "")
-    .replace(/^🎬\s*/g, "")
-    .trim();
+  .replace(/^[^\w\d]+/g, "")
+  .trim();
 
   const genreTheme =
     genreThemes[cleanTopic] || {
