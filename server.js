@@ -6393,6 +6393,71 @@ if (text === "/clearseries") {
   return;
 }
 
+// =============================
+// FIND MOVIE / FILM SUCHEN
+// =============================
+if (text.startsWith("/findmovie")) {
+
+  const query =
+    text.replace("/findmovie", "").trim().toLowerCase();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "⚠️ Nutzung:\n/findmovie Hangover"
+    });
+    return;
+  }
+
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT id, title, year, unique_key, file_name
+      FROM movies
+      WHERE LOWER(title) LIKE $1
+         OR LOWER(unique_key) LIKE $1
+         OR LOWER(file_name) LIKE $1
+      ORDER BY created_at DESC
+      LIMIT 10
+      `,
+      [`%${query}%`]
+    );
+
+    rows = result.rows;
+  }
+
+  if (!rows.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Kein Film gefunden:\n\n" + query
+    });
+    return;
+  }
+
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🔎 FILM GEFUNDEN\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  for (const m of rows) {
+    resultText +=
+      `🆔 ID: ${m.id}\n` +
+      `🎬 Titel: ${m.title}\n` +
+      `📅 Jahr: ${m.year || "?"}\n` +
+      `🔑 Key: ${m.unique_key}\n` +
+      `📁 Datei: ${m.file_name || "?"}\n\n`;
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: resultText.slice(0, 4000)
+  });
+
+  return;
+}
+
   // =============================
   // BACKUP / RESTORE COMMANDS
   // =============================
