@@ -8541,7 +8541,7 @@ async function processMovieUpload({ msg, media, tmdb }) {
     msg.document?.file_id ||
     "";
 
-  if (movieExists(media.uniqueKey)) {
+  if (await movieExists(media.uniqueKey)) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
@@ -8549,7 +8549,7 @@ async function processMovieUpload({ msg, media, tmdb }) {
         `🎬 ${media.title} ${media.year || ""}`
     });
     return;
-  }
+}
 
   const extras = {
     ...getMediaExtras(fileName, msg),
