@@ -3789,7 +3789,12 @@ async function movieHubCaption(topicName = "") {
     `📅 Zeitraum: ${yearRange}\n` +
     `💾 Speicher: ${totalStorage}\n` +
     `⭐ Ø Rating: ${averageRating}\n` +
-    `📀 Qualität: ${qualityLine}\n`;
+    `📀 Qualität: ${qualityLine}\n` +
+(
+  movieCount >= 3
+    ? "🏆 Status: COMPLETE COLLECTION\n"
+    : "⚠️ Status: COLLECTION IM AUFBAU\n"
+);
 
   if (topMovie) {
     result +=
