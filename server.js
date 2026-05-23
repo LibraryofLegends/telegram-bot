@@ -1303,7 +1303,9 @@ function getCollectionBanner(collectionName = "") {
 // =============================
 // COLLECTION CINEMA CARDS
 // =============================
-const collectionCinemaCards = {};
+const collectionCinemaCards = {
+  "Hangover Filmreihe": []
+};
 
 // =============================
 // COLLECTION DATA BUILDER
@@ -1509,7 +1511,7 @@ function collectionHubCaption(collectionName) {
     };
 
   const cinemaCard =
-    collectionCinemaCards[collectionName] || [];
+  collectionCinemaCards[collectionName] || [];
 
   let result =
   "━━━━━━━━━━━━━━━━━━\n" +
