@@ -6557,7 +6557,7 @@ if (text.startsWith("/findmovie")) {
   if (pgPool) {
     const result = await pgPool.query(
       `
-      SELECT id, title, year, unique_key, file_name
+      SELECT id, title, year, unique_key, file_name, collection, topic_id
       FROM movies
       WHERE LOWER(title) LIKE $1
          OR LOWER(unique_key) LIKE $1
@@ -6591,6 +6591,8 @@ if (text.startsWith("/findmovie")) {
       `📅 Jahr: ${m.year || "?"}\n` +
       `🔑 Key: ${m.unique_key}\n` +
       `📁 Datei: ${m.file_name || "?"}\n\n`;
+      `🎞 Collection: ${m.collection || "leer"}\n` +
+      `🧵 Topic ID: ${m.topic_id || "leer"}\n\n`;
   }
 
   await tg("sendMessage", {
