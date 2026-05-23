@@ -69,6 +69,31 @@ async function ensurePostgresTables() {
   `);
   
   await pgPool.query(`
+  ALTER TABLE topics
+  ADD COLUMN IF NOT EXISTS movie_hub_message_id INTEGER;
+`);
+
+await pgPool.query(`
+  ALTER TABLE topics
+  ADD COLUMN IF NOT EXISTS movie_banner_message_id INTEGER;
+`);
+
+await pgPool.query(`
+  ALTER TABLE topics
+  ADD COLUMN IF NOT EXISTS series_banner_message_id INTEGER;
+`);
+
+await pgPool.query(`
+  ALTER TABLE topics
+  ADD COLUMN IF NOT EXISTS episode_list_message_id INTEGER;
+`);
+
+await pgPool.query(`
+  ALTER TABLE topics
+  ADD COLUMN IF NOT EXISTS season_separators TEXT DEFAULT '{}';
+`);
+  
+  await pgPool.query(`
   CREATE TABLE IF NOT EXISTS movies (
     id SERIAL PRIMARY KEY,
     title TEXT,
