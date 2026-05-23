@@ -3818,7 +3818,27 @@ let result =
   return result.slice(0, 4000);
 }
 
-function getMovieHubTopic(topicId) {
+// =============================
+// GET MOVIE HUB TOPIC
+// =============================
+async function getMovieHubTopic(topicId) {
+
+  if (pgPool) {
+
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE topic_id = $1
+      LIMIT 1
+      `,
+      [topicId]
+    );
+
+    return result.rows[0] || null;
+
+  }
+
   return db.prepare(`
     SELECT *
     FROM topics
@@ -3841,7 +3861,7 @@ async function createMovieHubIfMissing({
   banner
 }) {
 
-  const topic = getMovieHubTopic(topicId);
+  const topic = await getMovieHubTopic(topicId);
 
   if (topic?.movie_hub_message_id) {
     return topic.movie_hub_message_id;
