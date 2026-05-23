@@ -562,7 +562,73 @@ async function saveMovie(data) {
   );
 }
 
-function saveSeries(data) {
+async function saveSeries(data) {
+
+  if (pgPool) {
+
+    return await pgPool.query(
+      `
+      INSERT INTO series
+      (
+        series_title,
+        season,
+        episode,
+        episode_title,
+
+        genre,
+        rating,
+        overview,
+        poster_url,
+
+        file_name,
+        file_id,
+        unique_key,
+
+        telegram_message_id,
+        topic_id,
+
+        series_library_id,
+
+        universe,
+        universe_phase
+      )
+      VALUES (
+        $1, $2, $3, $4,
+        $5, $6, $7, $8,
+        $9, $10, $11,
+        $12, $13,
+        $14,
+        $15, $16
+      )
+      ON CONFLICT (unique_key)
+      DO NOTHING
+      `,
+      [
+        data.seriesTitle,
+        data.season,
+        data.episode,
+        data.episodeTitle,
+
+        data.genre,
+        data.rating,
+        data.overview,
+        data.posterUrl,
+
+        data.fileName,
+        data.fileId,
+        data.uniqueKey,
+
+        data.telegramMessageId,
+        data.topicId,
+
+        data.seriesLibraryId,
+
+        data.universe,
+        data.universePhase
+      ]
+    );
+  }
+
   return db.prepare(`
     INSERT OR IGNORE INTO series
     (
@@ -8298,7 +8364,7 @@ const media =
   console.log("🧠 Parsed:", media);
 
   if (media.type === "series") {
-    const exists = seriesExists(media.uniqueKey);
+    const exists = await seriesExists(media.uniqueKey);
 
     if (exists) {
       await tg("sendMessage", {
@@ -8397,7 +8463,7 @@ const copied = await copyOriginalMedia({
     ""
   );
 
-saveSeries({
+await saveSeries({
   seriesTitle: tmdb.seriesTitle,
   season: media.season,
   episode: media.episode,
