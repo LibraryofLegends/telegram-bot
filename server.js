@@ -6439,41 +6439,124 @@ if (text === "/backup") {
   return;
 }
 
+// =============================
+// DELETE MOVIE / FILM LÖSCHEN
+// =============================
 if (text.startsWith("/deletemovie")) {
-  const query = text.replace("/deletemovie", "").trim();
+
+  const query =
+    text.replace("/deletemovie", "").trim();
 
   if (!query) {
+
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "⚠️ Nutzung:\n/deletemovie Filmname"
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/deletemovie Filmname\n\n" +
+        "Beispiel:\n" +
+        "/deletemovie Fight Club"
     });
+
     return;
   }
 
-  const movie = db.prepare(`
-    SELECT * FROM movies
-    WHERE LOWER(title) LIKE ?
-    LIMIT 1
-  `).get(`%${query.toLowerCase()}%`);
+  let movie = null;
 
+  // =============================
+  // SUPABASE SEARCH
+  // =============================
+  if (pgPool) {
+
+    const result =
+      await pgPool.query(
+        `
+        SELECT *
+        FROM movies
+        WHERE LOWER(title) LIKE $1
+           OR unique_key LIKE $1
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
+        [
+          `%${query.toLowerCase()}%`
+        ]
+      );
+
+    movie =
+      result.rows[0] || null;
+
+  } else {
+
+    // =============================
+    // SQLITE FALLBACK
+    // =============================
+    movie = db.prepare(`
+      SELECT *
+      FROM movies
+      WHERE LOWER(title) LIKE ?
+         OR unique_key LIKE ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).get(
+      `%${query.toLowerCase()}%`,
+      `%${query.toLowerCase()}%`
+    );
+
+  }
+
+  // =============================
+  // NOT FOUND
+  // =============================
   if (!movie) {
+
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "❌ Film nicht gefunden."
+      text:
+        "❌ Film nicht gefunden:\n\n" +
+        query
     });
+
     return;
   }
 
-  db.prepare(`
-    DELETE FROM movies
-    WHERE id = ?
-  `).run(movie.id);
+  // =============================
+  // DELETE MOVIE
+  // =============================
+  if (pgPool) {
 
+    await pgPool.query(
+      `
+      DELETE FROM movies
+      WHERE id = $1
+      `,
+      [movie.id]
+    );
+
+  } else {
+
+    db.prepare(`
+      DELETE FROM movies
+      WHERE id = ?
+    `).run(movie.id);
+
+  }
+
+  // =============================
+  // SUCCESS
+  // =============================
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "🗑 Film gelöscht:\n\n" +
-      `🎬 ${movie.title} ${movie.year || ""}`
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🗑 FILM GELÖSCHT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `🎬 ${movie.title} ${movie.year || ""}\n\n` +
+      "✅ Film aus Archiv entfernt\n" +
+      "✅ Duplikat-Schutz entfernt\n\n" +
+      "Du kannst den Film jetzt erneut hochladen.\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
   });
 
   return;
