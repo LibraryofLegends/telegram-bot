@@ -3597,43 +3597,44 @@ function buildMovieArchiveProgressBar(movieCount = 0) {
   return "■".repeat(filled) + "□".repeat(size - filled);
 }
 
+// =============================
+// MOVIE HUB CAPTION
+// =============================
 async function movieHubCaption(topicName = "") {
+
   const cleanTopic = String(topicName || "Filme")
-  .replace(/^[^\w\d]+/g, "")
-  .trim();
+    .replace(/^[^\w\d]+/g, "")
+    .trim();
 
-  const genreTheme =
-    genreThemes[cleanTopic] || {
-      icon: "🎬",
-      archive: "MOVIE ARCHIVE HUB",
-      subline: "PREMIUM FILM DATABASE",
-      status: "🎞 MOVIE HUB ACTIVE"
-    };
+  const shortName =
+    cleanTopic
+      .replace(/filmreihe/gi, "")
+      .replace(/archive/gi, "")
+      .trim();
 
-    // =============================
-  // LOAD MOVIES FOR HUB
+  // =============================
+  // LOAD MOVIES
   // =============================
   let movies = [];
-
-  const searchTopic =
-    cleanTopic.toLowerCase();
 
   if (pgPool) {
 
     const result = await pgPool.query(
       `
-      SELECT title, year, rating, runtime, quality, file_size, collection, library_id
+      SELECT
+        title,
+        year,
+        rating,
+        runtime,
+        quality,
+        file_size,
+        collection,
+        library_id
       FROM movies
-      WHERE LOWER(collection) = LOWER($1)
-         OR LOWER(collection) = LOWER($2)
-         OR LOWER($1) LIKE '%' || LOWER(collection) || '%'
-         OR LOWER(title) LIKE '%' || LOWER($2) || '%'
-      ORDER BY title ASC, year ASC
+      WHERE LOWER(collection) LIKE LOWER($1)
+      ORDER BY year ASC, title ASC
       `,
-      [
-        cleanTopic,
-        searchTopic.replace(" filmreihe", "").trim()
-      ]
+      [`%${shortName}%`]
     );
 
     movies = result.rows;
@@ -3641,209 +3642,193 @@ async function movieHubCaption(topicName = "") {
   } else {
 
     movies = db.prepare(`
-      SELECT title, year, rating, runtime, quality, file_size, collection, library_id
+      SELECT
+        title,
+        year,
+        rating,
+        runtime,
+        quality,
+        file_size,
+        collection,
+        library_id
       FROM movies
-      WHERE LOWER(collection) = LOWER(?)
-         OR LOWER(collection) = LOWER(?)
-         OR LOWER(?) LIKE '%' || LOWER(collection) || '%'
-         OR LOWER(title) LIKE '%' || LOWER(?) || '%'
-      ORDER BY title ASC, year ASC
-    `).all(
-      cleanTopic,
-      searchTopic.replace(" filmreihe", "").trim(),
-      cleanTopic,
-      searchTopic.replace(" filmreihe", "").trim()
-    );
+      WHERE LOWER(collection) LIKE LOWER(?)
+      ORDER BY year ASC, title ASC
+    `).all(`%${shortName}%`);
 
   }
 
-  const movieCount = movies.length;
-  
-  const qualityStats = {};
+  // =============================
+  // BASIC STATS
+  // =============================
+  const movieCount =
+    movies.length;
 
-for (const movie of movies) {
-
-  const q =
-    movie.quality || "Unbekannt";
-
-  qualityStats[q] =
-    (qualityStats[q] || 0) + 1;
-
-}
-
-const qualityLine =
-  Object.entries(qualityStats)
-    .map(([quality, count]) =>
-      `${quality}: ${count}`
-    )
-    .join(" • ") ||
-  "Keine Daten";
-  
-  const topMovie =
-  [...movies]
-    .sort((a, b) => {
-      return (
-        parseFloat(b.rating || 0) -
-        parseFloat(a.rating || 0)
-      );
-    })[0];
-    
-    const collectionCount =
-  new Set(
-    movies
-      .map((m) => m.collection)
-      .filter(Boolean)
-  ).size;
-  
   const years = movies
-  .map((m) => Number(m.year))
-  .filter((y) => Number.isFinite(y));
+    .map((m) => Number(m.year))
+    .filter((y) => Number.isFinite(y));
 
-const yearRange =
-  years.length
-    ? `${Math.min(...years)} → ${Math.max(...years)}`
-    : "Unbekannt";
-    
-    const archiveRank =
-  getMovieArchiveRank(movieCount);
+  const yearRange =
+    years.length
+      ? `${Math.min(...years)}–${Math.max(...years)}`
+      : "Unbekannt";
 
-const archiveProgress =
-  buildMovieArchiveProgressBar(movieCount);
+  // =============================
+  // STORAGE
+  // =============================
+  let totalSizeMB = 0;
 
-let totalSizeMB = 0;
+  for (const movie of movies) {
 
-for (const movie of movies) {
+    const size =
+      String(movie.file_size || "")
+        .toUpperCase();
 
-  const size =
-    String(movie.file_size || "")
-      .toUpperCase()
-      .trim();
+    const gb =
+      size.match(/([\d.]+)\s*GB/);
 
-  const gbMatch =
-    size.match(/([\d.]+)\s*GB/);
+    const mb =
+      size.match(/([\d.]+)\s*MB/);
 
-  const mbMatch =
-    size.match(/([\d.]+)\s*MB/);
+    if (gb) {
+      totalSizeMB +=
+        parseFloat(gb[1]) * 1024;
+    }
 
-  if (gbMatch) {
-
-    totalSizeMB +=
-      parseFloat(gbMatch[1]) * 1024;
-
-  }
-
-  else if (mbMatch) {
-
-    totalSizeMB +=
-      parseFloat(mbMatch[1]);
+    else if (mb) {
+      totalSizeMB +=
+        parseFloat(mb[1]);
+    }
 
   }
 
-}
+  const totalStorage =
+    totalSizeMB >= 1024
+      ? `${(totalSizeMB / 1024).toFixed(1)} GB`
+      : `${Math.round(totalSizeMB)} MB`;
 
-const totalStorage =
-  totalSizeMB >= 1024
-    ? `${(totalSizeMB / 1024).toFixed(1)} GB`
-    : `${Math.round(totalSizeMB)} MB`;
+  // =============================
+  // RATINGS
+  // =============================
+  const ratings = movies
+    .map((m) => {
 
-const ratings = movies
-  .map((m) => {
+      const match =
+        String(m.rating || "")
+          .match(/(\d+(\.\d+)?)/g);
 
-    const match =
-      String(m.rating || "")
-        .match(/(\d+(\.\d+)?)/g);
+      return match
+        ? Number(match.pop())
+        : null;
 
-    return match
-      ? Number(match.pop())
-      : null;
+    })
+    .filter((n) => Number.isFinite(n));
 
-  })
-  .filter((r) => Number.isFinite(r));
+  const averageRating =
+    ratings.length
+      ? (
+          ratings.reduce((a, b) => a + b, 0) /
+          ratings.length
+        ).toFixed(1)
+      : "Unbekannt";
 
-const averageRating =
-  ratings.length
-    ? (
-        ratings.reduce((a, b) => a + b, 0) /
-        ratings.length
-      ).toFixed(1)
-    : "Unbekannt";
+  // =============================
+  // BEST MOVIE
+  // =============================
+  const topMovie =
+    [...movies]
+      .sort((a, b) => {
 
-const collectionStats = {};
+        const ar =
+          parseFloat(
+            String(a.rating || "0")
+              .match(/(\d+(\.\d+)?)/)?.[0] || 0
+          );
 
-for (const movie of movies) {
+        const br =
+          parseFloat(
+            String(b.rating || "0")
+              .match(/(\d+(\.\d+)?)/)?.[0] || 0
+          );
 
-  if (!movie.collection) continue;
+        return br - ar;
 
-  collectionStats[movie.collection] =
-    (collectionStats[movie.collection] || 0) + 1;
+      })[0];
 
-}
+  // =============================
+  // QUALITY
+  // =============================
+  const qualitySet =
+    [...new Set(
+      movies
+        .map((m) => m.quality)
+        .filter(Boolean)
+    )];
 
-const topCollections =
-  Object.entries(collectionStats)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
+  const qualityLine =
+    qualitySet.length
+      ? qualitySet.join(" • ")
+      : "Unbekannt";
 
-let result =
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `${genreTheme.icon} ${cleanTopic.toUpperCase()} ARCHIVE\n` +
-  "━━━━━━━━━━━━━━━━━━\n\n" +
+  // =============================
+  // BUILD HUB
+  // =============================
+  let result =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎞 ${shortName.toUpperCase()} COLLECTION\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-  `📁 ${genreTheme.archive}\n` +
-  `${genreTheme.subline}\n` +
-  `${genreTheme.status}\n\n` +
+    "🍿 PREMIUM MOVIE ARCHIVE\n" +
+    "🎬 CINEMATIC COLLECTION HUB\n\n" +
 
-  "━━━━━━━━━━━━━━━━━━\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📊 COLLECTION STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
 
-  `🎞 FILME • ${movieCount}\n` +
-  `🎞 COLLECTIONS • ${collectionCount}\n` +
-  `📅 ZEITRAUM • ${yearRange}\n` +
+    `🎬 Filme: ${movieCount}\n` +
+    `📅 Zeitraum: ${yearRange}\n` +
+    `💾 Speicher: ${totalStorage}\n` +
+    `⭐ Ø Rating: ${averageRating}\n` +
+    `📀 Qualität: ${qualityLine}\n`;
 
-  `🏅 ARCHIV-RANG • ${archiveRank}\n` +
-  `📊 ARCHIV POWER • ${archiveProgress} ${Math.min(movieCount, 100)}%\n` +
+  if (topMovie) {
+    result +=
+      `👑 Top Film: ${topMovie.title}\n`;
+  }
 
-  `💾 SPEICHER • ${totalStorage}\n` +
-  `⭐ Ø IMDb • ${averageRating}\n` +
-
-  (
-    topCollections.length
-      ? `🏆 TOP COLLECTIONS • ${topCollections
-          .map(([name, count]) =>
-            `${name} (${count})`
-          )
-          .join(" • ")}\n`
-      : ""
-  ) +
-
-  `📊 QUALITÄT • ${qualityLine}\n` +
-
-  (
-    topMovie
-      ? `👑 TOP FILM • ${topMovie.title} • ⭐ ${topMovie.rating}\n`
-      : ""
-  ) +
-
-  "━━━━━━━━━━━━━━━━━━\n\n";
+  result +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "📀 FILME\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
 
   if (!movies.length) {
-    result += "Noch keine Filme gespeichert.\n\n";
+
+    result +=
+      "Noch keine Filme gespeichert.\n\n";
+
   } else {
+
     movies.forEach((m, index) => {
-      result += `${String(index + 1).padStart(2, "0")} • ${m.title}`;
-      if (m.year) result += ` (${m.year})`;
-      result += "\n";
 
-      result += `⭐ ${m.rating || "Unbekannt"}`;
-      if (m.runtime) result += ` • ⏱ ${m.runtime}`;
-      if (m.quality) result += ` • ${m.quality}`;
-      if (m.file_size) result += ` • ${m.file_size}`;
-      result += "\n";
+      result +=
+        `${String(index + 1).padStart(2, "0")} • ${m.title}\n`;
 
-      if (m.collection) result += `🎞 ${m.collection}\n`;
-      if (m.library_id) result += `🏷 ${m.library_id}\n`;
+      result +=
+        `     ${m.year || "????"} • ` +
+        `⭐ ${String(m.rating || "?").replace("•", "").trim()}`;
 
-      result += "\n";
+      if (m.runtime) {
+        result += ` • ⏱ ${m.runtime}`;
+      }
+
+      if (m.quality) {
+        result += ` • ${m.quality}`;
+      }
+
+      result += "\n\n";
+
     });
+
   }
 
   result +=
