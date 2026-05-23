@@ -1254,6 +1254,22 @@ const universeBanners = {
 };
 
 // =============================
+// GET COLLECTION BANNER
+// =============================
+function getCollectionBanner(collectionName = "") {
+
+  if (!collectionName) {
+    return null;
+  }
+
+  return (
+    collectionBanners[collectionName] ||
+    null
+  );
+
+}
+
+// =============================
 // COLLECTION DATA BUILDER
 // =============================
 async function buildCollectionData(collectionName = "") {
@@ -3729,6 +3745,16 @@ async function createMovieHubIfMissing({
   if (topic?.movie_hub_message_id) {
     return topic.movie_hub_message_id;
   }
+  
+  // =============================
+// AUTO LOAD BANNER
+// =============================
+if (!banner) {
+
+  banner =
+    getCollectionBanner(topicName);
+
+}
 
   // =============================
   // CREATE BANNER
