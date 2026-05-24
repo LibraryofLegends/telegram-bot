@@ -1499,8 +1499,8 @@ async function buildCollectionData(collectionName = "") {
   };
 }
 
-function collectionHubCaption(collectionName) {
-  const data = buildCollectionData(collectionName);
+async function collectionHubCaption(collectionName) {
+  const data = await buildCollectionData(collectionName);
 
   const theme =
     collectionThemes[collectionName] || {
@@ -1979,7 +1979,7 @@ async function createOrUpdateCollectionHub(tmdb, topicId) {
   const collection = getCollectionById(tmdb.collectionId);
   if (!collection) return null;
 
-  const hubText = collectionHubCaption(tmdb.collection);
+  const hubText = await collectionHubCaption(tmdb.collection);
 
   if (collection.hub_message_id) {
     return await tg("editMessageText", {
