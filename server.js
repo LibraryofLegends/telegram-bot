@@ -3463,7 +3463,7 @@ function buildMovieArchiveProgressBar(movieCount = 0) {
 // =============================
 // MOVIE HUB CAPTION
 // =============================
-async function movieHubCaption(topicName = "") {
+async function movieHubCaption(topicName = "", topicId = null) {
 
   const cleanTopic = String(topicName || "Filme")
     .replace(/^[^\w\d]+/g, "")
@@ -3474,57 +3474,55 @@ async function movieHubCaption(topicName = "") {
       .replace(/filmreihe/gi, "")
       .replace(/archive/gi, "")
       .trim();
+      
+      const isCollectionHub =
+  cleanTopic.match(/filmreihe/i);
 
   // =============================
-  // LOAD MOVIES
-  // =============================
-  let movies = [];
+// LOAD MOVIES
+// =============================
+let movies = [];
 
-  if (pgPool) {
+if (pgPool) {
 
-    const result = await pgPool.query(
+  const result = await pgPool.query(
+    isCollectionHub
+      ? `
+        SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
+        FROM movies
+        WHERE LOWER(collection) LIKE LOWER($1)
+        ORDER BY year ASC, title ASC
       `
-      SELECT
-        title,
-        year,
-        rating,
-        runtime,
-        quality,
-        file_size,
-        collection,
-        library_id,
-        genre
-      FROM movies
-      WHERE LOWER(collection) LIKE LOWER($1)
-      ORDER BY year ASC, title ASC
+      : `
+        SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
+        FROM movies
+        WHERE topic_id = $1
+        ORDER BY year ASC, title ASC
       `,
-      [`%${shortName}%`]
-    );
+    isCollectionHub
+      ? [`%${shortName}%`]
+      : [topicId]
+  );
 
-    movies = result.rows;
+  movies = result.rows;
 
-  } else {
+} else {
 
-    movies = db.prepare(`
-      SELECT
-        title,
-        year,
-        rating,
-        runtime,
-        quality,
-        file_size,
-        collection,
-        library_id,
-        genre
-      FROM movies
-      WHERE LOWER(collection) LIKE LOWER(?)
-      ORDER BY year ASC, title ASC
-    `).all(
-      `%${shortName}%`,
-      `%${shortName}%`
-    );
+  movies = isCollectionHub
+    ? db.prepare(`
+        SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
+        FROM movies
+        WHERE LOWER(collection) LIKE LOWER(?)
+        ORDER BY year ASC, title ASC
+      `).all(`%${shortName}%`)
+    : db.prepare(`
+        SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
+        FROM movies
+        WHERE topic_id = ?
+        ORDER BY year ASC, title ASC
+      `).all(topicId);
 
-  }
+}
 
   const movieCount = movies.length;
 
@@ -3838,7 +3836,7 @@ console.log("🖼 MOVIE HUB BANNER CHECK:", {
   const hub = await tg("sendMessage", {
     chat_id: MOVIE_GROUP_ID,
     message_thread_id: topicId,
-    text: await movieHubCaption(topicName)
+    text: await movieHubCaption(topicName, topicId)
   });
 
   if (hub?.message_id) {
@@ -3881,7 +3879,7 @@ async function updateMovieHub({
   return await tg("editMessageText", {
     chat_id: MOVIE_GROUP_ID,
     message_id: topic.movie_hub_message_id,
-    text: await movieHubCaption(topicName)
+    text: await movieHubCaption(topicName, topicId)
   });
 }
 
