@@ -3485,18 +3485,18 @@ async function movieHubCaption(topicName = "") {
     const result = await pgPool.query(
       `
       SELECT
-  title,
-  year,
-  rating,
-  runtime,
-  quality,
-  file_size,
-  collection,
-  library_id,
-  genre
-FROM movies
+        title,
+        year,
+        rating,
+        runtime,
+        quality,
+        file_size,
+        collection,
+        library_id,
+        genre
+      FROM movies
       WHERE LOWER(collection) LIKE LOWER($1)
-   OR LOWER(genre) LIKE LOWER($1)
+         OR LOWER(genre) LIKE LOWER($1)
       ORDER BY year ASC, title ASC
       `,
       [`%${shortName}%`]
@@ -3507,32 +3507,28 @@ FROM movies
   } else {
 
     movies = db.prepare(`
-  SELECT
-    title,
-    year,
-    rating,
-    runtime,
-    quality,
-    file_size,
-    collection,
-    library_id,
-    genre
-  FROM movies
-  WHERE LOWER(collection) LIKE LOWER(?)
-     OR LOWER(genre) LIKE LOWER(?)
-  ORDER BY year ASC, title ASC
-`).all(
-  `%${shortName}%`,
-  `%${shortName}%`
-);
+      SELECT
+        title,
+        year,
+        rating,
+        runtime,
+        quality,
+        file_size,
+        collection,
+        library_id,
+        genre
+      FROM movies
+      WHERE LOWER(collection) LIKE LOWER(?)
+         OR LOWER(genre) LIKE LOWER(?)
+      ORDER BY year ASC, title ASC
+    `).all(
+      `%${shortName}%`,
+      `%${shortName}%`
+    );
 
   }
 
-  // =============================
-  // BASIC STATS
-  // =============================
-  const movieCount =
-    movies.length;
+  const movieCount = movies.length;
 
   const years = movies
     .map((m) => Number(m.year))
@@ -3543,9 +3539,6 @@ FROM movies
       ? `${Math.min(...years)}–${Math.max(...years)}`
       : "Unbekannt";
 
-  // =============================
-  // STORAGE
-  // =============================
   let totalSizeMB = 0;
 
   for (const movie of movies) {
@@ -3577,9 +3570,6 @@ FROM movies
       ? `${(totalSizeMB / 1024).toFixed(1)} GB`
       : `${Math.round(totalSizeMB)} MB`;
 
-  // =============================
-  // RATINGS
-  // =============================
   const ratings = movies
     .map((m) => {
 
@@ -3592,7 +3582,7 @@ FROM movies
         : null;
 
     })
-    .filter((n) => Number.isFinite(n));
+    .filter((r) => Number.isFinite(r));
 
   const averageRating =
     ratings.length
@@ -3602,33 +3592,16 @@ FROM movies
         ).toFixed(1)
       : "Unbekannt";
 
-  // =============================
-  // BEST MOVIE
-  // =============================
   const topMovie =
     [...movies]
       .sort((a, b) => {
-
-        const ar =
-          parseFloat(
-            String(a.rating || "0")
-              .match(/(\d+(\.\d+)?)/)?.[0] || 0
-          );
-
-        const br =
-          parseFloat(
-            String(b.rating || "0")
-              .match(/(\d+(\.\d+)?)/)?.[0] || 0
-          );
-
-        return br - ar;
-
+        return (
+          parseFloat(b.rating || 0) -
+          parseFloat(a.rating || 0)
+        );
       })[0];
 
-  // =============================
-  // QUALITY
-  // =============================
-  const qualitySet =
+  const qualityList =
     [...new Set(
       movies
         .map((m) => m.quality)
@@ -3636,16 +3609,13 @@ FROM movies
     )];
 
   const qualityLine =
-    qualitySet.length
-      ? qualitySet.join(" • ")
+    qualityList.length
+      ? qualityList.join(" • ")
       : "Unbekannt";
 
-  // =============================
-  // BUILD HUB
-  // =============================
   let result =
     "━━━━━━━━━━━━━━━━━━\n" +
-    `🎞 ${shortName.toUpperCase()} COLLECTION\n` +
+    `🎞 ${cleanTopic.toUpperCase()} COLLECTION\n` +
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
     "🍿 PREMIUM MOVIE ARCHIVE\n" +
@@ -3660,18 +3630,19 @@ FROM movies
     `💾 Speicher: ${totalStorage}\n` +
     `⭐ Ø Rating: ${averageRating}\n` +
     `📀 Qualität: ${qualityLine}\n` +
-(
-  movieCount >= 3
-    ? "🏆 Status: COMPLETE COLLECTION\n"
-    : "⚠️ Status: COLLECTION IM AUFBAU\n"
-);
 
-  if (topMovie) {
-    result +=
-      `👑 Top Film: ${topMovie.title}\n`;
-  }
+    (
+      movieCount >= 3
+        ? "🏆 Status: COMPLETE COLLECTION\n"
+        : "⚠️ Status: COLLECTION IM AUFBAU\n"
+    ) +
 
-  result +=
+    (
+      topMovie
+        ? `👑 Top Film: ${topMovie.title}\n`
+        : ""
+    ) +
+
     "\n━━━━━━━━━━━━━━━━━━\n" +
     "📀 FILME\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
@@ -3688,23 +3659,19 @@ FROM movies
       result +=
         `${String(index + 1).padStart(2, "0")} • ${m.title}\n`;
 
-      const cleanRating =
-  String(m.rating || "?")
-    .replace(/⭐/g, "")
-    .trim();
+      result += "     ";
 
-result +=
-  `     ${m.year || "????"} • ${cleanRating}`;
+      if (m.year) {
+        result += `${m.year} • `;
+      }
+
+      result += `${m.rating || "?"} • `;
 
       if (m.runtime) {
-        result += ` • ⏱ ${m.runtime}`;
+        result += `⏱ ${m.runtime} • `;
       }
 
-      if (m.quality) {
-        result += ` • ${m.quality}`;
-      }
-
-      result += "\n\n";
+      result += `${m.quality || "?"}\n\n`;
 
     });
 
@@ -3715,6 +3682,7 @@ result +=
     "@LibraryOfLegends";
 
   return result.slice(0, 4000);
+
 }
 
 // =============================
