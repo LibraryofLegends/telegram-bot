@@ -3615,7 +3615,11 @@ async function movieHubCaption(topicName = "") {
 
   let result =
     "━━━━━━━━━━━━━━━━━━\n" +
-    `🎞 ${cleanTopic.toUpperCase()} COLLECTION\n` +
+    ${
+  cleanTopic.match(/filmreihe/i)
+    ? "🎞 " + shortName.toUpperCase() + " COLLECTION"
+    : "🎭 " + cleanTopic.toUpperCase() + " GENRE HUB"
+}
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
     "🍿 PREMIUM MOVIE ARCHIVE\n" +
