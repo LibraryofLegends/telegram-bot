@@ -3613,44 +3613,61 @@ async function movieHubCaption(topicName = "") {
       ? qualityList.join(" • ")
       : "Unbekannt";
 
-  const hubTitle =
-  cleanTopic.match(/filmreihe/i)
+  const isCollectionHub =
+  cleanTopic.match(/filmreihe/i);
+
+const hubTitle =
+  isCollectionHub
     ? `🎞 ${shortName.toUpperCase()} COLLECTION`
     : `🎭 ${cleanTopic.toUpperCase()} GENRE HUB`;
+
+const hubTypeLabel =
+  isCollectionHub
+    ? "🎬 CINEMATIC COLLECTION HUB"
+    : "🎭 GENRE ARCHIVE HUB";
+
+const statusLabel =
+  isCollectionHub
+    ? "📊 COLLECTION STATUS"
+    : "📊 GENRE STATUS";
+
+const statusText =
+  isCollectionHub
+    ? (
+        movieCount >= 3
+          ? "🏆 Status: COMPLETE COLLECTION\n"
+          : "⚠️ Status: COLLECTION IM AUFBAU\n"
+      )
+    : `🎭 Genre Filme: ${movieCount}\n`;
 
 let result =
   "━━━━━━━━━━━━━━━━━━\n" +
   `${hubTitle}\n` +
   "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    "🍿 PREMIUM MOVIE ARCHIVE\n" +
-    "🎬 CINEMATIC COLLECTION HUB\n\n" +
+  "🍿 PREMIUM MOVIE ARCHIVE\n" +
+  `${hubTypeLabel}\n\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📊 COLLECTION STATUS\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `${statusLabel}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
 
-    `🎬 Filme: ${movieCount}\n` +
-    `📅 Zeitraum: ${yearRange}\n` +
-    `💾 Speicher: ${totalStorage}\n` +
-    `⭐ Ø Rating: ${averageRating}\n` +
-    `📀 Qualität: ${qualityLine}\n` +
+  `🎬 Filme: ${movieCount}\n` +
+  `📅 Zeitraum: ${yearRange}\n` +
+  `💾 Speicher: ${totalStorage}\n` +
+  `⭐ Ø Rating: ${averageRating}\n` +
+  `📀 Qualität: ${qualityLine}\n` +
+  statusText +
 
-    (
-      movieCount >= 3
-        ? "🏆 Status: COMPLETE COLLECTION\n"
-        : "⚠️ Status: COLLECTION IM AUFBAU\n"
-    ) +
+  (
+    topMovie
+      ? `👑 Top Film: ${topMovie.title}\n`
+      : ""
+  ) +
 
-    (
-      topMovie
-        ? `👑 Top Film: ${topMovie.title}\n`
-        : ""
-    ) +
-
-    "\n━━━━━━━━━━━━━━━━━━\n" +
-    "📀 FILME\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+  "\n━━━━━━━━━━━━━━━━━━\n" +
+  "📀 FILME\n" +
+  "━━━━━━━━━━━━━━━━━━\n\n";
 
   if (!movies.length) {
 
