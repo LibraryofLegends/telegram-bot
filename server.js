@@ -3613,14 +3613,15 @@ async function movieHubCaption(topicName = "") {
       ? qualityList.join(" • ")
       : "Unbekannt";
 
-  let result =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    ${
+  const hubTitle =
   cleanTopic.match(/filmreihe/i)
-    ? "🎞 " + shortName.toUpperCase() + " COLLECTION"
-    : "🎭 " + cleanTopic.toUpperCase() + " GENRE HUB"
-}
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+    ? `🎞 ${shortName.toUpperCase()} COLLECTION`
+    : `🎭 ${cleanTopic.toUpperCase()} GENRE HUB`;
+
+let result =
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `${hubTitle}\n` +
+  "━━━━━━━━━━━━━━━━━━\n\n" +
 
     "🍿 PREMIUM MOVIE ARCHIVE\n" +
     "🎬 CINEMATIC COLLECTION HUB\n\n" +
