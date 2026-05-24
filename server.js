@@ -3609,9 +3609,6 @@ if (pgPool) {
       ? qualityList.join(" • ")
       : "Unbekannt";
 
-  const isCollectionHub =
-  cleanTopic.match(/filmreihe/i);
-
 const hubTitle =
   isCollectionHub
     ? `🎞 ${shortName.toUpperCase()} COLLECTION`
