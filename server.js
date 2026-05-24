@@ -1502,13 +1502,27 @@ async function buildCollectionData(collectionName = "") {
 async function collectionHubCaption(collectionName) {
   const data = await buildCollectionData(collectionName);
 
-  const theme =
-    collectionThemes[collectionName] || {
-      icon: "🎞",
-      archive: "COLLECTION ARCHIVE",
-      subline: "PREMIUM FILM COLLECTION",
-      status: "🎬 FILMREIHE"
-    };
+  const themeRaw =
+  collectionThemes[collectionName] || {};
+
+const theme = {
+  icon:
+    themeRaw.icon ||
+    themeRaw.emoji ||
+    "🎞",
+
+  archive:
+    themeRaw.archive ||
+    "COLLECTION ARCHIVE",
+
+  subline:
+    themeRaw.subline ||
+    "PREMIUM FILM COLLECTION",
+
+  status:
+    themeRaw.status ||
+    "🎬 FILMREIHE"
+};
 
   const cinemaCard =
   collectionCinemaCards[collectionName] || [];
