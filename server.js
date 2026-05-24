@@ -3496,7 +3496,6 @@ async function movieHubCaption(topicName = "") {
         genre
       FROM movies
       WHERE LOWER(collection) LIKE LOWER($1)
-         OR LOWER(genre) LIKE LOWER($1)
       ORDER BY year ASC, title ASC
       `,
       [`%${shortName}%`]
@@ -3519,7 +3518,6 @@ async function movieHubCaption(topicName = "") {
         genre
       FROM movies
       WHERE LOWER(collection) LIKE LOWER(?)
-         OR LOWER(genre) LIKE LOWER(?)
       ORDER BY year ASC, title ASC
     `).all(
       `%${shortName}%`,
