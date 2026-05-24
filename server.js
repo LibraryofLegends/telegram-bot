@@ -1552,12 +1552,14 @@ function collectionHubCaption(collectionName) {
     (data.savedMovies >= data.officialTotal
   ? "🏆 ARCHIV VOLLSTÄNDIG\n"
   : "⚠️ ARCHIV UNVOLLSTÄNDIG\n") +
-    (data.missingMovies.length
-      ? "\n🧩 FEHLENDE FILME\n" +
-        data.missingMovies.map((m) => `• ${m.title} (${m.year})`).join("\n") +
-        "\n"
-      : "") +
-    `🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
+    ((data.missingMovies || []).length
+  ? "\n🧩 FEHLENDE FILME\n" +
+    (data.missingMovies || [])
+      .map((m) => `• ${m.title} (${m.year})`)
+      .join("\n") +
+    "\n"
+  : "") +
+`🕒 UPDATE: ${new Date().toLocaleString("de-DE")}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends";
 
