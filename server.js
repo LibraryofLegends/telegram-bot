@@ -8552,15 +8552,19 @@ async function processMovieUpload({ msg, media, tmdb }) {
   }
 
   if (!universeData?.universeName) {
-    await createMovieHubIfMissing({
-      topicId,
-      topicName: finalTopicName,
-      banner:
-        genreBanners?.[finalTopicName] ||
-        genreBanners?.[tmdb.mainGenre] ||
-        null
-    });
-  }
+  await createMovieHubIfMissing({
+    topicId,
+    topicName: finalTopicName,
+    banner:
+      getCollectionBanner(tmdb.collection) ||
+      genreBanners?.[finalTopicName] ||
+      genreBanners?.[tmdb.mainGenre] ||
+      tmdb.collectionBackdrop ||
+      tmdb.backdropUrl ||
+      tmdb.posterUrl ||
+      null
+  });
+}
 
   if (
     tmdb.collection &&
