@@ -4066,12 +4066,25 @@ async function movieIndexCaption() {
     `).all();
   }
 
-  if (!rows.length) {
+  const uniqueRows = [];
+  const seen = new Set();
+
+  for (const movie of rows) {
+    const key = `${makeKey(movie.title)}-${movie.year || ""}`;
+
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    uniqueRows.push(movie);
+  }
+
+  if (!uniqueRows.length) {
     return (
+      "███ NEXUS FILM INDEX ███\n\n" +
+      "🎬 TOTAL ENTRIES • 0\n" +
+      "🧬 ARCHIVE STATUS • EMPTY\n\n" +
       "━━━━━━━━━━━━━━━━━━\n" +
-      "🔤 MOVIE INDEX A–Z\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      "Noch keine Filme gespeichert.\n\n" +
+      "Noch keine Filme gespeichert.\n" +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
     );
@@ -4079,7 +4092,7 @@ async function movieIndexCaption() {
 
   const groups = {};
 
-  for (const movie of rows) {
+  for (const movie of uniqueRows) {
     const letter =
       String(movie.title || "#")
         .trim()
@@ -4094,21 +4107,21 @@ async function movieIndexCaption() {
   }
 
   let text =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🔤 MOVIE INDEX A–Z\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+    "███ NEXUS FILM INDEX ███\n\n" +
+    `🎬 TOTAL ENTRIES • ${uniqueRows.length}\n` +
+    "🧬 ARCHIVE STATUS • ACTIVE\n" +
+    `📅 LAST UPDATE • ${new Date().toLocaleString("de-DE")}\n\n`;
 
   for (const letter of Object.keys(groups).sort()) {
-    text += `━━ ${letter} ━━\n`;
+    text +=
+      "━━━━━━━━━━━━━━━━━━\n" +
+      `🔤 LETTER • ${letter}\n` +
+      "━━━━━━━━━━━━━━━━━━\n\n";
 
     for (const movie of groups[letter]) {
-      text += `• ${movie.title}`;
-      if (movie.year) text += ` (${movie.year})`;
-      if (movie.library_id) text += ` — ${movie.library_id}`;
-      text += "\n";
+      text += `🎞 ${String(movie.title || "Unbekannt").toUpperCase()}\n`;
+      text += `└ ${movie.year || "Unbekannt"} • ${movie.library_id || "NO-ID"}\n\n`;
     }
-
-    text += "\n";
   }
 
   text +=
