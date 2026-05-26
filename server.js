@@ -5795,14 +5795,25 @@ async function ensureCommandCenters() {
 
   for (const name of movieCenters) {
 
-    await createOrGetTopic({
-      chatId: MOVIE_GROUP_ID,
-      name,
-      type: "system_hub"
-    });
+  await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name,
+    type: "system_hub"
+  });
 
-    await sleep(1500);
-  }
+  await sleep(1500);
+}
+
+for (const bucket of movieTopicBuckets) {
+
+  await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: bucket.name,
+    type: bucket.type
+  });
+
+  await sleep(1200);
+}
 
   for (const name of seriesCenters) {
 
