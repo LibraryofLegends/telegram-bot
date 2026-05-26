@@ -1253,6 +1253,38 @@ const movieTopicBuckets = [
 ];
 
 // =============================
+// DETECT MOVIE BUCKET
+// =============================
+function detectMovieBucket(tmdb = {}) {
+
+  const search =
+    `
+    ${tmdb.title || ""}
+    ${tmdb.collection || ""}
+    ${tmdb.genre || ""}
+    ${tmdb.mainGenre || ""}
+    `
+      .toLowerCase();
+
+  for (const bucket of movieTopicBuckets) {
+
+    const matched =
+      bucket.keywords.some((keyword) =>
+        search.includes(
+          String(keyword).toLowerCase()
+        )
+      );
+
+    if (matched) {
+      return bucket;
+    }
+
+  }
+
+  return null;
+}
+
+// =============================
 // UNIVERSE DETECTION
 // =============================
 function detectUniverse(title = "", collection = "") {
