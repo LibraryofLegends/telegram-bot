@@ -3138,10 +3138,11 @@ async function getTMDBCollectionMovies(collectionId) {
   return data.parts
     .filter((m) => m.media_type !== "tv")
     .map((m) => ({
-      title: m.title || m.original_title || "",
-      year: m.release_date ? m.release_date.slice(0, 4) : "",
-      releaseDate: m.release_date || ""
-    }))
+  id: m.id,
+  title: m.title || m.original_title || "",
+  year: m.release_date ? m.release_date.slice(0, 4) : "",
+  releaseDate: m.release_date || ""
+}))
     .filter((m) => m.title)
     .sort((a, b) =>
       String(a.releaseDate || "").localeCompare(String(b.releaseDate || ""))
@@ -3437,23 +3438,30 @@ if (
     String(tmdb.year || "");
 
   const foundIndex =
-    extras.collectionOrder.findIndex((m) => {
+  extras.collectionOrder.findIndex((m) => {
 
-      const sameYear =
-        String(m.year || "") === currentYear;
+    const sameId =
+      Number(m.id || 0) === Number(tmdb.tmdbId || 0);
 
-      const movieKey =
-        makeKey(m.title || "");
+    if (sameId) {
+      return true;
+    }
 
-      const titleKey =
-        makeKey(tmdb.title || "");
+    const sameYear =
+      String(m.year || "") === currentYear;
 
-      return (
-        sameYear ||
-        movieKey.includes(titleKey) ||
-        titleKey.includes(movieKey)
-      );
-    });
+    const movieKey =
+      makeKey(m.title || "");
+
+    const titleKey =
+      makeKey(tmdb.title || "");
+
+    return (
+      sameYear ||
+      movieKey.includes(titleKey) ||
+      titleKey.includes(movieKey)
+    );
+  });
 
   if (foundIndex >= 0) {
     collectionIndex = foundIndex + 1;
