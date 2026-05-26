@@ -8694,22 +8694,43 @@ async function processMovieUpload({ msg, media, tmdb }) {
     tmdb.collection
   );
 
-  let finalTopicName = tmdb.mainGenre || "Sonstige";
-  let finalTopicType = "movie_genre";
+  // =============================
+// MOVIE TOPIC ROUTING
+// =============================
+let finalTopicName = tmdb.mainGenre || "Sonstige";
+let finalTopicType = "movie_genre";
 
-  if (universeData?.universeName) {
-    finalTopicName = universeData.universeName;
-    finalTopicType = "universe";
-  } else if (tmdb.collection && tmdb.collectionId) {
-    finalTopicName = `🎞 ${tmdb.collection}`;
-    finalTopicType = "collection";
-  }
+const bucketData =
+  await getOrCreateMovieBucketTopic(tmdb);
 
-  const topicId = await createOrGetTopic({
+if (universeData?.universeName) {
+  finalTopicName = universeData.universeName;
+  finalTopicType = "universe";
+} else if (tmdb.collection && tmdb.collectionId) {
+  finalTopicName = `🎞 ${tmdb.collection}`;
+  finalTopicType = "collection";
+} else if (bucketData?.topicId) {
+  finalTopicName = bucketData.topicName;
+  finalTopicType = bucketData.bucket.type;
+}
+
+let topicId = null;
+
+if (universeData?.universeName || (tmdb.collection && tmdb.collectionId)) {
+  topicId = await createOrGetTopic({
     chatId: MOVIE_GROUP_ID,
     name: finalTopicName,
     type: finalTopicType
   });
+} else if (bucketData?.topicId) {
+  topicId = bucketData.topicId;
+} else {
+  topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: finalTopicName,
+    type: finalTopicType
+  });
+}
 
   if (!topicId) {
     await tg("sendMessage", {
