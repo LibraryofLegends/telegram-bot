@@ -3470,8 +3470,61 @@ const cardModes = {
 
 };
 
+// =============================
+// MOVIE BUCKET THEMES
+// =============================
+const movieBucketThemes = {
+
+  "🎬 Action & Abenteuer": {
+    icon: "🎬",
+    archive: "💥 ACTION ARCHIVE",
+    status: "🔥 HIGH IMPACT DATABASE",
+    subline: "MISSIONS • EXPLOSIONS • ADVENTURE",
+    mode: "cinema"
+  },
+
+  "👻 Horror & Thriller": {
+    icon: "👻",
+    archive: "🩸 HORROR VAULT",
+    status: "🔴 NIGHTMARE ACTIVE",
+    subline: "FEAR • SURVIVAL • SUSPENSE",
+    mode: "horror"
+  },
+
+  "🤖 Sci-Fi & Fantasy": {
+    icon: "🤖",
+    archive: "🛰 SCI-FI DATABASE",
+    status: "🟢 SIGNAL DETECTED",
+    subline: "FUTURE • MULTIVERSE • MAGIC",
+    mode: "scifi"
+  },
+
+  "🎭 Drama & Romantik": {
+    icon: "🎭",
+    archive: "🎞 DRAMA ARCHIVE",
+    status: "💔 EMOTIONAL FILES",
+    subline: "STORY • LOVE • CHARACTER",
+    mode: "prestige"
+  },
+
+  "😂 Komödie & Familienfilme": {
+    icon: "😂",
+    archive: "🍿 COMEDY ARCHIVE",
+    status: "🟡 ENTERTAINMENT ACTIVE",
+    subline: "FUN • CHAOS • FAMILY",
+    mode: "cinema"
+  }
+
+};
+
 function movieCaption(tmdb, extras = {}) {
-  const theme = movieThemes[tmdb.collection] || {};
+  const bucketTheme =
+  movieBucketThemes[extras.topicName] || {};
+
+const theme =
+  movieThemes[tmdb.collection] ||
+  bucketTheme ||
+  {};
 
   const mode =
     cardModes[theme.mode] || cardModes.cinema;
@@ -8811,7 +8864,10 @@ if (universeData?.universeName || useCollectionTopic) {
     messageId: msg.message_id,
     targetChatId: MOVIE_GROUP_ID,
     topicId,
-    caption: movieCaption(tmdb, extras),
+    caption: movieCaption(tmdb, {
+  ...extras,
+  topicName: finalTopicName
+}),
     fileId,
     isVideo: !!msg.video,
     adminChatId: msg.chat.id
