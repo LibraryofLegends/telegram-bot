@@ -3432,12 +3432,28 @@ let collectionIndex = 1;
 if (
   Array.isArray(extras.collectionOrder)
 ) {
+
+  const currentYear =
+    String(tmdb.year || "");
+
   const foundIndex =
-    extras.collectionOrder.findIndex(
-      (t) =>
-        String(t).toLowerCase() ===
-        String(tmdb.title || "").toLowerCase()
-    );
+    extras.collectionOrder.findIndex((m) => {
+
+      const sameYear =
+        String(m.year || "") === currentYear;
+
+      const movieKey =
+        makeKey(m.title || "");
+
+      const titleKey =
+        makeKey(tmdb.title || "");
+
+      return (
+        sameYear ||
+        movieKey.includes(titleKey) ||
+        titleKey.includes(movieKey)
+      );
+    });
 
   if (foundIndex >= 0) {
     collectionIndex = foundIndex + 1;
@@ -3579,29 +3595,21 @@ function movieCaption(tmdb, extras = {}) {
 
     `${nexus.line1}\n` +
     `${nexus.line2}\n\n` +
-
     "━━━━━━━━━━━━━━━━━━\n" +
-
     `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
     `🎭 ${genreText}\n` +
     `📀 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"} • ${tmdb.runtime || "Unbekannt"}\n` +
     `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-
     "━━━━━━━━━━━━━━━━━━\n\n" +
-
     "🎥 DIRECTOR\n" +
     `${tmdb.director || "Unbekannt"}\n\n` +
 
     "👥 CAST MATRIX\n" +
     `${castLines || "Unbekannt"}\n\n` +
-
     "━━━━━━━━━━━━━━━━━━\n" +
-
     "📖 SYNOPSIS\n\n" +
     `${safeOverview}\n\n` +
-
     "━━━━━━━━━━━━━━━━━━\n" +
-
     "🧬 ARCHIVE CODE\n" +
     `${extras.libraryId || "Unbekannt"}\n\n` +
 
