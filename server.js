@@ -8839,6 +8839,27 @@ if (text === "/clearmoviesdb") {
 }
 
 // =============================
+// REBUILD MOVIE INDEX
+// =============================
+if (text === "/rebuildmovieindex") {
+
+  await createOrUpdateMovieIndex();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🔤 MOVIE INDEX AKTUALISIERT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "✅ A–Z Index wurde neu erstellt/aktualisiert\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
+// =============================
 // UNKNOWN COMMAND
 // =============================
 await tg("sendMessage", {
