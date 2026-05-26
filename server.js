@@ -3440,27 +3440,38 @@ if (
   const foundIndex =
   extras.collectionOrder.findIndex((m) => {
 
+    const item =
+      typeof m === "string"
+        ? { title: m }
+        : m || {};
+
     const sameId =
-      Number(m.id || 0) === Number(tmdb.tmdbId || 0);
+      item.id &&
+      tmdb.tmdbId &&
+      Number(item.id) === Number(tmdb.tmdbId);
 
-    if (sameId) {
-      return true;
-    }
+    if (sameId) return true;
 
-    const sameYear =
-      String(m.year || "") === currentYear;
+    const itemTitleKey =
+      makeKey(item.title || "");
 
-    const movieKey =
-      makeKey(m.title || "");
-
-    const titleKey =
+    const movieTitleKey =
       makeKey(tmdb.title || "");
 
-    return (
-      sameYear ||
-      movieKey.includes(titleKey) ||
-      titleKey.includes(movieKey)
-    );
+    const sameTitle =
+      itemTitleKey &&
+      movieTitleKey &&
+      (
+        itemTitleKey.includes(movieTitleKey) ||
+        movieTitleKey.includes(itemTitleKey)
+      );
+
+    const sameYear =
+      item.year &&
+      tmdb.year &&
+      String(item.year) === String(tmdb.year);
+
+    return sameTitle && sameYear;
   });
 
   if (foundIndex >= 0) {
