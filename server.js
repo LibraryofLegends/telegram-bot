@@ -1285,6 +1285,32 @@ function detectMovieBucket(tmdb = {}) {
 }
 
 // =============================
+// GET OR CREATE MOVIE BUCKET TOPIC
+// =============================
+async function getOrCreateMovieBucketTopic(tmdb = {}) {
+
+  const bucket =
+    detectMovieBucket(tmdb);
+
+  if (!bucket) {
+    return null;
+  }
+
+  const topicId =
+    await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: bucket.name,
+      type: bucket.type
+    });
+
+  return {
+    topicId,
+    topicName: bucket.name,
+    bucket
+  };
+}
+
+// =============================
 // UNIVERSE DETECTION
 // =============================
 function detectUniverse(title = "", collection = "") {
