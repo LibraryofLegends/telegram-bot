@@ -1157,6 +1157,26 @@ const universeConfigs = {
 };
 
 // =============================
+// COLLECTION TOPIC ALLOWLIST
+// =============================
+const collectionTopicAllowlist = [
+  "Hangover Filmreihe",
+  "Harry Potter Filmreihe",
+  "Fast & Furious Filmreihe",
+  "John Wick Filmreihe",
+  "Matrix Filmreihe",
+  "Terminator Filmreihe"
+];
+
+function shouldCreateCollectionTopic(collectionName = "") {
+  return collectionTopicAllowlist.some((name) =>
+    String(collectionName || "")
+      .toLowerCase()
+      .includes(name.toLowerCase())
+  );
+}
+
+// =============================
 // MOVIE TOPIC BUCKETS
 // =============================
 const movieTopicBuckets = [
@@ -8703,10 +8723,15 @@ let finalTopicType = "movie_genre";
 const bucketData =
   await getOrCreateMovieBucketTopic(tmdb);
 
+const useCollectionTopic =
+  tmdb.collection &&
+  tmdb.collectionId &&
+  shouldCreateCollectionTopic(tmdb.collection);
+
 if (universeData?.universeName) {
   finalTopicName = universeData.universeName;
   finalTopicType = "universe";
-} else if (tmdb.collection && tmdb.collectionId) {
+} else if (useCollectionTopic) {
   finalTopicName = `🎞 ${tmdb.collection}`;
   finalTopicType = "collection";
 } else if (bucketData?.topicId) {
@@ -8716,7 +8741,7 @@ if (universeData?.universeName) {
 
 let topicId = null;
 
-if (universeData?.universeName || (tmdb.collection && tmdb.collectionId)) {
+if (universeData?.universeName || useCollectionTopic) {
   topicId = await createOrGetTopic({
     chatId: MOVIE_GROUP_ID,
     name: finalTopicName,
