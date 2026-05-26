@@ -3126,6 +3126,29 @@ function buildMovieTmdbObject(details, fallbackTitle = "", fallbackYear = "") {
 }
 
 // =============================
+// TMDB COLLECTION MOVIES
+// =============================
+async function getTMDBCollectionMovies(collectionId) {
+  if (!collectionId) return [];
+
+  const data = await tmdbGet(`/collection/${collectionId}`);
+
+  if (!data?.parts?.length) return [];
+
+  return data.parts
+    .filter((m) => m.media_type !== "tv")
+    .map((m) => ({
+      title: m.title || m.original_title || "",
+      year: m.release_date ? m.release_date.slice(0, 4) : "",
+      releaseDate: m.release_date || ""
+    }))
+    .filter((m) => m.title)
+    .sort((a, b) =>
+      String(a.releaseDate || "").localeCompare(String(b.releaseDate || ""))
+    );
+}
+
+// =============================
 // MOVIE SEARCH
 // =============================
 async function searchMovieTMDBChoices(title, year = "") {
@@ -3181,7 +3204,13 @@ async function searchMovieTMDB(title, year = "") {
     });
 
     const movie = buildMovieTmdbObject(details, queryTitle, year);
-    if (movie) return movie;
+
+if (movie?.collectionId) {
+  movie.collectionMovies =
+    await getTMDBCollectionMovies(movie.collectionId);
+}
+
+if (movie) return movie;
   }
 
   if (year) return await searchMovieTMDB(title, "");
