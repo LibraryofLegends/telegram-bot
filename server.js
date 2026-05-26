@@ -4120,6 +4120,80 @@ console.log("🖼 MOVIE HUB BANNER CHECK:", {
 }
 
 // =============================
+// MOVIE INDEX A-Z CAPTION
+// =============================
+async function movieIndexCaption() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT title, year, library_id
+      FROM movies
+      ORDER BY title ASC, year ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT title, year, library_id
+      FROM movies
+      ORDER BY title ASC, year ASC
+    `).all();
+  }
+
+  if (!rows.length) {
+    return (
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🔤 MOVIE INDEX A–Z\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "Noch keine Filme gespeichert.\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+    );
+  }
+
+  const groups = {};
+
+  for (const movie of rows) {
+    const letter =
+      String(movie.title || "#")
+        .trim()
+        .charAt(0)
+        .toUpperCase();
+
+    const key = letter.match(/[A-ZÄÖÜ]/) ? letter : "#";
+
+    if (!groups[key]) groups[key] = [];
+
+    groups[key].push(movie);
+  }
+
+  let text =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🔤 MOVIE INDEX A–Z\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  for (const letter of Object.keys(groups).sort()) {
+    text += `━━ ${letter} ━━\n`;
+
+    for (const movie of groups[letter]) {
+      text += `• ${movie.title}`;
+      if (movie.year) text += ` (${movie.year})`;
+      if (movie.library_id) text += ` — ${movie.library_id}`;
+      text += "\n";
+    }
+
+    text += "\n";
+  }
+
+  text +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+// =============================
 // UPDATE MOVIE HUB
 // =============================
 async function updateMovieHub({
