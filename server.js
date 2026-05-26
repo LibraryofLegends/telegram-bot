@@ -1157,6 +1157,102 @@ const universeConfigs = {
 };
 
 // =============================
+// MOVIE TOPIC BUCKETS
+// =============================
+const movieTopicBuckets = [
+  {
+    name: "🎬 Action & Abenteuer",
+    type: "movie_bucket",
+    keywords: ["action", "abenteuer", "adventure"]
+  },
+  {
+    name: "👻 Horror & Thriller",
+    type: "movie_bucket",
+    keywords: ["horror", "thriller"]
+  },
+  {
+    name: "🤖 Sci-Fi & Fantasy",
+    type: "movie_bucket",
+    keywords: ["science fiction", "sci-fi", "fantasy"]
+  },
+  {
+    name: "🎭 Drama & Romantik",
+    type: "movie_bucket",
+    keywords: ["drama", "romantik", "liebesfilm", "romance"]
+  },
+  {
+    name: "😂 Komödie & Familienfilme",
+    type: "movie_bucket",
+    keywords: ["komödie", "comedy", "familie", "family"]
+  },
+  {
+    name: "🏆 Top100 / Awards",
+    type: "movie_bucket",
+    keywords: ["top100", "award", "oscar"]
+  },
+  {
+    name: "🔥 Neuerscheinungen / Trending",
+    type: "movie_bucket",
+    keywords: ["trending", "neuerscheinung"]
+  },
+  {
+    name: "🌍 Internationale Filme",
+    type: "movie_bucket",
+    keywords: ["international", "foreign"]
+  },
+  {
+    name: "🎨 Animation & Anime",
+    type: "movie_bucket",
+    keywords: ["animation", "anime"]
+  },
+  {
+    name: "🕵️ Mystery / Krimi",
+    type: "movie_bucket",
+    keywords: ["mystery", "krimi", "crime"]
+  },
+  {
+    name: "🏞️ Dokumentationen / Biografien",
+    type: "movie_bucket",
+    keywords: ["dokumentar", "dokumentation", "biografie", "biography"]
+  },
+  {
+    name: "🦸 Marvel",
+    type: "movie_bucket",
+    keywords: ["marvel", "mcu", "avengers", "iron man", "thor", "captain america"]
+  },
+  {
+    name: "🏰 Disney",
+    type: "movie_bucket",
+    keywords: ["disney", "pixar", "frozen", "toy story", "lion king", "aladdin"]
+  },
+  {
+    name: "⚡ Harry Potter",
+    type: "movie_bucket",
+    keywords: ["harry potter", "fantastic beasts", "hogwarts"]
+  },
+  {
+    name: "📝 Filmographien",
+    type: "movie_bucket",
+    keywords: ["filmographie"]
+  },
+  {
+    name: "🚀 FAST & FURIOUS ACTION-UNIVERSUM",
+    type: "movie_bucket",
+    keywords: ["fast & furious", "fast and furious", "fast furious"]
+  },
+  {
+    name: "🧸 Kinderfilme",
+    type: "movie_bucket",
+    keywords: ["kinderfilm", "kids", "familie", "family"]
+  },
+  {
+    name: "🖍️ Zeichentrickfilme",
+    type: "movie_bucket",
+    keywords: ["zeichentrick", "cartoon", "animation"]
+  }
+];
+
+// =============================
 // UNIVERSE DETECTION
 // =============================
 function detectUniverse(title = "", collection = "") {
