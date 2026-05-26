@@ -3396,20 +3396,34 @@ function getMovieNexusMeta(tmdb, extras = {}) {
   if (collection) {
 
     const collectionMovies =
-      Number(extras.collectionMovies || 1);
+  Number(extras.collectionMovies || 1);
 
-    const collectionIndex =
-      Number(extras.collectionIndex || 1);
+let collectionIndex = 1;
+
+if (
+  Array.isArray(extras.collectionOrder)
+) {
+  const foundIndex =
+    extras.collectionOrder.findIndex(
+      (t) =>
+        String(t).toLowerCase() ===
+        String(tmdb.title || "").toLowerCase()
+    );
+
+  if (foundIndex >= 0) {
+    collectionIndex = foundIndex + 1;
+  }
+}
 
     return {
-      header: "███ COLLECTION NEXUS ███",
+  header: "███ COLLECTION NEXUS ███",
 
-      line1:
-        `🎞 ${collection.toUpperCase()}`,
+  line1:
+    `🎞 ${collection.toUpperCase()}`,
 
-      line2:
-        `COLLECTION ENTRY • PART ${collectionIndex}/${collectionMovies}`
-    };
+  line2:
+    `COLLECTION ENTRY • ${collectionIndex}/${collectionMovies}`
+};
   }
 
   // =============================
