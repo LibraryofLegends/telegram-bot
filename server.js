@@ -8984,11 +8984,22 @@ const copied = await copyOriginalMedia({
   targetChatId: MOVIE_GROUP_ID,
   topicId,
   caption: movieCaption(tmdb, {
-    ...extras,
-    topicName: finalTopicName,
-    universe: universeData?.universeName || null,
-    universePhase: universeData?.phase || null
-  }),
+  ...extras,
+
+  topicName: finalTopicName,
+
+  universe:
+    universeData?.universeName || null,
+
+  universePhase:
+    universeData?.phase || null,
+
+  collectionMovies:
+    tmdb.collectionMovies?.length || 1,
+
+  collectionOrder:
+    tmdb.collectionMovies || []
+}),
   fileId,
   isVideo: !!msg.video,
   adminChatId: msg.chat.id
