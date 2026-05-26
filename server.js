@@ -8650,6 +8650,34 @@ if (text === "/rebuildcommandcenters") {
 }
 
 // =============================
+// CLEAR MOVIES DATABASE
+// =============================
+if (text === "/clearmoviesdb") {
+
+  if (pgPool) {
+    await pgPool.query(`DELETE FROM movies;`);
+  }
+
+  db.prepare(`DELETE FROM movies;`).run();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🧹 FILM-DATENBANK GELEERT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "✅ Alle Filme wurden gelöscht\n" +
+      "✅ Topics bleiben erhalten\n" +
+      "✅ Hubs bleiben erhalten\n\n" +
+      "Du kannst deine Filme jetzt neu hochladen.\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
+// =============================
 // UNKNOWN COMMAND
 // =============================
 await tg("sendMessage", {
