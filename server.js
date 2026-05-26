@@ -8783,10 +8783,9 @@ if (universeData?.universeName || useCollectionTopic) {
 }
 
   if (
-    tmdb.collection &&
-    tmdb.collectionId &&
-    !universeData?.universeName
-  ) {
+  useCollectionTopic &&
+  !universeData?.universeName
+) {
     const existingCollection = await getCollection(tmdb.collectionId);
 
     if (!existingCollection) {
@@ -8875,7 +8874,7 @@ if (universeData?.universeName || useCollectionTopic) {
       console.error("⚠️ Movie Hub Update Fehler:", err.message);
     }
 
-    if (tmdb.collection && tmdb.collectionId) {
+    if (useCollectionTopic) {
       try {
         await createOrUpdateCollectionHub(tmdb, topicId);
       } catch (err) {
