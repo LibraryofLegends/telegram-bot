@@ -4194,6 +4194,76 @@ async function movieIndexCaption() {
 }
 
 // =============================
+// CREATE OR UPDATE MOVIE INDEX
+// =============================
+async function createOrUpdateMovieIndex() {
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "🔤 MOVIE INDEX A–Z",
+    type: "movie_index"
+  });
+
+  if (!topicId) return null;
+
+  const uniqueKey = makeKey(`movie_index-${MOVIE_GROUP_ID}-🔤 MOVIE INDEX A–Z`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [uniqueKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(uniqueKey);
+  }
+
+  const text = await movieIndexCaption();
+
+  if (topic?.hub_message_id) {
+    return await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: topicId,
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, uniqueKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(msg.message_id, uniqueKey);
+    }
+  }
+
+  return msg;
+}
+
+// =============================
 // UPDATE MOVIE HUB
 // =============================
 async function updateMovieHub({
