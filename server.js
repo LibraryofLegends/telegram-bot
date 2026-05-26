@@ -3477,42 +3477,12 @@ function getMovieNexusMeta(tmdb, extras = {}) {
   };
 }
 
+// =============================
+// MOVIE CAPTION
+// =============================
 function movieCaption(tmdb, extras = {}) {
-  const bucketTheme =
-  movieBucketThemes[extras.topicName] || {};
-
-const theme =
-  movieThemes[tmdb.collection] ||
-  bucketTheme ||
-  {};
-
-  const mode =
-    cardModes[theme.mode] || cardModes.cinema;
-
-  const divider = mode.divider;
-
-  const mainGenre = String(tmdb.genre || "Sonstige")
-    .split("/")
-    .map((g) => g.trim())
-    .filter(Boolean)[0] || "Sonstige";
-
-  const genreEmojiMap = {
-    Action: "💥",
-    Thriller: "🔪",
-    Sciencefiction: "🚀",
-    Drama: "🎭",
-    Horror: "👻",
-    Krimi: "🕵️",
-    Abenteuer: "🗺️",
-    Fantasy: "🐉",
-    Komödie: "😂",
-    Animation: "🎨",
-    Familie: "👨‍👩‍👧",
-    Mystery: "🧩",
-    Romanze: "❤️"
-  };
-
-  const genreEmoji = genreEmojiMap[mainGenre] || "🎬";
+  const nexus =
+    getMovieNexusMeta(tmdb, extras);
 
   const genreText = String(tmdb.genre || "Sonstige")
     .split("/")
@@ -3528,23 +3498,6 @@ const theme =
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
-  const ratingNumber =
-    Number(String(tmdb.rating || "").match(/(\d+(\.\d+)?)/g)?.pop() || 0);
-
-  const releaseBadge =
-    ratingNumber >= 8
-      ? "🏆 CULT CLASSIC"
-      : ratingNumber >= 7
-        ? "🎖 PREMIUM RELEASE"
-        : "🎞 ARCHIVE ENTRY";
-
-  const threatLevel =
-    ratingNumber >= 8
-      ? "🔴 THREAT LEVEL: EXTREME"
-      : ratingNumber >= 7
-        ? "🟠 THREAT LEVEL: HIGH"
-        : "🟡 THREAT LEVEL: MODERATE";
-
   const castLines = String(tmdb.cast || "Unbekannt")
     .split("•")
     .map((p) => p.trim())
@@ -3552,27 +3505,6 @@ const theme =
     .slice(0, 4)
     .map((p) => `▸ ${p}`)
     .join("\n");
-
-  const cleanResolution = String(extras.resolution || "")
-    .replace("3840x2160", "2160p")
-    .replace("1920x1080", "1080p")
-    .replace("1280x720", "720p");
-
-  const techLine = [
-    extras.quality || "Unbekannt",
-
-    cleanResolution && cleanResolution !== "Unbekannt"
-      ? cleanResolution
-      : null,
-
-    extras.audio && extras.audio !== "Unbekannt"
-      ? extras.audio
-      : null,
-
-    extras.fileSize || "Unbekannt"
-  ]
-    .filter(Boolean)
-    .join(" • ");
 
   const overviewRaw = String(
     tmdb.overview || "Keine Beschreibung verfügbar."
@@ -3594,61 +3526,41 @@ const theme =
     if (lastSentenceEnd > 180) {
       safeOverview = safeOverview.slice(0, lastSentenceEnd + 1);
     } else {
-      safeOverview = safeOverview.slice(
-        0,
-        safeOverview.lastIndexOf(" ")
-      );
-
+      safeOverview = safeOverview.slice(0, safeOverview.lastIndexOf(" "));
       safeOverview += " …";
     }
   }
 
   return (
-    `${divider}\n` +
-    `${theme.icon || genreEmoji} ${String(
-      tmdb.title || ""
-    ).toUpperCase()} • ${tmdb.year || "Unbekannt"}\n` +
-    `${divider}\n` +
+    `${nexus.header}\n\n` +
 
-    (theme.archive
-      ? `${theme.archive}\n${theme.status || threatLevel}\n${theme.subline || ""}\n`
-      : `${threatLevel}\n`) +
+    `${nexus.line1}\n` +
+    `${nexus.line2}\n\n` +
 
-    `${genreEmoji} ${genreText}\n` +
-    `🎞 ${techLine}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
 
-    `${divider}\n` +
+    `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
+    `🎭 ${genreText}\n` +
+    `📀 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"} • ${tmdb.runtime || "Unbekannt"}\n` +
+    `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
 
-    `⭐ RATING: ${tmdb.rating || "Unbekannt"} IMDb\n` +
-    `🎖 CLASSIFICATION: ${releaseBadge
-      .replace("🏆 ", "")
-      .replace("🎖 ", "")
-      .replace("🎞 ", "")}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    `⏱ ${tmdb.runtime || "Unbekannt"} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-
-    `${divider}\n` +
-
-    "🎥 REGIE\n" +
+    "🎥 DIRECTOR\n" +
     `${tmdb.director || "Unbekannt"}\n\n` +
 
-    "👥 STARRING\n" +
-    `${castLines || "Unbekannt"}\n` +
+    "👥 CAST MATRIX\n" +
+    `${castLines || "Unbekannt"}\n\n` +
 
-    `${divider}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
 
-    "📖 STORY FILE\n" +
-    `╰➤ ${safeOverview}\n` +
+    "📖 SYNOPSIS\n\n" +
+    `${safeOverview}\n\n` +
 
-    `${divider}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
 
-    `🧬 ARCHIVE ID • ${extras.libraryId || "Unbekannt"}\n` +
-
-    (theme.archive
-      ? "📡 FRANCHISE DB\n"
-      : "") +
-
-    `${divider}\n` +
+    "🧬 ARCHIVE CODE\n" +
+    `${extras.libraryId || "Unbekannt"}\n\n` +
 
     `${genreTags}\n` +
     "@LibraryOfLegends"
