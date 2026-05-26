@@ -8863,9 +8863,6 @@ async function processMovieUpload({ msg, media, tmdb }) {
   // =============================
 // MOVIE TOPIC ROUTING
 // =============================
-let finalTopicName = tmdb.mainGenre || "Sonstige";
-let finalTopicType = "movie_genre";
-
 const bucketData =
   await getOrCreateMovieBucketTopic(tmdb);
 
@@ -8874,46 +8871,54 @@ const useCollectionTopic =
   tmdb.collectionId &&
   shouldCreateCollectionTopic(tmdb.collection);
 
+let finalTopicName =
+  bucketData?.topicName ||
+  tmdb.mainGenre ||
+  "Sonstige";
+
+let finalTopicType =
+  bucketData?.bucket?.type ||
+  "movie_genre";
+
+if (useCollectionTopic) {
+  finalTopicName = `🎞 ${tmdb.collection}`;
+  finalTopicType = "collection";
+}
+
 if (universeData?.universeName) {
   finalTopicName = universeData.universeName;
   finalTopicType = "universe";
-} else if (useCollectionTopic) {
-  finalTopicName = `🎞 ${tmdb.collection}`;
-  finalTopicType = "collection";
-} else if (bucketData?.topicId) {
-  finalTopicName = bucketData.topicName;
-  finalTopicType = bucketData.bucket.type;
 }
 
-let topicId = null;
+let topicId =
+  universeData?.universeName || useCollectionTopic
+    ? await createOrGetTopic({
+        chatId: MOVIE_GROUP_ID,
+        name: finalTopicName,
+        type: finalTopicType
+      })
+    : bucketData?.topicId ||
+      await createOrGetTopic({
+        chatId: MOVIE_GROUP_ID,
+        name: finalTopicName,
+        type: finalTopicType
+      });
 
-if (universeData?.universeName || useCollectionTopic) {
-  topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: finalTopicName,
-    type: finalTopicType
+if (!topicId) {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "❌ Film-Thema konnte nicht erstellt werden.\n\n" +
+      "Prüfe MOVIE_GROUP_ID, Bot-Adminrechte und Forum-Themen."
   });
-} else if (bucketData?.topicId) {
-  topicId = bucketData.topicId;
-} else {
-  topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: finalTopicName,
-    type: finalTopicType
-  });
+
+  return;
 }
 
-  if (!topicId) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "❌ Film-Thema konnte nicht erstellt werden.\n\n" +
-        "Prüfe MOVIE_GROUP_ID, Bot-Adminrechte und Forum-Themen."
-    });
-    return;
-  }
-
-  if (!universeData?.universeName) {
+// =============================
+// MOVIE HUB SETUP
+// =============================
+if (!universeData?.universeName) {
   await createMovieHubIfMissing({
     topicId,
     topicName: finalTopicName,
@@ -8928,53 +8933,67 @@ if (universeData?.universeName || useCollectionTopic) {
   });
 }
 
-  if (
-  useCollectionTopic &&
-  !universeData?.universeName
-) {
-    const existingCollection = await getCollection(tmdb.collectionId);
+// =============================
+// COLLECTION DB ENTRY
+// =============================
+if (useCollectionTopic && !universeData?.universeName) {
+  const existingCollection =
+    await getCollection(tmdb.collectionId);
 
-    if (!existingCollection) {
-      await saveCollection({
-        collectionName: tmdb.collection,
-        tmdbCollectionId: tmdb.collectionId,
-        topicId,
-        posterUrl: tmdb.collectionPoster || tmdb.posterUrl
-      });
-    }
-  }
-
-  await tg("sendPhoto", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: topicId,
-    photo:
-      tmdb.posterUrl ||
-      "https://via.placeholder.com/500x750.png?text=No+Cover"
-  });
-
-  const copied = await copyOriginalMedia({
-    fromChatId: msg.chat.id,
-    messageId: msg.message_id,
-    targetChatId: MOVIE_GROUP_ID,
-    topicId,
-    caption: movieCaption(tmdb, {
-  ...extras,
-  topicName: finalTopicName
-}),
-    fileId,
-    isVideo: !!msg.video,
-    adminChatId: msg.chat.id
-  });
-
-  if (!copied?.message_id) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: "⚠️ Film-Cover wurde gepostet, aber Datei konnte nicht kopiert werden."
+  if (!existingCollection) {
+    await saveCollection({
+      collectionName: tmdb.collection,
+      tmdbCollectionId: tmdb.collectionId,
+      topicId,
+      posterUrl: tmdb.collectionPoster || tmdb.posterUrl
     });
-    return;
   }
+}
 
-  await saveMovie({
+// =============================
+// POST COVER
+// =============================
+await tg("sendPhoto", {
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: topicId,
+  photo:
+    tmdb.posterUrl ||
+    "https://via.placeholder.com/500x750.png?text=No+Cover"
+});
+
+// =============================
+// COPY ORIGINAL MEDIA
+// =============================
+const copied = await copyOriginalMedia({
+  fromChatId: msg.chat.id,
+  messageId: msg.message_id,
+  targetChatId: MOVIE_GROUP_ID,
+  topicId,
+  caption: movieCaption(tmdb, {
+    ...extras,
+    topicName: finalTopicName,
+    universe: universeData?.universeName || null,
+    universePhase: universeData?.phase || null
+  }),
+  fileId,
+  isVideo: !!msg.video,
+  adminChatId: msg.chat.id
+});
+
+if (!copied?.message_id) {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "⚠️ Film-Cover wurde gepostet, aber Datei konnte nicht kopiert werden."
+  });
+
+  return;
+}
+
+// =============================
+// SAVE MOVIE
+// =============================
+await saveMovie({
   title: tmdb.title,
   year: tmdb.year,
   genre: tmdb.genre,
@@ -9005,61 +9024,72 @@ if (universeData?.universeName || useCollectionTopic) {
   universePhase: universeData?.phase || null
 });
 
-  if (universeData?.universeName) {
-    try {
-      await createOrUpdateUniverseHub(
-        universeData.universeName
-      );
-    } catch (err) {
-      console.error("⚠️ Universe Hub Update Fehler:", err.message);
-    }
-  } else {
-    try {
-      await updateMovieHub({
-        topicId,
-        topicName: finalTopicName
-      });
-    } catch (err) {
-      console.error("⚠️ Movie Hub Update Fehler:", err.message);
-    }
-
-    if (useCollectionTopic) {
-      try {
-        await createOrUpdateCollectionHub(tmdb, topicId);
-      } catch (err) {
-        console.error("⚠️ Collection Hub Fehler:", err.message);
-      }
-    }
-  }
-
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "✅ Film erfolgreich einsortiert:\n\n" +
-      `🎬 ${tmdb.title}\n` +
-      `🎭 Thema: ${finalTopicName}\n` +
-      (tmdb.collection
-        ? `🎞 Filmreihe: ${tmdb.collection}\n`
-        : "") +
-      `🏷 ${extras.libraryId}`
-  });
-
+// =============================
+// UPDATE HUBS
+// =============================
+if (universeData?.universeName) {
   try {
-    await refreshCommandCenters();
+    await createOrUpdateUniverseHub(
+      universeData.universeName
+    );
   } catch (err) {
-    console.error("⚠️ Command Center Refresh Fehler:", err.message);
+    console.error("⚠️ Universe Hub Update Fehler:", err.message);
   }
-  
+} else {
   try {
+    await updateMovieHub({
+      topicId,
+      topicName: finalTopicName
+    });
+  } catch (err) {
+    console.error("⚠️ Movie Hub Update Fehler:", err.message);
+  }
+
+  if (useCollectionTopic) {
+    try {
+      await createOrUpdateCollectionHub(tmdb, topicId);
+    } catch (err) {
+      console.error("⚠️ Collection Hub Fehler:", err.message);
+    }
+  }
+}
+
+// =============================
+// ADMIN CONFIRMATION
+// =============================
+await tg("sendMessage", {
+  chat_id: msg.chat.id,
+  text:
+    "✅ Film erfolgreich einsortiert:\n\n" +
+    `🎬 ${tmdb.title}\n` +
+    `🎭 Thema: ${finalTopicName}\n` +
+    (
+      tmdb.collection
+        ? `🎞 Filmreihe: ${tmdb.collection}\n`
+        : ""
+    ) +
+    `🏷 ${extras.libraryId}`
+});
+
+// =============================
+// REFRESH GLOBAL SYSTEMS
+// =============================
+try {
+  await refreshCommandCenters();
+} catch (err) {
+  console.error("⚠️ Command Center Refresh Fehler:", err.message);
+}
+
+try {
   await createOrUpdateMovieIndex();
 } catch (err) {
   console.error("⚠️ Movie Index Update Fehler:", err.message);
 }
 
-  logToDb(
-    "movie_saved",
-    `${tmdb.title} ${tmdb.year || ""}`
-  );
+logToDb(
+  "movie_saved",
+  `${tmdb.title} ${tmdb.year || ""}`
+);
 }
 
 // =============================
