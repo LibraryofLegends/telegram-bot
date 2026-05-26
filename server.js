@@ -6639,6 +6639,18 @@ async function handleCallback(callback) {
         "Beispiel:\n/setseries Timon und Pumbaa"
     });
   }
+  
+  if (data === "panel_movie_index") {
+
+  await createOrUpdateMovieIndex();
+
+  await tg("answerCallbackQuery", {
+    callback_query_id: query.id,
+    text: "🔤 Movie Index aktualisiert"
+  });
+
+  return;
+}
 
   // =============================
   // UNKNOWN BUTTON
@@ -8939,6 +8951,11 @@ async function sendAdminPanel(chatId) {
   { text: "🎛 Dashboard", callback_data: "panel_dashboard" },
   { text: "📊 Statistik", callback_data: "panel_stats" }
 ],
+
+[
+  { text: "🔤 Movie Index", callback_data: "panel_movie_index" }
+],
+
 [
   { text: "🔎 Suche Hilfe", callback_data: "panel_search_help" }
 ],
