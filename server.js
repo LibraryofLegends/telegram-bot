@@ -9156,6 +9156,12 @@ if (universeData?.universeName || useCollectionTopic) {
   } catch (err) {
     console.error("⚠️ Command Center Refresh Fehler:", err.message);
   }
+  
+  try {
+  await createOrUpdateMovieIndex();
+} catch (err) {
+  console.error("⚠️ Movie Index Update Fehler:", err.message);
+}
 
   logToDb(
     "movie_saved",
