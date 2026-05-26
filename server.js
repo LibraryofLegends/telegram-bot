@@ -3380,159 +3380,102 @@ function makeHashtags(text = "") {
 }
 
 // =============================
-// MOVIE THEMES
+// MOVIE NEXUS META
 // =============================
-const movieThemes = {
+function getMovieNexusMeta(tmdb, extras = {}) {
 
-  "Terminator Filmreihe": {
-    icon: "🤖",
-    archive: "📼 SKYNET ARCHIVE",
-    status: "🔴 JUDGMENT DAY PROTOCOL",
-    subline: "🛰 TEMPORAL BREACH DETECTED",
-    mode: "scifi"
-  },
+  const collection =
+    String(tmdb.collection || "");
 
-  "Matrix Filmreihe": {
-    icon: "💊",
-    archive: "📟 ZION MAINFRAME",
-    status: "🟢 MATRIX SIGNAL DETECTED",
-    subline: "🧬 THE ONE PROTOCOL",
-    mode: "scifi"
-  },
+  const universe =
+    String(extras.universe || "");
 
-  "John Wick Filmreihe": {
-    icon: "🩸",
-    archive: "🪙 HIGH TABLE DOSSIER",
-    status: "🟡 EXCOMMUNICADO",
-    subline: "🔫 CONTRACT ACTIVE",
-    mode: "classified"
-  },
+  // =============================
+  // COLLECTION ENTRY
+  // =============================
+  if (collection) {
 
-  "Harry Potter Filmreihe": {
-    icon: "🪄",
-    archive: "📚 HOGWARTS ARCHIVE",
-    status: "✨ WIZARDING WORLD ACTIVE",
-    subline: "⚡ THE BOY WHO LIVED",
-    mode: "prestige"
-  },
+    const collectionMovies =
+      Number(extras.collectionMovies || 1);
 
-  "Marvel Collection": {
-    icon: "🧬",
-    archive: "🦸 MULTIVERSE ARCHIVE",
-    status: "🔴 AVENGERS PROTOCOL",
-    subline: "🌌 SACRED TIMELINE",
-    mode: "cinema"
-  },
+    const collectionIndex =
+      Number(extras.collectionIndex || 1);
 
-  "DC Collection": {
-    icon: "🦇",
-    archive: "🦸 JUSTICE ARCHIVE",
-    status: "⚡ META HUMAN DATABASE",
-    subline: "🌃 GOTHAM FILES",
-    mode: "cinema"
-  },
+    return {
+      header: "███ COLLECTION NEXUS ███",
 
-  "Star Wars Collection": {
-    icon: "🌌",
-    archive: "🛰 GALACTIC ARCHIVE",
-    status: "⚔ FORCE SIGNAL DETECTED",
-    subline: "🛸 REPUBLIC DATABASE",
-    mode: "scifi"
-  },
+      line1:
+        `🎞 ${collection.toUpperCase()}`,
 
-  "Disney Collection": {
-    icon: "🏰",
-    archive: "✨ MAGIC KINGDOM ARCHIVE",
-    status: "🌟 FAIRYTALE DATABASE",
-    subline: "🎬 CLASSIC COLLECTION",
-    mode: "prestige"
+      line2:
+        `COLLECTION ENTRY • PART ${collectionIndex}/${collectionMovies}`
+    };
   }
 
-};
+  // =============================
+  // MARVEL
+  // =============================
+  if (
+    universe.toLowerCase().includes("marvel")
+  ) {
+    return {
+      header: "███ MARVEL NEXUS ███",
 
-// =============================
-// CARD MODES
-// =============================
-const cardModes = {
+      line1:
+        `🧬 ${String(tmdb.title || "").toUpperCase()}`,
 
-  cinema: {
-    divider: "━━━━━━━━━━━━━━━━━━",
-    label: "🎞 CINEMA MODE"
-  },
-
-  vhs: {
-    divider: "════ VHS ════",
-    label: "📼 VHS ARCHIVE"
-  },
-
-  scifi: {
-    divider: "━━━━━━━━━━━━━━",
-    label: "🛰 SCI-FI DOSSIER"
-  },
-
-  classified: {
-    divider: "⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛",
-    label: "⚫ CLASSIFIED FILE"
-  },
-
-  prestige: {
-    divider: "👑════════════👑",
-    label: "👑 PRESTIGE COLLECTION"
-  },
-
-  horror: {
-    divider: "🩸🩸🩸🩸🩸🩸🩸🩸",
-    label: "🧟 HORROR CASEFILE"
+      line2:
+        extras.universePhase || "MULTIVERSE ENTRY"
+    };
   }
 
-};
+  // =============================
+  // STAR WARS
+  // =============================
+  if (
+    universe.toLowerCase().includes("star wars")
+  ) {
+    return {
+      header: "███ GALACTIC NEXUS ███",
 
-// =============================
-// MOVIE BUCKET THEMES
-// =============================
-const movieBucketThemes = {
+      line1:
+        `🌌 ${String(tmdb.title || "").toUpperCase()}`,
 
-  "🎬 Action & Abenteuer": {
-    icon: "🎬",
-    archive: "💥 ACTION ARCHIVE",
-    status: "🔥 HIGH IMPACT DATABASE",
-    subline: "MISSIONS • EXPLOSIONS • ADVENTURE",
-    mode: "cinema"
-  },
-
-  "👻 Horror & Thriller": {
-    icon: "👻",
-    archive: "🩸 HORROR VAULT",
-    status: "🔴 NIGHTMARE ACTIVE",
-    subline: "FEAR • SURVIVAL • SUSPENSE",
-    mode: "horror"
-  },
-
-  "🤖 Sci-Fi & Fantasy": {
-    icon: "🤖",
-    archive: "🛰 SCI-FI DATABASE",
-    status: "🟢 SIGNAL DETECTED",
-    subline: "FUTURE • MULTIVERSE • MAGIC",
-    mode: "scifi"
-  },
-
-  "🎭 Drama & Romantik": {
-    icon: "🎭",
-    archive: "🎞 DRAMA ARCHIVE",
-    status: "💔 EMOTIONAL FILES",
-    subline: "STORY • LOVE • CHARACTER",
-    mode: "prestige"
-  },
-
-  "😂 Komödie & Familienfilme": {
-    icon: "😂",
-    archive: "🍿 COMEDY ARCHIVE",
-    status: "🟡 ENTERTAINMENT ACTIVE",
-    subline: "FUN • CHAOS • FAMILY",
-    mode: "cinema"
+      line2:
+        "JEDI ARCHIVE ENTRY"
+    };
   }
 
-};
+  // =============================
+  // DISNEY
+  // =============================
+  if (
+    universe.toLowerCase().includes("disney")
+  ) {
+    return {
+      header: "███ DISNEY NEXUS ███",
+
+      line1:
+        `🏰 ${String(tmdb.title || "").toUpperCase()}`,
+
+      line2:
+        "MAGIC ARCHIVE ENTRY"
+    };
+  }
+
+  // =============================
+  // DEFAULT
+  // =============================
+  return {
+    header: "███ CINEMA NEXUS ███",
+
+    line1:
+      `🎬 ${String(tmdb.title || "").toUpperCase()}`,
+
+    line2:
+      "CINEMA ENTRY • VERIFIED"
+  };
+}
 
 function movieCaption(tmdb, extras = {}) {
   const bucketTheme =
