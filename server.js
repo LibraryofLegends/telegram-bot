@@ -2920,7 +2920,7 @@ function makeGenreCode(genre = "") {
   return `#${g.slice(0, 3)}001`;
 }
 
-function makeLibraryCode(genre = "") {
+async function makeLibraryCode(genre = "") {
   const map = {
     Action: "ACT",
     Abenteuer: "ADV",
@@ -2940,13 +2940,30 @@ function makeLibraryCode(genre = "") {
   const firstGenre = String(genre).split("/")[0].trim();
   const prefix = map[firstGenre] || "MOV";
 
-  const row = db.prepare(`
-    SELECT COUNT(*) AS count
-    FROM movies
-    WHERE library_id LIKE ?
-  `).get(`LIB-${prefix}-%`);
+  let count = 0;
 
-  const nextNumber = Number(row.count || 0) + 1;
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT COUNT(*) AS count
+      FROM movies
+      WHERE library_id LIKE $1
+      `,
+      [`LIB-${prefix}-%`]
+    );
+
+    count = Number(result.rows[0]?.count || 0);
+  } else {
+    const row = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM movies
+      WHERE library_id LIKE ?
+    `).get(`LIB-${prefix}-%`);
+
+    count = Number(row.count || 0);
+  }
+
+  const nextNumber = count + 1;
 
   return `LIB-${prefix}-${String(nextNumber).padStart(4, "0")}`;
 }
@@ -8798,7 +8815,7 @@ async function processMovieUpload({ msg, media, tmdb }) {
 
   const extras = {
     ...getMediaExtras(fileName, msg),
-    libraryId: makeLibraryCode(tmdb.genre)
+    libraryId: await makeLibraryCode(tmdb.genre)
   };
 
   const universeData = detectUniverse(
