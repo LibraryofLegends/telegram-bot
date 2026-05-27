@@ -4305,31 +4305,37 @@ function getQualityBadge(quality = "") {
   return "🎞 Qualität unbekannt";
 }
 
+// =============================
+// SERIES NEXUS META
+// =============================
+function getSeriesNexusMeta(tmdb, media, extras = {}) {
+  const title =
+    String(tmdb.seriesTitle || "Serie").toUpperCase();
+
+  return {
+    header: "███ SERIES NEXUS ███",
+    line1: `📺 ${title}`,
+    line2: `EPISODE ENTRY • S${media.seasonText}E${media.episodeText}`
+  };
+}
+
+// =============================
+// SERIES CAPTION
+// =============================
 function seriesCaption(tmdb, media, extras = {}) {
-
-  const seriesTheme =
-    seriesThemes[tmdb.seriesTitle] || {
-      icon: "📺",
-      archive: "SERIES ARCHIVE",
-      subline: "PREMIUM EPISODE DATABASE",
-      status: "🎞 SERIES ACTIVE",
-      divider: "━━━━━━━━━━━━━━━━━━"
-    };
-
-  const divider = seriesTheme.divider;
+  const nexus =
+    getSeriesNexusMeta(tmdb, media, extras);
 
   const finalEpisodeTitle =
     tmdb.episodeTitle ||
     media.episodeTitleFromFile ||
     "Episode";
 
-  const overview = String(
-    tmdb.overview ||
-    "Keine Beschreibung verfügbar."
-  )
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 320);
+  const genreText = String(tmdb.genre || "Sonstige")
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .join(" • ");
 
   const genreTags = String(tmdb.genre || "")
     .split("/")
@@ -4339,6 +4345,34 @@ function seriesCaption(tmdb, media, extras = {}) {
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
+  const overviewRaw = String(
+    tmdb.overview || "Keine Beschreibung verfügbar."
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+
+  let safeOverview = overviewRaw;
+
+  if (safeOverview.length > 340) {
+    safeOverview = safeOverview.slice(0, 340);
+
+    const lastSentenceEnd = Math.max(
+      safeOverview.lastIndexOf("."),
+      safeOverview.lastIndexOf("!"),
+      safeOverview.lastIndexOf("?")
+    );
+
+    if (lastSentenceEnd > 180) {
+      safeOverview =
+        safeOverview.slice(0, lastSentenceEnd + 1);
+    } else {
+      safeOverview =
+        safeOverview.slice(0, safeOverview.lastIndexOf(" "));
+
+      safeOverview += " …";
+    }
+  }
+
   const totalEpisodes =
     getKnownSeasonEpisodeCount(
       tmdb.seriesTitle,
@@ -4346,9 +4380,10 @@ function seriesCaption(tmdb, media, extras = {}) {
     ) || media.episode;
 
   const progressBlocks =
-    "■".repeat(media.episode) +
-    "□".repeat(
-      Math.max(totalEpisodes - media.episode, 0)
+    buildSeriesProgressBar(
+      tmdb.seriesTitle,
+      media.episode,
+      totalEpisodes
     );
 
   const progressPercent =
@@ -4359,7 +4394,6 @@ function seriesCaption(tmdb, media, extras = {}) {
   const missingEpisodes = [];
 
   for (let ep = 1; ep <= totalEpisodes; ep++) {
-
     const exists = db.prepare(`
       SELECT id
       FROM series
@@ -4380,51 +4414,62 @@ function seriesCaption(tmdb, media, extras = {}) {
     }
   }
 
-  return (
-    `${divider}\n` +
-    `${seriesTheme.icon} ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-    `S${media.seasonText}E${media.episodeText} • ${finalEpisodeTitle}\n` +
-    `${divider}\n\n` +
+  const castLines = String(tmdb.cast || "Unbekannt")
+    .split("•")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .slice(0, 4)
+    .map((p) => `▸ ${p}`)
+    .join("\n");
 
-    `📁 ${seriesTheme.archive}\n` +
-    `${seriesTheme.subline}\n` +
-    `${seriesTheme.status}\n\n` +
+  return (
+    `${nexus.header}\n\n` +
+
+    `${nexus.line1}\n` +
+    `${nexus.line2}\n` +
+    `${finalEpisodeTitle}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
 
     `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
-    `🏷 ${getQualityBadge(extras.quality)} • ${extras.fileSize || "Unbekannt"}\n` +
+    `🎭 ${genreText}\n` +
+    `📀 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}\n` +
+    `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
 
-    (extras.resolution && extras.resolution !== "Unbekannt"
-      ? `🎬 ${extras.resolution}\n`
-      : "") +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    (extras.audio && extras.audio !== "Unbekannt"
-      ? `🎧 ${extras.audio}\n`
-      : "") +
-
-    `${divider}\n` +
-    "📀 EPISODEN STATUS\n" +
-    `🧩 Fortschritt • ${progressBlocks} ${media.episode}/${totalEpisodes}\n` +
-    `📊 Sammlung • ${progressPercent}%\n` +
-
+    "📀 EPISODE STATUS\n" +
+    `🧩 Progress • ${progressBlocks} ${media.episode}/${totalEpisodes}\n` +
+    `📊 Season Archive • ${progressPercent}%\n` +
     (
       missingEpisodes.length
-        ? `⚠️ Fehlend • ${missingEpisodes.join(", ")}\n`
-        : "✅ Keine fehlenden Episoden\n"
+        ? `⚠️ Missing • ${missingEpisodes.join(", ")}\n`
+        : "✅ No missing previous episodes\n"
     ) +
 
-    `${divider}\n` +
-    "📖 EPISODEN-STORY\n\n" +
-    `${overview}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    `${divider}\n` +
-    `🧬 SERIES ID • ${extras.seriesLibraryId || "Unbekannt"}\n` +
+    "👥 CAST MATRIX\n" +
+    `${castLines || "Unbekannt"}\n\n` +
 
-    `${divider}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+
+    "📖 EPISODE SYNOPSIS\n\n" +
+    `${safeOverview}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+
+    "🧬 SERIES CODE\n" +
+    `${extras.seriesLibraryId || "Unbekannt"}\n\n` +
+
     `#${String(tmdb.seriesTitle || "").replace(/\s+/g, "")} ${genreTags}\n` +
     "@LibraryOfLegends"
-  ).slice(0, 1400);
+  ).slice(0, 4000);
 }
 
+// =============================
+// SERIES RANK
+// =============================
 function getSeriesRank(totalEpisodes, officialTotalEpisodes) {
   if (!officialTotalEpisodes || officialTotalEpisodes <= 0) {
     return "⚠️ INCOMPLETE";
@@ -4433,62 +4478,19 @@ function getSeriesRank(totalEpisodes, officialTotalEpisodes) {
   const percent =
     Math.round((totalEpisodes / officialTotalEpisodes) * 100);
 
-  if (percent >= 100) {
-    return "💎 FULL COLLECTION";
-  }
-
-  if (percent >= 75) {
-    return "👑 MASTERED";
-  }
-
-  if (percent >= 35) {
-    return "🔥 TRENDING";
-  }
+  if (percent >= 100) return "💎 FULL COLLECTION";
+  if (percent >= 75) return "👑 MASTERED";
+  if (percent >= 35) return "🔥 TRENDING";
 
   return "⚠️ INCOMPLETE";
 }
 
+// =============================
+// SERIES PROGRESS BAR
+// =============================
 function buildSeriesProgressBar(seriesTitle, current, total) {
-
-  const themes = {
-    "The Boys": {
-      filled: "■",
-      empty: "□"
-    },
-
-    "Matrix": {
-      filled: "⬢",
-      empty: "⬡"
-    },
-
-    "Star Wars": {
-  filled: "⬢",
-  empty: "⬡"
-},
-
-"Marvel": {
-  filled: "🟥",
-  empty: "⬜"
-},
-
-"DC": {
-  filled: "🟦",
-  empty: "⬜"
-},
-
-"Disney": {
-  filled: "✨",
-  empty: "▫️"
-}
-  };
-
-  const theme =
-    themes[seriesTitle] || {
-      filled: "■",
-      empty: "□"
-    };
-
-  const safeTotal = Math.max(total || 1, 1);
+  const safeTotal =
+    Math.max(total || 1, 1);
 
   const percent =
     Math.max(
@@ -4502,8 +4504,8 @@ function buildSeriesProgressBar(seriesTitle, current, total) {
     Math.round(percent * totalBars);
 
   return (
-    theme.filled.repeat(filledBars) +
-    theme.empty.repeat(totalBars - filledBars)
+    "■".repeat(filledBars) +
+    "□".repeat(totalBars - filledBars)
   );
 }
 
