@@ -4136,19 +4136,25 @@ async function buildMovieIndexPages() {
 
       let specialBadge = "";
 
-      if (ratingNumber >= 8) {
+if (movie.universe) {
 
-        specialBadge =
-          "   🏆 ELITE ARCHIVE\n";
+  specialBadge +=
+    "   🌌 UNIVERSE ENTRY\n";
+}
 
-      } else if (
-        ratingNumber >= 7.5 &&
-        Number(movie.year || 0) < 2010
-      ) {
+if (ratingNumber >= 8) {
 
-        specialBadge =
-          "   💎 CULT CLASSIC\n";
-      }
+  specialBadge +=
+    "   🏆 ELITE ARCHIVE\n";
+
+} else if (
+  ratingNumber >= 7.5 &&
+  Number(movie.year || 0) < 2010
+) {
+
+  specialBadge +=
+    "   💎 CULT CLASSIC\n";
+}
 
       section +=
         `🎞 ${String(movie.title || "Unbekannt").toUpperCase()}\n` +
