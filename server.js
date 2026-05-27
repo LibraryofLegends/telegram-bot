@@ -1495,7 +1495,7 @@ async function buildCollectionData(collectionName = "") {
 
     const result = await pgPool.query(
       `
-      SELECT title, year, library_id, collection, universe
+      SELECT title, year, library_id, collection, universe, rating
 FROM movies
       WHERE collection = $1
       ORDER BY year ASC, title ASC
@@ -1508,7 +1508,7 @@ FROM movies
   } else {
 
     rows = db.prepare(`
-      SELECT title, year, library_id, collection, universe
+      SELECT title, year, library_id, collection, universe, rating
 FROM movies
       WHERE collection = ?
       ORDER BY year ASC, title ASC
@@ -4052,15 +4052,17 @@ async function buildMovieIndexPages() {
 
   if (pgPool) {
     const result = await pgPool.query(`
-      SELECT title, year, library_id, collection, universe
+      SELECT title, year, library_id, collection, universe, rating
       FROM movies
       ORDER BY title ASC, year ASC
     `);
 
     rows = result.rows;
+
   } else {
+
     rows = db.prepare(`
-      SELECT title, year, library_id, collection, universe
+      SELECT title, year, library_id, collection, universe, rating
       FROM movies
       ORDER BY title ASC, year ASC
     `).all();
@@ -4070,7 +4072,9 @@ async function buildMovieIndexPages() {
   const seen = new Set();
 
   for (const movie of rows) {
-    const key = `${makeKey(movie.title)}-${movie.year || ""}`;
+    const key =
+      `${makeKey(movie.title)}-${movie.year || ""}`;
+
     if (seen.has(key)) continue;
 
     seen.add(key);
@@ -4090,18 +4094,24 @@ async function buildMovieIndexPages() {
   const groups = {};
 
   for (const movie of uniqueRows) {
-    const letter = String(movie.title || "#")
-      .trim()
-      .charAt(0)
-      .toUpperCase();
+    const letter =
+      String(movie.title || "#")
+        .trim()
+        .charAt(0)
+        .toUpperCase();
 
-    const key = letter.match(/[A-ZÄÖÜ]/) ? letter : "#";
+    const key =
+      letter.match(/[A-ZÄÖÜ]/)
+        ? letter
+        : "#";
 
     if (!groups[key]) groups[key] = [];
+
     groups[key].push(movie);
   }
 
   const letters = Object.keys(groups).sort();
+
   const pagesRaw = [];
   const pageRanges = [];
 
@@ -4110,29 +4120,63 @@ async function buildMovieIndexPages() {
   let currentEnd = null;
 
   for (const letter of letters) {
+
     let section =
       "━━━━━━━━━━━━━━━━━━\n" +
       `🔤 LETTER • ${letter}\n` +
       "━━━━━━━━━━━━━━━━━━\n\n";
 
     for (const movie of groups[letter]) {
-  section +=
-    `🎞 ${String(movie.title || "Unbekannt").toUpperCase()}\n` +
-    `└ ${movie.year || "Unbekannt"} • ${movie.library_id || "NO-ID"}\n` +
-    (
-      movie.collection
-        ? `   🎞 ${movie.collection}\n`
-        : movie.universe
-          ? `   🌌 ${movie.universe}\n`
-          : ""
-    ) +
-    "\n";
-}
 
-    if (!currentStart) currentStart = letter;
+      const ratingNumber =
+        Number(
+          String(movie.rating || "")
+            .match(/(\d+(\.\d+)?)/)?.[0] || 0
+        );
 
-    if ((currentPage + section).length > 2500 && currentPage.length > 0) {
+      let specialBadge = "";
+
+      if (ratingNumber >= 8) {
+
+        specialBadge =
+          "   🏆 ELITE ARCHIVE\n";
+
+      } else if (
+        ratingNumber >= 7.5 &&
+        Number(movie.year || 0) < 2010
+      ) {
+
+        specialBadge =
+          "   💎 CULT CLASSIC\n";
+      }
+
+      section +=
+        `🎞 ${String(movie.title || "Unbekannt").toUpperCase()}\n` +
+        `└ ${movie.year || "Unbekannt"} • ${movie.library_id || "NO-ID"}\n` +
+
+        (
+          movie.collection
+            ? `   🎞 ${movie.collection}\n`
+            : movie.universe
+              ? `   🌌 ${movie.universe}\n`
+              : ""
+        ) +
+
+        specialBadge +
+        "\n";
+    }
+
+    if (!currentStart) {
+      currentStart = letter;
+    }
+
+    if (
+      (currentPage + section).length > 2500 &&
+      currentPage.length > 0
+    ) {
+
       pagesRaw.push(currentPage);
+
       pageRanges.push({
         start: currentStart,
         end: currentEnd || currentStart
@@ -4143,35 +4187,45 @@ async function buildMovieIndexPages() {
     }
 
     currentPage += section;
+
     currentEnd = letter;
   }
 
   if (currentPage.length > 0) {
+
     pagesRaw.push(currentPage);
+
     pageRanges.push({
       start: currentStart,
       end: currentEnd || currentStart
     });
   }
 
-  const indexMap = pageRanges
-    .map((r) => `${r.start}–${r.end}`)
-    .join(" • ");
+  const indexMap =
+    pageRanges
+      .map((r) => `${r.start}–${r.end}`)
+      .join(" • ");
 
   return pagesRaw.map((body, index) => {
+
     const range = pageRanges[index];
 
     return (
       "███ NEXUS FILM INDEX ███\n" +
       `PAGE ${index + 1}/${pagesRaw.length} • ${range.start}–${range.end}\n\n` +
+
       `🎬 TOTAL ENTRIES • ${uniqueRows.length}\n` +
       "🧬 ARCHIVE STATUS • ACTIVE\n" +
       `📅 LAST UPDATE • ${new Date().toLocaleString("de-DE")}\n\n` +
+
       "🧭 INDEX MAP\n" +
       `${indexMap}\n\n` +
+
       body +
+
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
+
     ).slice(0, 4000);
   });
 }
