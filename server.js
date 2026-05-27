@@ -1495,8 +1495,8 @@ async function buildCollectionData(collectionName = "") {
 
     const result = await pgPool.query(
       `
-      SELECT title, year, library_id, rating, runtime, file_size
-      FROM movies
+      SELECT title, year, library_id, collection, universe
+FROM movies
       WHERE collection = $1
       ORDER BY year ASC, title ASC
       `,
@@ -1508,8 +1508,8 @@ async function buildCollectionData(collectionName = "") {
   } else {
 
     rows = db.prepare(`
-      SELECT title, year, library_id, rating, runtime, file_size
-      FROM movies
+      SELECT title, year, library_id, collection, universe
+FROM movies
       WHERE collection = ?
       ORDER BY year ASC, title ASC
     `).all(collectionName);
@@ -4118,7 +4118,15 @@ async function buildMovieIndexPages() {
     for (const movie of groups[letter]) {
       section +=
         `🎞 ${String(movie.title || "Unbekannt").toUpperCase()}\n` +
-        `└ ${movie.year || "Unbekannt"} • ${movie.library_id || "NO-ID"}\n\n`;
+        `└ ${movie.year || "Unbekannt"} • ${movie.library_id || "NO-ID"}\n` +
+(
+  movie.collection
+    ? `   🎞 ${movie.collection}\n`
+    : movie.universe
+      ? `   🌌 ${movie.universe}\n`
+      : ""
+) +
+"\n";
     }
 
     if (!currentStart) currentStart = letter;
