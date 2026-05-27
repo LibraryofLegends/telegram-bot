@@ -4131,7 +4131,7 @@ async function buildMovieIndexPages() {
         `└ ${movie.year || "Unbekannt"} • ${movie.library_id || "NO-ID"}\n\n`;
     }
 
-    if ((currentPage + section).length > 3500) {
+    if ((currentPage + section).length > 2500) {
       currentPage +=
         "━━━━━━━━━━━━━━━━━━\n" +
         "@LibraryOfLegends";
