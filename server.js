@@ -4062,7 +4062,7 @@ async function buildMovieIndexPages() {
     rows = db.prepare(`
       SELECT title, year, library_id
       FROM movies
-      ORDER BY title AySC, year ASC
+      ORDER BY title ASC, year ASC
     `).all();
   }
 
@@ -4166,29 +4166,6 @@ async function buildMovieIndexPages() {
       "@LibraryOfLegends"
     ).slice(0, 4000);
   });
-}
-
-  currentPage =
-    "███ NEXUS FILM INDEX ███\n\n";
-
-  currentRangeStart = letter;
-}
-
-currentPage += section;
-}
-
-currentPage +=
-"━━━━━━━━━━━━━━━━━━\n" +
-"@LibraryOfLegends";
-
-pageRanges.push({
-start: currentRangeStart,
-end: previousLetter
-});
-
-pages.push(currentPage);
-
-return pages;
 }
 
 // =============================
