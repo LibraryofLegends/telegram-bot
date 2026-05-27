@@ -1334,23 +1334,33 @@ async function getOrCreateMovieBucketTopic(tmdb = {}) {
 // UNIVERSE DETECTION
 // =============================
 function detectUniverse(title = "", collection = "") {
+  const rawSearch =
+    `${title} ${collection}`.trim();
+
   const search =
-    `${title} ${collection}`.toLowerCase();
+    rawSearch.toLowerCase();
+
+  const searchKey =
+    makeKey(rawSearch);
 
   for (const [key, config] of Object.entries(universeConfigs)) {
     const aliasMatch =
-      (config.aliases || []).some((alias) =>
-        search.includes(String(alias).toLowerCase())
-      );
+      (config.aliases || []).some((alias) => {
+        const aliasKey = makeKey(alias);
+
+        return (
+          aliasKey.length >= 4 &&
+          searchKey.includes(aliasKey)
+        );
+      });
 
     const seriesMatch =
       (config.series || []).some((seriesTitle) => {
-        const searchKey = makeKey(search);
         const seriesKey = makeKey(seriesTitle);
 
         return (
-          searchKey.includes(seriesKey) ||
-          seriesKey.includes(searchKey)
+          seriesKey.length >= 4 &&
+          searchKey.includes(seriesKey)
         );
       });
 
@@ -1358,12 +1368,11 @@ function detectUniverse(title = "", collection = "") {
       Object.values(config.phases || {})
         .flat()
         .some((movieTitle) => {
-          const searchKey = makeKey(search);
           const movieKey = makeKey(movieTitle);
 
           return (
-            searchKey.includes(movieKey) ||
-            movieKey.includes(searchKey)
+            movieKey.length >= 4 &&
+            searchKey.includes(movieKey)
           );
         });
 
@@ -1373,12 +1382,11 @@ function detectUniverse(title = "", collection = "") {
       for (const [phase, movies] of Object.entries(config.phases || {})) {
         const phaseMatch =
           movies.some((movieTitle) => {
-            const searchKey = makeKey(search);
             const movieKey = makeKey(movieTitle);
 
             return (
-              searchKey.includes(movieKey) ||
-              movieKey.includes(searchKey)
+              movieKey.length >= 4 &&
+              searchKey.includes(movieKey)
             );
           });
 
