@@ -848,6 +848,77 @@ async function saveCollectionHubMessageId(
 }
 
 // =============================
+// SERIES DB HELPERS
+// =============================
+async function getSavedSeasonEpisodeCount(seriesTitle, season) {
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT COUNT(*) AS count
+      FROM series
+      WHERE series_title = $1
+      AND season = $2
+      `,
+      [
+        seriesTitle,
+        season
+      ]
+    );
+
+    return Number(result.rows[0]?.count || 0);
+  }
+
+  const row = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM series
+    WHERE series_title = ?
+    AND season = ?
+  `).get(
+    seriesTitle,
+    season
+  );
+
+  return Number(row?.count || 0);
+}
+
+async function getSavedEpisode(seriesTitle, season, episode) {
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT id
+      FROM series
+      WHERE series_title = $1
+      AND season = $2
+      AND episode = $3
+      LIMIT 1
+      `,
+      [
+        seriesTitle,
+        season,
+        episode
+      ]
+    );
+
+    return result.rows[0] || null;
+  }
+
+  return db.prepare(`
+    SELECT id
+    FROM series
+    WHERE series_title = ?
+    AND season = ?
+    AND episode = ?
+    LIMIT 1
+  `).get(
+    seriesTitle,
+    season,
+    episode
+  );
+}
+
+// =============================
 // COLLECTION REGISTRY
 // =============================
 const chronologyRegistry = {
