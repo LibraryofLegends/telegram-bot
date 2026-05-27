@@ -4749,62 +4749,62 @@ for (let ep = 1; ep <= totalEpisodes; ep++) {
 }
 
   const progressBlocks =
-    "■".repeat(savedEpisodes) +
-    "□".repeat(Math.max(totalEpisodes - savedEpisodes, 0));
+  buildSeriesProgressBar(
+    tmdb.seriesTitle,
+    savedEpisodes,
+    totalEpisodes
+  );
 
-  const progressPercent =
-    totalEpisodes > 0
-      ? Math.round((savedEpisodes / totalEpisodes) * 100)
-      : 0;
+const progressPercent =
+  totalEpisodes > 0
+    ? Math.round((savedEpisodes / totalEpisodes) * 100)
+    : 0;
 
-  const seasonStatus =
-    savedEpisodes >= totalEpisodes
-      ? "🏆 STAFFEL VOLLSTÄNDIG"
-      : "⚠️ STAFFEL UNVOLLSTÄNDIG";
+const seasonStatus =
+  savedEpisodes >= totalEpisodes
+    ? "🏆 SEASON COMPLETE"
+    : "⚠️ SEASON INCOMPLETE";
 
-  return (
-    `${divider}\n` +
-    `${seriesTheme.icon} ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-    `${theme.emoji} STAFFEL ${seasonKey}\n` +
-    `${divider}\n\n` +
+return (
+  "███ SEASON NEXUS ███\n\n" +
 
-    `📁 ${seriesTheme.archive}\n` +
-    `${seriesTheme.subline}\n` +
-    `${seriesTheme.status}\n\n` +
+  `📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
+  `SEASON FILE • S${seasonKey}\n\n` +
 
-    `${divider}\n` +
-    `⭐ ${tmdb.rating || "Unbekannt"} IMDb • 🎞 ${episodeCount} Episoden\n` +
-    `📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
+  `🎞 Episodes • ${savedEpisodes}/${totalEpisodes}\n` +
+  `📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+  "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    `${divider}\n` +
-    "📀 STAFFEL STATUS\n" +
-    `🧩 Fortschritt • ${progressBlocks} ${savedEpisodes}/${totalEpisodes}\n` +
-    `📊 Sammlung • ${progressPercent}%\n` +
-    (
-      missingEpisodes.length
-        ? `⚠️ Fehlend • ${missingEpisodes.join(", ")}\n`
-        : "✅ Keine fehlenden Episoden\n"
-    ) +
-    `${seasonStatus}\n` +
+  "📀 SEASON STATUS\n" +
+  `🧩 Progress • ${progressBlocks} ${savedEpisodes}/${totalEpisodes}\n` +
+  `📊 Archive • ${progressPercent}%\n` +
+  (
+    missingEpisodes.length
+      ? `⚠️ Missing • ${missingEpisodes.join(", ")}\n`
+      : "✅ Season Archive Complete\n"
+  ) +
+  `${seasonStatus}\n\n` +
 
-    `${divider}\n` +
-    "🎬 SHOWRUNNER\n" +
-    `${showrunner}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
 
-    `${divider}\n` +
-    "👑 CAST\n" +
-    `${castLine}\n` +
+  "🎬 SHOWRUNNER\n" +
+  `${showrunner}\n\n` +
 
-    `${divider}\n` +
-    "📖 ÜBER DIE STAFFEL\n\n" +
-    `${overview}\n` +
+  "👥 CAST MATRIX\n" +
+  `${castLine}\n\n` +
 
-    `${divider}\n` +
-    `${genreLine}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
 
-    `${divider}\n` +
-    "@LibraryOfLegends"
-  ).slice(0, 4000);
+  "📖 SEASON SYNOPSIS\n\n" +
+  `${overview}\n\n` +
+
+  "━━━━━━━━━━━━━━━━━━\n" +
+
+  `${genreLine}\n` +
+  "@LibraryOfLegends"
+).slice(0, 4000);
 }
 
 // =============================
@@ -5691,7 +5691,14 @@ if (!seasonData) {
   };
 }
 
-  const caption = seasonCaption(tmdb, seasonData, season).slice(0, 950);
+  const caption =
+  (
+    await seasonCaption(
+      tmdb,
+      seasonData,
+      season
+    )
+  ).slice(0, 950);
 
   const seasonPoster =
   posterUrl(seasonData?.poster_path) ||
