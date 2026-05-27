@@ -4183,11 +4183,7 @@ async function createOrUpdateMovieIndex() {
   const pages = await buildMovieIndexPages();
 
   for (let i = 0; i < pages.length; i++) {
-    const pageText =
-      pages[i].replace(
-        "███ NEXUS FILM INDEX ███",
-        `███ NEXUS FILM INDEX ███\nPAGE ${i + 1}/${pages.length}`
-      );
+    const pageText = pages[i];
 
     await tg("sendMessage", {
       chat_id: MOVIE_GROUP_ID,
