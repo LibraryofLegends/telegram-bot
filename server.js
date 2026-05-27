@@ -4052,7 +4052,7 @@ async function buildMovieIndexPages() {
 
   if (pgPool) {
     const result = await pgPool.query(`
-      SELECT title, year, library_id
+      SELECT title, year, library_id, collection, universe
       FROM movies
       ORDER BY title ASC, year ASC
     `);
@@ -4060,7 +4060,7 @@ async function buildMovieIndexPages() {
     rows = result.rows;
   } else {
     rows = db.prepare(`
-      SELECT title, year, library_id
+      SELECT title, year, library_id, collection, universe
       FROM movies
       ORDER BY title ASC, year ASC
     `).all();
