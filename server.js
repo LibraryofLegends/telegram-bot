@@ -9534,7 +9534,12 @@ await createSeasonCardIfMissing({
   season: media.season
 });
 
-const captionText = seriesCaption(tmdb, media, extras);
+const captionText =
+  await seriesCaption(
+    tmdb,
+    media,
+    extras
+  );
 
 const copied = await copyOriginalMedia({
   fromChatId: msg.chat.id,
