@@ -3235,8 +3235,13 @@ const SERIES_TMDB_OVERRIDES = {
 };
 
 async function searchSeriesTMDB(title, season, episode) {
-  const titleKey = String(title || "").toLowerCase().trim();
-  const overrideId = SERIES_TMDB_OVERRIDES[titleKey];
+  const titleKey =
+    String(title || "")
+      .toLowerCase()
+      .trim();
+
+  const overrideId =
+    SERIES_TMDB_OVERRIDES[titleKey];
 
   let best = null;
 
@@ -3248,7 +3253,9 @@ async function searchSeriesTMDB(title, season, episode) {
       include_adult: false
     });
 
-    if (!search?.results?.length) return null;
+    if (!search?.results?.length) {
+      return null;
+    }
 
     best = search.results[0];
   }
@@ -3257,11 +3264,17 @@ async function searchSeriesTMDB(title, season, episode) {
     append_to_response: "credits,content_ratings"
   });
 
-  if (!details) return null;
+  if (!details) {
+    return null;
+  }
 
-  const episodeDetails = await tmdbGet(
-    `/tv/${best.id}/season/${season}/episode/${episode}`
-  );
+  const seasonDetails =
+    await getSeasonTMDB(best.id, season);
+
+  const episodeDetails =
+    await tmdbGet(
+      `/tv/${best.id}/season/${season}/episode/${episode}`
+    );
 
   const createdBy =
     details.created_by
@@ -3276,13 +3289,15 @@ async function searchSeriesTMDB(title, season, episode) {
       .filter(Boolean)
       .join(" • ") || "Unbekannt";
 
-  const deRating = details.content_ratings?.results?.find(
-    (r) => r.iso_3166_1 === "DE"
-  );
+  const deRating =
+    details.content_ratings?.results?.find(
+      (r) => r.iso_3166_1 === "DE"
+    );
 
-  const usRating = details.content_ratings?.results?.find(
-    (r) => r.iso_3166_1 === "US"
-  );
+  const usRating =
+    details.content_ratings?.results?.find(
+      (r) => r.iso_3166_1 === "US"
+    );
 
   const fsk =
     deRating?.rating
@@ -3291,23 +3306,70 @@ async function searchSeriesTMDB(title, season, episode) {
 
   return {
     tmdbId: details.id,
-    seriesTitle: details.name || title,
-    episodeTitle: episodeDetails?.name || "",
-    genre: formatGenres(details.genres),
-    mainGenre: getMainGenre(details.genres),
-    rating: formatRating(episodeDetails?.vote_average || details.vote_average),
-    seriesRating: formatRating(details.vote_average),
-    episodeRating: episodeDetails?.vote_average
-      ? formatRating(episodeDetails.vote_average)
-      : "",
+
+    seriesTitle:
+      details.name || title,
+
+    seasonNumber:
+      Number(season),
+
+    episodeNumber:
+      Number(episode),
+
+    seasonEpisodeCount:
+      seasonDetails?.episodes?.length || episode,
+
+    episodeTitle:
+      episodeDetails?.name || "",
+
+    episodeRuntime:
+      episodeDetails?.runtime
+        ? `${episodeDetails.runtime} Min.`
+        : "Unbekannt",
+
+    genre:
+      formatGenres(details.genres),
+
+    mainGenre:
+      getMainGenre(details.genres),
+
+    rating:
+      formatRating(
+        episodeDetails?.vote_average ||
+        details.vote_average
+      ),
+
+    seriesRating:
+      formatRating(details.vote_average),
+
+    episodeRating:
+      episodeDetails?.vote_average
+        ? formatRating(episodeDetails.vote_average)
+        : "",
+
     overview:
       episodeDetails?.overview ||
       details.overview ||
       "Keine Beschreibung verfügbar.",
-    posterUrl: posterUrl(episodeDetails?.still_path || details.poster_path),
-    seriesPosterUrl: posterUrl(details.poster_path),
-    backdropUrl: posterUrl(details.backdrop_path),
-    seriesBackdropUrl: backdropUrl(details.backdrop_path),
+
+    posterUrl:
+      posterUrl(
+        episodeDetails?.still_path ||
+        details.poster_path
+      ),
+
+    seriesPosterUrl:
+      posterUrl(details.poster_path),
+
+    backdropUrl:
+      backdropUrl(
+        episodeDetails?.still_path ||
+        details.backdrop_path
+      ),
+
+    seriesBackdropUrl:
+      backdropUrl(details.backdrop_path),
+
     createdBy,
     cast,
     fsk
@@ -3316,7 +3378,10 @@ async function searchSeriesTMDB(title, season, episode) {
 
 async function getSeasonTMDB(tvId, season) {
   if (!tvId || !season) return null;
-  return await tmdbGet(`/tv/${tvId}/season/${season}`);
+
+  return await tmdbGet(
+    `/tv/${tvId}/season/${season}`
+  );
 }
 
 // =============================
