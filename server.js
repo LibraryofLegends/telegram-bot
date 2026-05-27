@@ -4045,9 +4045,9 @@ console.log("🖼 MOVIE HUB BANNER CHECK:", {
 }
 
 // =============================
-// MOVIE INDEX A-Z CAPTION
+// MOVIE INDEX PAGES
 // =============================
-async function movieIndexCaption() {
+async function buildMovieIndexPages() {
   let rows = [];
 
   if (pgPool) {
@@ -4070,7 +4070,8 @@ async function movieIndexCaption() {
   const seen = new Set();
 
   for (const movie of rows) {
-    const key = `${makeKey(movie.title)}-${movie.year || ""}`;
+    const key =
+      `${makeKey(movie.title)}-${movie.year || ""}`;
 
     if (seen.has(key)) continue;
 
@@ -4079,15 +4080,13 @@ async function movieIndexCaption() {
   }
 
   if (!uniqueRows.length) {
-    return (
+    return [
       "███ NEXUS FILM INDEX ███\n\n" +
       "🎬 TOTAL ENTRIES • 0\n" +
       "🧬 ARCHIVE STATUS • EMPTY\n\n" +
       "━━━━━━━━━━━━━━━━━━\n" +
-      "Noch keine Filme gespeichert.\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
-    );
+    ];
   }
 
   const groups = {};
@@ -4099,36 +4098,60 @@ async function movieIndexCaption() {
         .charAt(0)
         .toUpperCase();
 
-    const key = letter.match(/[A-ZÄÖÜ]/) ? letter : "#";
+    const key =
+      letter.match(/[A-ZÄÖÜ]/)
+        ? letter
+        : "#";
 
     if (!groups[key]) groups[key] = [];
 
     groups[key].push(movie);
   }
 
-  let text =
+  const pages = [];
+
+  let currentPage =
     "███ NEXUS FILM INDEX ███\n\n" +
     `🎬 TOTAL ENTRIES • ${uniqueRows.length}\n` +
     "🧬 ARCHIVE STATUS • ACTIVE\n" +
-    `📅 LAST UPDATE • ${new Date().toLocaleString("de-DE")}\n\n`;
+    `📅 LAST UPDATE • ${new Date().toLocaleString("de-DE")}\n\n` +
+    "🧭 INDEX MAP\n" +
+    "A–H • I–R • S–Z\n\n";
 
   for (const letter of Object.keys(groups).sort()) {
-    text +=
+
+    let section =
       "━━━━━━━━━━━━━━━━━━\n" +
       `🔤 LETTER • ${letter}\n` +
       "━━━━━━━━━━━━━━━━━━\n\n";
 
     for (const movie of groups[letter]) {
-      text += `🎞 ${String(movie.title || "Unbekannt").toUpperCase()}\n`;
-      text += `└ ${movie.year || "Unbekannt"} • ${movie.library_id || "NO-ID"}\n\n`;
+      section +=
+        `🎞 ${String(movie.title || "Unbekannt").toUpperCase()}\n` +
+        `└ ${movie.year || "Unbekannt"} • ${movie.library_id || "NO-ID"}\n\n`;
     }
+
+    if ((currentPage + section).length > 3500) {
+      currentPage +=
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "@LibraryOfLegends";
+
+      pages.push(currentPage);
+
+      currentPage =
+        "███ NEXUS FILM INDEX ███\n\n";
+    }
+
+    currentPage += section;
   }
 
-  text +=
+  currentPage +=
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends";
 
-  return text.slice(0, 4000);
+  pages.push(currentPage);
+
+  return pages;
 }
 
 // =============================
@@ -4143,62 +4166,25 @@ async function createOrUpdateMovieIndex() {
 
   if (!topicId) return null;
 
-  const uniqueKey = makeKey(`movie_index-${MOVIE_GROUP_ID}-🔤 MOVIE INDEX A–Z`);
+  const pages = await buildMovieIndexPages();
 
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [uniqueKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(uniqueKey);
-  }
-
-  const text = await movieIndexCaption();
-
-  if (topic?.hub_message_id) {
-    return await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-  }
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: topicId,
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, uniqueKey]
+  for (let i = 0; i < pages.length; i++) {
+    const pageText =
+      pages[i].replace(
+        "███ NEXUS FILM INDEX ███",
+        `███ NEXUS FILM INDEX ███\nPAGE ${i + 1}/${pages.length}`
       );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(msg.message_id, uniqueKey);
-    }
+
+    await tg("sendMessage", {
+      chat_id: MOVIE_GROUP_ID,
+      message_thread_id: topicId,
+      text: pageText
+    });
+
+    await sleep(1000);
   }
 
-  return msg;
+  return true;
 }
 
 // =============================
