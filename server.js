@@ -4116,27 +4116,18 @@ async function buildMovieIndexPages() {
       "━━━━━━━━━━━━━━━━━━\n\n";
 
     for (const movie of groups[letter]) {
-      section +=
-        section +=
-  `🎞 ${String(movie.title || "Unbekannt").toUpperCase()}\n` +
-  `└ ${movie.year || "Unbekannt"} • ${movie.library_id || "NO-ID"}\n` +
-  (
-    movie.collection
-      ? `   🎞 ${movie.collection}\n`
-      : movie.universe
-        ? `   🌌 ${movie.universe}\n`
-        : ""
-  ) +
-  "\n";
-(
-  movie.collection
-    ? `   🎞 ${movie.collection}\n`
-    : movie.universe
-      ? `   🌌 ${movie.universe}\n`
-      : ""
-) +
-"\n";
-    }
+  section +=
+    `🎞 ${String(movie.title || "Unbekannt").toUpperCase()}\n` +
+    `└ ${movie.year || "Unbekannt"} • ${movie.library_id || "NO-ID"}\n` +
+    (
+      movie.collection
+        ? `   🎞 ${movie.collection}\n`
+        : movie.universe
+          ? `   🌌 ${movie.universe}\n`
+          : ""
+    ) +
+    "\n";
+}
 
     if (!currentStart) currentStart = letter;
 
