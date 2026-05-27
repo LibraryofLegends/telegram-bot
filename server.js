@@ -4458,7 +4458,7 @@ function getSeriesNexusMeta(tmdb, media, extras = {}) {
 // =============================
 // SERIES CAPTION
 // =============================
-function seriesCaption(tmdb, media, extras = {}) {
+async function seriesCaption(tmdb, media, extras = {}) {
   const nexus =
     getSeriesNexusMeta(tmdb, media, extras);
 
@@ -4689,7 +4689,7 @@ function formatCastLine(cast = "") {
     .join(" ");
 }
 
-function seasonCaption(tmdb, seasonData, season) {
+async function seasonCaption(tmdb, seasonData, season) {
   const seasonKey = String(season).padStart(2, "0");
   const theme = getSeasonTheme(season);
 
@@ -4720,33 +4720,33 @@ function seasonCaption(tmdb, seasonData, season) {
   const castLine = formatCastLine(tmdb.cast);
   const genreLine = formatSeasonGenres(tmdb.genre);
 
-  const savedEpisodes = db.prepare(`
-    SELECT COUNT(*) AS count
-    FROM series
-    WHERE series_title = ?
-    AND season = ?
-  `).get(tmdb.seriesTitle, season)?.count || 0;
+  const savedEpisodes =
+  await getSavedSeasonEpisodeCount(
+    tmdb.seriesTitle,
+    season
+  );
 
-  const totalEpisodes =
-    seasonData?.episodes?.length ||
-    savedEpisodes;
+const totalEpisodes =
+  seasonData?.episodes?.length ||
+  savedEpisodes;
 
-  const missingEpisodes = [];
+const missingEpisodes = [];
 
-  for (let ep = 1; ep <= totalEpisodes; ep++) {
-    const exists = db.prepare(`
-      SELECT id
-      FROM series
-      WHERE series_title = ?
-      AND season = ?
-      AND episode = ?
-      LIMIT 1
-    `).get(tmdb.seriesTitle, season, ep);
+for (let ep = 1; ep <= totalEpisodes; ep++) {
 
-    if (!exists) {
-      missingEpisodes.push(`E${String(ep).padStart(2, "0")}`);
-    }
+  const exists =
+    await getSavedEpisode(
+      tmdb.seriesTitle,
+      season,
+      ep
+    );
+
+  if (!exists) {
+    missingEpisodes.push(
+      `E${String(ep).padStart(2, "0")}`
+    );
   }
+}
 
   const progressBlocks =
     "■".repeat(savedEpisodes) +
