@@ -4439,10 +4439,12 @@ function seriesCaption(tmdb, media, extras = {}) {
   }
 
   const totalEpisodes =
-    getKnownSeasonEpisodeCount(
-      tmdb.seriesTitle,
-      media.season
-    ) || media.episode;
+  tmdb.seasonEpisodeCount ||
+  getKnownSeasonEpisodeCount(
+    tmdb.seriesTitle,
+    media.season
+  ) ||
+  media.episode;
 
   const progressBlocks =
     buildSeriesProgressBar(
@@ -4498,7 +4500,7 @@ function seriesCaption(tmdb, media, extras = {}) {
 
     `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
     `🎭 ${genreText}\n` +
-    `📀 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"}\n` +
+    `📀 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"} • ${tmdb.episodeRuntime || "Unbekannt"}\n` +
     `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
 
     "━━━━━━━━━━━━━━━━━━\n\n" +
