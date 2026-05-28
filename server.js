@@ -6028,6 +6028,8 @@ async function sendLocalPhoto({
 async function createOrGetTopic({ chatId, name, type }) {
   const uniqueKey = makeKey(`${type}-${chatId}-${name}`);
 
+  let existingTopic = null;
+
   if (pgPool) {
     const existing = await pgPool.query(
       `
@@ -6039,14 +6041,13 @@ async function createOrGetTopic({ chatId, name, type }) {
       [uniqueKey]
     );
 
-    if (existing.rows.length) {
-      return existing.rows[0].topic_id;
-    }
+    existingTopic = existing.rows[0] || null;
   } else {
-    const existing = getTopic(uniqueKey);
-    if (existing) {
-      return existing.topic_id;
-    }
+    existingTopic = getTopic(uniqueKey) || null;
+  }
+
+  if (existingTopic?.topic_id) {
+    return Number(existingTopic.topic_id);
   }
 
   const topic = await tg("createForumTopic", {
@@ -6066,7 +6067,12 @@ async function createOrGetTopic({ chatId, name, type }) {
       INSERT INTO topics
       (name, type, chat_id, topic_id, unique_key)
       VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (unique_key) DO NOTHING
+      ON CONFLICT (unique_key)
+      DO UPDATE SET
+        topic_id = EXCLUDED.topic_id,
+        name = EXCLUDED.name,
+        type = EXCLUDED.type,
+        chat_id = EXCLUDED.chat_id
       `,
       [
         name,
