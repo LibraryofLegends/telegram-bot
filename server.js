@@ -6847,7 +6847,7 @@ async function handleCommand(msg) {
       "🎬 CINEMATIC ARCHIVE CORE\n\n" +
 
       "━━━━━━━━━━━━━━━━━━\n" +
-      "🎬 FILME\n" +
+      "🎬 FILM ARCHIVE\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
 
       "• /movies — Filmarchiv\n" +
@@ -6864,10 +6864,12 @@ async function handleCommand(msg) {
       "• /deletemovie NAME\n" +
       "• /deletetopic NAME\n" +
       "• /rebuildcollections\n" +
-      "• /rebuildcommandcenters\n\n" +
+      "• /rebuildcommandcenters\n" +
+      "• /rebuildmovieindex\n" +
+      "• /repairmovies\n\n" +
 
       "━━━━━━━━━━━━━━━━━━\n" +
-      "📺 SERIEN\n" +
+      "📺 SERIES ARCHIVE\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
 
       "• /series — Serienarchiv\n" +
@@ -6882,10 +6884,12 @@ async function handleCommand(msg) {
       "• /series TITEL | S01E01\n" +
       "• /fixseries ALT | NEU\n" +
       "• /deleteseries NAME S01E01\n" +
-      "• /rebuildseasoncards NAME\n\n" +
+      "• /rebuildseasoncards NAME\n" +
+      "• /rebuildserieshub NAME\n" +
+      "• /repairseries\n\n" +
 
       "━━━━━━━━━━━━━━━━━━\n" +
-      "🧹 VERWALTUNG\n" +
+      "🧹 SYSTEM CONTROL\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
 
       "• /dashboard — Premium Dashboard\n" +
@@ -6897,8 +6901,14 @@ async function handleCommand(msg) {
       "• /smartduplicates — Smart Scan\n" +
       "• /pgstats — Supabase Debug\n\n" +
 
+      "🧠 REPAIR & RECOVERY\n" +
+      "• /cleartopicsdb\n" +
+      "• /rebuildtopics\n" +
+      "• /repairhubs\n" +
+      "• /repairindexes\n\n" +
+
       "━━━━━━━━━━━━━━━━━━\n" +
-      "💾 DATENBANK\n" +
+      "💾 DATABASE\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
 
       "• /backup — Backup erstellen\n" +
@@ -7369,6 +7379,29 @@ if (text.startsWith("/deletetopic")) {
 
     return;
   }
+  
+  if (text === "/cleartopicsdb") {
+  if (pgPool) {
+    await pgPool.query(`DELETE FROM topics;`);
+  } else {
+    db.prepare(`DELETE FROM topics;`).run();
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🧹 TOPIC-DATENBANK GELEERT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "✅ Alte Topic-IDs wurden gelöscht\n" +
+      "✅ Telegram-Themen werden beim nächsten Setup neu verknüpft\n\n" +
+      "Führe jetzt aus:\n" +
+      "/rebuildcommandcenters\n" +
+      "━━━━━━━━━━━━━━━━━━"
+  });
+
+  return;
+}
 
   let topic = null;
 
