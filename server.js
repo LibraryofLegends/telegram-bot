@@ -7358,29 +7358,7 @@ if (text.startsWith("/deletemovie")) {
   return;
 }
 
-// =============================
-// DELETE TOPIC / THEMA LÖSCHEN
-// =============================
-if (text.startsWith("/deletetopic")) {
-
-  const query =
-    text.replace("/deletetopic", "").trim();
-
-  if (!query) {
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "⚠️ Nutzung:\n\n" +
-        "/deletetopic Themenname\n\n" +
-        "Beispiel:\n" +
-        "/deletetopic Hangover Filmreihe"
-    });
-
-    return;
-  }
-  
-  if (text === "/cleartopicsdb") {
+if (text === "/cleartopicsdb") {
   if (pgPool) {
     await pgPool.query(`DELETE FROM topics;`);
   } else {
@@ -7402,6 +7380,28 @@ if (text.startsWith("/deletetopic")) {
 
   return;
 }
+
+// =============================
+// DELETE TOPIC / THEMA LÖSCHEN
+// =============================
+if (text.startsWith("/deletetopic")) {
+
+  const query =
+    text.replace("/deletetopic", "").trim();
+
+  if (!query) {
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/deletetopic Themenname\n\n" +
+        "Beispiel:\n" +
+        "/deletetopic Hangover Filmreihe"
+    });
+
+    return;
+  }
 
   let topic = null;
 
