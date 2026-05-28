@@ -9225,13 +9225,17 @@ if (!universeData?.universeName) {
     topicId,
     topicName: finalTopicName,
     banner:
-      getCollectionBanner(tmdb.collection) ||
-      genreBanners?.[finalTopicName] ||
-      genreBanners?.[tmdb.mainGenre] ||
-      tmdb.collectionBackdrop ||
-      tmdb.backdropUrl ||
-      tmdb.posterUrl ||
-      null
+      useCollectionTopic
+        ? getCollectionBanner(tmdb.collection) ||
+          tmdb.collectionBackdrop ||
+          tmdb.backdropUrl ||
+          tmdb.posterUrl ||
+          null
+        : genreBanners?.[finalTopicName] ||
+          genreBanners?.[tmdb.mainGenre] ||
+          tmdb.backdropUrl ||
+          tmdb.posterUrl ||
+          null
   });
 }
 
