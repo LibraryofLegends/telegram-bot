@@ -2012,19 +2012,33 @@ async function universeHubCaption(universeName = "") {
       "━━━━━━━━━━━━━━━━━━\n\n";
 
     config.series.forEach((seriesTitle, index) => {
-      const exists =
-        series.some((s) =>
-          universeTitleMatch(s.series_title, seriesTitle)
-        );
 
-      const prefix =
-        index === config.series.length - 1 ? "┗" : "┠";
+  const exists = series.some((s) => {
 
-      result +=
-        `${prefix} ` +
-        (exists ? "✅ " : "⬜ ") +
-        `${seriesTitle}\n`;
-    });
+    const savedKey =
+      makeKey(s.series_title);
+
+    const targetKey =
+      makeKey(seriesTitle);
+
+    return (
+      savedKey.includes(targetKey) ||
+      targetKey.includes(savedKey)
+    );
+
+  });
+
+  const prefix =
+    index === config.series.length - 1
+      ? "┗"
+      : "┠";
+
+  result +=
+    `${prefix} ` +
+    (exists ? "✅ " : "⬜ ") +
+    `${seriesTitle}\n`;
+
+});
 
     result += "\n";
   }
