@@ -4493,42 +4493,54 @@ async function seriesCaption(tmdb, media, extras = {}) {
   }
 
   const totalEpisodes =
-  tmdb.seasonEpisodeCount ||
-  getKnownSeasonEpisodeCount(
-    tmdb.seriesTitle,
-    media.season
-  ) ||
-  media.episode;
-  
+    tmdb.seasonEpisodeCount ||
+    getKnownSeasonEpisodeCount(
+      tmdb.seriesTitle,
+      media.season
+    ) ||
+    media.episode;
+
   const savedEpisodes =
-  await getSavedSeasonEpisodeCount(
-    tmdb.seriesTitle,
-    media.season
-  );
+    await getSavedSeasonEpisodeCount(
+      tmdb.seriesTitle,
+      media.season
+    );
+
+  const currentExists =
+    await getSavedEpisode(
+      tmdb.seriesTitle,
+      media.season,
+      media.episode
+    );
+
+  const displaySavedEpisodes =
+    currentExists
+      ? savedEpisodes
+      : savedEpisodes + 1;
 
   const progressBlocks =
-  buildSeriesProgressBar(
-    tmdb.seriesTitle,
-    Math.max(savedEpisodes, 1),
-    totalEpisodes
-  );
+    buildSeriesProgressBar(
+      tmdb.seriesTitle,
+      Math.max(displaySavedEpisodes, 1),
+      totalEpisodes
+    );
 
-const progressPercent =
-  totalEpisodes > 0
-    ? Math.round(
-        (Math.max(savedEpisodes, 1) / totalEpisodes) * 100
-      )
-    : 0;
+  const progressPercent =
+    totalEpisodes > 0
+      ? Math.round(
+          (Math.max(displaySavedEpisodes, 1) / totalEpisodes) * 100
+        )
+      : 0;
 
   const missingEpisodes = [];
 
   for (let ep = 1; ep <= totalEpisodes; ep++) {
     const exists =
-  await getSavedEpisode(
-    tmdb.seriesTitle,
-    media.season,
-    ep
-  );
+      await getSavedEpisode(
+        tmdb.seriesTitle,
+        media.season,
+        ep
+      );
 
     if (!exists && ep < media.episode) {
       missingEpisodes.push(
@@ -4537,55 +4549,47 @@ const progressPercent =
     }
   }
 
-  const castLines = String(tmdb.cast || "Unbekannt")
-    .split("•")
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .slice(0, 4)
-    .map((p) => `▸ ${p}`)
-    .join("\n");
-
   return (
-  `${nexus.header}\n\n` +
+    `${nexus.header}\n\n` +
 
-  `${nexus.line1}\n` +
-  `${nexus.line2}\n` +
-  `${finalEpisodeTitle}\n\n` +
+    `${nexus.line1}\n` +
+    `${nexus.line2}\n` +
+    `${finalEpisodeTitle}\n\n` +
 
-  "━━━━━━━━━━━━━━━━━━\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
 
-  `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
-  `🎭 ${genreText}\n` +
-  `📀 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"} • ${tmdb.episodeRuntime || "Unbekannt"}\n` +
-  `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+    `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
+    `🎭 ${genreText}\n` +
+    `📀 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"} • ${tmdb.episodeRuntime || "Unbekannt"}\n` +
+    `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
 
-  "━━━━━━━━━━━━━━━━━━\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-  "📀 EPISODE STATUS\n" +
-  `🧩 Progress • ${progressBlocks} ${Math.max(savedEpisodes, 1)}/${totalEpisodes}\n` +
-  `📊 Season Archive • ${progressPercent}%\n` +
+    "📀 EPISODE STATUS\n" +
+    `🧩 Progress • ${progressBlocks} ${Math.max(displaySavedEpisodes, 1)}/${totalEpisodes}\n` +
+    `📊 Season Archive • ${progressPercent}%\n` +
 
-  (
-    missingEpisodes.length
-      ? `⚠️ Missing • ${missingEpisodes.join(", ")}\n`
-      : "✅ No missing previous episodes\n"
-  ) +
+    (
+      missingEpisodes.length
+        ? `⚠️ Missing • ${missingEpisodes.join(", ")}\n`
+        : "✅ No missing previous episodes\n"
+    ) +
 
-  "\n━━━━━━━━━━━━━━━━━━\n\n" +
+    "\n━━━━━━━━━━━━━━━━━━\n\n" +
 
-  "📖 EPISODE SYNOPSIS\n\n" +
-  `${safeOverview}\n\n` +
+    "📖 EPISODE SYNOPSIS\n\n" +
+    `${safeOverview}\n\n` +
 
-  "━━━━━━━━━━━━━━━━━━\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-  "🧬 SERIES CODE\n" +
-  `${extras.seriesLibraryId || "Unbekannt"}\n\n` +
+    "🧬 SERIES CODE\n" +
+    `${extras.seriesLibraryId || "Unbekannt"}\n\n` +
 
-  `#${String(tmdb.seriesTitle || "")
-    .replace(/\s+/g, "")} ${genreTags}\n` +
+    `#${String(tmdb.seriesTitle || "")
+      .replace(/\s+/g, "")} ${genreTags}\n` +
 
-  "@LibraryOfLegends"
-).slice(0, 4000);
+    "@LibraryOfLegends"
+  ).slice(0, 4000);
 }
 
 // =============================
