@@ -1963,6 +1963,7 @@ async function universeHubCaption(universeName = "") {
     `🧩 UNIVERSE STATUS • ${savedTotal}/${officialTotal || savedTotal}\n` +
     `📊 FORTSCHRITT • ${universeProgress} ${universePercent}%\n` +
     `📅 ZEITRAUM • ${period}\n` +
+    `🛰 STATUS • ${multiverseStatus}\n` +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
   if (Object.keys(config.phases || {}).length) {
