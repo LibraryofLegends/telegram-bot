@@ -6957,6 +6957,78 @@ async function handleCommand(msg) {
   return;
 }
 
+// =============================
+// REPAIR MOVIE UNIVERSES
+// =============================
+if (text === "/repairmovieuniverses") {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT id, title, collection
+      FROM movies
+    `);
+
+    rows = result.rows;
+
+    for (const movie of rows) {
+      const universeData =
+        detectUniverse(movie.title, movie.collection);
+
+      await pgPool.query(
+        `
+        UPDATE movies
+        SET universe = $1,
+            universe_phase = $2
+        WHERE id = $3
+        `,
+        [
+          universeData?.universeName || null,
+          universeData?.phase || null,
+          movie.id
+        ]
+      );
+    }
+  } else {
+    rows = db.prepare(`
+      SELECT id, title, collection
+      FROM movies
+    `).all();
+
+    for (const movie of rows) {
+      const universeData =
+        detectUniverse(movie.title, movie.collection);
+
+      db.prepare(`
+        UPDATE movies
+        SET universe = ?,
+            universe_phase = ?
+        WHERE id = ?
+      `).run(
+        universeData?.universeName || null,
+        universeData?.phase || null,
+        movie.id
+      );
+    }
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🌌 MOVIE UNIVERSES REPAIRED\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `✅ Filme geprüft: ${rows.length}\n` +
+      "✅ Universe-Zuordnung aktualisiert\n\n" +
+      "Jetzt ausführen:\n" +
+      "/rebuildcommandcenters\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
 if (text === "/clearseries") {
   CURRENT_SERIES_NAME = "";
 
