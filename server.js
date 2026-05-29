@@ -851,35 +851,32 @@ async function saveCollectionHubMessageId(
 // SERIES DB HELPERS
 // =============================
 async function getSavedSeasonEpisodeCount(seriesTitle, season) {
+  const targetKey = makeKey(seriesTitle);
 
   if (pgPool) {
     const result = await pgPool.query(
       `
-      SELECT COUNT(*) AS count
+      SELECT id, series_title
       FROM series
-      WHERE series_title = $1
-      AND season = $2
+      WHERE season = $1
       `,
-      [
-        seriesTitle,
-        season
-      ]
+      [season]
     );
 
-    return Number(result.rows[0]?.count || 0);
+    return result.rows.filter((row) =>
+      makeKey(row.series_title) === targetKey
+    ).length;
   }
 
-  const row = db.prepare(`
-    SELECT COUNT(*) AS count
+  const rows = db.prepare(`
+    SELECT id, series_title
     FROM series
-    WHERE series_title = ?
-    AND season = ?
-  `).get(
-    seriesTitle,
-    season
-  );
+    WHERE season = ?
+  `).all(season);
 
-  return Number(row?.count || 0);
+  return rows.filter((row) =>
+    makeKey(row.series_title) === targetKey
+  ).length;
 }
 
 async function getSavedEpisode(seriesTitle, season, episode) {
@@ -893,10 +890,7 @@ async function getSavedEpisode(seriesTitle, season, episode) {
       WHERE season = $1
       AND episode = $2
       `,
-      [
-        season,
-        episode
-      ]
+      [season, episode]
     );
 
     return result.rows.find((row) =>
@@ -909,10 +903,7 @@ async function getSavedEpisode(seriesTitle, season, episode) {
     FROM series
     WHERE season = ?
     AND episode = ?
-  `).all(
-    season,
-    episode
-  );
+  `).all(season, episode);
 
   return rows.find((row) =>
     makeKey(row.series_title) === targetKey
