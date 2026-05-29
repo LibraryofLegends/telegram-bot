@@ -7479,7 +7479,6 @@ if (text.startsWith("/deleteseries")) {
   }
   
   if (text.startsWith("/deleteseriestopic")) {
-
   const query = text
     .replace("/deleteseriestopic", "")
     .trim();
@@ -7495,62 +7494,125 @@ if (text.startsWith("/deleteseries")) {
     return;
   }
 
-  const topic = db.prepare(`
-    SELECT *
-    FROM topics
-    WHERE LOWER(name) = ?
-    LIMIT 1
-  `).get(query.toLowerCase());
+  const targetKey = makeKey(query);
+
+  let topics = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE chat_id = $1
+      `,
+      [String(SERIES_GROUP_ID)]
+    );
+
+    topics = result.rows;
+  } else {
+    topics = db.prepare(`
+      SELECT *
+      FROM topics
+      WHERE chat_id = ?
+    `).all(String(SERIES_GROUP_ID));
+  }
+
+  const topic = topics.find((t) =>
+    makeKey(t.name) === targetKey ||
+    makeKey(t.name).includes(targetKey) ||
+    targetKey.includes(makeKey(t.name))
+  );
 
   if (!topic) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "❌ Topic nicht gefunden."
+      text:
+        "❌ Topic nicht gefunden.\n\n" +
+        `Gesucht: ${query}\n` +
+        `Gefundene Serientopics: ${topics.length}`
     });
 
     return;
   }
 
-  // =============================
-  // DELETE SERIES ENTRIES
-  // =============================
-  db.prepare(`
-    DELETE FROM series
-    WHERE LOWER(series_title) = ?
-  `).run(query.toLowerCase());
+  let episodes = [];
 
-  // =============================
-  // DELETE TOPIC DB ENTRY
-  // =============================
-  db.prepare(`
-    DELETE FROM topics
-    WHERE id = ?
-  `).run(topic.id);
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT id, series_title
+      FROM series
+      `
+    );
 
-  // =============================
-  // CLOSE TELEGRAM TOPIC
-  // =============================
+    episodes = result.rows;
+  } else {
+    episodes = db.prepare(`
+      SELECT id, series_title
+      FROM series
+    `).all();
+  }
+
+  const matchingEpisodes = episodes.filter((ep) =>
+    makeKey(ep.series_title) === targetKey ||
+    makeKey(ep.series_title).includes(targetKey) ||
+    targetKey.includes(makeKey(ep.series_title))
+  );
+
+  if (pgPool) {
+    for (const ep of matchingEpisodes) {
+      await pgPool.query(
+        `
+        DELETE FROM series
+        WHERE id = $1
+        `,
+        [ep.id]
+      );
+    }
+
+    await pgPool.query(
+      `
+      DELETE FROM topics
+      WHERE id = $1
+      `,
+      [topic.id]
+    );
+  } else {
+    for (const ep of matchingEpisodes) {
+      db.prepare(`
+        DELETE FROM series
+        WHERE id = ?
+      `).run(ep.id);
+    }
+
+    db.prepare(`
+      DELETE FROM topics
+      WHERE id = ?
+    `).run(topic.id);
+  }
+
   try {
-
     await tg("deleteForumTopic", {
       chat_id: SERIES_GROUP_ID,
-      message_thread_id: topic.topic_id
+      message_thread_id: Number(topic.topic_id)
     });
-
   } catch (err) {
-
     console.error(
       "⚠️ Telegram Topic Delete Fehler:",
       err.message
     );
-
   }
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "🗑 Serientopic gelöscht:\n\n" +
-      `📺 ${query}`
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🗑 SERIENTOPIC GELÖSCHT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `📺 Topic: ${topic.name}\n` +
+      `🧹 Episoden gelöscht: ${matchingEpisodes.length}\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
   });
 
   return;
