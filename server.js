@@ -9200,6 +9200,12 @@ async function processMovieUpload({ msg, media, tmdb }) {
     tmdb.title,
     tmdb.collection
   );
+  
+  console.log("🌌 UNIVERSE DETECT DEBUG:", {
+  title: tmdb.title,
+  collection: tmdb.collection,
+  universeData
+});
 
   // =============================
 // MOVIE TOPIC ROUTING
