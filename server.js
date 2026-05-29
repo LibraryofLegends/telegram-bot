@@ -989,16 +989,13 @@ function buildSeriesSmartLine(row) {
       ? Math.round((saved / official) * 100)
       : 0;
 
-  const bar =
-    buildSeriesProgressBar(
-      row.series_title,
-      saved,
-      official
-    );
+  const bar = official
+  ? buildSeriesProgressBar(row.series_title, saved, official)
+  : "□□□□□□□□□□";
 
   return (
     `📺 ${String(row.series_title || "Unbekannt").toUpperCase()}\n` +
-    `└ ${bar} ${saved}/${official || "??"} • ${percent || 0}%\n`
+    `└ ${bar} ${saved}/${official || "??"} • ${official ? percent + "%" : "UNKNOWN"}\n`
   );
 }
 
