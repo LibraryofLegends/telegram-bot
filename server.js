@@ -897,8 +897,20 @@ async function getSavedEpisode(seriesTitle, season, episode) {
       makeKey(row.series_title) === targetKey
     ) || null;
   }
-  
-  // =============================
+
+  const rows = db.prepare(`
+    SELECT id, series_title
+    FROM series
+    WHERE season = ?
+    AND episode = ?
+  `).all(season, episode);
+
+  return rows.find((row) =>
+    makeKey(row.series_title) === targetKey
+  ) || null;
+}
+
+// =============================
 // SERIES SMART INDEXES
 // =============================
 async function getSeriesOverviewRows() {
