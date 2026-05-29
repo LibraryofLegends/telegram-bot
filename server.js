@@ -1133,60 +1133,55 @@ async function buildMasteredSeriesCaption() {
 // UPDATE SERIES SMART TOPICS
 // =============================
 async function updateSeriesSmartTopics() {
-
   const smartTopics = [
-  {
-    topic: "📺 Series Library",
-    builder: buildSeriesLibraryCaption
-  },
-
-  {
-    topic: "🔥 Trending",
-    builder: buildTrendingSeriesCaption
-  },
-
-  {
-    topic: "🧩 Incomplete",
-    builder: buildIncompleteSeriesCaption
-  },
-
-  {
-    topic: "🏆 Mastered",
-    builder: buildMasteredSeriesCaption
-  }
-];
+    {
+      topic: "📺 Series Library",
+      builder: buildSeriesLibraryCaption
+    },
+    {
+      topic: "🔥 Trending",
+      builder: buildTrendingSeriesCaption
+    },
+    {
+      topic: "🧩 Incomplete",
+      builder: buildIncompleteSeriesCaption
+    },
+    {
+      topic: "🏆 Mastered",
+      builder: buildMasteredSeriesCaption
+    }
+  ];
 
   for (const item of smartTopics) {
-
     let topic = null;
 
-if (pgPool) {
-  const result = await pgPool.query(
-    `
-    SELECT *
-    FROM topics
-    WHERE name = $1
-    LIMIT 1
-    `,
-    [item.topic]
-  );
+    if (pgPool) {
+      const result = await pgPool.query(
+        `
+        SELECT *
+        FROM topics
+        WHERE name = $1
+        LIMIT 1
+        `,
+        [item.topic]
+      );
 
-  topic = result.rows[0] || null;
-} else {
-  topic = db.prepare(`
-    SELECT *
-    FROM topics
-    WHERE name = ?
-    LIMIT 1
-  `).get(item.topic);
-}
+      topic = result.rows[0] || null;
+    } else {
+      topic = db.prepare(`
+        SELECT *
+        FROM topics
+        WHERE name = ?
+        LIMIT 1
+      `).get(item.topic);
+    }
 
-console.log("🧪 SMART TOPIC CHECK:", {
-  gesucht: item.topic,
-  gefunden: topic?.name,
-  topicId: topic?.topic_id,
-  hubMessageId: topic?.hub_message_id
-});
+    console.log("🧪 SMART TOPIC CHECK:", {
+      gesucht: item.topic,
+      gefunden: topic?.name,
+      topicId: topic?.topic_id,
+      hubMessageId: topic?.hub_message_id
+    });
 
     if (!topic?.topic_id) {
       console.log("⚠️ Smart Topic fehlt:", item.topic);
@@ -1195,82 +1190,54 @@ console.log("🧪 SMART TOPIC CHECK:", {
 
     const text = await item.builder();
 
-    // =============================
-    // UPDATE EXISTING
-    // =============================
     if (topic.hub_message_id) {
+      const edited = await tg("editMessageText", {
+        chat_id: SERIES_GROUP_ID,
+        message_id: topic.hub_message_id,
+        text
+      });
 
-      try {
-
-        await tg("editMessageText", {
-          chat_id: SERIES_GROUP_ID,
-          message_id: topic.hub_message_id,
-          text
-        });
-
+      if (!edited?.__error) {
+        console.log("✅ Smart Topic aktualisiert:", item.topic);
         continue;
-
-      } catch (err) {
-
-        console.error(
-          "⚠️ Smart Topic Edit Fehler:",
-          err.message
-        );
-
       }
 
+      console.log(
+        "⚠️ Smart Topic Edit fehlgeschlagen, erstelle neu:",
+        edited?.error?.description || edited
+      );
     }
 
-// =============================
-// CREATE NEW
-// =============================
-const msg = await tg("sendMessage", {
-  chat_id: SERIES_GROUP_ID,
-  message_thread_id: Number(topic.topic_id),
-  text
-});
+    const msg = await tg("sendMessage", {
+      chat_id: SERIES_GROUP_ID,
+      message_thread_id: Number(topic.topic_id),
+      text
+    });
 
-// =============================
-// SAVE HUB MESSAGE ID
-// =============================
-if (msg?.message_id) {
+    if (msg?.message_id) {
+      if (pgPool) {
+        await pgPool.query(
+          `
+          UPDATE topics
+          SET hub_message_id = $1
+          WHERE topic_id = $2
+          `,
+          [msg.message_id, topic.topic_id]
+        );
+      } else {
+        db.prepare(`
+          UPDATE topics
+          SET hub_message_id = ?
+          WHERE topic_id = ?
+        `).run(
+          msg.message_id,
+          topic.topic_id
+        );
+      }
 
-  if (pgPool) {
-
-    await pgPool.query(
-      `
-      UPDATE topics
-      SET hub_message_id = $1
-      WHERE topic_id = $2
-      `,
-      [
-        msg.message_id,
-        topic.topic_id
-      ]
-    );
-
-  } else {
-
-    db.prepare(`
-      UPDATE topics
-      SET hub_message_id = ?
-      WHERE topic_id = ?
-    `).run(
-      msg.message_id,
-      topic.topic_id
-    );
-
+      console.log("✅ Smart Topic erstellt:", item.topic);
+    }
   }
-
-            console.log(
-    "✅ Smart Topic erstellt:",
-    item.topic
-  );
-
-}
-
-  }
-
 }
 
 // =============================
