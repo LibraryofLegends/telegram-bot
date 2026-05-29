@@ -4532,18 +4532,12 @@ const progressPercent =
   const missingEpisodes = [];
 
   for (let ep = 1; ep <= totalEpisodes; ep++) {
-    const exists = db.prepare(`
-      SELECT id
-      FROM series
-      WHERE series_title = ?
-      AND season = ?
-      AND episode = ?
-      LIMIT 1
-    `).get(
-      tmdb.seriesTitle,
-      media.season,
-      ep
-    );
+    const exists =
+  await getSavedEpisode(
+    tmdb.seriesTitle,
+    media.season,
+    ep
+  );
 
     if (!exists && ep < media.episode) {
       missingEpisodes.push(
