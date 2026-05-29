@@ -1196,9 +1196,25 @@ async function updateSeriesSmartTopics() {
     });
 
     if (!topic?.topic_id) {
-      console.log("⚠️ Smart Topic fehlt:", item.topic);
-      continue;
-    }
+  console.log("⚠️ Smart Topic fehlt, erstelle:", item.topic);
+
+  const topicId = await createOrGetTopic({
+    chatId: SERIES_GROUP_ID,
+    name: item.topic,
+    type: "series_smart"
+  });
+
+  if (!topicId) {
+    console.log("❌ Smart Topic konnte nicht erstellt werden:", item.topic);
+    continue;
+  }
+
+  topic = {
+    name: item.topic,
+    topic_id: topicId,
+    hub_message_id: null
+  };
+}
 
     const text = await item.builder();
 
