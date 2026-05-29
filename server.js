@@ -5470,6 +5470,20 @@ function getSeriesRank(current, total) {
 
 function getKnownSeasonEpisodeCount(seriesTitle, seasonNumber) {
   const knownCounts = {
+    "Das A-Team": { 1: 14, 2: 23, 3: 25, 4: 23, 5: 13 },
+
+    "Tulsa King": { 1: 9, 2: 10 },
+
+    "Es - Welcome to Derry": { 1: 8 },
+
+    "Star Wars: The Clone Wars": {
+      1: 22, 2: 22, 3: 22, 4: 22, 5: 20, 6: 13, 7: 12
+    },
+
+    "Star Wars Galaxy of Adventures": {
+      1: 36, 2: 18
+    },
+
     "The Boys": { 1: 8, 2: 8, 3: 8, 4: 8, 5: 7 },
     "Die Ewoks": { 1: 13, 2: 22 },
     "The Mandalorian": { 1: 8, 2: 8, 3: 8 },
@@ -5488,6 +5502,12 @@ function getKnownSeasonEpisodeCount(seriesTitle, seasonNumber) {
 
 function getKnownSeasonCount(seriesTitle) {
   const knownSeasonCounts = {
+    "Das A-Team": 5,
+    "Tulsa King": 2,
+    "Es - Welcome to Derry": 1,
+    "Star Wars: The Clone Wars": 7,
+    "Star Wars Galaxy of Adventures": 2,
+
     "The Boys": 5,
     "Die Ewoks": 2,
     "The Mandalorian": 3,
