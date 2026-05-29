@@ -1846,66 +1846,95 @@ function buildUniverseProgressBar(current = 0, total = 0) {
   return "■".repeat(filled) + "□".repeat(size - filled);
 }
 
-function universeHubCaption(universeName = "") {
-
+async function universeHubCaption(universeName = "") {
   const config =
     Object.values(universeConfigs)
-      .find((u) =>
-        u.topicName === universeName
-      );
+      .find((u) => u.topicName === universeName);
 
   if (!config) {
     return "❌ Universe nicht gefunden";
   }
 
-  const movies = db.prepare(`
-    SELECT title, year, rating, universe_phase
-    FROM movies
-    WHERE universe = ?
-    ORDER BY year ASC, title ASC
-  `).all(universeName);
+  let movies = [];
+  let series = [];
 
-  const series = db.prepare(`
-    SELECT DISTINCT series_title
-    FROM series
-    WHERE universe = ?
-    ORDER BY series_title ASC
-  `).all(universeName);
+  if (pgPool) {
+    const movieResult = await pgPool.query(
+      `
+      SELECT title, year, rating, universe_phase
+      FROM movies
+      WHERE universe = $1
+      ORDER BY year ASC, title ASC
+      `,
+      [universeName]
+    );
+
+    movies = movieResult.rows;
+
+    const seriesResult = await pgPool.query(
+      `
+      SELECT DISTINCT series_title
+      FROM series
+      WHERE universe = $1
+      ORDER BY series_title ASC
+      `,
+      [universeName]
+    );
+
+    series = seriesResult.rows;
+
+  } else {
+    movies = db.prepare(`
+      SELECT title, year, rating, universe_phase
+      FROM movies
+      WHERE universe = ?
+      ORDER BY year ASC, title ASC
+    `).all(universeName);
+
+    series = db.prepare(`
+      SELECT DISTINCT series_title
+      FROM series
+      WHERE universe = ?
+      ORDER BY series_title ASC
+    `).all(universeName);
+  }
+
+  function universeTitleMatch(savedTitle = "", officialTitle = "") {
+    const savedKey = makeKey(savedTitle);
+    const officialKey = makeKey(officialTitle);
+
+    if (!savedKey || !officialKey) return false;
+
+    return (
+      savedKey === officialKey ||
+      savedKey.includes(officialKey) ||
+      officialKey.includes(savedKey)
+    );
+  }
 
   const movieCount = movies.length;
   const seriesCount = series.length;
-  
-  const officialMovieTotal = Object.values(config.phases || {})
-  .reduce((sum, entries) => sum + entries.length, 0);
 
-const officialSeriesTotal = config.series?.length || 0;
+  const officialMovieTotal =
+    Object.values(config.phases || {})
+      .reduce((sum, entries) => sum + entries.length, 0);
 
-const officialTotal =
-  officialMovieTotal + officialSeriesTotal;
+  const officialSeriesTotal =
+    config.series?.length || 0;
 
-const savedTotal =
-  movieCount + seriesCount;
+  const officialTotal =
+    officialMovieTotal + officialSeriesTotal;
 
-const universePercent =
-  officialTotal > 0
-    ? Math.round((savedTotal / officialTotal) * 100)
-    : 0;
+  const savedTotal =
+    movieCount + seriesCount;
 
-let multiverseStatus =
-  "🟢 SACRED TIMELINE STABLE";
+  const universePercent =
+    officialTotal > 0
+      ? Math.round((savedTotal / officialTotal) * 100)
+      : 0;
 
-if (universePercent < 100) {
-  multiverseStatus =
-    "🟠 TIMELINE INSTABILITY DETECTED";
-}
-
-if (universePercent < 60) {
-  multiverseStatus =
-    "🔴 INCURSIONS DETECTED";
-}
-
-const universeProgress =
-  buildUniverseProgressBar(savedTotal, officialTotal);
+  const universeProgress =
+    buildUniverseProgressBar(savedTotal, officialTotal);
 
   const years = movies
     .map((m) => Number(m.year))
@@ -1926,98 +1955,76 @@ const universeProgress =
     `${config.status}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-
     `🎬 FILME • ${movieCount}/${officialMovieTotal || movieCount}\n` +
-`📺 SERIEN • ${seriesCount}/${officialSeriesTotal || seriesCount}\n` +
-`🧩 UNIVERSE STATUS • ${savedTotal}/${officialTotal || savedTotal}\n` +
-`📊 FORTSCHRITT • ${universeProgress} ${universePercent}%\n` +
-`📅 ZEITRAUM • ${period}\n` +
-
+    `📺 SERIEN • ${seriesCount}/${officialSeriesTotal || seriesCount}\n` +
+    `🧩 UNIVERSE STATUS • ${savedTotal}/${officialTotal || savedTotal}\n` +
+    `📊 FORTSCHRITT • ${universeProgress} ${universePercent}%\n` +
+    `📅 ZEITRAUM • ${period}\n` +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
   if (Object.keys(config.phases || {}).length) {
-
-  result +=
-    "🧭 TIMELINE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
-
-  for (const [phase, entries] of Object.entries(config.phases)) {
-
-    const savedInPhase =
-  entries.filter((title) =>
-    movies.some((m) => {
-      const movieKey = makeKey(m.title);
-      const titleKey = makeKey(title);
-
-      return (
-        movieKey.includes(titleKey) ||
-        titleKey.includes(movieKey)
-      );
-    })
-  ).length;
-
-    const completed =
-      savedInPhase >= entries.length;
-
     result +=
-      `${phase} • ${savedInPhase}/${entries.length} ` +
-      (completed ? "✅" : "⚠️") +
-      "\n";
+      "🧭 TIMELINE\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n";
 
-    entries.forEach((title, index) => {
+    for (const [phase, entries] of Object.entries(config.phases)) {
+      const savedInPhase =
+        entries.filter((title) =>
+          movies.some((m) =>
+            universeTitleMatch(m.title, title)
+          )
+        ).length;
 
+      const completed =
+        savedInPhase >= entries.length;
+
+      result +=
+        `${phase} • ${savedInPhase}/${entries.length} ` +
+        (completed ? "✅" : "⚠️") +
+        "\n";
+
+      entries.forEach((title, index) => {
+        const exists =
+          movies.some((m) =>
+            universeTitleMatch(m.title, title)
+          );
+
+        const prefix =
+          index === entries.length - 1 ? "┗" : "┠";
+
+        result +=
+          `${prefix} ` +
+          (exists ? "✅ " : "⬜ ") +
+          `${title}\n`;
+      });
+
+      result += "\n";
+    }
+  }
+
+  if (config.series?.length) {
+    result +=
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📺 SERIEN\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n";
+
+    config.series.forEach((seriesTitle, index) => {
       const exists =
-  movies.some((m) => {
-    const movieKey = makeKey(m.title);
-    const titleKey = makeKey(title);
-
-    return (
-      movieKey.includes(titleKey) ||
-      titleKey.includes(movieKey)
-    );
-  });
+        series.some((s) =>
+          universeTitleMatch(s.series_title, seriesTitle)
+        );
 
       const prefix =
-        index === entries.length - 1
-          ? "┗"
-          : "┠";
+        index === config.series.length - 1 ? "┗" : "┠";
 
       result +=
         `${prefix} ` +
         (exists ? "✅ " : "⬜ ") +
-        `${title}\n`;
-
+        `${seriesTitle}\n`;
     });
 
     result += "\n";
   }
-}
-
-  if (config.series?.length) {
-
-  result +=
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📺 SERIEN\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
-
-  config.series.forEach((seriesTitle, index) => {
-    const exists = series.some((s) =>
-      s.series_title === seriesTitle
-    );
-
-    const prefix =
-      index === config.series.length - 1
-        ? "┗"
-        : "┠";
-
-    result +=
-      `${prefix} ` +
-      (exists ? "✅ " : "⬜ ") +
-      `${seriesTitle}\n`;
-  });
-
-  result += "\n";
-}
 
   result +=
     "━━━━━━━━━━━━━━━━━━\n" +
