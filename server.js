@@ -1262,11 +1262,14 @@ if (msg?.message_id) {
 
   }
 
-      console.log(
+            console.log(
     "✅ Smart Topic erstellt:",
     item.topic
   );
+
 }
+
+  }
 
 }
 
