@@ -1882,6 +1882,8 @@ async function universeHubCaption(universeName = "") {
     );
 
     series = seriesResult.rows;
+    
+    console.log("🌌 UNIVERSE SERIES:", series);
 
   } else {
     movies = db.prepare(`
