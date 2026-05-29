@@ -7486,13 +7486,16 @@ if (text.startsWith("/deleteseries")) {
   const season = Number(match[2]);
   const episode = Number(match[3]);
 
-  const row = db.prepare(`
-    SELECT * FROM series
-    WHERE LOWER(series_title) = ?
-    AND season = ?
-    AND episode = ?
-    LIMIT 1
-  `).get(title.toLowerCase(), season, episode);
+  const rows = db.prepare(`
+  SELECT *
+  FROM series
+  WHERE season = ?
+  AND episode = ?
+`).all(season, episode);
+
+const row = rows.find((r) =>
+  makeKey(r.series_title) === makeKey(title)
+);
 
   if (!row) {
     await tg("sendMessage", {
