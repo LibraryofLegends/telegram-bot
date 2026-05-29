@@ -1135,26 +1135,26 @@ async function buildMasteredSeriesCaption() {
 async function updateSeriesSmartTopics() {
 
   const smartTopics = [
-    {
-      topic: "📺 SERIES LIBRARY",
-      builder: buildSeriesLibraryCaption
-    },
+  {
+    topic: "📺 Series Library",
+    builder: buildSeriesLibraryCaption
+  },
 
-    {
-      topic: "🔥 TRENDING",
-      builder: buildTrendingSeriesCaption
-    },
+  {
+    topic: "🔥 Trending",
+    builder: buildTrendingSeriesCaption
+  },
 
-    {
-      topic: "🧩 INCOMPLETE",
-      builder: buildIncompleteSeriesCaption
-    },
+  {
+    topic: "🧩 Incomplete",
+    builder: buildIncompleteSeriesCaption
+  },
 
-    {
-      topic: "🏆 MASTERED",
-      builder: buildMasteredSeriesCaption
-    }
-  ];
+  {
+    topic: "🏆 Mastered",
+    builder: buildMasteredSeriesCaption
+  }
+];
 
   for (const item of smartTopics) {
 
