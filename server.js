@@ -1148,17 +1148,18 @@ const universeConfigs = {
     },
 
     series: [
-      "Star Wars: The Clone Wars",
-      "Star Wars Rebels",
-      "Star Wars Resistance",
-      "Star Wars: The Bad Batch",
-      "The Mandalorian",
-      "Andor",
-      "Ahsoka",
-      "Obi-Wan Kenobi",
-      "The Book of Boba Fett",
-      "Die Ewoks"
-    ]
+  "Star Wars: The Clone Wars",
+  "Star Wars Rebels",
+  "Star Wars Resistance",
+  "Star Wars: The Bad Batch",
+  "Star Wars Galaxy of Adventures",
+  "The Mandalorian",
+  "Andor",
+  "Ahsoka",
+  "Obi-Wan Kenobi",
+  "The Book of Boba Fett",
+  "Die Ewoks"
+]
   },
 
   Disney: {
