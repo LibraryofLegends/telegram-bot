@@ -2082,33 +2082,20 @@ async function saveUniverseHubMessageId(
 // =============================
 // UNIVERSE HUB SYSTEM
 // =============================
-async function createOrUpdateUniverseHub(
-  universeName = ""
-) {
-
+async function createOrUpdateUniverseHub(universeName = "") {
   if (!universeName) return null;
 
   const config =
     Object.values(universeConfigs)
-      .find((u) =>
-        u.topicName === universeName
-      );
+      .find((u) => u.topicName === universeName);
 
   if (!config) return null;
 
-  // =============================
-  // LOAD UNIVERSE
-  // =============================
   let universe =
     await getUniverseByName(universeName);
 
-  // =============================
-  // CREATE UNIVERSE
-  // =============================
   if (!universe) {
-
     if (pgPool) {
-
       await pgPool.query(
         `
         INSERT INTO universes
@@ -2119,88 +2106,67 @@ async function createOrUpdateUniverseHub(
         `,
         [universeName]
       );
-
     } else {
-
       db.prepare(`
         INSERT OR IGNORE INTO universes
         (universe_name)
         VALUES (?)
       `).run(universeName);
-
     }
 
     universe =
       await getUniverseByName(universeName);
   }
 
-  // =============================
-  // TOPIC
-  // =============================
-  let topicId =
-    universe?.topic_id;
+  const topicId =
+    await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: config.topicName,
+      type: "universe"
+    });
 
   if (!topicId) {
-
-    topicId =
-      await createOrGetTopic({
-        chatId: MOVIE_GROUP_ID,
-        name: config.topicName,
-        type: "universe"
-      });
-
-    if (topicId) {
-
-      if (pgPool) {
-
-        await pgPool.query(
-          `
-          UPDATE universes
-          SET topic_id = $1
-          WHERE universe_name = $2
-          `,
-          [topicId, universeName]
-        );
-
-      } else {
-
-        db.prepare(`
-          UPDATE universes
-          SET topic_id = ?
-          WHERE universe_name = ?
-        `).run(
-          topicId,
-          universeName
-        );
-
-      }
-
-    }
-
+    console.error("❌ Universe Topic konnte nicht erstellt werden:", universeName);
+    return null;
   }
 
-  // =============================
-  // HUB TEXT
-  // =============================
+  if (pgPool) {
+    await pgPool.query(
+      `
+      UPDATE universes
+      SET topic_id = $1
+      WHERE universe_name = $2
+      `,
+      [topicId, universeName]
+    );
+  } else {
+    db.prepare(`
+      UPDATE universes
+      SET topic_id = ?
+      WHERE universe_name = ?
+    `).run(topicId, universeName);
+  }
+
   const text =
-    universeHubCaption(universeName);
+    await universeHubCaption(universeName);
 
-  // =============================
-  // UPDATE HUB
-  // =============================
   if (universe?.hub_message_id) {
-
-    return await tg("editMessageText", {
+    const edited = await tg("editMessageText", {
       chat_id: MOVIE_GROUP_ID,
       message_id: universe.hub_message_id,
       text
     });
 
+    if (!edited?.__error) {
+      return edited;
+    }
+
+    console.error(
+      "⚠️ Universe Hub Edit fehlgeschlagen, erstelle neu:",
+      edited?.error?.description || edited
+    );
   }
 
-  // =============================
-  // CREATE HUB
-  // =============================
   const hub =
     await tg("sendMessage", {
       chat_id: MOVIE_GROUP_ID,
@@ -2208,33 +2174,24 @@ async function createOrUpdateUniverseHub(
       text
     });
 
-  // =============================
-  // SAVE HUB MESSAGE ID
-  // =============================
   if (hub?.message_id) {
-
     await saveUniverseHubMessageId(
       universeName,
       hub.message_id
     );
 
     try {
-
       await tg("pinChatMessage", {
         chat_id: MOVIE_GROUP_ID,
         message_id: hub.message_id,
         disable_notification: true
       });
-
     } catch (err) {
-
       console.error(
         "⚠️ Universe Hub Pin Fehler:",
         err.message
       );
-
     }
-
   }
 
   return hub;
