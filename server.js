@@ -6690,86 +6690,99 @@ async function handleCommand(msg) {
   if (text === "/start" || text === "/admin") {
 
   await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+  chat_id: msg.chat.id,
+  text:
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-      "📁 PREMIUM MEDIA SYSTEM\n" +
-      "🎬 CINEMATIC ARCHIVE CORE\n\n" +
+    "📁 PREMIUM MEDIA SYSTEM\n" +
+    "🎬 CINEMATIC ARCHIVE CORE\n\n" +
 
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🎬 FILM ARCHIVE\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎬 FILM ARCHIVE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-      "• /movies — Filmarchiv\n" +
-      "• /collections — Filmreihen\n" +
-      "• /collection NAME — Collection öffnen\n" +
-      "• /universes — Universen anzeigen\n" +
-      "• /genres — Genre Archive\n" +
-      "• /decades — Jahrzehnte\n" +
-      "• /elite — Elite Filme\n" +
-      "• /search TITEL — Filmsuche\n\n" +
+    "• /movies — Filmarchiv\n" +
+    "• /collections — Filmreihen\n" +
+    "• /collection NAME — Collection öffnen\n" +
+    "• /universes — Universen anzeigen\n" +
+    "• /genres — Genre Archive\n" +
+    "• /decades — Jahrzehnte\n" +
+    "• /elite — Elite Filme\n" +
+    "• /search TITEL — Filmsuche\n\n" +
 
-      "🛠 MOVIE TOOLS\n" +
-      "• /fixmovie ALT | NEU | JAHR\n" +
-      "• /deletemovie NAME\n" +
-      "• /deletetopic NAME\n" +
-      "• /rebuildcollections\n" +
-      "• /rebuildcommandcenters\n" +
-      "• /rebuildmovieindex\n" +
-      "• /repairmovies\n\n" +
+    "🛠 MOVIE TOOLS\n" +
+    "• /fixmovie ALT | NEU | JAHR\n" +
+    "• /deletemovie NAME\n" +
+    "• /deletetopic NAME\n" +
+    "• /rebuildcollections\n" +
+    "• /rebuildcommandcenters\n" +
+    "• /rebuildmovieindex\n" +
+    "• /repairmovies\n\n" +
 
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "📺 SERIES ARCHIVE\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📺 SERIES ARCHIVE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-      "• /series — Serienarchiv\n" +
-      "• /seriesaz — Serien A–Z\n" +
-      "• /serieshub — Serien Dashboard\n" +
-      "• /newseries — Neue Folgen\n" +
-      "• /progress NAME\n" +
-      "• /missingseries NAME\n" +
-      "• /checkseries NAME\n\n" +
+    "• /series — Serienarchiv\n" +
+    "• /seriesaz — Serien A–Z\n" +
+    "• /serieshub — Serien Dashboard\n" +
+    "• /newseries — Neue Folgen\n" +
+    "• /progress NAME\n" +
+    "• /missingseries NAME\n" +
+    "• /checkseries NAME\n\n" +
 
-      "🛠 SERIES TOOLS\n" +
-      "• /series TITEL | S01E01\n" +
-      "• /fixseries ALT | NEU\n" +
-      "• /deleteseries NAME S01E01\n" +
-      "• /rebuildseasoncards NAME\n" +
-      "• /rebuildserieshub NAME\n" +
-      "• /repairseries\n\n" +
+    "🛠 SERIES TOOLS\n" +
+    "• /series TITEL | S01E01\n" +
+    "• /fixseries ALT | NEU\n" +
+    "• /deleteseries NAME S01E01\n" +
+    "• /deleteseriestopic NAME\n" +
+    "• /rebuildseasoncards NAME\n" +
+    "• /rebuildserieshub NAME\n" +
+    "• /repairseries\n\n" +
 
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🧹 SYSTEM CONTROL\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🌌 UNIVERSE SYSTEM\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-      "• /dashboard — Premium Dashboard\n" +
-      "• /stats — Statistiken\n" +
-      "• /health — Systemstatus\n" +
-      "• /queue — Upload Queue\n" +
-      "• /qualitystats — Qualitätsdaten\n" +
-      "• /duplicates — Duplikate\n" +
-      "• /smartduplicates — Smart Scan\n" +
-      "• /pgstats — Supabase Debug\n\n" +
+    "• /repairuniverses\n" +
+    "• /rebuilduniversehubs\n" +
+    "• /rebuildcollections\n" +
+    "• /repairhubs\n\n" +
 
-      "🧠 REPAIR & RECOVERY\n" +
-      "• /cleartopicsdb\n" +
-      "• /rebuildtopics\n" +
-      "• /repairhubs\n" +
-      "• /repairindexes\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧹 SYSTEM CONTROL\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "💾 DATABASE\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+    "• /dashboard — Premium Dashboard\n" +
+    "• /stats — Statistiken\n" +
+    "• /health — Systemstatus\n" +
+    "• /queue — Upload Queue\n" +
+    "• /qualitystats — Qualitätsdaten\n" +
+    "• /duplicates — Duplikate\n" +
+    "• /smartduplicates — Smart Scan\n" +
+    "• /pgstats — Supabase Debug\n\n" +
 
-      "• /backup — Backup erstellen\n" +
-      "• /restoredb — Backup laden\n\n" +
+    "🧠 REPAIR & RECOVERY\n" +
+    "• /cleartopicsdb\n" +
+    "• /rebuildtopics\n" +
+    "• /repairhubs\n" +
+    "• /repairindexes\n" +
+    "• /repairseries\n" +
+    "• /repairmovies\n" +
+    "• /repairuniverses\n\n" +
 
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
-  });
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "💾 DATABASE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "• /backup — Backup erstellen\n" +
+    "• /restoredb — Backup laden\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+});
 
   return;
 }
@@ -7464,6 +7477,84 @@ if (text.startsWith("/deleteseries")) {
     });
     return;
   }
+  
+  if (text.startsWith("/deleteseriestopic")) {
+
+  const query = text
+    .replace("/deleteseriestopic", "")
+    .trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n" +
+        "/deleteseriestopic Tulsa King"
+    });
+
+    return;
+  }
+
+  const topic = db.prepare(`
+    SELECT *
+    FROM topics
+    WHERE LOWER(name) = ?
+    LIMIT 1
+  `).get(query.toLowerCase());
+
+  if (!topic) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Topic nicht gefunden."
+    });
+
+    return;
+  }
+
+  // =============================
+  // DELETE SERIES ENTRIES
+  // =============================
+  db.prepare(`
+    DELETE FROM series
+    WHERE LOWER(series_title) = ?
+  `).run(query.toLowerCase());
+
+  // =============================
+  // DELETE TOPIC DB ENTRY
+  // =============================
+  db.prepare(`
+    DELETE FROM topics
+    WHERE id = ?
+  `).run(topic.id);
+
+  // =============================
+  // CLOSE TELEGRAM TOPIC
+  // =============================
+  try {
+
+    await tg("deleteForumTopic", {
+      chat_id: SERIES_GROUP_ID,
+      message_thread_id: topic.topic_id
+    });
+
+  } catch (err) {
+
+    console.error(
+      "⚠️ Telegram Topic Delete Fehler:",
+      err.message
+    );
+
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "🗑 Serientopic gelöscht:\n\n" +
+      `📺 ${query}`
+  });
+
+  return;
+}
 
   const match = query.match(/(.+)\s+s(\d{1,2})e(\d{1,3})/i);
 
