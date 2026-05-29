@@ -6973,7 +6973,13 @@ if (text === "/repairmovieuniverses") {
 
     for (const movie of rows) {
       const universeData =
-        detectUniverse(movie.title, movie.collection);
+  detectUniverse(movie.title, movie.collection);
+
+console.log("🌌 REPAIR UNIVERSE CHECK:", {
+  title: movie.title,
+  collection: movie.collection,
+  universeData
+});
 
       await pgPool.query(
         `
