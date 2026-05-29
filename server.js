@@ -952,7 +952,11 @@ async function getSeriesOverviewRows() {
 function getOfficialSeriesTotal(seriesTitle, savedEpisodes = 0) {
 
   const seasonCount =
-    getKnownSeasonCount(seriesTitle) || 0;
+    getKnownSeasonCount(seriesTitle);
+
+  if (!seasonCount) {
+    return null;
+  }
 
   let total = 0;
 
@@ -966,7 +970,7 @@ function getOfficialSeriesTotal(seriesTitle, savedEpisodes = 0) {
 
   }
 
-  return total || savedEpisodes;
+  return total || null;
 }
 
 function buildSeriesSmartLine(row) {
@@ -981,7 +985,7 @@ function buildSeriesSmartLine(row) {
     );
 
   const percent =
-    official > 0
+  official && official > 0
       ? Math.round((saved / official) * 100)
       : 0;
 
@@ -994,7 +998,7 @@ function buildSeriesSmartLine(row) {
 
   return (
     `📺 ${String(row.series_title || "Unbekannt").toUpperCase()}\n` +
-    `└ ${bar} ${saved}/${official} • ${percent}%\n`
+    `└ ${bar} ${saved}/${official || "??"} • ${percent || 0}%\n`
   );
 }
 
