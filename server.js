@@ -10129,6 +10129,12 @@ try {
 }
 
 try {
+  await updateSeriesSmartTopics();
+} catch (err) {
+  console.error("⚠️ Series Smart Topics Fehler:", err.message);
+}
+
+try {
   await createOrUpdateEpisodeList({
     topicId,
     seriesTitle: tmdb.seriesTitle
