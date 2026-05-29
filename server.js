@@ -4552,48 +4552,46 @@ async function seriesCaption(tmdb, media, extras = {}) {
     .join("\n");
 
   return (
-    `${nexus.header}\n\n` +
+  `${nexus.header}\n\n` +
 
-    `${nexus.line1}\n` +
-    `${nexus.line2}\n` +
-    `${finalEpisodeTitle}\n\n` +
+  `${nexus.line1}\n` +
+  `${nexus.line2}\n` +
+  `${finalEpisodeTitle}\n\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+  "━━━━━━━━━━━━━━━━━━\n" +
 
-    `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
-    `🎭 ${genreText}\n` +
-    `📀 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"} • ${tmdb.episodeRuntime || "Unbekannt"}\n` +
-    `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+  `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
+  `🎭 ${genreText}\n` +
+  `📀 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"} • ${tmdb.episodeRuntime || "Unbekannt"}\n` +
+  `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+  "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    "📀 EPISODE STATUS\n" +
-    `🧩 Progress • ${progressBlocks} ${media.episode}/${totalEpisodes}\n` +
-    `📊 Season Archive • ${progressPercent}%\n` +
-    (
-      missingEpisodes.length
-        ? `⚠️ Missing • ${missingEpisodes.join(", ")}\n`
-        : "✅ No missing previous episodes\n"
-    ) +
+  "📀 EPISODE STATUS\n" +
+  `🧩 Progress • ${progressBlocks} ${media.episode}/${totalEpisodes}\n` +
+  `📊 Season Archive • ${progressPercent}%\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+  (
+    missingEpisodes.length
+      ? `⚠️ Missing • ${missingEpisodes.join(", ")}\n`
+      : "✅ No missing previous episodes\n"
+  ) +
 
-    "👥 CAST MATRIX\n" +
-    `${castLines || "Unbekannt"}\n\n` +
+  "\n━━━━━━━━━━━━━━━━━━\n\n" +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+  "📖 EPISODE SYNOPSIS\n\n" +
+  `${safeOverview}\n\n` +
 
-    "📖 EPISODE SYNOPSIS\n\n" +
-    `${safeOverview}\n\n` +
+  "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
+  "🧬 SERIES CODE\n" +
+  `${extras.seriesLibraryId || "Unbekannt"}\n\n` +
 
-    "🧬 SERIES CODE\n" +
-    `${extras.seriesLibraryId || "Unbekannt"}\n\n` +
+  `#${String(tmdb.seriesTitle || "")
+    .replace(/\s+/g, "")} ${genreTags}\n` +
 
-    `#${String(tmdb.seriesTitle || "").replace(/\s+/g, "")} ${genreTags}\n` +
-    "@LibraryOfLegends"
-  ).slice(0, 4000);
+  "@LibraryOfLegends"
+).slice(0, 4000);
 }
 
 // =============================
