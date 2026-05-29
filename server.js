@@ -4508,18 +4508,26 @@ async function seriesCaption(tmdb, media, extras = {}) {
     media.season
   ) ||
   media.episode;
+  
+  const savedEpisodes =
+  await getSavedSeasonEpisodeCount(
+    tmdb.seriesTitle,
+    media.season
+  );
 
   const progressBlocks =
-    buildSeriesProgressBar(
-      tmdb.seriesTitle,
-      media.episode,
-      totalEpisodes
-    );
+  buildSeriesProgressBar(
+    tmdb.seriesTitle,
+    Math.max(savedEpisodes, 1),
+    totalEpisodes
+  );
 
-  const progressPercent =
-    totalEpisodes > 0
-      ? Math.round((media.episode / totalEpisodes) * 100)
-      : 0;
+const progressPercent =
+  totalEpisodes > 0
+    ? Math.round(
+        (Math.max(savedEpisodes, 1) / totalEpisodes) * 100
+      )
+    : 0;
 
   const missingEpisodes = [];
 
@@ -4569,7 +4577,7 @@ async function seriesCaption(tmdb, media, extras = {}) {
   "━━━━━━━━━━━━━━━━━━\n\n" +
 
   "📀 EPISODE STATUS\n" +
-  `🧩 Progress • ${progressBlocks} ${media.episode}/${totalEpisodes}\n` +
+  `🧩 Progress • ${progressBlocks} ${Math.max(savedEpisodes, 1)}/${totalEpisodes}\n` +
   `📊 Season Archive • ${progressPercent}%\n` +
 
   (
