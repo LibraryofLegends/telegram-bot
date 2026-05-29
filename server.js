@@ -7472,12 +7472,15 @@ if (text.startsWith("/deleteseries")) {
     return;
   }
 
-  const match = query.match(/(.+)\s+s(\d{1,2})e(\d{1,2})/i);
+  const match = query.match(/(.+)\s+s(\d{1,2})e(\d{1,3})/i);
 
   if (!match) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "❌ Format falsch.\nBeispiel:\n/deleteseries Tulsa King S01E01"
+      text:
+        "❌ Format falsch.\n\n" +
+        "Beispiel:\n" +
+        "/deleteseries Tulsa King S01E01"
     });
     return;
   }
@@ -7485,30 +7488,60 @@ if (text.startsWith("/deleteseries")) {
   const title = match[1].trim();
   const season = Number(match[2]);
   const episode = Number(match[3]);
+  const targetKey = makeKey(title);
 
-  const rows = db.prepare(`
-  SELECT *
-  FROM series
-  WHERE season = ?
-  AND episode = ?
-`).all(season, episode);
+  let rows = [];
 
-const row = rows.find((r) =>
-  makeKey(r.series_title) === makeKey(title)
-);
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM series
+      WHERE season = $1
+      AND episode = $2
+      `,
+      [season, episode]
+    );
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT *
+      FROM series
+      WHERE season = ?
+      AND episode = ?
+    `).all(season, episode);
+  }
+
+  const row = rows.find((r) =>
+    makeKey(r.series_title) === targetKey
+  );
 
   if (!row) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "❌ Episode nicht gefunden."
+      text:
+        "❌ Episode nicht gefunden.\n\n" +
+        `Gesucht: ${title} S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}\n` +
+        `Gefundene Episoden mit S/E: ${rows.length}`
     });
     return;
   }
 
-  db.prepare(`
-    DELETE FROM series
-    WHERE id = ?
-  `).run(row.id);
+  if (pgPool) {
+    await pgPool.query(
+      `
+      DELETE FROM series
+      WHERE id = $1
+      `,
+      [row.id]
+    );
+  } else {
+    db.prepare(`
+      DELETE FROM series
+      WHERE id = ?
+    `).run(row.id);
+  }
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
