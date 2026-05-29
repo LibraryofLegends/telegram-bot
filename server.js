@@ -1158,12 +1158,35 @@ async function updateSeriesSmartTopics() {
 
   for (const item of smartTopics) {
 
-    const topic = db.prepare(`
-      SELECT *
-      FROM topics
-      WHERE name = ?
-      LIMIT 1
-    `).get(item.topic);
+    let topic = null;
+
+if (pgPool) {
+  const result = await pgPool.query(
+    `
+    SELECT *
+    FROM topics
+    WHERE name = $1
+    LIMIT 1
+    `,
+    [item.topic]
+  );
+
+  topic = result.rows[0] || null;
+} else {
+  topic = db.prepare(`
+    SELECT *
+    FROM topics
+    WHERE name = ?
+    LIMIT 1
+  `).get(item.topic);
+}
+
+console.log("🧪 SMART TOPIC CHECK:", {
+  gesucht: item.topic,
+  gefunden: topic?.name,
+  topicId: topic?.topic_id,
+  hubMessageId: topic?.hub_message_id
+});
 
     if (!topic?.topic_id) {
       console.log("⚠️ Smart Topic fehlt:", item.topic);
