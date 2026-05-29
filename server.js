@@ -1221,42 +1221,56 @@ console.log("🧪 SMART TOPIC CHECK:", {
 
     }
 
-    // =============================
-    // CREATE NEW
-    // =============================
-    const msg = await tg("sendMessage", {
-      chat_id: SERIES_GROUP_ID,
-      message_thread_id: topic.topic_id,
-      text
-    });
+// =============================
+// CREATE NEW
+// =============================
+const msg = await tg("sendMessage", {
+  chat_id: SERIES_GROUP_ID,
+  message_thread_id: Number(topic.topic_id),
+  text
+});
 
-    if (msg?.message_id) {
+// =============================
+// SAVE HUB MESSAGE ID
+// =============================
+if (msg?.message_id) {
 
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE topic_id = ?
-      `).run(
+  if (pgPool) {
+
+    await pgPool.query(
+      `
+      UPDATE topics
+      SET hub_message_id = $1
+      WHERE topic_id = $2
+      `,
+      [
         msg.message_id,
         topic.topic_id
-      );
+      ]
+    );
 
-    }
+  } else {
+
+    db.prepare(`
+      UPDATE topics
+      SET hub_message_id = ?
+      WHERE topic_id = ?
+    `).run(
+      msg.message_id,
+      topic.topic_id
+    );
 
   }
 
+    console.log(
+    "✅ Smart Topic erstellt:",
+    item.topic
+  );
+
 }
 
-  const rows = db.prepare(`
-    SELECT id, series_title
-    FROM series
-    WHERE season = ?
-    AND episode = ?
-  `).all(season, episode);
+  }
 
-  return rows.find((row) =>
-    makeKey(row.series_title) === targetKey
-  ) || null;
 }
 
 // =============================
