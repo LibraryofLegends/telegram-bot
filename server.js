@@ -6992,6 +6992,27 @@ console.log("🌌 REPAIR UNIVERSE CHECK:", {
   return;
 }
 
+// =============================
+// REBUILD STAR WARS HUB
+// =============================
+if (text === "/rebuildstarwars") {
+
+  await createOrUpdateUniverseHub("🌌 Star Wars Universe");
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🌌 STAR WARS HUB REBUILT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "✅ Star-Wars-Hub wurde neu erstellt/aktualisiert\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
 if (text === "/clearseries") {
   CURRENT_SERIES_NAME = "";
 
