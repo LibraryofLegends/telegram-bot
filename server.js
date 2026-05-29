@@ -3612,6 +3612,15 @@ if (
     `🎞 ${collection.toUpperCase()}`,
 
   line2:
+    `🎬 ${tmdb.title.toUpperCase()}`,
+
+  line3:
+    tmdb.originalTitle &&
+    tmdb.originalTitle !== tmdb.title
+      ? `┗ ${tmdb.originalTitle.toUpperCase()}`
+      : null,
+
+  line4:
     `COLLECTION ENTRY • ${collectionIndex}/${collectionMovies}`
 };
   }
