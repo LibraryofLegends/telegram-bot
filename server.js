@@ -4583,7 +4583,10 @@ async function seriesCaption(tmdb, media, extras = {}) {
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
     "🧬 SERIES CODE\n" +
-    `${extras.seriesLibraryId || "Unbekannt"}\n\n` +
+    `SER-${String(tmdb.seriesTitle || "")
+  .replace(/[^a-z0-9]/gi, "")
+  .slice(0, 3)
+  .toUpperCase()}-${String(media.season).padStart(2, "0")}${String(media.episode).padStart(2, "0")}\n\n` +
 
     `#${String(tmdb.seriesTitle || "")
       .replace(/\s+/g, "")} ${genreTags}\n` +
