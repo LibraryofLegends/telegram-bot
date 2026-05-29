@@ -5472,143 +5472,201 @@ async function updateSeriesHub({ tmdb, topicId }) {
 // SERIES SEASON CARDS
 // =============================
 async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
-  const separators = getSeasonSeparators(topicId);
-  const seasonKey = String(season).padStart(2, "0");
+  const separators =
+    await getSeasonSeparators(topicId);
 
-  if (season !== 5 && separators[`card_${seasonKey}`]) {
-  return separators[`card_${seasonKey}`];
-}
+  const seasonKey =
+    String(season).padStart(2, "0");
 
-  console.log("🎴 CREATE SEASON CARD:", tmdb.seriesTitle, "S" + seasonKey);
+  if (separators[`card_${seasonKey}`]) {
+    return separators[`card_${seasonKey}`];
+  }
 
-  let seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
+  console.log(
+    "🎴 CREATE SEASON CARD:",
+    tmdb.seriesTitle,
+    "S" + seasonKey
+  );
 
-if (!seasonData) {
-  seasonData = {
-    air_date: "",
-    overview: tmdb.overview || "Keine Beschreibung verfügbar.",
-    episodes: Array.from({
-      length: getKnownSeasonEpisodeCount(tmdb.seriesTitle, season) || 0
-    }),
-    poster_path: null
-  };
-}
+  let seasonData =
+    await getSeasonTMDB(tmdb.tmdbId, season);
+
+  if (!seasonData) {
+    seasonData = {
+      air_date: "",
+      overview:
+        tmdb.overview ||
+        "Keine Beschreibung verfügbar.",
+      episodes: Array.from({
+        length:
+          getKnownSeasonEpisodeCount(
+            tmdb.seriesTitle,
+            season
+          ) || 0
+      }),
+      poster_path: null
+    };
+  }
 
   const caption =
-  (
-    await seasonCaption(
-      tmdb,
-      seasonData,
-      season
-    )
-  ).slice(0, 950);
+    (
+      await seasonCaption(
+        tmdb,
+        seasonData,
+        season
+      )
+    ).slice(0, 950);
 
   const seasonPoster =
-  posterUrl(seasonData?.poster_path) ||
-  tmdb.backdropUrl ||
-  tmdb.seriesPosterUrl ||
-  tmdb.posterUrl ||
-  "https://via.placeholder.com/500x750.png?text=No+Cover";
+    posterUrl(seasonData?.poster_path) ||
+    tmdb.backdropUrl ||
+    tmdb.seriesPosterUrl ||
+    tmdb.posterUrl ||
+    "https://via.placeholder.com/500x750.png?text=No+Cover";
 
-  const brandedSeasonPoster = await createBrandedCover(
-  seasonPoster,
-  tmdb.seriesTitle,
-  `Staffel ${seasonKey}`
-);
+  const brandedSeasonPoster =
+    await createBrandedCover(
+      seasonPoster,
+      tmdb.seriesTitle,
+      `Staffel ${seasonKey}`
+    );
 
-let card = await tg("sendPhoto", {
-  chat_id: SERIES_GROUP_ID,
-  message_thread_id: topicId,
-  photo: brandedSeasonPoster,
-  caption
-});
-
-  console.log("🎴 SEASON CARD RESULT:", JSON.stringify(card, null, 2));
-
-  if (!card?.message_id && tmdb.seriesPosterUrl) {
-  console.log("⚠️ Staffelposter fehlgeschlagen — versuche Serienposter");
-
-  card = await tg("sendPhoto", {
+  let card = await tg("sendPhoto", {
     chat_id: SERIES_GROUP_ID,
     message_thread_id: topicId,
-    photo: tmdb.seriesPosterUrl,
+    photo: brandedSeasonPoster,
     caption
   });
 
-  console.log("🎴 SEASON CARD FALLBACK RESULT:", JSON.stringify(card, null, 2));
-}
+  if (!card?.message_id && tmdb.seriesPosterUrl) {
+    console.log(
+      "⚠️ Staffelposter fehlgeschlagen — versuche Serienposter"
+    );
+
+    card = await tg("sendPhoto", {
+      chat_id: SERIES_GROUP_ID,
+      message_thread_id: topicId,
+      photo: tmdb.seriesPosterUrl,
+      caption
+    });
+  }
 
   if (card?.message_id) {
-    separators[`card_${seasonKey}`] = card.message_id;
-    saveSeasonSeparators(topicId, separators);
+    separators[`card_${seasonKey}`] =
+      card.message_id;
+
+    await saveSeasonSeparators(
+      topicId,
+      separators
+    );
+
     return card.message_id;
   }
 
   return null;
 }
 
-function buildSeasonProgressBar(current = 0, total = 0) {
-  const size = 10;
-
-  if (!total || total <= 0) {
-    return "□□□□□□□□□□";
-  }
-
-  const percent =
-    Math.max(0, Math.min(1, current / total));
-
-  const filled =
-    Math.round(percent * size);
-
-  return (
-    "■".repeat(filled) +
-    "□".repeat(size - filled)
-  );
-}
-
 async function updateSeasonCard({ tmdb, topicId, season }) {
-  const separators = getSeasonSeparators(topicId);
-  const seasonKey = String(season).padStart(2, "0");
-  const messageId = separators[`card_${seasonKey}`];
+  const separators =
+    await getSeasonSeparators(topicId);
+
+  const seasonKey =
+    String(season).padStart(2, "0");
+
+  const messageId =
+    separators[`card_${seasonKey}`];
 
   if (!messageId) return null;
 
-  let seasonData = await getSeasonTMDB(tmdb.tmdbId, season);
+  let seasonData =
+    await getSeasonTMDB(tmdb.tmdbId, season);
 
-if (!seasonData) {
-  seasonData = {
-    air_date: "",
-    overview: tmdb.overview || "Keine Beschreibung verfügbar.",
-    episodes: Array.from({
-      length: getKnownSeasonEpisodeCount(tmdb.seriesTitle, season) || 0
-    }),
-    poster_path: null
-  };
-}
+  if (!seasonData) {
+    seasonData = {
+      air_date: "",
+      overview:
+        tmdb.overview ||
+        "Keine Beschreibung verfügbar.",
+      episodes: Array.from({
+        length:
+          getKnownSeasonEpisodeCount(
+            tmdb.seriesTitle,
+            season
+          ) || 0
+      }),
+      poster_path: null
+    };
+  }
+
+  const caption =
+    (
+      await seasonCaption(
+        tmdb,
+        seasonData,
+        season
+      )
+    ).slice(0, 950);
 
   return await tg("editMessageCaption", {
     chat_id: SERIES_GROUP_ID,
     message_id: messageId,
-    caption: seasonCaption(tmdb, seasonData, season).slice(0, 950)
+    caption
   });
 }
 
-function getSeasonSeparators(topicId) {
-  const topic = getSeriesHubTopic(topicId);
+async function getSeasonSeparators(topicId) {
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT season_separators
+      FROM topics
+      WHERE topic_id = $1
+      LIMIT 1
+      `,
+      [topicId]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = db.prepare(`
+      SELECT season_separators
+      FROM topics
+      WHERE topic_id = ?
+      LIMIT 1
+    `).get(topicId);
+  }
 
   try {
-    return JSON.parse(topic?.season_separators || "{}");
+    return JSON.parse(
+      topic?.season_separators || "{}"
+    );
   } catch {
     return {};
   }
 }
 
-function saveSeasonSeparators(topicId, separators) {
-  db.prepare(`
+async function saveSeasonSeparators(topicId, separators) {
+  const value =
+    JSON.stringify(separators || {});
+
+  if (pgPool) {
+    return await pgPool.query(
+      `
+      UPDATE topics
+      SET season_separators = $1
+      WHERE topic_id = $2
+      `,
+      [value, topicId]
+    );
+  }
+
+  return db.prepare(`
     UPDATE topics
     SET season_separators = ?
     WHERE topic_id = ?
-  `).run(JSON.stringify(separators), topicId);
+  `).run(value, topicId);
 }
 
 // =============================
