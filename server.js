@@ -897,6 +897,332 @@ async function getSavedEpisode(seriesTitle, season, episode) {
       makeKey(row.series_title) === targetKey
     ) || null;
   }
+  
+  // =============================
+// SERIES SMART INDEXES
+// =============================
+async function getSeriesOverviewRows() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        series_title,
+        genre,
+        universe,
+        COUNT(*) AS episode_count,
+        COUNT(DISTINCT season) AS season_count,
+        MAX(rating) AS rating
+      FROM series
+      GROUP BY series_title, genre, universe
+      ORDER BY series_title ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        series_title,
+        genre,
+        universe,
+        COUNT(*) AS episode_count,
+        COUNT(DISTINCT season) AS season_count,
+        MAX(rating) AS rating
+      FROM series
+      GROUP BY series_title, genre, universe
+      ORDER BY series_title ASC
+    `).all();
+  }
+
+  return rows;
+}
+
+function getOfficialSeriesTotal(seriesTitle, savedEpisodes = 0) {
+
+  const seasonCount =
+    getKnownSeasonCount(seriesTitle) || 0;
+
+  let total = 0;
+
+  for (let season = 1; season <= seasonCount; season++) {
+
+    total +=
+      getKnownSeasonEpisodeCount(
+        seriesTitle,
+        season
+      ) || 0;
+
+  }
+
+  return total || savedEpisodes;
+}
+
+function buildSeriesSmartLine(row) {
+
+  const saved =
+    Number(row.episode_count || 0);
+
+  const official =
+    getOfficialSeriesTotal(
+      row.series_title,
+      saved
+    );
+
+  const percent =
+    official > 0
+      ? Math.round((saved / official) * 100)
+      : 0;
+
+  const bar =
+    buildSeriesProgressBar(
+      row.series_title,
+      saved,
+      official
+    );
+
+  return (
+    `📺 ${String(row.series_title || "Unbekannt").toUpperCase()}\n` +
+    `└ ${bar} ${saved}/${official} • ${percent}%\n`
+  );
+}
+
+async function buildSeriesLibraryCaption() {
+
+  const rows =
+    await getSeriesOverviewRows();
+
+  let text =
+    "███ SERIES LIBRARY ███\n\n" +
+    `📺 TOTAL SERIES • ${rows.length}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!rows.length) {
+
+    text +=
+      "Noch keine Serien gespeichert.\n";
+
+  } else {
+
+    for (const row of rows) {
+
+      text +=
+        buildSeriesSmartLine(row) + "\n";
+
+    }
+
+  }
+
+  text +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+async function buildTrendingSeriesCaption() {
+
+  const rows =
+    await getSeriesOverviewRows();
+
+  const filtered = rows.filter((row) => {
+
+    const saved =
+      Number(row.episode_count || 0);
+
+    const official =
+      getOfficialSeriesTotal(
+        row.series_title,
+        saved
+      );
+
+    const percent =
+      official > 0
+        ? Math.round((saved / official) * 100)
+        : 0;
+
+    return percent >= 35 && percent < 100;
+  });
+
+  let text =
+    "███ TRENDING SERIES ███\n\n" +
+    "🔥 ACTIVE / GROWING ARCHIVES\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  text += filtered.length
+    ? filtered.map(buildSeriesSmartLine).join("\n")
+    : "Keine Trending-Serien gefunden.\n";
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+async function buildIncompleteSeriesCaption() {
+
+  const rows =
+    await getSeriesOverviewRows();
+
+  const filtered = rows.filter((row) => {
+
+    const saved =
+      Number(row.episode_count || 0);
+
+    const official =
+      getOfficialSeriesTotal(
+        row.series_title,
+        saved
+      );
+
+    return official > 0 && saved < official;
+  });
+
+  let text =
+    "███ INCOMPLETE SERIES ███\n\n" +
+    "🧩 FEHLENDE / UNVOLLSTÄNDIGE SERIEN\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  text += filtered.length
+    ? filtered.map(buildSeriesSmartLine).join("\n")
+    : "Alle bekannten Serien sind vollständig.\n";
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+async function buildMasteredSeriesCaption() {
+
+  const rows =
+    await getSeriesOverviewRows();
+
+  const filtered = rows.filter((row) => {
+
+    const saved =
+      Number(row.episode_count || 0);
+
+    const official =
+      getOfficialSeriesTotal(
+        row.series_title,
+        saved
+      );
+
+    return official > 0 && saved >= official;
+  });
+
+  let text =
+    "███ MASTERED SERIES ███\n\n" +
+    "🏆 COMPLETE SERIES ARCHIVES\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  text += filtered.length
+    ? filtered.map(buildSeriesSmartLine).join("\n")
+    : "Noch keine Serie vollständig archiviert.\n";
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+// =============================
+// UPDATE SERIES SMART TOPICS
+// =============================
+async function updateSeriesSmartTopics() {
+
+  const smartTopics = [
+    {
+      topic: "📺 SERIES LIBRARY",
+      builder: buildSeriesLibraryCaption
+    },
+
+    {
+      topic: "🔥 TRENDING",
+      builder: buildTrendingSeriesCaption
+    },
+
+    {
+      topic: "🧩 INCOMPLETE",
+      builder: buildIncompleteSeriesCaption
+    },
+
+    {
+      topic: "🏆 MASTERED",
+      builder: buildMasteredSeriesCaption
+    }
+  ];
+
+  for (const item of smartTopics) {
+
+    const topic = db.prepare(`
+      SELECT *
+      FROM topics
+      WHERE name = ?
+      LIMIT 1
+    `).get(item.topic);
+
+    if (!topic?.topic_id) {
+      console.log("⚠️ Smart Topic fehlt:", item.topic);
+      continue;
+    }
+
+    const text = await item.builder();
+
+    // =============================
+    // UPDATE EXISTING
+    // =============================
+    if (topic.hub_message_id) {
+
+      try {
+
+        await tg("editMessageText", {
+          chat_id: SERIES_GROUP_ID,
+          message_id: topic.hub_message_id,
+          text
+        });
+
+        continue;
+
+      } catch (err) {
+
+        console.error(
+          "⚠️ Smart Topic Edit Fehler:",
+          err.message
+        );
+
+      }
+
+    }
+
+    // =============================
+    // CREATE NEW
+    // =============================
+    const msg = await tg("sendMessage", {
+      chat_id: SERIES_GROUP_ID,
+      message_thread_id: topic.topic_id,
+      text
+    });
+
+    if (msg?.message_id) {
+
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE topic_id = ?
+      `).run(
+        msg.message_id,
+        topic.topic_id
+      );
+
+    }
+
+  }
+
+}
 
   const rows = db.prepare(`
     SELECT id, series_title
