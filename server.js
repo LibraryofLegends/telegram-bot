@@ -1589,6 +1589,7 @@ const STAR_WARS_ERAS = [
     topicName: "🌌 High Republic",
     title: "THE HIGH REPUBLIC",
     subtitle: "✨ GOLDEN AGE OF THE JEDI",
+    banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
 
     entries: [
       "Young Jedi Adventures",
@@ -1601,6 +1602,7 @@ const STAR_WARS_ERAS = [
     topicName: "⚔️ Fall of the Jedi",
     title: "FALL OF THE JEDI",
     subtitle: "🩸 THE CLONE WARS ERA",
+    banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
 
     entries: [
       "Star Wars: Episode I - Die dunkle Bedrohung",
@@ -1616,6 +1618,7 @@ const STAR_WARS_ERAS = [
     topicName: "🛡 Imperial Era",
     title: "IMPERIAL ERA",
     subtitle: "⚫ RISE OF THE EMPIRE",
+    banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
 
     entries: [
       "Solo: A Star Wars Story",
@@ -1628,6 +1631,7 @@ const STAR_WARS_ERAS = [
     topicName: "🔥 Age of Rebellion",
     title: "AGE OF REBELLION",
     subtitle: "🚀 THE GALACTIC CIVIL WAR",
+    banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
 
     entries: [
       "Star Wars Rebels",
@@ -1644,6 +1648,7 @@ const STAR_WARS_ERAS = [
     topicName: "🛰 New Republic",
     title: "THE NEW REPUBLIC",
     subtitle: "🌠 THE MANDOVERSE",
+    banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
 
     entries: [
       "The Mandalorian",
@@ -1659,6 +1664,7 @@ const STAR_WARS_ERAS = [
     topicName: "☠️ First Order Era",
     title: "RISE OF THE FIRST ORDER",
     subtitle: "⚡ THE RESISTANCE ERA",
+    banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
 
     entries: [
       "Star Wars Resistance",
@@ -1838,11 +1844,12 @@ async function createOrUpdateStarWarsEraHubs() {
     const text =
       await starWarsEraHubCaption(era);
 
-    await tg("sendMessage", {
-      chat_id: MOVIE_GROUP_ID,
-      message_thread_id: Number(topicId),
-      text
-    });
+    await tg("sendPhoto", {
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: Number(topicId),
+  photo: era.banner,
+  caption: text
+});
 
     await sleep(1200);
   }
