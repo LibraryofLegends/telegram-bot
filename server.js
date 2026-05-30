@@ -10525,6 +10525,18 @@ await saveMovie({
 });
 
 // =============================
+// UPDATE MOVIE INDEX HUB
+// =============================
+try {
+  await createOrUpdateMovieIndexHub();
+} catch (err) {
+  console.error(
+    "⚠️ Movie Index Update Fehler:",
+    err.message
+  );
+}
+
+// =============================
 // UPDATE HUBS
 // =============================
 if (universeData?.universeName) {
