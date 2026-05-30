@@ -1738,6 +1738,38 @@ async function starWarsEraHubCaption(era) {
 }
 
 // =============================
+// CREATE OR UPDATE STAR WARS ERA HUBS
+// =============================
+async function createOrUpdateStarWarsEraHubs() {
+
+  for (const era of STAR_WARS_ERAS) {
+
+    const topicId =
+      await createOrGetTopic({
+        chatId: MOVIE_GROUP_ID,
+        name: era.topicName,
+        type: "starwars_era"
+      });
+
+    if (!topicId) {
+      console.log("⚠️ Star Wars Era Topic fehlt:", era.topicName);
+      continue;
+    }
+
+    const text =
+      await starWarsEraHubCaption(era);
+
+    await tg("sendMessage", {
+      chat_id: MOVIE_GROUP_ID,
+      message_thread_id: Number(topicId),
+      text
+    });
+
+    await sleep(1200);
+  }
+}
+
+// =============================
 // COLLECTION TOPIC ALLOWLIST
 // =============================
 const collectionTopicAllowlist = [
