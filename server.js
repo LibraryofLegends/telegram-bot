@@ -8663,6 +8663,41 @@ for (const season of seasons) {
   return;
 }
 
+if (text === "/rebuildcommandcenters") {
+  try {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "⏳ Command Centers werden neu aufgebaut..."
+    });
+
+    await ensureCommandCenters();
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "✅ Command Centers neu aufgebaut.\n\n" +
+        "📚 Movie Index\n" +
+        "🎬 Movie Library\n" +
+        "🧩 Collections\n" +
+        "🌌 Universes\n" +
+        "💎 Premium Quality\n" +
+        "🔥 New Releases\n" +
+        "🏆 Elite Archive"
+    });
+  } catch (err) {
+    console.error("❌ Rebuild Command Centers Fehler:", err);
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Fehler beim Neuaufbau:\n\n" +
+        String(err.message || err)
+    });
+  }
+
+  return;
+}
+
 if (text === "/dashboard") {
   const movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
   const seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
