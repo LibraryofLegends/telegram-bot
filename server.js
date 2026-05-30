@@ -1843,13 +1843,17 @@ async function createOrUpdateStarWarsEraHubs() {
 
     const text =
       await starWarsEraHubCaption(era);
+      
+      console.log("🌌 ERA BANNER SEND:", era.topicName, era.banner);
 
-    await tg("sendPhoto", {
+    const result = await tg("sendPhoto", {
   chat_id: MOVIE_GROUP_ID,
   message_thread_id: Number(topicId),
   photo: era.banner,
   caption: text
 });
+
+console.log("🌌 ERA BANNER RESULT:", JSON.stringify(result, null, 2));
 
     await sleep(1200);
   }
