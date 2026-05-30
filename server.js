@@ -1602,7 +1602,7 @@ const STAR_WARS_ERAS = [
     topicName: "⚔️ Fall of the Jedi",
     title: "FALL OF THE JEDI",
     subtitle: "🩸 THE CLONE WARS ERA",
-    banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
+    banner: "https://via.placeholder.com/1280x720.png?text=Star+Wars+Era",
 
     entries: [
       "Star Wars: Episode I - Die dunkle Bedrohung",
@@ -1618,7 +1618,7 @@ const STAR_WARS_ERAS = [
     topicName: "🛡 Imperial Era",
     title: "IMPERIAL ERA",
     subtitle: "⚫ RISE OF THE EMPIRE",
-    banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
+    banner: "https://via.placeholder.com/1280x720.png?text=Star+Wars+Era",
 
     entries: [
       "Solo: A Star Wars Story",
@@ -1631,7 +1631,7 @@ const STAR_WARS_ERAS = [
     topicName: "🔥 Age of Rebellion",
     title: "AGE OF REBELLION",
     subtitle: "🚀 THE GALACTIC CIVIL WAR",
-    banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
+    banner: "https://via.placeholder.com/1280x720.png?text=Star+Wars+Era",
 
     entries: [
       "Star Wars Rebels",
@@ -1648,7 +1648,7 @@ const STAR_WARS_ERAS = [
     topicName: "🛰 New Republic",
     title: "THE NEW REPUBLIC",
     subtitle: "🌠 THE MANDOVERSE",
-    banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
+    banner: "https://via.placeholder.com/1280x720.png?text=Star+Wars+Era",
 
     entries: [
       "The Mandalorian",
@@ -1664,7 +1664,7 @@ const STAR_WARS_ERAS = [
     topicName: "☠️ First Order Era",
     title: "RISE OF THE FIRST ORDER",
     subtitle: "⚡ THE RESISTANCE ERA",
-    banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
+    banner: "https://via.placeholder.com/1280x720.png?text=Star+Wars+Era",
 
     entries: [
       "Star Wars Resistance",
