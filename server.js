@@ -6636,12 +6636,15 @@ async function createOrGetTopic({ chatId, name, type }) {
 async function ensureCommandCenters() {
 
   const movieCenters = [
-    "🎛 MOVIE COMMAND CENTER",
-    "🌌 UNIVERSES",
-    "🎞 COLLECTIONS",
-    "🎭 GENRES",
-    "📅 DECADES",
-    "🏆 ELITE ARCHIVE"
+    "📚 Movie Index",
+    "🎬 Movie Library",
+    "🧩 Collections",
+    "🌌 Universes",
+    "💎 Premium Quality",
+    "🔥 New Releases",
+    "🏆 Elite Archive",
+
+    "🎛 MOVIE COMMAND CENTER"
   ];
 
   const seriesCenters = [
@@ -6655,27 +6658,29 @@ async function ensureCommandCenters() {
 
   for (const name of movieCenters) {
 
-  await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name,
-    type: "system_hub"
-  });
+    await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name,
+      type: "system_hub"
+    });
 
-  await sleep(1500);
-}
+    await sleep(1500);
+  }
 
-await ensureStarWarsEraTopics();
+  await ensureStarWarsEraTopics();
 
-for (const bucket of movieTopicBuckets) {
+  /*
+  for (const bucket of movieTopicBuckets) {
 
-  await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: bucket.name,
-    type: bucket.type
-  });
+    await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: bucket.name,
+      type: bucket.type
+    });
 
-  await sleep(1200);
-}
+    await sleep(1200);
+  }
+  */
 
   for (const name of seriesCenters) {
 
