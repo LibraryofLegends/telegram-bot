@@ -152,6 +152,11 @@ await pgPool.query(`
 `);
 
 await pgPool.query(`
+  ALTER TABLE series
+  ADD COLUMN IF NOT EXISTS starwars_era TEXT;
+`);
+
+await pgPool.query(`
   CREATE TABLE IF NOT EXISTS collections (
     id SERIAL PRIMARY KEY,
     collection_name TEXT,
