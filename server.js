@@ -379,6 +379,7 @@ addColumnIfMissing("movies", "universe_order", "INTEGER");
 addColumnIfMissing("series", "universe", "TEXT");
 addColumnIfMissing("series", "universe_phase", "TEXT");
 addColumnIfMissing("series", "universe_order", "INTEGER");
+addColumnIfMissing("series", "starwars_era", "TEXT");
 
 addColumnIfMissing("topics", "universe_hub_message_id", "INTEGER");
 addColumnIfMissing("topics", "universe_banner_message_id", "INTEGER");
