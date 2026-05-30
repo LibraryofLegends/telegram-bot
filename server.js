@@ -10035,14 +10035,24 @@ async function processMovieUpload({ msg, media, tmdb }) {
   };
 
   const universeData = detectUniverse(
-    tmdb.title,
-    tmdb.collection
-  );
-  
-  console.log("🌌 UNIVERSE DETECT DEBUG:", {
+  tmdb.title,
+  tmdb.collection
+);
+
+const starWarsEra =
+  universeData?.universeKey === "StarWars"
+    ? detectStarWarsEra(tmdb.title)
+    : null;
+
+console.log("🌌 UNIVERSE DETECT DEBUG:", {
   title: tmdb.title,
   collection: tmdb.collection,
   universeData
+});
+
+console.log("🌌 STAR WARS ERA DETECT:", {
+  title: tmdb.title,
+  starWarsEra
 });
 
   // =============================
