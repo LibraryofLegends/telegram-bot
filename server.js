@@ -10463,6 +10463,16 @@ const copied = await copyOriginalMedia({
     ""
   );
 
+const starWarsEra =
+  seriesUniverseData?.universeKey === "StarWars"
+    ? detectStarWarsEra(tmdb.seriesTitle)
+    : null;
+
+console.log("🌌 SERIES ERA DETECT:", {
+  title: tmdb.seriesTitle,
+  starWarsEra
+});
+
 await saveSeries({
   seriesTitle: tmdb.seriesTitle,
   season: media.season,
