@@ -7790,6 +7790,27 @@ if (text === "/rebuildcommandcenters") {
 }
 
 // =============================
+// REBUILD STAR WARS ERAS
+// =============================
+if (text === "/rebuildstarwarseras") {
+
+  await createOrUpdateStarWarsEraHubs();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🌌 STAR WARS ERAS REBUILT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "✅ Star-Wars-Ära-Hubs wurden neu erstellt\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
+// =============================
 // DELETE MOVIE / FILM LÖSCHEN
 // =============================
 if (text.startsWith("/deletemovie")) {
