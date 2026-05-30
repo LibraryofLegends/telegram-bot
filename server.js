@@ -5472,7 +5472,7 @@ function getKnownSeasonEpisodeCount(seriesTitle, seasonNumber) {
   const knownCounts = {
     "Das A-Team": { 1: 14, 2: 23, 3: 25, 4: 23, 5: 13 },
 
-    "Tulsa King": { 1: 9, 2: 10 },
+    "Tulsa King": { 1: 9, 2: 10, 3: 10 },
 
     "Es - Welcome to Derry": { 1: 8 },
 
@@ -5503,7 +5503,7 @@ function getKnownSeasonEpisodeCount(seriesTitle, seasonNumber) {
 function getKnownSeasonCount(seriesTitle) {
   const knownSeasonCounts = {
     "Das A-Team": 5,
-    "Tulsa King": 2,
+    "Tulsa King": 3,
     "Es - Welcome to Derry": 1,
     "Star Wars: The Clone Wars": 7,
     "Star Wars Galaxy of Adventures": 2,
