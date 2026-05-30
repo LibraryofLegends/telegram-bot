@@ -1722,7 +1722,6 @@ async function starWarsEraHubCaption(era) {
     "🛰 TIMELINE ARCHIVE\n";
 
   for (let i = 0; i < entries.length; i++) {
-
   const entry = entries[i];
 
   const prefix =
@@ -1730,28 +1729,82 @@ async function starWarsEraHubCaption(era) {
       ? "┗"
       : "┠";
 
-  const existsMovie = db.prepare(`
-    SELECT id
-    FROM movies
-    WHERE LOWER(title) LIKE ?
-    LIMIT 1
-  `).get(`%${entry.toLowerCase()}%`);
+  let existsMovie = null;
+  let existsSeries = null;
 
-  const existsSeries = db.prepare(`
-    SELECT id
-    FROM series
-    WHERE LOWER(series_title) LIKE ?
-    LIMIT 1
-  `).get(`%${entry.toLowerCase()}%`);
+  if (pgPool) {
+    const movieResult = await pgPool.query(
+      `
+      SELECT id, title
+      FROM movies
+      `
+    );
 
-  let icon = "⬜";
+    existsMovie = movieResult.rows.find((m) => {
+      const movieKey = makeKey(m.title);
+      const entryKey = makeKey(entry);
 
-  if (existsMovie || existsSeries) {
-    icon = "✅";
+      return (
+        movieKey.includes(entryKey) ||
+        entryKey.includes(movieKey)
+      );
+    });
+
+    const seriesResult = await pgPool.query(
+      `
+      SELECT id, series_title
+      FROM series
+      `
+    );
+
+    existsSeries = seriesResult.rows.find((s) => {
+      const seriesKey = makeKey(s.series_title);
+      const entryKey = makeKey(entry);
+
+      return (
+        seriesKey.includes(entryKey) ||
+        entryKey.includes(seriesKey)
+      );
+    });
+
+  } else {
+    const movies = db.prepare(`
+      SELECT id, title
+      FROM movies
+    `).all();
+
+    existsMovie = movies.find((m) => {
+      const movieKey = makeKey(m.title);
+      const entryKey = makeKey(entry);
+
+      return (
+        movieKey.includes(entryKey) ||
+        entryKey.includes(movieKey)
+      );
+    });
+
+    const seriesRows = db.prepare(`
+      SELECT id, series_title
+      FROM series
+    `).all();
+
+    existsSeries = seriesRows.find((s) => {
+      const seriesKey = makeKey(s.series_title);
+      const entryKey = makeKey(entry);
+
+      return (
+        seriesKey.includes(entryKey) ||
+        entryKey.includes(seriesKey)
+      );
+    });
   }
 
-  text += `${prefix} ${icon} ${entry}\n`;
+  const icon =
+    existsMovie || existsSeries
+      ? "✅"
+      : "⬜";
 
+  text += `${prefix} ${icon} ${entry}\n`;
 }
 
   text +=
