@@ -612,9 +612,7 @@ async function saveMovie(data) {
 }
 
 async function saveSeries(data) {
-
   if (pgPool) {
-
     return await pgPool.query(
       `
       INSERT INTO series
@@ -639,7 +637,8 @@ async function saveSeries(data) {
         series_library_id,
 
         universe,
-        universe_phase
+        universe_phase,
+        starwars_era
       )
       VALUES (
         $1, $2, $3, $4,
@@ -647,7 +646,7 @@ async function saveSeries(data) {
         $9, $10, $11,
         $12, $13,
         $14,
-        $15, $16
+        $15, $16, $17
       )
       ON CONFLICT (unique_key)
       DO NOTHING
@@ -673,7 +672,8 @@ async function saveSeries(data) {
         data.seriesLibraryId,
 
         data.universe,
-        data.universePhase
+        data.universePhase,
+        data.starWarsEra
       ]
     );
   }
@@ -701,13 +701,15 @@ async function saveSeries(data) {
       series_library_id,
 
       universe,
-      universe_phase
+      universe_phase,
+      starwars_era
     )
     VALUES (
       ?, ?, ?, ?,
       ?, ?, ?, ?,
       ?, ?, ?, ?,
-      ?, ?, ?, ?
+      ?, ?,
+      ?, ?, ?
     )
   `).run(
     data.seriesTitle,
@@ -730,7 +732,8 @@ async function saveSeries(data) {
     data.seriesLibraryId,
 
     data.universe,
-    data.universePhase
+    data.universePhase,
+    data.starWarsEra
   );
 }
 
@@ -10490,7 +10493,8 @@ await saveSeries({
   seriesLibraryId: extras.seriesLibraryId,
 
   universe: seriesUniverseData?.universeName || null,
-  universePhase: seriesUniverseData?.phase || null
+  universePhase: seriesUniverseData?.phase || null,
+  starWarsEra: starWarsEra?.key || null
 });
 
 try {
