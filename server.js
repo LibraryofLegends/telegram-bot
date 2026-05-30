@@ -7883,6 +7883,18 @@ if (text === "/backup") {
 // REBUILD COMMAND CENTERS
 // =============================
 if (text === "/rebuildcommandcenters") {
+
+  console.log("🧪 REBUILD COMMAND CENTERS TRIGGERED", {
+    fromId: msg.from?.id,
+    chatId: msg.chat?.id,
+    text
+  });
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: "🧪 Rebuild Command Centers wurde erkannt."
+  });
+
   await ensureCommandCenters();
   await refreshCommandCenters();
 
