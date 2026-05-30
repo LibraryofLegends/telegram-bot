@@ -1826,34 +1826,42 @@ async function starWarsEraHubCaption(era) {
 // CREATE OR UPDATE STAR WARS ERA HUBS
 // =============================
 async function createOrUpdateStarWarsEraHubs() {
-
   for (const era of STAR_WARS_ERAS) {
-
-    const topicId =
-      await createOrGetTopic({
-        chatId: MOVIE_GROUP_ID,
-        name: era.topicName,
-        type: "starwars_era"
-      });
+    const topicId = await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: era.topicName,
+      type: "starwars_era"
+    });
 
     if (!topicId) {
       console.log("⚠️ Star Wars Era Topic fehlt:", era.topicName);
       continue;
     }
 
-    const text =
-      await starWarsEraHubCaption(era);
-      
-      console.log("🌌 ERA BANNER SEND:", era.topicName, era.banner);
+    const text = await starWarsEraHubCaption(era);
 
-    const result = await tg("sendPhoto", {
-  chat_id: MOVIE_GROUP_ID,
-  message_thread_id: Number(topicId),
-  photo: era.banner,
-  caption: text
-});
+    console.log("🌌 ERA BANNER SEND:", era.topicName, era.banner);
 
-console.log("🌌 ERA BANNER RESULT:", JSON.stringify(result, null, 2));
+    let result = null;
+
+    if (era.banner && !era.banner.includes("PLACEHOLDER")) {
+      result = await tg("sendPhoto", {
+        chat_id: MOVIE_GROUP_ID,
+        message_thread_id: Number(topicId),
+        photo: era.banner,
+        caption: text
+      });
+    }
+
+    if (!result || result.__error) {
+      result = await tg("sendMessage", {
+        chat_id: MOVIE_GROUP_ID,
+        message_thread_id: Number(topicId),
+        text
+      });
+    }
+
+    console.log("🌌 ERA BANNER RESULT:", JSON.stringify(result, null, 2));
 
     await sleep(1200);
   }
