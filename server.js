@@ -2870,6 +2870,233 @@ async function createOrUpdateUniverseHub(universeName = "") {
   return hub;
 }
 
+// =============================
+// MOVIE INDEX HUB
+// =============================
+async function getMovieIndexStats() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        title,
+        year,
+        quality,
+        collection,
+        universe,
+        created_at
+      FROM movies
+      ORDER BY created_at DESC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        title,
+        year,
+        quality,
+        collection,
+        universe,
+        created_at
+      FROM movies
+      ORDER BY created_at DESC
+    `).all();
+  }
+
+  return rows;
+}
+
+function countWhere(rows, fn) {
+  return rows.filter(fn).length;
+}
+
+async function buildMovieIndexHubCaption() {
+  const movies = await getMovieIndexStats();
+
+  const total = movies.length;
+
+  const uhd = countWhere(movies, (m) =>
+    String(m.quality || "").toUpperCase().includes("UHD") ||
+    String(m.quality || "").includes("2160")
+  );
+
+  const fhd = countWhere(movies, (m) =>
+    String(m.quality || "").toUpperCase().includes("FHD") ||
+    String(m.quality || "").includes("1080")
+  );
+
+  const hd = countWhere(movies, (m) =>
+    String(m.quality || "").toUpperCase() === "HD" ||
+    String(m.quality || "").includes("720")
+  );
+
+  const sd = countWhere(movies, (m) =>
+    String(m.quality || "").toUpperCase() === "SD" ||
+    String(m.quality || "").includes("480")
+  );
+
+  const starWars = countWhere(movies, (m) =>
+    m.universe === "🌌 Star Wars Universe"
+  );
+
+  const marvel = countWhere(movies, (m) =>
+    m.universe === "🧬 Marvel Cinematic Universe"
+  );
+
+  const dc = countWhere(movies, (m) =>
+    m.universe === "🦇 DC Universe"
+  );
+
+  const disney = countWhere(movies, (m) =>
+    m.universe === "🏰 Disney Universe"
+  );
+
+  const collections = countWhere(movies, (m) =>
+    Boolean(m.collection)
+  );
+
+  const standalone = countWhere(movies, (m) =>
+    !m.collection && !m.universe
+  );
+
+  const newest = movies.slice(0, 8);
+
+  let text =
+    "███ MOVIE INDEX HUB ███\n\n" +
+
+    "📚 CINEMATIC ARCHIVE OVERVIEW\n" +
+    "AUTOMATED MOVIE DATABASE\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 TOTAL MOVIES • ${total}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "📀 QUALITY MATRIX\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `💎 UHD / 2160p • ${uhd}\n` +
+    `📀 FHD / 1080p • ${fhd}\n` +
+    `📼 HD / 720p • ${hd}\n` +
+    `📱 SD / 480p • ${sd}\n\n` +
+
+    "🧭 ARCHIVE AREAS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🌌 Star Wars Universe • ${starWars}\n` +
+    `🧬 Marvel Cinematic Universe • ${marvel}\n` +
+    `🦇 DC Universe • ${dc}\n` +
+    `🏰 Disney Universe • ${disney}\n` +
+    `🧩 Collections • ${collections}\n` +
+    `🎬 Standalone Movies • ${standalone}\n\n` +
+
+    "🔥 NEWEST ENTRIES\n" +
+    "━━━━━━━━━━━━━━━━━━\n";
+
+  if (!newest.length) {
+    text += "Noch keine Filme gespeichert.\n";
+  } else {
+    newest.forEach((m, index) => {
+      const prefix =
+        index === newest.length - 1
+          ? "┗"
+          : "┠";
+
+      text +=
+        `${prefix} ${m.title || "Unbekannt"}` +
+        `${m.year ? ` (${m.year})` : ""}\n`;
+    });
+  }
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+async function createOrUpdateMovieIndexHub() {
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "📚 Movie Index",
+    type: "system_hub"
+  });
+
+  if (!topicId) {
+    console.error("❌ Movie Index Topic konnte nicht erstellt werden");
+    return null;
+  }
+
+  const text = await buildMovieIndexHubCaption();
+
+  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-📚 Movie Index`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [topicKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(topicKey);
+  }
+
+  if (topic?.hub_message_id) {
+    const edited = await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+
+    if (!edited?.__error) {
+      return edited;
+    }
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(msg.message_id, topicKey);
+    }
+
+    try {
+      await tg("pinChatMessage", {
+        chat_id: MOVIE_GROUP_ID,
+        message_id: msg.message_id,
+        disable_notification: true
+      });
+    } catch (err) {
+      console.error("⚠️ Movie Index Pin Fehler:", err.message);
+    }
+  }
+
+  return msg;
+}
+
 async function createOrUpdateCollectionHub(tmdb, topicId) {
   if (!tmdb.collection || !tmdb.collectionId) return null;
 
