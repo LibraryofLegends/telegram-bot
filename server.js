@@ -1562,6 +1562,21 @@ function detectStarWarsEra(title = "") {
   return null;
 }
 
+// =============================
+// STAR WARS ERA TOPICS
+// =============================
+async function ensureStarWarsEraTopics() {
+  for (const era of STAR_WARS_ERAS) {
+    await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: era.topicName,
+      type: "starwars_era"
+    });
+
+    await sleep(1200);
+  }
+}
+
   StarWars: {
     topicName: "🌌 Star Wars Universe",
     icon: "🌌",
@@ -6474,6 +6489,8 @@ async function ensureCommandCenters() {
 
   await sleep(1500);
 }
+
+await ensureStarWarsEraTopics();
 
 for (const bucket of movieTopicBuckets) {
 
