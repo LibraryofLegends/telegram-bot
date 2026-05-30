@@ -1583,89 +1583,91 @@ const universeConfigs = {
 // STAR WARS ERA REGISTRY
 // =============================
 const STAR_WARS_ERAS = [
+
   {
     key: "high_republic",
     topicName: "🌌 High Republic",
     title: "THE HIGH REPUBLIC",
     subtitle: "✨ GOLDEN AGE OF THE JEDI",
+
     entries: [
-      "Die Abenteuer der jungen Jedi",
       "Young Jedi Adventures",
       "The Acolyte"
     ]
   },
+
   {
     key: "fall_of_jedi",
     topicName: "⚔️ Fall of the Jedi",
     title: "FALL OF THE JEDI",
     subtitle: "🩸 THE CLONE WARS ERA",
+
     entries: [
-      "Star Wars: Episode I",
-      "Die dunkle Bedrohung",
-      "Star Wars: Episode II",
-      "Angriff der Klonkrieger",
+      "Star Wars: Episode I - Die dunkle Bedrohung",
+      "Star Wars: Episode II - Angriff der Klonkrieger",
       "Star Wars: The Clone Wars",
-      "The Clone Wars",
-      "Star Wars: Episode III",
-      "Die Rache der Sith",
-      "The Bad Batch"
+      "Star Wars: Episode III - Die Rache der Sith",
+      "Star Wars: The Bad Batch"
     ]
   },
+
   {
     key: "imperial_era",
     topicName: "🛡 Imperial Era",
     title: "IMPERIAL ERA",
     subtitle: "⚫ RISE OF THE EMPIRE",
+
     entries: [
-      "Solo",
       "Solo: A Star Wars Story",
       "Obi-Wan Kenobi"
     ]
   },
+
   {
     key: "rebellion_era",
     topicName: "🔥 Age of Rebellion",
     title: "AGE OF REBELLION",
     subtitle: "🚀 THE GALACTIC CIVIL WAR",
+
     entries: [
-      "Rebels",
       "Star Wars Rebels",
       "Andor",
-      "Rogue One",
       "Rogue One: A Star Wars Story",
-      "Krieg der Sterne",
-      "Eine neue Hoffnung",
-      "Das Imperium schlägt zurück",
-      "Die Rückkehr der Jedi-Ritter"
+      "Star Wars: Episode IV - Eine neue Hoffnung",
+      "Star Wars: Episode V - Das Imperium schlägt zurück",
+      "Star Wars: Episode VI - Die Rückkehr der Jedi-Ritter"
     ]
   },
+
   {
     key: "new_republic",
     topicName: "🛰 New Republic",
     title: "THE NEW REPUBLIC",
     subtitle: "🌠 THE MANDOVERSE",
+
     entries: [
       "The Mandalorian",
-      "Das Buch von Boba Fett",
       "The Book of Boba Fett",
       "Skeleton Crew",
       "Ahsoka",
       "The Mandalorian & Grogu"
     ]
   },
+
   {
     key: "first_order",
     topicName: "☠️ First Order Era",
     title: "RISE OF THE FIRST ORDER",
     subtitle: "⚡ THE RESISTANCE ERA",
+
     entries: [
-      "Resistance",
       "Star Wars Resistance",
-      "Das Erwachen der Macht",
-      "Die letzten Jedi",
-      "Der Aufstieg Skywalkers"
+      "Star Wars: Episode VII - Das Erwachen der Macht",
+      "Star Wars: Episode VIII - Die letzten Jedi",
+      "Star Wars: Episode IX - Der Aufstieg Skywalkers"
     ]
   }
+
 ];
 
 function detectStarWarsEra(title = "") {
