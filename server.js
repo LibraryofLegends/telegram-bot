@@ -6921,16 +6921,18 @@ async function ensureCommandCenters() {
   }
 
   await createOrUpdateCommandCenter({
-    chatId: MOVIE_GROUP_ID,
-    topicName: "🎛 MOVIE COMMAND CENTER",
-    caption: await movieCommandCenterCaption()
-  });
+  chatId: MOVIE_GROUP_ID,
+  topicName: "🎛 MOVIE COMMAND CENTER",
+  caption: await movieCommandCenterCaption()
+});
 
-  await createOrUpdateCommandCenter({
-    chatId: SERIES_GROUP_ID,
-    topicName: "🎛 SERIES COMMAND CENTER",
-    caption: await seriesCommandCenterCaption()
-  });
+await createOrUpdateMovieIndexHub();
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🎛 SERIES COMMAND CENTER",
+  caption: await seriesCommandCenterCaption()
+});
 }
 
 // =============================
