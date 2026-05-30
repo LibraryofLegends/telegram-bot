@@ -10346,48 +10346,48 @@ console.log("🌌 STAR WARS ERA DETECT:", {
 });
 
   // =============================
-// MOVIE TOPIC ROUTING
+// MOVIE TOPIC ROUTING — CLEAN STRUCTURE
 // =============================
-const bucketData =
-  await getOrCreateMovieBucketTopic(tmdb);
-
 const useCollectionTopic =
   tmdb.collection &&
   tmdb.collectionId &&
   shouldCreateCollectionTopic(tmdb.collection);
 
-let finalTopicName =
-  bucketData?.topicName ||
-  tmdb.mainGenre ||
-  "Sonstige";
+let finalTopicName = "🎬 Movie Library";
+let finalTopicType = "movie_library";
 
-let finalTopicType =
-  bucketData?.bucket?.type ||
-  "movie_genre";
-
-if (useCollectionTopic) {
-  finalTopicName = `🎞 ${tmdb.collection}`;
-  finalTopicType = "collection";
-}
-
+// Universe-Filme bekommen eigene Universe-Topics
 if (universeData?.universeName) {
   finalTopicName = universeData.universeName;
   finalTopicType = "universe";
 }
 
-let topicId =
-  universeData?.universeName || useCollectionTopic
-    ? await createOrGetTopic({
-        chatId: MOVIE_GROUP_ID,
-        name: finalTopicName,
-        type: finalTopicType
-      })
-    : bucketData?.topicId ||
-      await createOrGetTopic({
-        chatId: MOVIE_GROUP_ID,
-        name: finalTopicName,
-        type: finalTopicType
-      });
+// Collections gehen gesammelt in Collections
+else if (useCollectionTopic) {
+  finalTopicName = "🧩 Collections";
+  finalTopicType = "movie_collections";
+}
+
+// Premium Qualität geht optional in Premium Quality
+else if (
+  String(extras.quality || "").toUpperCase().includes("UHD") ||
+  String(extras.quality || "").includes("2160")
+) {
+  finalTopicName = "💎 Premium Quality";
+  finalTopicType = "movie_quality";
+}
+
+// Alle normalen Filme gehen in Movie Library
+else {
+  finalTopicName = "🎬 Movie Library";
+  finalTopicType = "movie_library";
+}
+
+const topicId = await createOrGetTopic({
+  chatId: MOVIE_GROUP_ID,
+  name: finalTopicName,
+  type: finalTopicType
+});
 
 if (!topicId) {
   await tg("sendMessage", {
@@ -10408,17 +10408,10 @@ if (!universeData?.universeName) {
     topicId,
     topicName: finalTopicName,
     banner:
-      useCollectionTopic
-        ? getCollectionBanner(tmdb.collection) ||
-          tmdb.collectionBackdrop ||
-          tmdb.backdropUrl ||
-          tmdb.posterUrl ||
-          null
-        : genreBanners?.[finalTopicName] ||
-          genreBanners?.[tmdb.mainGenre] ||
-          tmdb.backdropUrl ||
-          tmdb.posterUrl ||
-          null
+      tmdb.collectionBackdrop ||
+      tmdb.backdropUrl ||
+      tmdb.posterUrl ||
+      null
   });
 }
 
