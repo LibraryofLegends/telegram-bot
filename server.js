@@ -1703,6 +1703,41 @@ async function ensureStarWarsEraTopics() {
 }
 
 // =============================
+// STAR WARS ERA HUB CAPTION
+// =============================
+async function starWarsEraHubCaption(era) {
+  const entries = era.entries || [];
+
+  let text =
+    "███ STAR WARS ERA NEXUS ███\n\n" +
+
+    `${era.topicName.toUpperCase()}\n` +
+    `${era.subtitle}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🧭 ERA CODE • ${era.key.toUpperCase()}\n` +
+    `📚 TIMELINE ENTRIES • ${entries.length}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "🛰 TIMELINE ARCHIVE\n";
+
+  entries.forEach((entry, index) => {
+    const prefix =
+      index === entries.length - 1
+        ? "┗"
+        : "┠";
+
+    text += `${prefix} ⬜ ${entry}\n`;
+  });
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+// =============================
 // COLLECTION TOPIC ALLOWLIST
 // =============================
 const collectionTopicAllowlist = [
