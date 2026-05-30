@@ -1721,14 +1721,38 @@ async function starWarsEraHubCaption(era) {
 
     "🛰 TIMELINE ARCHIVE\n";
 
-  entries.forEach((entry, index) => {
-    const prefix =
-      index === entries.length - 1
-        ? "┗"
-        : "┠";
+  for (let i = 0; i < entries.length; i++) {
 
-    text += `${prefix} ⬜ ${entry}\n`;
-  });
+  const entry = entries[i];
+
+  const prefix =
+    i === entries.length - 1
+      ? "┗"
+      : "┠";
+
+  const existsMovie = db.prepare(`
+    SELECT id
+    FROM movies
+    WHERE LOWER(title) LIKE ?
+    LIMIT 1
+  `).get(`%${entry.toLowerCase()}%`);
+
+  const existsSeries = db.prepare(`
+    SELECT id
+    FROM series
+    WHERE LOWER(series_title) LIKE ?
+    LIMIT 1
+  `).get(`%${entry.toLowerCase()}%`);
+
+  let icon = "⬜";
+
+  if (existsMovie || existsSeries) {
+    icon = "✅";
+  }
+
+  text += `${prefix} ${icon} ${entry}\n`;
+
+}
 
   text +=
     "\n━━━━━━━━━━━━━━━━━━\n" +
