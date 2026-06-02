@@ -2953,8 +2953,8 @@ async function buildMovieIndexHubCaption() {
   );
 
   const collections = countWhere(movies, (m) =>
-    Boolean(m.collection)
-  );
+  Boolean(m.collection) && !m.universe
+);
 
   const standalone = countWhere(movies, (m) =>
     !m.collection && !m.universe
