@@ -4628,9 +4628,9 @@ function movieCaption(tmdb, extras = {}) {
   `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
   `🎭 ${genreText}\n\n` +
 
-  `📀 ${extras.quality || "HD"} • ${extras.resolution || "1920x1080"}${extras.source ? ` • ${extras.source}` : ""}\n` +
-  `💾 ${extras.fileSize || "Unbekannt"} • ⏱ ${tmdb.runtime || "Unbekannt"}\n` +
-  `🎞 ${extras.videoCodec || "H.264"}${extras.audioCodec ? ` • 🔊 ${extras.audioCodec}` : ""}${extras.audioChannels ? ` ${extras.audioChannels}` : ""}\n` +
+  `📀 ${extras.quality || "HD"} • ${extras.resolution || "1920x1080"}${extras.source && extras.source !== "Unbekannt" ? ` • ${extras.source}` : ""}\n` +
+`💾 ${extras.fileSize || "Unbekannt"} • ⏱ ${tmdb.runtime || "Unbekannt"}\n` +
+`🎞 ${extras.videoCodec && extras.videoCodec !== "Unbekannt" ? extras.videoCodec : "H.264"}${extras.audioCodec && extras.audioCodec !== "Unbekannt" ? ` • 🔊 ${extras.audioCodec}` : ""}${extras.audioChannels && extras.audioChannels !== "Unbekannt" ? ` ${extras.audioChannels}` : ""}\n` +
   `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
   "━━━━━━━━━━━━━━━━━━\n\n" +
   "🎥 DIRECTOR\n" +
