@@ -4638,7 +4638,6 @@ function movieCaption(tmdb, extras = {}) {
 
     `${nexus.line1}\n` +
     `${nexus.line2}\n` +
-
     "━━━━━━━━━━━━━━━━━━\n" +
     "🏛 ARCHIVE CLASSIFICATION\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -4646,7 +4645,6 @@ function movieCaption(tmdb, extras = {}) {
     `🌌 Universe • ${extras.universe || "Standalone"}\n` +
     `🎞 Format • Kinofilm\n` +
     `🏷 Code • ${extras.libraryId || "Unbekannt"}\n` +
-
     "━━━━━━━━━━━━━━━━━━\n" +
     "📀 TECH MATRIX\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -4654,25 +4652,21 @@ function movieCaption(tmdb, extras = {}) {
     `💾 ${extras.fileSize || "Unbekannt"} • ⏱ ${tmdb.runtime || "Unbekannt"}\n` +
     `🎞 ${cleanVideoCodec}${cleanAudio}\n` +
     `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-
     "━━━━━━━━━━━━━━━━━━\n" +
     "⭐ RECEPTION\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `⭐ IMDb • ${tmdb.rating || "Unbekannt"}\n` +
     `🏆 Legends Rank • ${Number(String(tmdb.rating || "0").replace(",", ".")) >= 7 ? "Elite Title" : "Archive Title"}\n` +
-
     "━━━━━━━━━━━━━━━━━━\n" +
     "🎥 PRODUCTION FILE\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎬 Director • ${tmdb.director || "Unbekannt"}\n\n` +
     "👥 Cast Matrix\n" +
     `${castLines || "Unbekannt"}\n` +
-
     "━━━━━━━━━━━━━━━━━━\n" +
     "📖 STORY DOSSIER\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `${safeOverview}\n` +
-
     "━━━━━━━━━━━━━━━━━━\n" +
     "🛰 NEXUS STATUS\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -4680,7 +4674,6 @@ function movieCaption(tmdb, extras = {}) {
     `${nexus.line4 || "🌍 Timeline • Verified"}\n` +
     "📡 Archive Status • Stable\n" +
     `🧭 Canon Status • ${extras.universe ? "Universe Entry" : "Standalone"}\n` +
-
     "━━━━━━━━━━━━━━━━━━\n" +
     `${genreTags}\n` +
     "@LibraryOfLegends"
