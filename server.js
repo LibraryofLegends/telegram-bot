@@ -4696,7 +4696,6 @@ const legendsRank =
     "━━━━━━━━━━━━━━━━━━\n" +
     `${nexus.line3 ? `${nexus.line3}\n` : ""}` +
     `${nexus.line4 || "🌍 Timeline • Verified"}\n` +
-    `📡 ${extras.universe ? "Universe Entry" : "Collection Entry"}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     `${genreTags}\n` +
     "@LibraryOfLegends"
