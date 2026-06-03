@@ -4632,6 +4632,21 @@ function movieCaption(tmdb, extras = {}) {
     extras.audioCodec && extras.audioCodec !== "Unbekannt"
       ? ` • 🔊 ${extras.audioCodec}${extras.audioChannels && extras.audioChannels !== "Unbekannt" ? ` ${extras.audioChannels}` : ""}`
       : "";
+      
+      const ratingNumberMatch =
+  String(tmdb.rating || "").match(/\d+(\.\d+)?/);
+
+const ratingNumber =
+  ratingNumberMatch
+    ? Number(ratingNumberMatch[0])
+    : 0;
+
+const legendsRank =
+  ratingNumber >= 8
+    ? "Legendary Title"
+    : ratingNumber >= 7
+      ? "Elite Title"
+      : "Archive Title";
 
   return (
     "███ LEGENDS DOSSIER ███\n\n" +
@@ -4656,7 +4671,7 @@ function movieCaption(tmdb, extras = {}) {
     "⭐ RECEPTION\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `⭐ IMDb • ${tmdb.rating || "Unbekannt"}\n` +
-    `🏆 Legends Rank • ${Number(String(tmdb.rating || "0").replace(",", ".")) >= 7 ? "Elite Title" : "Archive Title"}\n` +
+    `🏆 Legends Rank • ${legendsRank}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "🎥 PRODUCTION FILE\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
