@@ -4619,7 +4619,7 @@ function movieCaption(tmdb, extras = {}) {
     .split("•")
     .map((p) => p.trim())
     .filter(Boolean)
-    .slice(0, 4)
+    .slice(0, 2)
     .map((p) => `▸ ${p}`)
     .join("\n");
 
