@@ -4568,6 +4568,35 @@ if (
 // =============================
 // MOVIE CAPTION — LEGENDS DOSSIER V1.1
 // =============================
+function trimTextAtSentence(text = "", maxLength = 260) {
+  const clean = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (clean.length <= maxLength) {
+    return clean;
+  }
+
+  const sliced = clean.slice(0, maxLength);
+
+  const lastSentenceEnd = Math.max(
+    sliced.lastIndexOf("."),
+    sliced.lastIndexOf("!"),
+    sliced.lastIndexOf("?")
+  );
+
+  if (lastSentenceEnd > 80) {
+    return sliced.slice(0, lastSentenceEnd + 1);
+  }
+
+  const lastSpace = sliced.lastIndexOf(" ");
+
+  return (
+    sliced.slice(0, lastSpace > 0 ? lastSpace : maxLength) +
+    " …"
+  );
+}
+
 function movieCaption(tmdb, extras = {}) {
   const nexus = getMovieNexusMeta(tmdb, extras);
 
@@ -4594,30 +4623,10 @@ function movieCaption(tmdb, extras = {}) {
     .map((p) => `▸ ${p}`)
     .join("\n");
 
-  const overviewRaw = String(
-    tmdb.overview || "Keine Beschreibung verfügbar."
-  )
-    .replace(/\s+/g, " ")
-    .trim();
-
-  let safeOverview = overviewRaw;
-
-  if (safeOverview.length > 420) {
-  safeOverview = safeOverview.slice(0, 420);
-
-  const lastSentenceEnd = Math.max(
-    safeOverview.lastIndexOf("."),
-    safeOverview.lastIndexOf("!"),
-    safeOverview.lastIndexOf("?")
-  );
-
-  if (lastSentenceEnd > 220) {
-    safeOverview = safeOverview.slice(0, lastSentenceEnd + 1);
-  } else {
-    safeOverview = safeOverview.slice(0, safeOverview.lastIndexOf(" "));
-    safeOverview += " …";
-  }
-}
+  const safeOverview = trimTextAtSentence(
+  tmdb.overview || "Keine Beschreibung verfügbar.",
+  240
+);
 
   const cleanSource =
     extras.source && extras.source !== "Unbekannt"
