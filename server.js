@@ -4702,8 +4702,8 @@ return (
     `${nexus.line3 ? `${nexus.line3}\n` : ""}` +
     `${nexus.line4 || "🌍 Timeline • Verified"}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
-    `${genreTags}\n` +
-    "@LibraryOfLegends"
+    "━━━━━━━━━━━━━━━━━━\n" +
+"@LibraryOfLegends"
   ).slice(0, 4000);
 }
 
