@@ -4487,7 +4487,7 @@ if (
     `🎞 ${collection.toUpperCase()}`,
 
   line2:
-    `🎬 ${tmdb.title.toUpperCase()}`,
+    `🎬 ${String(tmdb.title || "").toUpperCase()}${tmdb.year ? ` (${tmdb.year})` : ""}`,
 
   line3:
     tmdb.originalTitle &&
