@@ -4611,7 +4611,7 @@ function movieCaption(tmdb, extras = {}) {
   .split("/")
   .map((g) => g.trim())
   .filter(Boolean)
-  .slice(0, 3)
+  .slice(0, 2)
   .map((g) => `#${g.replace(/\s+/g, "")}`)
   .join(" ");
 
@@ -4658,17 +4658,22 @@ const legendsRank =
       ? "Elite Title"
       : "Archive Title";
 
-  return (
-    "███ LEGENDS DOSSIER ███\n\n" +
+  const universeLabel =
+  extras.universe ||
+  tmdb.collection ||
+  "Standalone";
 
-    `${nexus.line1}\n` +
-    `${nexus.line2}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🏛 ARCHIVE CLASSIFICATION\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🎭 Genre • ${genreText}\n` +
-`🌌 ${extras.universe || "Standalone"}\n` +
-`🏷 Code • ${extras.libraryId || "Unbekannt"}\n` +
+return (
+  "███ LEGENDS DOSSIER ███\n\n" +
+
+  `${nexus.line1}\n` +
+  `${nexus.line2}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "🏛 ARCHIVE CLASSIFICATION\n" +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `🎭 Genre • ${genreText}\n` +
+  `🌌 ${universeLabel}\n` +
+  `🏷 Code • ${extras.libraryId || "Unbekannt"}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "📀 TECH MATRIX\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
