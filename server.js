@@ -4566,7 +4566,7 @@ if (
 }
 
 // =============================
-// MOVIE CAPTION — LEGENDS DOSSIER V1
+// MOVIE CAPTION — LEGENDS DOSSIER V1.1
 // =============================
 function movieCaption(tmdb, extras = {}) {
   const nexus = getMovieNexusMeta(tmdb, extras);
@@ -4601,8 +4601,8 @@ function movieCaption(tmdb, extras = {}) {
 
   let safeOverview = overviewRaw;
 
-  if (safeOverview.length > 360) {
-    safeOverview = safeOverview.slice(0, 360);
+  if (safeOverview.length > 520) {
+    safeOverview = safeOverview.slice(0, 520);
 
     const lastSentenceEnd = Math.max(
       safeOverview.lastIndexOf("."),
@@ -4610,7 +4610,7 @@ function movieCaption(tmdb, extras = {}) {
       safeOverview.lastIndexOf("?")
     );
 
-    if (lastSentenceEnd > 180) {
+    if (lastSentenceEnd > 260) {
       safeOverview = safeOverview.slice(0, lastSentenceEnd + 1);
     } else {
       safeOverview = safeOverview.slice(0, safeOverview.lastIndexOf(" "));
@@ -4637,44 +4637,50 @@ function movieCaption(tmdb, extras = {}) {
     "███ LEGENDS DOSSIER ███\n\n" +
 
     `${nexus.line1}\n` +
-    `${nexus.line2}\n\n` +
+    `${nexus.line2}\n` +
+
     "━━━━━━━━━━━━━━━━━━\n" +
     "🏛 ARCHIVE CLASSIFICATION\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎭 Genre • ${genreText}\n` +
     `🌌 Universe • ${extras.universe || "Standalone"}\n` +
     `🎞 Format • Kinofilm\n` +
-    `🏷 Code • ${extras.libraryId || "Unbekannt"}\n\n` +
+    `🏷 Code • ${extras.libraryId || "Unbekannt"}\n` +
+
     "━━━━━━━━━━━━━━━━━━\n" +
     "📀 TECH MATRIX\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `📀 ${extras.quality || "HD"} • ${extras.resolution || "1920x1080"}${cleanSource}\n` +
     `💾 ${extras.fileSize || "Unbekannt"} • ⏱ ${tmdb.runtime || "Unbekannt"}\n` +
     `🎞 ${cleanVideoCodec}${cleanAudio}\n` +
-    `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n\n` +
+    `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+
     "━━━━━━━━━━━━━━━━━━\n" +
     "⭐ RECEPTION\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `⭐ IMDb • ${tmdb.rating || "Unbekannt"}\n` +
-    `🏆 Legends Rank • ${Number(String(tmdb.rating || "0").replace(",", ".")) >= 7 ? "Elite Title" : "Archive Title"}\n\n` +
+    `🏆 Legends Rank • ${Number(String(tmdb.rating || "0").replace(",", ".")) >= 7 ? "Elite Title" : "Archive Title"}\n` +
+
     "━━━━━━━━━━━━━━━━━━\n" +
     "🎥 PRODUCTION FILE\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎬 Director • ${tmdb.director || "Unbekannt"}\n\n` +
-
     "👥 Cast Matrix\n" +
-    `${castLines || "Unbekannt"}\n\n` +
+    `${castLines || "Unbekannt"}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📖 STORY DOSSIER\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${safeOverview}\n` +
+
     "━━━━━━━━━━━━━━━━━━\n" +
     "🛰 NEXUS STATUS\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `${nexus.line3 ? `${nexus.line3}\n` : ""}` +
     `${nexus.line4 || "🌍 Timeline • Verified"}\n` +
     "📡 Archive Status • Stable\n" +
-    `🧭 Canon Status • ${extras.universe ? "Universe Entry" : "Standalone"}\n\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📖 STORY DOSSIER\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `${safeOverview}\n\n` +
+    `🧭 Canon Status • ${extras.universe ? "Universe Entry" : "Standalone"}\n` +
+
     "━━━━━━━━━━━━━━━━━━\n" +
     `${genreTags}\n` +
     "@LibraryOfLegends"
