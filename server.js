@@ -4566,11 +4566,10 @@ if (
 }
 
 // =============================
-// MOVIE CAPTION
+// MOVIE CAPTION — LEGENDS DOSSIER V1
 // =============================
 function movieCaption(tmdb, extras = {}) {
-  const nexus =
-    getMovieNexusMeta(tmdb, extras);
+  const nexus = getMovieNexusMeta(tmdb, extras);
 
   const genreText = String(tmdb.genre || "Sonstige")
     .split("/")
@@ -4602,8 +4601,8 @@ function movieCaption(tmdb, extras = {}) {
 
   let safeOverview = overviewRaw;
 
-  if (safeOverview.length > 340) {
-    safeOverview = safeOverview.slice(0, 340);
+  if (safeOverview.length > 360) {
+    safeOverview = safeOverview.slice(0, 360);
 
     const lastSentenceEnd = Math.max(
       safeOverview.lastIndexOf("."),
@@ -4619,42 +4618,67 @@ function movieCaption(tmdb, extras = {}) {
     }
   }
 
+  const cleanSource =
+    extras.source && extras.source !== "Unbekannt"
+      ? ` • ${extras.source}`
+      : "";
+
+  const cleanVideoCodec =
+    extras.videoCodec && extras.videoCodec !== "Unbekannt"
+      ? extras.videoCodec
+      : "H.264";
+
+  const cleanAudio =
+    extras.audioCodec && extras.audioCodec !== "Unbekannt"
+      ? ` • 🔊 ${extras.audioCodec}${extras.audioChannels && extras.audioChannels !== "Unbekannt" ? ` ${extras.audioChannels}` : ""}`
+      : "";
+
   return (
-  `${nexus.header}\n\n` +
+    "███ LEGENDS DOSSIER ███\n\n" +
 
-  `${nexus.line1}\n` +
-  `${nexus.line2}\n\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
-  `🎭 ${genreText}\n\n` +
+    `${nexus.line1}\n` +
+    `${nexus.line2}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🏛 ARCHIVE CLASSIFICATION\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎭 Genre • ${genreText}\n` +
+    `🌌 Universe • ${extras.universe || "Standalone"}\n` +
+    `🎞 Format • Kinofilm\n` +
+    `🏷 Code • ${extras.libraryId || "Unbekannt"}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📀 TECH MATRIX\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `📀 ${extras.quality || "HD"} • ${extras.resolution || "1920x1080"}${cleanSource}\n` +
+    `💾 ${extras.fileSize || "Unbekannt"} • ⏱ ${tmdb.runtime || "Unbekannt"}\n` +
+    `🎞 ${cleanVideoCodec}${cleanAudio}\n` +
+    `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "⭐ RECEPTION\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `⭐ IMDb • ${tmdb.rating || "Unbekannt"}\n` +
+    `🏆 Legends Rank • ${Number(String(tmdb.rating || "0").replace(",", ".")) >= 7 ? "Elite Title" : "Archive Title"}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎥 PRODUCTION FILE\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 Director • ${tmdb.director || "Unbekannt"}\n\n` +
 
-  `📀 ${extras.quality || "HD"} • ${extras.resolution || "1920x1080"}${extras.source && extras.source !== "Unbekannt" ? ` • ${extras.source}` : ""}\n` +
-`💾 ${extras.fileSize || "Unbekannt"} • ⏱ ${tmdb.runtime || "Unbekannt"}\n` +
-`🎞 ${extras.videoCodec && extras.videoCodec !== "Unbekannt" ? extras.videoCodec : "H.264"}${extras.audioCodec && extras.audioCodec !== "Unbekannt" ? ` • 🔊 ${extras.audioCodec}` : ""}${extras.audioChannels && extras.audioChannels !== "Unbekannt" ? ` ${extras.audioChannels}` : ""}\n` +
-  `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-  "━━━━━━━━━━━━━━━━━━\n\n" +
-  "🎥 DIRECTOR\n" +
-  `${tmdb.director || "Unbekannt"}\n\n` +
-
-  "👥 CAST MATRIX\n" +
-  `${castLines || "Unbekannt"}\n\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "🛰 NEXUS STATUS\n\n" +
-
-  `${nexus.line3 ? `${nexus.line3}\n` : ""}` +
-
-  `${nexus.line4 || "🌍 TIMELINE • VERIFIED"}\n` +
-  "📡 ARCHIVE STATUS • STABLE\n" +
-  "━━━━━━━━━━━━━━━━━━\n\n" +
-  "📖 SYNOPSIS\n\n" +
-  `${safeOverview}\n\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "🧬 ARCHIVE CODE\n" +
-  `${extras.libraryId || "Unbekannt"}\n\n` +
-
-  `${genreTags}\n` +
-  "@LibraryOfLegends"
-).slice(0, 4000);
+    "👥 Cast Matrix\n" +
+    `${castLines || "Unbekannt"}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰 NEXUS STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${nexus.line3 ? `${nexus.line3}\n` : ""}` +
+    `${nexus.line4 || "🌍 Timeline • Verified"}\n` +
+    "📡 Archive Status • Stable\n" +
+    `🧭 Canon Status • ${extras.universe ? "Universe Entry" : "Standalone"}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📖 STORY DOSSIER\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${safeOverview}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${genreTags}\n` +
+    "@LibraryOfLegends"
+  ).slice(0, 4000);
 }
 
 function buildMovieArchiveProgressBar(movieCount = 0) {
