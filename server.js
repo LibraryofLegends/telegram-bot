@@ -4555,14 +4555,14 @@ line2:
   // DEFAULT
   // =============================
   return {
-    header: "███ CINEMA NEXUS ███",
+  header: "███ CINEMA NEXUS ███",
 
-    line1:
-      `🎬 ${String(tmdb.title || "").toUpperCase()}`,
+  line1:
+    `🎬 ${String(tmdb.title || "").toUpperCase()}${tmdb.year ? ` (${tmdb.year})` : ""}`,
 
-    line2:
-      "CINEMA ENTRY • VERIFIED"
-  };
+  line2:
+    "🎞 CINEMA ENTRY • VERIFIED"
+};
 }
 
 // =============================
