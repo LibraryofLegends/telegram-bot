@@ -4601,22 +4601,22 @@ function movieCaption(tmdb, extras = {}) {
 
   let safeOverview = overviewRaw;
 
-  if (safeOverview.length > 520) {
-    safeOverview = safeOverview.slice(0, 520);
+  if (safeOverview.length > 420) {
+  safeOverview = safeOverview.slice(0, 420);
 
-    const lastSentenceEnd = Math.max(
-      safeOverview.lastIndexOf("."),
-      safeOverview.lastIndexOf("!"),
-      safeOverview.lastIndexOf("?")
-    );
+  const lastSentenceEnd = Math.max(
+    safeOverview.lastIndexOf("."),
+    safeOverview.lastIndexOf("!"),
+    safeOverview.lastIndexOf("?")
+  );
 
-    if (lastSentenceEnd > 260) {
-      safeOverview = safeOverview.slice(0, lastSentenceEnd + 1);
-    } else {
-      safeOverview = safeOverview.slice(0, safeOverview.lastIndexOf(" "));
-      safeOverview += " …";
-    }
+  if (lastSentenceEnd > 220) {
+    safeOverview = safeOverview.slice(0, lastSentenceEnd + 1);
+  } else {
+    safeOverview = safeOverview.slice(0, safeOverview.lastIndexOf(" "));
+    safeOverview += " …";
   }
+}
 
   const cleanSource =
     extras.source && extras.source !== "Unbekannt"
