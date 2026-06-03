@@ -4620,31 +4620,49 @@ function movieCaption(tmdb, extras = {}) {
   }
 
   return (
-    `${nexus.header}\n\n` +
+  `${nexus.header}\n\n` +
 
-    `${nexus.line1}\n` +
-    `${nexus.line2}\n\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
-    `🎭 ${genreText}\n` +
-    `📀 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"} • ${tmdb.runtime || "Unbekannt"}\n` +
-    `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-    "🎥 DIRECTOR\n" +
-    `${tmdb.director || "Unbekannt"}\n\n` +
+  `${nexus.line1}\n` +
+  `${nexus.line2}\n\n` +
 
-    "👥 CAST MATRIX\n" +
-    `${castLines || "Unbekannt"}\n\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📖 SYNOPSIS\n\n" +
-    `${safeOverview}\n\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🧬 ARCHIVE CODE\n" +
-    `${extras.libraryId || "Unbekannt"}\n\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
 
-    `${genreTags}\n` +
-    "@LibraryOfLegends"
-  ).slice(0, 4000);
+  `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
+  `🎭 ${genreText}\n\n` +
+
+  `📀 ${extras.quality || "Unbekannt"} • ${extras.resolution || "Unbekannt"} • ${extras.source || "WEB"}\n` +
+  `💾 ${extras.fileSize || "Unbekannt"} • ⏱ ${tmdb.runtime || "Unbekannt"}\n` +
+  `🎞 ${extras.videoCodec || "H.264"} • 🔊 ${extras.audioCodec || "AAC"} ${extras.audioChannels || "2.0"}\n` +
+  `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
+
+  "━━━━━━━━━━━━━━━━━━\n\n" +
+
+  "🎥 DIRECTOR\n" +
+  `${tmdb.director || "Unbekannt"}\n\n` +
+
+  "👥 CAST MATRIX\n" +
+  `${castLines || "Unbekannt"}\n\n` +
+
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "🛰 NEXUS STATUS\n\n" +
+
+  `${nexus.line3 ? `${nexus.line3}\n` : ""}` +
+
+  `${nexus.line4 || "🌍 TIMELINE • VERIFIED"}\n` +
+  "📡 ARCHIVE STATUS • STABLE\n" +
+
+  "━━━━━━━━━━━━━━━━━━\n\n" +
+
+  "📖 SYNOPSIS\n\n" +
+  `${safeOverview}\n\n` +
+
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "🧬 ARCHIVE CODE\n" +
+  `${extras.libraryId || "Unbekannt"}\n\n` +
+
+  `${genreTags}\n` +
+  "@LibraryOfLegends"
+).slice(0, 4000);
 }
 
 function buildMovieArchiveProgressBar(movieCount = 0) {
