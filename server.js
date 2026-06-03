@@ -4484,10 +4484,10 @@ if (
   header: "███ COLLECTION NEXUS ███",
 
   line1:
-    `🎞 ${collection.toUpperCase()}`,
+  `🎬 ${String(tmdb.title || "").toUpperCase()}${tmdb.year ? ` (${tmdb.year})` : ""}`,
 
-  line2:
-    `🎬 ${String(tmdb.title || "").toUpperCase()}${tmdb.year ? ` (${tmdb.year})` : ""}`,
+line2:
+  "🎞 CINEMA ENTRY • VERIFIED"
 
   line3:
     tmdb.originalTitle &&
