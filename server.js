@@ -4667,8 +4667,8 @@ const legendsRank =
     "🏛 ARCHIVE CLASSIFICATION\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎭 Genre • ${genreText}\n` +
-    `🌌 ${extras.universe || "Standalone"}\n`
-    `🏷 Code • ${extras.libraryId || "Unbekannt"}\n` +
+`🌌 ${extras.universe || "Standalone"}\n` +
+`🏷 Code • ${extras.libraryId || "Unbekannt"}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "📀 TECH MATRIX\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
