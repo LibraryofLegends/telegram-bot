@@ -4667,8 +4667,7 @@ const legendsRank =
     "🏛 ARCHIVE CLASSIFICATION\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎭 Genre • ${genreText}\n` +
-    `🌌 Universe • ${extras.universe || "Standalone"}\n` +
-    `🎞 Format • Kinofilm\n` +
+    `🌌 ${extras.universe || "Standalone"}\n`
     `🏷 Code • ${extras.libraryId || "Unbekannt"}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "📀 TECH MATRIX\n" +
@@ -4681,11 +4680,11 @@ const legendsRank =
     "⭐ RECEPTION\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
     `⭐ IMDb • ${tmdb.rating || "Unbekannt"}\n` +
-    `🏆 Legends Rank • ${legendsRank}\n` +
+    `🏆 ${legendsRank}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "🎥 PRODUCTION FILE\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 Director • ${tmdb.director || "Unbekannt"}\n\n` +
+    `🎬 Director • ${tmdb.director || "Unbekannt"}\n` +
     "👥 Cast Matrix\n" +
     `${castLines || "Unbekannt"}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
