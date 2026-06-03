@@ -4624,25 +4624,20 @@ function movieCaption(tmdb, extras = {}) {
 
   `${nexus.line1}\n` +
   `${nexus.line2}\n\n` +
-
   "━━━━━━━━━━━━━━━━━━\n" +
-
   `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
   `🎭 ${genreText}\n\n` +
 
-  `📀 ${extras.quality || "Unbekannt"} • ${extras.resolution || "Unbekannt"} • ${extras.source || "WEB"}\n` +
+  `📀 ${extras.quality || "HD"} • ${extras.resolution || "1920x1080"}${extras.source ? ` • ${extras.source}` : ""}\n` +
   `💾 ${extras.fileSize || "Unbekannt"} • ⏱ ${tmdb.runtime || "Unbekannt"}\n` +
-  `🎞 ${extras.videoCodec || "H.264"} • 🔊 ${extras.audioCodec || "AAC"} ${extras.audioChannels || "2.0"}\n` +
+  `🎞 ${extras.videoCodec || "H.264"}${extras.audioCodec ? ` • 🔊 ${extras.audioCodec}` : ""}${extras.audioChannels ? ` ${extras.audioChannels}` : ""}\n` +
   `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-
   "━━━━━━━━━━━━━━━━━━\n\n" +
-
   "🎥 DIRECTOR\n" +
   `${tmdb.director || "Unbekannt"}\n\n` +
 
   "👥 CAST MATRIX\n" +
   `${castLines || "Unbekannt"}\n\n` +
-
   "━━━━━━━━━━━━━━━━━━\n" +
   "🛰 NEXUS STATUS\n\n" +
 
@@ -4650,12 +4645,9 @@ function movieCaption(tmdb, extras = {}) {
 
   `${nexus.line4 || "🌍 TIMELINE • VERIFIED"}\n` +
   "📡 ARCHIVE STATUS • STABLE\n" +
-
   "━━━━━━━━━━━━━━━━━━\n\n" +
-
   "📖 SYNOPSIS\n\n" +
   `${safeOverview}\n\n` +
-
   "━━━━━━━━━━━━━━━━━━\n" +
   "🧬 ARCHIVE CODE\n" +
   `${extras.libraryId || "Unbekannt"}\n\n` +
