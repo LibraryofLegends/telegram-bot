@@ -4572,18 +4572,19 @@ function movieCaption(tmdb, extras = {}) {
   const nexus = getMovieNexusMeta(tmdb, extras);
 
   const genreText = String(tmdb.genre || "Sonstige")
-    .split("/")
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .join(" • ");
+  .split("/")
+  .map((g) => g.trim())
+  .filter(Boolean)
+  .slice(0, 2)
+  .join(" • ");
 
   const genreTags = String(tmdb.genre || "")
-    .split("/")
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-    .map((g) => `#${g.replace(/\s+/g, "")}`)
-    .join(" ");
+  .split("/")
+  .map((g) => g.trim())
+  .filter(Boolean)
+  .slice(0, 3)
+  .map((g) => `#${g.replace(/\s+/g, "")}`)
+  .join(" ");
 
   const castLines = String(tmdb.cast || "Unbekannt")
     .split("•")
