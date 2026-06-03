@@ -4487,7 +4487,7 @@ if (
   `🎬 ${String(tmdb.title || "").toUpperCase()}${tmdb.year ? ` (${tmdb.year})` : ""}`,
 
 line2:
-  "🎞 CINEMA ENTRY • VERIFIED"
+  "🎞 CINEMA ENTRY • VERIFIED",
 
   line3:
     tmdb.originalTitle &&
