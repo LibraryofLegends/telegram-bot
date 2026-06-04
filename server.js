@@ -8294,6 +8294,7 @@ async function handleCommand(msg) {
 
     "🧠 REPAIR & RECOVERY\n" +
     "• /cleartopicsdb\n" +
+    "• /resetpremiumtopic\n" +
     "• /rebuildtopics\n" +
     "• /repairhubs\n" +
     "• /repairindexes\n" +
@@ -8424,6 +8425,32 @@ console.log("🌌 REPAIR UNIVERSE CHECK:", {
       "/rebuildcommandcenters\n\n" +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
+  });
+
+  return;
+}
+
+if (text === "/resetpremiumtopic") {
+  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-💎 Premium Quality`);
+
+  if (pgPool) {
+    await pgPool.query(
+      `
+      DELETE FROM topics
+      WHERE unique_key = $1
+      `,
+      [topicKey]
+    );
+  } else {
+    db.prepare(`
+      DELETE FROM topics
+      WHERE unique_key = ?
+    `).run(topicKey);
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: "✅ Premium Quality Topic wurde aus der DB gelöscht. Jetzt /rebuildcommandcenters ausführen."
   });
 
   return;
