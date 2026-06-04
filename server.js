@@ -12405,47 +12405,92 @@ if (text.startsWith("/seriespick")) {
   return;
 }
 
-  if (text === "/duplicates") {
-    const movieDupes = db.prepare(`
+  // =============================
+// DUPLICATES
+// =============================
+if (command === "/duplicates") {
+  let movieDupes = [];
+  let seriesDupes = [];
+
+  if (pgPool) {
+    const movieResult = await pgPool.query(`
+      SELECT title, year, COUNT(*) AS count
+      FROM movies
+      GROUP BY title, year
+      HAVING COUNT(*) > 1
+      ORDER BY count DESC, title ASC
+    `);
+
+    const seriesResult = await pgPool.query(`
+      SELECT series_title, season, episode, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title, season, episode
+      HAVING COUNT(*) > 1
+      ORDER BY count DESC, series_title ASC, season ASC, episode ASC
+    `);
+
+    movieDupes = movieResult.rows;
+    seriesDupes = seriesResult.rows;
+  } else {
+    movieDupes = db.prepare(`
       SELECT title, year, COUNT(*) AS count
       FROM movies
       GROUP BY title, year
       HAVING count > 1
+      ORDER BY count DESC, title ASC
     `).all();
 
-    const seriesDupes = db.prepare(`
+    seriesDupes = db.prepare(`
       SELECT series_title, season, episode, COUNT(*) AS count
       FROM series
       GROUP BY series_title, season, episode
       HAVING count > 1
+      ORDER BY count DESC, series_title ASC, season ASC, episode ASC
     `).all();
-
-    let result = "🧹 𝐃𝐔𝐏𝐋𝐈𝐊𝐀𝐓𝐄\n\n";
-
-    if (!movieDupes.length && !seriesDupes.length) {
-      result += "✅ Keine Duplikate gefunden.";
-    }
-
-    if (movieDupes.length) {
-      result += "🎬 Filme:\n";
-      for (const m of movieDupes) {
-        result += `• ${m.title} ${m.year || ""} — ${m.count}x\n`;
-      }
-    }
-
-    if (seriesDupes.length) {
-      result += "\n📺 Serien:\n";
-      for (const s of seriesDupes) {
-        result += `• ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")} — ${s.count}x\n`;
-      }
-    }
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: result
-    });
-    return;
   }
+
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧹 DUPLIKATE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!movieDupes.length && !seriesDupes.length) {
+    resultText += "✅ Keine Duplikate gefunden.\n";
+  }
+
+  if (movieDupes.length) {
+    resultText += "🎬 FILME\n\n";
+
+    for (const m of movieDupes) {
+      resultText += `• ${m.title} ${m.year || ""} — ${m.count}x\n`;
+    }
+
+    resultText += "\n";
+  }
+
+  if (seriesDupes.length) {
+    resultText += "📺 SERIEN\n\n";
+
+    for (const s of seriesDupes) {
+      resultText +=
+        `• ${s.series_title} ` +
+        `S${String(s.season).padStart(2, "0")}` +
+        `E${String(s.episode).padStart(2, "0")} — ${s.count}x\n`;
+    }
+
+    resultText += "\n";
+  }
+
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: cleanTelegramText(resultText).slice(0, 4000)
+  });
+
+  return;
+}
 
   // =============================
 // REBUILD COMMAND CENTERS
