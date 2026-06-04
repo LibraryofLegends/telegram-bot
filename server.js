@@ -3645,6 +3645,110 @@ async function createOrUpdateEliteArchiveHub() {
   return msg;
 }
 
+async function getNewReleaseRows() {
+
+  let rows = [];
+
+  if (pgPool) {
+
+    const result = await pgPool.query(`
+      SELECT
+        title,
+        year,
+        quality,
+        created_at
+      FROM movies
+      ORDER BY created_at DESC
+    `);
+
+    rows = result.rows;
+
+  } else {
+
+    rows = db.prepare(`
+      SELECT
+        title,
+        year,
+        quality,
+        created_at
+      FROM movies
+      ORDER BY created_at DESC
+    `).all();
+
+  }
+
+  return rows;
+}
+
+async function buildNewReleasesHubCaption() {
+
+  const movies =
+    await getNewReleaseRows();
+
+  const newest =
+    movies.slice(0, 15);
+
+  const movies2025 =
+    movies.filter(
+      m => Number(m.year) === 2025
+    );
+
+  const movies2024 =
+    movies.filter(
+      m => Number(m.year) === 2024
+    );
+
+  const movies2023 =
+    movies.filter(
+      m => Number(m.year) === 2023
+    );
+
+  let text =
+    "███ NEW RELEASES HUB ███\n\n" +
+
+    "🔥 TRENDING ARCHIVE\n" +
+    "LATEST ADDITIONS DATABASE\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📊 RELEASE STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+
+    `🎬 Neue Filme • ${newest.length}\n` +
+    `📅 Neuester Film • ${Math.max(...movies.map(m => Number(m.year) || 0))}\n` +
+    `🚀 Archivbestand • ${movies.length}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎥 LATEST ADDITIONS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  newest.slice(0, 8).forEach((movie, index) => {
+
+    const prefix =
+      index === 7
+        ? "┗"
+        : "┠";
+
+    text +=
+      `${prefix} ${movie.title}` +
+      `${movie.year ? ` (${movie.year})` : ""}\n`;
+
+  });
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "🆕 UPCOMING GENERATION\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `🎬 Filme aus 2025 • ${movies2025.length}\n` +
+    `🎬 Filme aus 2024 • ${movies2024.length}\n` +
+    `🎬 Filme aus 2023 • ${movies2023.length}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
 async function createOrUpdatePremiumQualityHub() {
 
   console.log("💎 PREMIUM HUB START");
@@ -7807,6 +7911,7 @@ await createOrUpdateCollectionsIndexHub();
 await createOrUpdateUniversesIndexHub();
 await createOrUpdatePremiumQualityHub();
 await createOrUpdateEliteArchiveHub();
+await createOrUpdateNewReleasesHub();
 
 await createOrUpdateCommandCenter({
   chatId: SERIES_GROUP_ID,
@@ -11489,6 +11594,7 @@ try {
   await createOrUpdateUniversesIndexHub();
   await createOrUpdatePremiumQualityHub();
   await createOrUpdateEliteArchiveHub();
+  await createOrUpdateNewReleasesHub();
 } catch (err) {
   console.error(
     "⚠️ Movie Hubs Update Fehler:",
