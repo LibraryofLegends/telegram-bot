@@ -8705,12 +8705,16 @@ async function movieCommandCenterCaption() {
 }
 
 // =============================
-// SERIES COMMAND CENTER CAPTION
+// SERIES COMMAND CENTER CAPTION V2
 // =============================
 async function seriesCommandCenterCaption() {
   let seriesCount = 0;
   let episodeCount = 0;
   let universeSeriesCount = 0;
+  let incompleteCount = 0;
+  let masteredCount = 0;
+  let latest = [];
+  let trending = [];
 
   if (pgPool) {
     seriesCount = Number((await pgPool.query(`
@@ -8728,6 +8732,25 @@ async function seriesCommandCenterCaption() {
       FROM series
       WHERE universe IS NOT NULL
     `)).rows[0]?.count || 0);
+
+    const latestResult = await pgPool.query(`
+      SELECT series_title, season, episode, episode_title
+      FROM series
+      ORDER BY created_at DESC
+      LIMIT 5
+    `);
+
+    latest = latestResult.rows;
+
+    const trendingResult = await pgPool.query(`
+      SELECT series_title, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY count DESC, series_title ASC
+      LIMIT 5
+    `);
+
+    trending = trendingResult.rows;
   } else {
     seriesCount = db.prepare(`
       SELECT COUNT(DISTINCT series_title) AS count
@@ -8744,28 +8767,145 @@ async function seriesCommandCenterCaption() {
       FROM series
       WHERE universe IS NOT NULL
     `).get()?.count || 0;
+
+    latest = db.prepare(`
+      SELECT series_title, season, episode, episode_title
+      FROM series
+      ORDER BY created_at DESC
+      LIMIT 5
+    `).all();
+
+    trending = db.prepare(`
+      SELECT series_title, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY count DESC, series_title ASC
+      LIMIT 5
+    `).all();
   }
 
-  return (
+  // Serien auf Vollständigkeit prüfen
+  const allSeries = pgPool
+    ? (await pgPool.query(`
+        SELECT series_title, season, episode
+        FROM series
+        ORDER BY series_title ASC, season ASC, episode ASC
+      `)).rows
+    : db.prepare(`
+        SELECT series_title, season, episode
+        FROM series
+        ORDER BY series_title ASC, season ASC, episode ASC
+      `).all();
+
+  const grouped = {};
+
+  for (const row of allSeries) {
+    const title = row.series_title;
+    const season = Number(row.season || 0);
+    const episode = Number(row.episode || 0);
+
+    if (!title || !season || !episode) continue;
+
+    if (!grouped[title]) {
+      grouped[title] = {};
+    }
+
+    if (!grouped[title][season]) {
+      grouped[title][season] = [];
+    }
+
+    grouped[title][season].push(episode);
+  }
+
+  for (const title of Object.keys(grouped)) {
+    let isIncomplete = false;
+
+    for (const season of Object.keys(grouped[title])) {
+      const episodes = [...new Set(grouped[title][season])].sort((a, b) => a - b);
+      const maxEpisode = Math.max(...episodes);
+
+      for (let ep = 1; ep <= maxEpisode; ep++) {
+        if (!episodes.includes(ep)) {
+          isIncomplete = true;
+          break;
+        }
+      }
+
+      if (isIncomplete) break;
+    }
+
+    if (isIncomplete) {
+      incompleteCount++;
+    } else {
+      masteredCount++;
+    }
+  }
+
+  let latestText = "";
+
+  if (!latest.length) {
+    latestText = "Noch keine Folgen gespeichert.\n";
+  } else {
+    for (const s of latest) {
+      latestText +=
+        `• ${s.series_title} ` +
+        `S${String(s.season).padStart(2, "0")}` +
+        `E${String(s.episode).padStart(2, "0")}`;
+
+      if (s.episode_title) {
+        latestText += ` • ${s.episode_title}`;
+      }
+
+      latestText += "\n";
+    }
+  }
+
+  let trendingText = "";
+
+  if (!trending.length) {
+    trendingText = "Noch keine Trends verfügbar.\n";
+  } else {
+    for (const s of trending) {
+      trendingText += `• ${s.series_title} — ${s.count} Episode(n)\n`;
+    }
+  }
+
+  return cleanTelegramText(
     "━━━━━━━━━━━━━━━━━━\n" +
     "🎛 SERIES COMMAND CENTER\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
     "📁 PREMIUM SERIES ARCHIVE\n" +
-    "📺 AUTOMATED EPISODE SYSTEM\n\n" +
+    "📺 AUTOMATED EPISODE SYSTEM\n" +
+    "🧠 SMART SERIES MANAGEMENT\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    `📺 SERIEN • ${seriesCount}\n` +
-    `🎞 EPISODEN • ${episodeCount}\n` +
-    `🌌 UNIVERSES • ${universeSeriesCount}\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "📊 ARCHIV STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `📺 Serien: ${seriesCount}\n` +
+    `🎞 Episoden: ${episodeCount}\n` +
+    `🌌 Universes: ${universeSeriesCount}\n` +
+    `🧩 Unvollständig: ${incompleteCount}\n` +
+    `🏆 Vollständig: ${masteredCount}\n\n` +
 
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🆕 NEUE FOLGEN\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    latestText + "\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🔥 TRENDING SERIEN\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    trendingText + "\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
     "🧭 NAVIGATION\n" +
-    "🌌 Universes\n" +
-    "📺 Series Library\n" +
-    "🔥 Trending\n" +
-    "🧩 Incomplete\n" +
-    "🏆 Mastered\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🌌 UNIVERSES\n" +
+    "📺 SERIES LIBRARY\n" +
+    "🔥 TRENDING\n" +
+    "🧩 INCOMPLETE\n" +
+    "🏆 MASTERED\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends"
