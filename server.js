@@ -3749,6 +3749,80 @@ async function buildNewReleasesHubCaption() {
   return text.slice(0, 4000);
 }
 
+async function createOrUpdateNewReleasesHub() {
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "🔥 New Releases",
+    type: "system_hub"
+  });
+
+  if (!topicId) {
+    console.error("❌ New Releases Topic konnte nicht erstellt werden");
+    return null;
+  }
+
+  const text = await buildNewReleasesHubCaption();
+
+  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🔥 New Releases`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [topicKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(topicKey);
+  }
+
+  if (topic?.hub_message_id) {
+    const edited = await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+
+    if (!edited?.__error) {
+      return edited;
+    }
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(msg.message_id, topicKey);
+    }
+  }
+
+  return msg;
+}
+
 async function createOrUpdatePremiumQualityHub() {
 
   console.log("💎 PREMIUM HUB START");
