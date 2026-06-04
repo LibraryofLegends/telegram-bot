@@ -10422,28 +10422,53 @@ if (text === "/health") {
   return;
 }
 
-if (text.startsWith("/progress")) {
-  const query = text.replace("/progress", "").trim();
+// =============================
+// SERIES PROGRESS
+// =============================
+if (command === "/progress") {
+  const query = text.replace(command, "").trim();
 
   if (!query) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "⚠️ Nutzung:\n/progress Serienname\n\nBeispiel:\n/progress Game of Thrones"
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/progress Serienname\n\n" +
+        "Beispiel:\n" +
+        "/progress Tulsa King"
     });
     return;
   }
 
-  const rows = db.prepare(`
-    SELECT series_title, season, episode
-    FROM series
-    WHERE LOWER(series_title) LIKE ?
-    ORDER BY season ASC, episode ASC
-  `).all(`%${query.toLowerCase()}%`);
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT series_title, season, episode
+      FROM series
+      WHERE LOWER(series_title) LIKE $1
+      ORDER BY season ASC, episode ASC
+      `,
+      [`%${query.toLowerCase()}%`]
+    );
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT series_title, season, episode
+      FROM series
+      WHERE LOWER(series_title) LIKE ?
+      ORDER BY season ASC, episode ASC
+    `).all(`%${query.toLowerCase()}%`);
+  }
 
   if (!rows.length) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: `❌ Keine Serie gefunden für:\n${query}`
+      text:
+        "❌ Keine Serie gefunden für:\n\n" +
+        query
     });
     return;
   }
@@ -10453,11 +10478,18 @@ if (text.startsWith("/progress")) {
 
   for (const row of rows) {
     const season = Number(row.season || 0);
-    if (!seasons[season]) seasons[season] = [];
-    seasons[season].push(Number(row.episode || 0));
+    const episode = Number(row.episode || 0);
+
+    if (!season || !episode) continue;
+
+    if (!seasons[season]) {
+      seasons[season] = [];
+    }
+
+    seasons[season].push(episode);
   }
 
-  let result =
+  let resultText =
     "━━━━━━━━━━━━━━━━━━\n" +
     "📈 SERIEN-FORTSCHRITT\n" +
     `📺 ${seriesTitle}\n` +
@@ -10467,28 +10499,35 @@ if (text.startsWith("/progress")) {
     const episodes = [...new Set(seasons[season])].sort((a, b) => a - b);
     const maxEpisode = Math.max(...episodes);
 
-    result += `📀 Staffel ${String(season).padStart(2, "0")}\n`;
-    result += `✅ Vorhanden: ${episodes.length}/${maxEpisode}\n`;
-
     const missing = [];
+
     for (let ep = 1; ep <= maxEpisode; ep++) {
-      if (!episodes.includes(ep)) missing.push(ep);
+      if (!episodes.includes(ep)) {
+        missing.push(ep);
+      }
     }
+
+    resultText += `📀 Staffel ${String(season).padStart(2, "0")}\n`;
+    resultText += `✅ Vorhanden: ${episodes.length}/${maxEpisode}\n`;
 
     if (missing.length) {
-      result += `⚠️ Fehlend: ${missing.map((ep) => `E${String(ep).padStart(2, "0")}`).join(", ")}\n`;
+      resultText +=
+        `⚠️ Fehlend: ${missing
+          .map(ep => `E${String(ep).padStart(2, "0")}`)
+          .join(", ")}\n`;
     } else {
-      result += "✅ Keine Lücken erkannt\n";
+      resultText += "✅ Keine Lücken erkannt\n";
     }
 
-    result += "\n";
+    resultText += "\n";
   }
 
-  result += "━━━━━━━━━━━━━━━━━━\n@LibraryOfLegends";
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result.slice(0, 4000)
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
