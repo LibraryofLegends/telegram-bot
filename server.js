@@ -8203,16 +8203,15 @@ await createOrUpdateCommandCenter({
 }
 
 // =============================
-// MOVIE COMMAND CENTER CAPTION
+// MOVIE COMMAND CENTER CAPTION V2
 // =============================
 async function movieCommandCenterCaption() {
   let movieCount = 0;
   let universeCount = 0;
   let collectionCount = 0;
   let eliteCount = 0;
-  let fskRows = [];
-  let genreRows = [];
-  let decadeRows = [];
+  let uhdCount = 0;
+  let standaloneCount = 0;
 
   if (pgPool) {
     movieCount = Number((await pgPool.query(`
@@ -8224,45 +8223,38 @@ async function movieCommandCenterCaption() {
       SELECT COUNT(DISTINCT universe) AS count
       FROM movies
       WHERE universe IS NOT NULL
+        AND TRIM(universe) <> ''
     `)).rows[0]?.count || 0);
 
     collectionCount = Number((await pgPool.query(`
       SELECT COUNT(DISTINCT collection) AS count
       FROM movies
       WHERE collection IS NOT NULL
+        AND TRIM(collection) <> ''
     `)).rows[0]?.count || 0);
 
-    const eliteMovies = (await pgPool.query(`
-      SELECT rating, quality
+    standaloneCount = Number((await pgPool.query(`
+      SELECT COUNT(*) AS count
       FROM movies
+      WHERE (collection IS NULL OR TRIM(collection) = '')
+        AND (universe IS NULL OR TRIM(universe) = '')
+    `)).rows[0]?.count || 0);
+
+    uhdCount = Number((await pgPool.query(`
+      SELECT COUNT(*) AS count
+      FROM movies
+      WHERE UPPER(COALESCE(quality, '')) LIKE '%UHD%'
+        OR COALESCE(resolution, '') LIKE '%2160%'
+        OR COALESCE(resolution, '') LIKE '%3840%'
+    `)).rows[0]?.count || 0);
+
+    const ratingRows = (await pgPool.query(`
+      SELECT rating
+      FROM movies
+      WHERE rating IS NOT NULL
     `)).rows;
 
-    eliteCount = eliteMovies.filter(isEliteMovie).length;
-
-    fskRows = (await pgPool.query(`
-      SELECT fsk, COUNT(*) AS count
-      FROM movies
-      WHERE fsk IS NOT NULL
-      GROUP BY fsk
-      ORDER BY count DESC
-    `)).rows;
-
-    genreRows = (await pgPool.query(`
-      SELECT genre, COUNT(*) AS count
-      FROM movies
-      WHERE genre IS NOT NULL
-      GROUP BY genre
-      ORDER BY count DESC
-      LIMIT 8
-    `)).rows;
-
-    decadeRows = (await pgPool.query(`
-      SELECT year, COUNT(*) AS count
-      FROM movies
-      WHERE year IS NOT NULL
-      GROUP BY year
-      ORDER BY year ASC
-    `)).rows;
+    eliteCount = ratingRows.filter((m) => getRatingValue(m.rating) >= 7).length;
   } else {
     movieCount = db.prepare(`
       SELECT COUNT(*) AS count
@@ -8273,107 +8265,69 @@ async function movieCommandCenterCaption() {
       SELECT COUNT(DISTINCT universe) AS count
       FROM movies
       WHERE universe IS NOT NULL
+        AND TRIM(universe) <> ''
     `).get()?.count || 0;
 
     collectionCount = db.prepare(`
       SELECT COUNT(DISTINCT collection) AS count
       FROM movies
       WHERE collection IS NOT NULL
+        AND TRIM(collection) <> ''
     `).get()?.count || 0;
 
-    const eliteMovies = db.prepare(`
-      SELECT rating, quality
+    standaloneCount = db.prepare(`
+      SELECT COUNT(*) AS count
       FROM movies
+      WHERE (collection IS NULL OR TRIM(collection) = '')
+        AND (universe IS NULL OR TRIM(universe) = '')
+    `).get()?.count || 0;
+
+    uhdCount = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM movies
+      WHERE UPPER(COALESCE(quality, '')) LIKE '%UHD%'
+        OR COALESCE(resolution, '') LIKE '%2160%'
+        OR COALESCE(resolution, '') LIKE '%3840%'
+    `).get()?.count || 0;
+
+    const ratingRows = db.prepare(`
+      SELECT rating
+      FROM movies
+      WHERE rating IS NOT NULL
     `).all();
 
-    eliteCount = eliteMovies.filter(isEliteMovie).length;
-
-    fskRows = db.prepare(`
-      SELECT fsk, COUNT(*) AS count
-      FROM movies
-      WHERE fsk IS NOT NULL
-      GROUP BY fsk
-      ORDER BY count DESC
-    `).all();
-
-    genreRows = db.prepare(`
-      SELECT genre, COUNT(*) AS count
-      FROM movies
-      WHERE genre IS NOT NULL
-      GROUP BY genre
-      ORDER BY count DESC
-      LIMIT 8
-    `).all();
-
-    decadeRows = db.prepare(`
-      SELECT year, COUNT(*) AS count
-      FROM movies
-      WHERE year IS NOT NULL
-      GROUP BY year
-      ORDER BY year ASC
-    `).all();
+    eliteCount = ratingRows.filter((m) => getRatingValue(m.rating) >= 7).length;
   }
-
-  const fskLine =
-    fskRows.length
-      ? fskRows
-          .map((r) => `• ${r.fsk} (${r.count})`)
-          .join("\n")
-      : "Noch keine FSK-Daten";
-
-  const decadeStats = {};
-
-  for (const row of decadeRows) {
-    const decade = getDecadeLabel(row.year);
-    decadeStats[decade] =
-      (decadeStats[decade] || 0) + Number(row.count || 0);
-  }
-
-  const decadeLine =
-    Object.entries(decadeStats)
-      .map(([decade, count]) => `• ${decade} (${count})`)
-      .join("\n") ||
-    "Noch keine Jahrzehnte";
-
-  const genreLine =
-    genreRows.length
-      ? genreRows
-          .map((g) => `• ${g.genre} (${g.count})`)
-          .join("\n")
-      : "Noch keine Genres";
 
   return (
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🎛 MOVIE COMMAND CENTER\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-
-    "📁 PREMIUM FILM ARCHIVE\n" +
-    "🎬 AUTOMATED MEDIA SYSTEM\n\n" +
+    "███ MOVIE COMMAND CENTER ███\n\n" +
+    "🎛 LIBRARY OF LEGENDS OS\n" +
+    "CINEMATIC DATABASE CORE • ONLINE\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    `🎞 FILME • ${movieCount}\n` +
-    `🌌 UNIVERSES • ${universeCount}\n` +
-    `🎞 COLLECTIONS • ${collectionCount}\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "📊 ARCHIVE STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 Movies • ${movieCount}\n` +
+    `🎞 Standalone • ${standaloneCount}\n` +
+    `🧩 Collections • ${collectionCount}\n` +
+    `🌌 Universes • ${universeCount}\n` +
+    `💎 UHD Movies • ${uhdCount}\n` +
+    `🏆 Elite Titles • ${eliteCount}\n\n` +
 
-    "🎭 TOP GENRES\n" +
-    `${genreLine}\n\n` +
-    "📅 DECADES\n" +
-    `${decadeLine}\n\n` +
-    "🔞 FSK ARCHIVE\n" +
-    `${fskLine}\n\n` +
-
-    "🧭 NAVIGATION\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧭 NAVIGATION CORE\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📚 Movie Index\n" +
+    "🎬 Movie Library\n" +
+    "🧩 Collections\n" +
     "🌌 Universes\n" +
-    "🎞 Collections\n" +
-    `🏆 ELITE ARCHIVE • ${eliteCount}\n` +
-    "🎭 Genres\n" +
-    "📅 Decades\n" +
-    "🔞 FSK Archive\n\n" +
+    "💎 Premium Quality\n" +
+    "🏆 Elite Archive\n" +
+    "🔥 New Releases\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends"
-  );
+  ).slice(0, 4000);
 }
 
 // =============================
