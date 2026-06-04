@@ -4772,68 +4772,60 @@ function buildMovieArchiveProgressBar(movieCount = 0) {
 }
 
 // =============================
-// MOVIE HUB CAPTION
+// MOVIE HUB CAPTION — COLLECTION / LIBRARY V2
 // =============================
 async function movieHubCaption(topicName = "", topicId = null) {
-
   const cleanTopic = String(topicName || "Filme")
     .replace(/^[^\w\d]+/g, "")
     .trim();
 
-  const shortName =
-    cleanTopic
-      .replace(/filmreihe/gi, "")
-      .replace(/archive/gi, "")
-      .trim();
-      
-      const isCollectionHub =
-  cleanTopic.match(/filmreihe/i);
+  const shortName = cleanTopic
+    .replace(/filmreihe/gi, "")
+    .replace(/collection/gi, "")
+    .replace(/archive/gi, "")
+    .trim();
 
-  // =============================
-// LOAD MOVIES
-// =============================
-let movies = [];
+  const isCollectionHub =
+    /filmreihe|collection/i.test(cleanTopic);
 
-if (pgPool) {
+  let movies = [];
 
-  const result = await pgPool.query(
-    isCollectionHub
-      ? `
-        SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
-        FROM movies
-        WHERE LOWER(collection) LIKE LOWER($1)
-        ORDER BY year ASC, title ASC
-      `
-      : `
-        SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
-        FROM movies
-        WHERE topic_id = $1
-        ORDER BY year ASC, title ASC
-      `,
-    isCollectionHub
-      ? [`%${shortName}%`]
-      : [topicId]
-  );
+  if (pgPool) {
+    const result = await pgPool.query(
+      isCollectionHub
+        ? `
+          SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
+          FROM movies
+          WHERE LOWER(collection) LIKE LOWER($1)
+          ORDER BY year ASC, title ASC
+        `
+        : `
+          SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
+          FROM movies
+          WHERE topic_id = $1
+          ORDER BY year ASC, title ASC
+        `,
+      isCollectionHub
+        ? [`%${shortName}%`]
+        : [topicId]
+    );
 
-  movies = result.rows;
-
-} else {
-
-  movies = isCollectionHub
-    ? db.prepare(`
-        SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
-        FROM movies
-        WHERE LOWER(collection) LIKE LOWER(?)
-        ORDER BY year ASC, title ASC
-      `).all(`%${shortName}%`)
-    : db.prepare(`
-        SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
-        FROM movies
-        WHERE topic_id = ?
-        ORDER BY year ASC, title ASC
-      `).all(topicId);
-
-}
+    movies = result.rows;
+  } else {
+    movies = isCollectionHub
+      ? db.prepare(`
+          SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
+          FROM movies
+          WHERE LOWER(collection) LIKE LOWER(?)
+          ORDER BY year ASC, title ASC
+        `).all(`%${shortName}%`)
+      : db.prepare(`
+          SELECT title, year, rating, runtime, quality, file_size, collection, library_id, genre
+          FROM movies
+          WHERE topic_id = ?
+          ORDER BY year ASC, title ASC
+        `).all(topicId);
+  }
 
   const movieCount = movies.length;
 
@@ -4849,27 +4841,13 @@ if (pgPool) {
   let totalSizeMB = 0;
 
   for (const movie of movies) {
+    const size = String(movie.file_size || "").toUpperCase();
 
-    const size =
-      String(movie.file_size || "")
-        .toUpperCase();
+    const gb = size.match(/([\d.]+)\s*GB/);
+    const mb = size.match(/([\d.]+)\s*MB/);
 
-    const gb =
-      size.match(/([\d.]+)\s*GB/);
-
-    const mb =
-      size.match(/([\d.]+)\s*MB/);
-
-    if (gb) {
-      totalSizeMB +=
-        parseFloat(gb[1]) * 1024;
-    }
-
-    else if (mb) {
-      totalSizeMB +=
-        parseFloat(mb[1]);
-    }
-
+    if (gb) totalSizeMB += parseFloat(gb[1]) * 1024;
+    else if (mb) totalSizeMB += parseFloat(mb[1]);
   }
 
   const totalStorage =
@@ -4879,15 +4857,8 @@ if (pgPool) {
 
   const ratings = movies
     .map((m) => {
-
-      const match =
-        String(m.rating || "")
-          .match(/(\d+(\.\d+)?)/g);
-
-      return match
-        ? Number(match.pop())
-        : null;
-
+      const match = String(m.rating || "").match(/(\d+(\.\d+)?)/g);
+      return match ? Number(match.pop()) : null;
     })
     .filter((r) => Number.isFinite(r));
 
@@ -4899,108 +4870,61 @@ if (pgPool) {
         ).toFixed(1)
       : "Unbekannt";
 
-  const topMovie =
-    [...movies]
-      .sort((a, b) => {
-        return (
-          parseFloat(b.rating || 0) -
-          parseFloat(a.rating || 0)
-        );
-      })[0];
+  const topMovie = [...movies]
+    .sort((a, b) => {
+      const ar = String(a.rating || "").match(/(\d+(\.\d+)?)/g);
+      const br = String(b.rating || "").match(/(\d+(\.\d+)?)/g);
 
-  const qualityList =
-    [...new Set(
-      movies
-        .map((m) => m.quality)
-        .filter(Boolean)
-    )];
+      return (
+        (br ? Number(br.pop()) : 0) -
+        (ar ? Number(ar.pop()) : 0)
+      );
+    })[0];
 
   const qualityLine =
-    qualityList.length
-      ? qualityList.join(" • ")
-      : "Unbekannt";
+    [...new Set(movies.map((m) => m.quality).filter(Boolean))]
+      .slice(0, 5)
+      .join(" • ") || "Unbekannt";
 
-const hubTitle =
-  isCollectionHub
-    ? `🎞 ${shortName.toUpperCase()} COLLECTION`
-    : `🎭 ${cleanTopic.toUpperCase()} GENRE HUB`;
+  const hubTitle =
+    isCollectionHub
+      ? `🎞 ${shortName.toUpperCase()} COLLECTION`
+      : `🎬 ${cleanTopic.toUpperCase()} LIBRARY`;
 
-const hubTypeLabel =
-  isCollectionHub
-    ? "🎬 CINEMATIC COLLECTION HUB"
-    : "🎭 GENRE ARCHIVE HUB";
+  let result =
+    "███ COLLECTION NEXUS HUB ███\n\n" +
+    `${hubTitle}\n` +
+    "COLLECTION ARCHIVE • ACTIVE\n\n" +
 
-const statusLabel =
-  isCollectionHub
-    ? "📊 COLLECTION STATUS"
-    : "📊 GENRE STATUS";
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🏛 ARCHIVE STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 Movies • ${movieCount}\n` +
+    `📅 Timeline • ${yearRange}\n` +
+    `⭐ Ø Rating • ${averageRating}\n` +
+    `💾 Storage • ${totalStorage}\n` +
+    `📀 Quality • ${qualityLine}\n` +
+    (topMovie ? `👑 Top Film • ${topMovie.title}\n` : "") +
 
-const statusText =
-  isCollectionHub
-    ? (
-        movieCount >= 3
-          ? "🏆 Status: COMPLETE COLLECTION\n"
-          : "⚠️ Status: COLLECTION IM AUFBAU\n"
-      )
-    : `🎭 Genre Filme: ${movieCount}\n`;
-
-let result =
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `${hubTitle}\n` +
-  "━━━━━━━━━━━━━━━━━━\n\n" +
-
-  "🍿 PREMIUM MOVIE ARCHIVE\n" +
-  `${hubTypeLabel}\n\n` +
-
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `${statusLabel}\n` +
-  "━━━━━━━━━━━━━━━━━━\n" +
-
-  `🎬 Filme: ${movieCount}\n` +
-  `📅 Zeitraum: ${yearRange}\n` +
-  `💾 Speicher: ${totalStorage}\n` +
-  `⭐ Ø Rating: ${averageRating}\n` +
-  `📀 Qualität: ${qualityLine}\n` +
-  statusText +
-
-  (
-    topMovie
-      ? `👑 Top Film: ${topMovie.title}\n`
-      : ""
-  ) +
-
-  "\n━━━━━━━━━━━━━━━━━━\n" +
-  "📀 FILME\n" +
-  "━━━━━━━━━━━━━━━━━━\n\n";
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📚 COLLECTION INDEX\n" +
+    "━━━━━━━━━━━━━━━━━━\n";
 
   if (!movies.length) {
-
-    result +=
-      "Noch keine Filme gespeichert.\n\n";
-
+    result += "Noch keine Filme gespeichert.\n";
   } else {
+    const visibleMovies = movies.slice(0, 25);
 
-    movies.forEach((m, index) => {
-
+    visibleMovies.forEach((m, index) => {
       result +=
-        `${String(index + 1).padStart(2, "0")} • ${m.title}\n`;
-
-      result += "     ";
-
-      if (m.year) {
-        result += `${m.year} • `;
-      }
-
-      result += `${m.rating || "?"} • `;
-
-      if (m.runtime) {
-        result += `⏱ ${m.runtime} • `;
-      }
-
-      result += `${m.quality || "?"}\n\n`;
-
+        `${String(index + 1).padStart(2, "0")} • ${m.title || "Unbekannt"}${m.year ? ` (${m.year})` : ""}\n` +
+        `     ${m.rating || "?"} • ${m.quality || "?"}${m.runtime ? ` • ⏱ ${m.runtime}` : ""}\n\n`;
     });
 
+    if (movies.length > visibleMovies.length) {
+      result +=
+        `… +${movies.length - visibleMovies.length} weitere Filme\n`;
+    }
   }
 
   result +=
@@ -5008,7 +4932,6 @@ let result =
     "@LibraryOfLegends";
 
   return result.slice(0, 4000);
-
 }
 
 // =============================
