@@ -12360,32 +12360,37 @@ if (text.startsWith("/fixseries")) {
   return;
 }
 
-if (text.startsWith("/seriespick")) {
-
-  const query = text
-    .replace("/seriespick", "")
-    .trim();
+// =============================
+// SERIES PICK FROM TMDB
+// =============================
+if (command === "/seriespick") {
+  const query = text.replace(command, "").trim();
 
   if (!query) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "❌ Nutzung:\n/seriespick Serienname"
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/seriespick Serienname\n\n" +
+        "Beispiel:\n" +
+        "/seriespick Andor"
     });
-
     return;
   }
 
   const search = await tmdbGet("/search/tv", {
     query,
-    include_adult: false
+    include_adult: false,
+    language: "de-DE"
   });
 
   if (!search?.results?.length) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "❌ Keine Serien gefunden."
+      text:
+        "❌ Keine Serien gefunden:\n\n" +
+        query
     });
-
     return;
   }
 
@@ -12393,7 +12398,7 @@ if (text.startsWith("/seriespick")) {
     .slice(0, 8)
     .map((s) => [{
       text:
-        `${s.name} (${s.first_air_date?.slice(0,4) || "?"})`,
+        `${s.name} (${s.first_air_date?.slice(0, 4) || "?"})`,
       callback_data:
         `seriespick_${s.id}`
     }]);
@@ -12401,8 +12406,11 @@ if (text.startsWith("/seriespick")) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      `📺 TMDB Serien-Auswahl\n\n` +
-      `🔎 Suche: ${query}`,
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📺 TMDB SERIEN-AUSWAHL\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `🔎 Suche: ${query}\n\n` +
+      "Bitte wähle die richtige Serie:",
     reply_markup: {
       inline_keyboard: buttons
     }
