@@ -11074,9 +11074,7 @@ if (command === "/seriesaz") {
 console.log("📺 SERIESAZ ROWS:", rows);
 
 let currentLetter = "";
-
-  let currentLetter = "";
-  let resultText =
+let resultText =
   "━━━━━━━━━━━━━━━━━━\n" +
   "🔤 SERIEN A-Z\n" +
   "━━━━━━━━━━━━━━━━━━\n";
