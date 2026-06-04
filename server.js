@@ -1015,6 +1015,108 @@ async function getSeriesTopic(seriesName) {
   return row?.topic_id || null;
 }
 
+async function getMissingEpisodes(seriesTitle, season) {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT episode
+      FROM series
+      WHERE series_title = $1
+      AND season = $2
+      ORDER BY episode ASC
+      `,
+      [seriesTitle, season]
+    );
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT episode
+      FROM series
+      WHERE series_title = ?
+      AND season = ?
+      ORDER BY episode ASC
+    `).all(seriesTitle, season);
+  }
+
+  const episodes = rows
+    .map(row => Number(row.episode))
+    .filter(n => Number.isInteger(n) && n > 0);
+
+  if (!episodes.length) {
+    return [];
+  }
+
+  const maxEpisode = Math.max(...episodes);
+  const existing = new Set(episodes);
+
+  const missing = [];
+
+  for (let i = 1; i <= maxEpisode; i++) {
+    if (!existing.has(i)) {
+      missing.push(i);
+    }
+  }
+
+  return missing;
+}
+
+async function handleMissingCommand(msg, text) {
+  const parts = text.replace("/missing", "").trim().split(" ");
+
+  if (parts.length < 2) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/missing Serienname Staffel\n\n" +
+        "Beispiel:\n" +
+        "/missing Tulsa King 1"
+    });
+    return;
+  }
+
+  const season = Number(parts.pop());
+  const seriesTitle = parts.join(" ").trim();
+
+  if (!seriesTitle || !Number.isInteger(season)) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Ungültiger Befehl.\n\n" +
+        "Beispiel:\n" +
+        "/missing Tulsa King 1"
+    });
+    return;
+  }
+
+  const missing = await getMissingEpisodes(seriesTitle, season);
+
+  if (!missing.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "✅ Keine fehlenden Episoden gefunden:\n\n" +
+        `📺 ${seriesTitle}\n` +
+        `📀 Staffel ${String(season).padStart(2, "0")}`
+    });
+    return;
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "⚠️ Fehlende Episoden:\n\n" +
+      `📺 ${seriesTitle}\n` +
+      `📀 Staffel ${String(season).padStart(2, "0")}\n\n` +
+      missing
+        .map(ep => `• S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`)
+        .join("\n")
+  });
+}
+
 async function getCollection(tmdbCollectionId) {
 
   if (pgPool) {
@@ -9096,106 +9198,96 @@ async function handleCommand(msg) {
   const text = msg.text || "";
   
   // =============================
-  // ADMIN / START COMMANDS
-  // =============================
+// ADMIN / START COMMAND CENTER V2
+// =============================
 
-  if (text === "/start" || text === "/admin") {
-
+if (text === "/start" || text === "/admin") {
   await tg("sendMessage", {
-  chat_id: msg.chat.id,
-  text:
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🎛 𝐋𝐈𝐁𝐑𝐀𝐑𝐘 𝐎𝐅 𝐋𝐄𝐆𝐄𝐍𝐃𝐒\n" +
+      "𝐂𝐎𝐌𝐌𝐀𝐍𝐃 𝐂𝐄𝐍𝐓𝐄𝐑 𝐕𝟐\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    "📁 PREMIUM MEDIA SYSTEM\n" +
-    "🎬 CINEMATIC ARCHIVE CORE\n\n" +
+      "🎬 𝐌𝐎𝐕𝐈𝐄 𝐀𝐑𝐂𝐇𝐈𝐕𝐄\n\n" +
+      "• /movies — Filme anzeigen\n" +
+      "• /search TITEL — Suche Filme & Serien\n" +
+      "• /findmovie TITEL — Film Debug-Suche\n" +
+      "• /collections — Filmreihen anzeigen\n" +
+      "• /collection NAME — Filmreihe öffnen\n" +
+      "• /az — A–Z Gesamtindex\n\n" +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🎬 FILM ARCHIVE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+      "🛠 𝐌𝐎𝐕𝐈𝐄 𝐓𝐎𝐎𝐋𝐒\n\n" +
+      "• /fixmovie ALT | NEU | JAHR\n" +
+      "• /deletemovie NAME\n" +
+      "• /deletetopic NAME\n" +
+      "• /rebuildcollections\n" +
+      "• /rebuildmovieindex\n" +
+      "• /repairmovieuniverses\n\n" +
 
-    "• /movies — Filmarchiv\n" +
-    "• /collections — Filmreihen\n" +
-    "• /collection NAME — Collection öffnen\n" +
-    "• /universes — Universen anzeigen\n" +
-    "• /genres — Genre Archive\n" +
-    "• /decades — Jahrzehnte\n" +
-    "• /elite — Elite Filme\n" +
-    "• /search TITEL — Filmsuche\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📺 𝐒𝐄𝐑𝐈𝐄𝐒 𝐀𝐑𝐂𝐇𝐈𝐕𝐄\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "• /series — Serien anzeigen\n" +
+      "• /seriesaz — Serien A–Z\n" +
+      "• /serieshub — Serien Dashboard\n" +
+      "• /newseries — Neue Folgen\n" +
+      "• /trendingseries — Trending Serien\n" +
+      "• /featuredseries — Featured Serien\n" +
+      "• /progress NAME — Serienfortschritt\n" +
+      "• /missing SERIE STAFFEL — Fehlende Episoden\n" +
+      "• /missingseries NAME — Lückenprüfung\n" +
+      "• /checkseries NAME — Premium Serien-Scan\n\n" +
 
-    "🛠 MOVIE TOOLS\n" +
-    "• /fixmovie ALT | NEU | JAHR\n" +
-    "• /deletemovie NAME\n" +
-    "• /deletetopic NAME\n" +
-    "• /rebuildcollections\n" +
-    "• /rebuildcommandcenters\n" +
-    "• /rebuildmovieindex\n" +
-    "• /repairmovies\n\n" +
+      "🛠 𝐒𝐄𝐑𝐈𝐄𝐒 𝐓𝐎𝐎𝐋𝐒\n\n" +
+      "• /setseries NAME\n" +
+      "• /clearseries\n" +
+      "• /seriespick NAME\n" +
+      "• /fixseries ALT | NEU\n" +
+      "• /deleteseries NAME S01E01\n" +
+      "• /deleteseriestopic NAME\n" +
+      "• /rebuildseasoncards NAME\n\n" +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📺 SERIES ARCHIVE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🌌 𝐔𝐍𝐈𝐕𝐄𝐑𝐒𝐄 𝐒𝐘𝐒𝐓𝐄𝐌\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "• /rebuildstarwars\n" +
+      "• /rebuildstarwarseras\n" +
+      "• /repairmovieuniverses\n\n" +
 
-    "• /series — Serienarchiv\n" +
-    "• /seriesaz — Serien A–Z\n" +
-    "• /serieshub — Serien Dashboard\n" +
-    "• /newseries — Neue Folgen\n" +
-    "• /progress NAME\n" +
-    "• /missingseries NAME\n" +
-    "• /checkseries NAME\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🧹 𝐒𝐘𝐒𝐓𝐄𝐌 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "• /dashboard\n" +
+      "• /stats\n" +
+      "• /health\n" +
+      "• /queue\n" +
+      "• /cache\n" +
+      "• /clearcache\n" +
+      "• /qualitystats\n" +
+      "• /duplicates\n" +
+      "• /smartduplicates\n" +
+      "• /pgstats\n\n" +
 
-    "🛠 SERIES TOOLS\n" +
-    "• /series TITEL | S01E01\n" +
-    "• /fixseries ALT | NEU\n" +
-    "• /deleteseries NAME S01E01\n" +
-    "• /deleteseriestopic NAME\n" +
-    "• /rebuildseasoncards NAME\n" +
-    "• /rebuildserieshub NAME\n" +
-    "• /repairseries\n\n" +
+      "🧠 𝐑𝐄𝐏𝐀𝐈𝐑 & 𝐑𝐄𝐂𝐎𝐕𝐄𝐑𝐘\n\n" +
+      "• /rebuildcommandcenters\n" +
+      "• /cleartopicsdb\n" +
+      "• /clearmoviesdb\n" +
+      "• /resetpremiumtopic\n" +
+      "• /resetelitetopic\n" +
+      "• /resetnewreleasestopic\n" +
+      "• /resetmovielibrarytopic\n\n" +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🌌 UNIVERSE SYSTEM\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "💾 𝐃𝐀𝐓𝐀𝐁𝐀𝐒𝐄\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "• /backup — SQLite Backup\n" +
+      "• /restoredb — SQLite Restore\n\n" +
 
-    "• /repairuniverses\n" +
-    "• /rebuilduniversehubs\n" +
-    "• /rebuildcollections\n" +
-    "• /repairhubs\n\n" +
-
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🧹 SYSTEM CONTROL\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-
-    "• /dashboard — Premium Dashboard\n" +
-    "• /stats — Statistiken\n" +
-    "• /health — Systemstatus\n" +
-    "• /queue — Upload Queue\n" +
-    "• /qualitystats — Qualitätsdaten\n" +
-    "• /duplicates — Duplikate\n" +
-    "• /smartduplicates — Smart Scan\n" +
-    "• /pgstats — Supabase Debug\n\n" +
-
-    "🧠 REPAIR & RECOVERY\n" +
-    "• /cleartopicsdb\n" +
-    "• /resetpremiumtopic\n" +
-    "• /rebuildtopics\n" +
-    "• /repairhubs\n" +
-    "• /repairindexes\n" +
-    "• /repairseries\n" +
-    "• /repairmovies\n" +
-    "• /repairuniverses\n\n" +
-
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "💾 DATABASE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-
-    "• /backup — Backup erstellen\n" +
-    "• /restoredb — Backup laden\n\n" +
-
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "@LibraryOfLegends"
-});
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
 
   return;
 }
@@ -9233,6 +9325,11 @@ async function handleCommand(msg) {
       `📺 ${CURRENT_SERIES_NAME}`
   });
 
+  return;
+}
+
+if (text.startsWith("/missing")) {
+  await handleMissingCommand(msg, text);
   return;
 }
 
@@ -12458,6 +12555,29 @@ await saveSeries({
   universePhase: seriesUniverseData?.phase || null,
   starWarsEra: starWarsEra?.key || null
 });
+
+try {
+  const missingEpisodes = await getMissingEpisodes(
+    tmdb.seriesTitle,
+    media.season
+  );
+
+  if (missingEpisodes.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Fehlende Episoden erkannt:\n\n" +
+        `📺 ${tmdb.seriesTitle}\n` +
+        `📀 Staffel ${String(media.season).padStart(2, "0")}\n\n` +
+        "Fehlt:\n" +
+        missingEpisodes
+          .map(ep => `• S${String(media.season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`)
+          .join("\n")
+    });
+  }
+} catch (err) {
+  console.error("⚠️ Missing Episodes Fehler:", err.message);
+}
 
 try {
   await updateSeasonCard({
