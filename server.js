@@ -9196,6 +9196,19 @@ async function handleCallback(callback) {
 // =============================
 async function handleCommand(msg) {
   const text = msg.text || "";
+
+  const command = text
+    .trim()
+    .split(/\s+/)[0]
+    .split("@")[0]
+    .toLowerCase();
+
+  console.log("🧪 COMMAND CHECK:", {
+    text,
+    command
+  });
+
+  // hier beginnen deine if-Befehle
   
   // =============================
 // ADMIN / START COMMAND CENTER V2
@@ -10629,7 +10642,7 @@ if (text === "/rebuildcommandcenters") {
 // =============================
 // PREMIUM DASHBOARD
 // =============================
-if (text === "/dashboard") {
+if (command === "/dashboard") {
   let movieCount = 0;
   let seriesCount = 0;
   let topicCount = 0;
@@ -10678,7 +10691,7 @@ if (text === "/dashboard") {
   // =============================
 // STATS
 // =============================
-if (text === "/stats") {
+if (command === "/stats") {
   let movieCount = 0;
   let seriesEpisodeCount = 0;
   let seriesCount = 0;
@@ -10985,7 +10998,7 @@ if (text.startsWith("/collection")) {
   // =============================
 // SERIES LIST
 // =============================
-if (text === "/series") {
+if (command === "/series") {
   let rows = [];
 
   if (pgPool) {
@@ -11029,7 +11042,7 @@ if (text === "/series") {
 // =============================
 // SERIES A-Z
 // =============================
-if (text === "/seriesaz") {
+if (command === "/seriesaz") {
   let rows = [];
 
   if (pgPool) {
@@ -11099,7 +11112,7 @@ if (text === "/seriesaz") {
 // =============================
 // NEW SERIES EPISODES
 // =============================
-if (text === "/newseries") {
+if (command === "/newseries") {
   let rows = [];
 
   if (pgPool) {
