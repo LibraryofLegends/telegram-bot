@@ -3376,6 +3376,9 @@ async function buildPremiumQualityHubCaption() {
 }
 
 async function createOrUpdatePremiumQualityHub() {
+
+  console.log("💎 PREMIUM HUB START");
+
   const topicId = await createOrGetTopic({
     chatId: MOVIE_GROUP_ID,
     name: "💎 Premium Quality",
@@ -3388,6 +3391,11 @@ async function createOrUpdatePremiumQualityHub() {
   }
 
   const text = await buildPremiumQualityHubCaption();
+
+console.log(
+  "💎 PREMIUM HUB TEXT LENGTH:",
+  text.length
+);
 
   const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-💎 Premium Quality`);
 
@@ -3422,10 +3430,15 @@ async function createOrUpdatePremiumQualityHub() {
   }
 
   const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: Number(topicId),
+  text
+});
+
+console.log(
+  "💎 PREMIUM HUB RESULT:",
+  JSON.stringify(msg, null, 2)
+);
 
   if (msg?.message_id) {
     if (pgPool) {
