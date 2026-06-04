@@ -190,6 +190,11 @@ await pgPool.query(`
 `);
 
 await pgPool.query(`
+  ALTER TABLE series_topics
+  ADD COLUMN IF NOT EXISTS hub_message_id INTEGER;
+`);
+
+await pgPool.query(`
   ALTER TABLE series
   ADD COLUMN IF NOT EXISTS starwars_era TEXT;
 `);
@@ -6957,21 +6962,30 @@ function getSeriesNexusMeta(tmdb, media, extras = {}) {
 }
 
 // =============================
-// SERIES CAPTION
+// SERIES CAPTION — EPISODE NEXUS
 // =============================
 async function seriesCaption(tmdb, media, extras = {}) {
-  const nexus =
-    getSeriesNexusMeta(tmdb, media, extras);
-
   const finalEpisodeTitle =
     tmdb.episodeTitle ||
     media.episodeTitleFromFile ||
     "Episode";
 
+  const seriesTitle =
+    tmdb.seriesTitle ||
+    media.seriesTitle ||
+    "Unbekannte Serie";
+
+  const seasonText =
+    String(media.season).padStart(2, "0");
+
+  const episodeText =
+    String(media.episode).padStart(2, "0");
+
   const genreText = String(tmdb.genre || "Sonstige")
     .split("/")
     .map((g) => g.trim())
     .filter(Boolean)
+    .slice(0, 3)
     .join(" • ");
 
   const genreTags = String(tmdb.genre || "")
@@ -6982,6 +6996,10 @@ async function seriesCaption(tmdb, media, extras = {}) {
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
+  const seriesTag =
+    `#${String(seriesTitle)
+      .replace(/[^a-zA-Z0-9ÄÖÜäöüß]/g, "")}`;
+
   const overviewRaw = String(
     tmdb.overview || "Keine Beschreibung verfügbar."
   )
@@ -6990,127 +7008,58 @@ async function seriesCaption(tmdb, media, extras = {}) {
 
   let safeOverview = overviewRaw;
 
-  if (safeOverview.length > 340) {
-    safeOverview = safeOverview.slice(0, 340);
+  if (safeOverview.length > 180) {
+    safeOverview = safeOverview.slice(0, 180);
 
-    const lastSentenceEnd = Math.max(
-      safeOverview.lastIndexOf("."),
-      safeOverview.lastIndexOf("!"),
-      safeOverview.lastIndexOf("?")
-    );
+    const lastSpace = safeOverview.lastIndexOf(" ");
 
-    if (lastSentenceEnd > 180) {
-      safeOverview =
-        safeOverview.slice(0, lastSentenceEnd + 1);
-    } else {
-      safeOverview =
-        safeOverview.slice(0, safeOverview.lastIndexOf(" "));
-
-      safeOverview += " …";
+    if (lastSpace > 80) {
+      safeOverview = safeOverview.slice(0, lastSpace);
     }
+
+    safeOverview += " …";
   }
 
-  const totalEpisodes =
-    tmdb.seasonEpisodeCount ||
-    getKnownSeasonEpisodeCount(
-      tmdb.seriesTitle,
-      media.season
-    ) ||
-    media.episode;
+  const quality =
+    extras.quality ||
+    "Unbekannt";
 
-  const savedEpisodes =
-    await getSavedSeasonEpisodeCount(
-      tmdb.seriesTitle,
-      media.season
-    );
+  const resolution =
+    extras.resolution ||
+    extras.videoResolution ||
+    "Unbekannt";
 
-  const currentExists =
-    await getSavedEpisode(
-      tmdb.seriesTitle,
-      media.season,
-      media.episode
-    );
+  const fileSize =
+    extras.fileSize ||
+    "Unbekannt";
 
-  const displaySavedEpisodes =
-    currentExists
-      ? savedEpisodes
-      : savedEpisodes + 1;
+  const archiveCode =
+    `LIB-SER-${String(seriesTitle)
+      .replace(/[^a-z0-9]/gi, "")
+      .toUpperCase()
+      .slice(0, 18)}-S${seasonText}E${episodeText}`;
 
-  const progressBlocks =
-    buildSeriesProgressBar(
-      tmdb.seriesTitle,
-      Math.max(displaySavedEpisodes, 1),
-      totalEpisodes
-    );
+  const caption =
+    "███ EPISODE NEXUS ███\n\n" +
 
-  const progressPercent =
-    totalEpisodes > 0
-      ? Math.round(
-          (Math.max(displaySavedEpisodes, 1) / totalEpisodes) * 100
-        )
-      : 0;
-
-  const missingEpisodes = [];
-
-  for (let ep = 1; ep <= totalEpisodes; ep++) {
-    const exists =
-      await getSavedEpisode(
-        tmdb.seriesTitle,
-        media.season,
-        ep
-      );
-
-    if (!exists && ep < media.episode) {
-      missingEpisodes.push(
-        `E${String(ep).padStart(2, "0")}`
-      );
-    }
-  }
-
-  return (
-    `${nexus.header}\n\n` +
-
-    `${nexus.line1}\n` +
-    `${nexus.line2}\n` +
-    `${finalEpisodeTitle}\n\n` +
+    `📺 ${String(seriesTitle).toUpperCase()}\n` +
+    `🎞 S${seasonText}E${episodeText} • ${finalEpisodeTitle}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-
-    `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
-    `🎭 ${genreText}\n` +
-    `📀 ${extras.quality || "Unbekannt"} • ${extras.fileSize || "Unbekannt"} • ${tmdb.episodeRuntime || "Unbekannt"}\n` +
-    `🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-
+    `⭐ ${tmdb.rating || "Unbekannt"}\n` +
+    `🎭 ${genreText || "Sonstige"}\n` +
+    `📀 ${quality} • ${resolution} • 💾 ${fileSize}\n` +
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    "📀 EPISODE STATUS\n" +
-    `🧩 Progress • ${progressBlocks} ${Math.max(displaySavedEpisodes, 1)}/${totalEpisodes}\n` +
-    `📊 Season Archive • ${progressPercent}%\n` +
+    `📖 ${safeOverview}\n\n` +
 
-    (
-      missingEpisodes.length
-        ? `⚠️ Missing • ${missingEpisodes.join(", ")}\n`
-        : "✅ No missing previous episodes\n"
-    ) +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🧬 ${archiveCode}\n\n` +
 
-    "\n━━━━━━━━━━━━━━━━━━\n\n" +
+    `${seriesTag} ${genreTags}\n` +
+    "@LibraryOfLegends";
 
-    "📖 EPISODE SYNOPSIS\n\n" +
-    `${safeOverview}\n\n` +
-
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-
-    "🧬 SERIES CODE\n" +
-    `SER-${String(tmdb.seriesTitle || "")
-  .replace(/[^a-z0-9]/gi, "")
-  .slice(0, 3)
-  .toUpperCase()}-${String(media.season).padStart(2, "0")}${String(media.episode).padStart(2, "0")}\n\n` +
-
-    `#${String(tmdb.seriesTitle || "")
-      .replace(/\s+/g, "")} ${genreTags}\n` +
-
-    "@LibraryOfLegends"
-  ).slice(0, 4000);
+  return cleanTelegramText(caption).slice(0, 4000);
 }
 
 // =============================
@@ -9346,6 +9295,259 @@ async function seriesUniversesHubCaption() {
   resultText += "@LibraryOfLegends";
 
   return cleanTelegramText(resultText).slice(0, 4000);
+}
+
+// =============================
+// SINGLE SERIES HUB CAPTION
+// =============================
+async function singleSeriesHubCaption(seriesTitle) {
+  let rows = [];
+  let library = null;
+
+  if (pgPool) {
+    const episodeResult = await pgPool.query(
+      `
+      SELECT *
+      FROM series
+      WHERE series_title = $1
+      ORDER BY season ASC, episode ASC
+      `,
+      [seriesTitle]
+    );
+
+    rows = episodeResult.rows;
+
+    const libraryResult = await pgPool.query(
+      `
+      SELECT *
+      FROM series_library
+      WHERE title = $1
+      LIMIT 1
+      `,
+      [seriesTitle]
+    );
+
+    library = libraryResult.rows[0] || null;
+  } else {
+    rows = db.prepare(`
+      SELECT *
+      FROM series
+      WHERE series_title = ?
+      ORDER BY season ASC, episode ASC
+    `).all(seriesTitle);
+
+    library = db.prepare(`
+      SELECT *
+      FROM series_library
+      WHERE title = ?
+      LIMIT 1
+    `).get(seriesTitle);
+  }
+
+  if (!rows.length) {
+    return cleanTelegramText(
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📺 SERIES HUB\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `📺 ${seriesTitle}\n\n` +
+      "Noch keine Episoden gespeichert.\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+    );
+  }
+
+  const genre = library?.genres || rows[0].genre || "Unbekannt";
+  const rating = library?.rating || rows[0].rating || "Unbekannt";
+  const overview = library?.overview || rows[0].overview || "";
+
+  const seasons = {};
+
+  for (const row of rows) {
+    const season = Number(row.season || 0);
+    const episode = Number(row.episode || 0);
+
+    if (!season || !episode) continue;
+
+    if (!seasons[season]) {
+      seasons[season] = [];
+    }
+
+    seasons[season].push(episode);
+  }
+
+  let totalSaved = 0;
+  let totalKnown = 0;
+  let totalMissing = 0;
+  let seasonText = "";
+
+  for (const season of Object.keys(seasons).map(Number).sort((a, b) => a - b)) {
+    const episodes = [...new Set(seasons[season])].sort((a, b) => a - b);
+    const known = Math.max(...episodes);
+
+    totalSaved += episodes.length;
+    totalKnown += known;
+
+    const missing = [];
+
+    for (let ep = 1; ep <= known; ep++) {
+      if (!episodes.includes(ep)) {
+        missing.push(ep);
+      }
+    }
+
+    totalMissing += missing.length;
+
+    seasonText +=
+      `• Staffel ${String(season).padStart(2, "0")} — ` +
+      `${episodes.length}/${known}`;
+
+    if (missing.length) {
+      seasonText +=
+        ` ⚠️ Fehlt: ${missing
+          .map(ep => `E${String(ep).padStart(2, "0")}`)
+          .join(", ")}`;
+    } else {
+      seasonText += " ✅";
+    }
+
+    seasonText += "\n";
+  }
+
+  const percent =
+    totalKnown > 0
+      ? Math.round((totalSaved / totalKnown) * 100)
+      : 0;
+
+  const progressBar =
+    "█".repeat(Math.floor(percent / 10)) +
+    "░".repeat(10 - Math.floor(percent / 10));
+
+  const genreText = String(genre)
+    .split("/")
+    .map(g => g.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(" • ");
+
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `📺 ${String(seriesTitle).toUpperCase()}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `🎭 ${genreText}\n` +
+    `⭐ ${rating}\n` +
+    `🎞 Episoden: ${totalSaved}/${totalKnown}\n` +
+    `📊 Fortschritt: ${progressBar} ${percent}%\n\n`;
+
+  if (overview) {
+    resultText +=
+      "📖 STORY\n" +
+      String(overview).slice(0, 550) +
+      "\n\n";
+  }
+
+  resultText +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📀 STAFFELN\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    seasonText + "\n";
+
+  if (totalMissing) {
+    resultText += `⚠️ Fehlende Episoden: ${totalMissing}\n`;
+  } else {
+    resultText += "✅ Serie vollständig nach aktuellem Datenstand\n";
+  }
+
+  resultText +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(resultText).slice(0, 4000);
+}
+
+// =============================
+// CREATE OR UPDATE SINGLE SERIES HUB
+// =============================
+async function createOrUpdateSingleSeriesHub(seriesTitle, topicId) {
+  if (!seriesTitle || !topicId) {
+    return null;
+  }
+
+  const caption = await singleSeriesHubCaption(seriesTitle);
+
+  let existingTopic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM series_topics
+      WHERE series_name = $1
+      LIMIT 1
+      `,
+      [seriesTitle]
+    );
+
+    existingTopic = result.rows[0] || null;
+  } else {
+    existingTopic = db.prepare(`
+      SELECT *
+      FROM series_topics
+      WHERE series_name = ?
+      LIMIT 1
+    `).get(seriesTitle);
+  }
+
+  const existingHubMessageId =
+    existingTopic?.hub_message_id || null;
+
+  if (existingHubMessageId) {
+    try {
+      await tg("editMessageText", {
+        chat_id: SERIES_GROUP_ID,
+        message_id: Number(existingHubMessageId),
+        text: caption
+      });
+
+      return existingHubMessageId;
+    } catch (err) {
+      console.error("⚠️ Single Series Hub Edit Fehler:", err.message);
+    }
+  }
+
+  const sent = await tg("sendMessage", {
+    chat_id: SERIES_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text: caption
+  });
+
+  if (!sent?.message_id) {
+    return null;
+  }
+
+  if (pgPool) {
+    await pgPool.query(
+      `
+      UPDATE series_topics
+      SET hub_message_id = $1
+      WHERE series_name = $2
+      `,
+      [
+        sent.message_id,
+        seriesTitle
+      ]
+    );
+  } else {
+    db.prepare(`
+      UPDATE series_topics
+      SET hub_message_id = ?
+      WHERE series_name = ?
+    `).run(
+      sent.message_id,
+      seriesTitle
+    );
+  }
+
+  return sent.message_id;
 }
 
 async function createOrUpdateCommandCenter({
@@ -13934,6 +14136,15 @@ await saveSeries({
   universePhase: seriesUniverseData?.phase || null,
   starWarsEra: starWarsEra?.key || null
 });
+
+try {
+  await createOrUpdateSingleSeriesHub(
+    tmdb.seriesTitle,
+    topicId
+  );
+} catch (err) {
+  console.error("⚠️ Single Series Hub Fehler:", err.message);
+}
 
 try {
   const missingEpisodes = await getMissingEpisodes(
