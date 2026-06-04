@@ -9942,12 +9942,10 @@ if (text === "/rebuildstarwarseras") {
 }
 
 // =============================
-// DELETE MOVIE / FILM LÖSCHEN
+// DELETE MOVIE
 // =============================
-if (text.startsWith("/deletemovie")) {
-
-  const query =
-    text.replace("/deletemovie", "").trim();
+if (command === "/deletemovie") {
+  const query = text.replace(command, "").trim();
 
   if (!query) {
     await tg("sendMessage", {
@@ -9955,19 +9953,16 @@ if (text.startsWith("/deletemovie")) {
       text:
         "⚠️ Nutzung:\n\n" +
         "/deletemovie Filmname\n" +
+        "/deletemovie Batman\n" +
         "/deletemovie hangover-2009"
     });
     return;
   }
 
-  const search =
-    query.toLowerCase();
+  const search = query.toLowerCase();
 
   let movie = null;
 
-  // =============================
-  // SUPABASE SEARCH
-  // =============================
   if (pgPool) {
     const result = await pgPool.query(
       `
@@ -9983,12 +9978,7 @@ if (text.startsWith("/deletemovie")) {
     );
 
     movie = result.rows[0] || null;
-  }
-
-  // =============================
-  // SQLITE FALLBACK
-  // =============================
-  if (!movie) {
+  } else {
     movie = db.prepare(`
       SELECT *
       FROM movies
@@ -10014,26 +10004,20 @@ if (text.startsWith("/deletemovie")) {
     return;
   }
 
-  // =============================
-  // DELETE FROM SUPABASE
-  // =============================
   if (pgPool) {
     await pgPool.query(
       `
       DELETE FROM movies
-      WHERE unique_key = $1
+      WHERE id = $1
       `,
-      [movie.unique_key]
+      [movie.id]
     );
+  } else {
+    db.prepare(`
+      DELETE FROM movies
+      WHERE id = ?
+    `).run(movie.id);
   }
-
-  // =============================
-  // DELETE FROM SQLITE FALLBACK
-  // =============================
-  db.prepare(`
-    DELETE FROM movies
-    WHERE unique_key = ?
-  `).run(movie.unique_key);
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
@@ -10042,9 +10026,8 @@ if (text.startsWith("/deletemovie")) {
       "🗑 FILM GELÖSCHT\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
       `🎬 ${movie.title} ${movie.year || ""}\n` +
-      `🔑 ${movie.unique_key}\n\n` +
-      "✅ Film aus Supabase entfernt\n" +
-      "✅ Film aus SQLite entfernt\n\n" +
+      `🔑 ${movie.unique_key || "leer"}\n\n` +
+      "✅ Film aus Datenbank entfernt\n\n" +
       "Du kannst ihn jetzt erneut hochladen.\n\n" +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
