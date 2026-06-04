@@ -11645,130 +11645,166 @@ if (command === "/missing") {
   return;
 }
 
-if (text.startsWith("/checkseries")) {
-  const query = text.replace("/checkseries", "").trim();
+// =============================
+// CHECK SERIES PREMIUM SCAN
+// =============================
+if (command === "/checkseries") {
+  const query = text.replace(command, "").trim();
 
   if (!query) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "⚠️ Nutzung:\n" +
-        "/checkseries Serienname"
+        "⚠️ Nutzung:\n\n" +
+        "/checkseries Serienname\n\n" +
+        "Beispiel:\n" +
+        "/checkseries Tulsa King"
     });
     return;
   }
 
-  const rows = db.prepare(`
-    SELECT *
-    FROM series
-    WHERE LOWER(series_title) LIKE ?
-    ORDER BY season ASC, episode ASC
-  `).all(`%${query.toLowerCase()}%`);
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM series
+      WHERE LOWER(series_title) LIKE $1
+      ORDER BY season ASC, episode ASC
+      `,
+      [`%${query.toLowerCase()}%`]
+    );
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT *
+      FROM series
+      WHERE LOWER(series_title) LIKE ?
+      ORDER BY season ASC, episode ASC
+    `).all(`%${query.toLowerCase()}%`);
+  }
 
   if (!rows.length) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: `❌ Keine Serie gefunden für:\n${query}`
+      text:
+        "❌ Keine Serie gefunden:\n\n" +
+        query
     });
     return;
   }
 
   const seriesTitle = rows[0].series_title;
+
   const grouped = {};
 
   for (const row of rows) {
     const season = Number(row.season || 0);
-    if (!grouped[season]) grouped[season] = [];
-    grouped[season].push(Number(row.episode || 0));
+    const episode = Number(row.episode || 0);
+
+    if (!season || !episode) continue;
+
+    if (!grouped[season]) {
+      grouped[season] = [];
+    }
+
+    grouped[season].push(episode);
   }
 
-  const scanTheme =
-  seriesThemes[seriesTitle] || {
-    icon: "📺",
-    archive: "SERIES ARCHIVE",
-    subline: "PREMIUM EPISODE DATABASE",
-    status: "🎞 SERIES ACTIVE",
-    divider: "━━━━━━━━━━━━━━━━━━"
-  };
-
-let result =
-  `${scanTheme.divider}\n` +
-  `🧩 PREMIUM SERIES SCAN\n` +
-  `${scanTheme.icon} ${seriesTitle.toUpperCase()}\n` +
-  `${scanTheme.divider}\n\n` +
-  `📁 ${scanTheme.archive}\n` +
-  `${scanTheme.subline}\n` +
-  `${scanTheme.status}\n\n` +
-  `${scanTheme.divider}\n\n`;
-
-  let totalMissing = 0;
-  
+  let totalSavedEpisodes = 0;
   let totalKnownEpisodes = 0;
-let totalSavedEpisodes = 0;
+  let totalMissing = 0;
 
-  const knownSeasons = getKnownSeasonCount(seriesTitle) ||
-  Math.max(...Object.keys(grouped).map(Number));
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧩 PREMIUM SERIES SCAN\n" +
+    `📺 ${String(seriesTitle).toUpperCase()}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "📁 SERIES ARCHIVE\n" +
+    "PREMIUM EPISODE DATABASE\n" +
+    "🎞 SERIES ACTIVE\n\n";
 
-for (let season = 1; season <= knownSeasons; season++) {
-    const existing = [...new Set(grouped[season] || [])]
-  .sort((a, b) => a - b);
+  const seasons = Object.keys(grouped)
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  for (const season of seasons) {
+    const existing = [...new Set(grouped[season])]
+      .sort((a, b) => a - b);
 
     const knownCount =
-      getKnownSeasonEpisodeCount(seriesTitle, season) || existing.length;
-      
-      totalKnownEpisodes += knownCount;
-totalSavedEpisodes += existing.length;
+      Math.max(...existing);
+
+    totalKnownEpisodes += knownCount;
+    totalSavedEpisodes += existing.length;
 
     const missing = [];
 
     for (let ep = 1; ep <= knownCount; ep++) {
       if (!existing.includes(ep)) {
-        missing.push(`E${String(ep).padStart(2, "0")}`);
+        missing.push(ep);
       }
     }
 
-    result += `${scanTheme.divider}\n`;
-result += `📀 STAFFEL ${String(season).padStart(2, "0")}\n`;
+    totalMissing += missing.length;
 
-    if (!missing.length) {
-  result += "🏆 STATUS: VOLLSTÄNDIG\n\n";
-} else {
-  totalMissing += missing.length;
-  result += `⚠️ FEHLEND • ${formatEpisodeRanges(missing)}\n`;
-  result += "⚠️ STATUS: UNVOLLSTÄNDIG\n\n";
-}
+    resultText += "━━━━━━━━━━━━━━━━━━\n";
+    resultText += `📀 STAFFEL ${String(season).padStart(2, "0")}\n`;
+    resultText += `✅ VORHANDEN: ${existing.length}/${knownCount}\n`;
+
+    if (missing.length) {
+      resultText +=
+        "⚠️ FEHLEND: " +
+        missing
+          .map(ep => `E${String(ep).padStart(2, "0")}`)
+          .join(", ") +
+        "\n";
+
+      resultText += "⚠️ STATUS: UNVOLLSTÄNDIG\n\n";
+    } else {
+      resultText += "🏆 STATUS: VOLLSTÄNDIG\n\n";
+    }
   }
 
-  result += "━━━━━━━━━━━━━━━━━━\n";
+  const percent =
+    totalKnownEpisodes > 0
+      ? Math.round((totalSavedEpisodes / totalKnownEpisodes) * 100)
+      : 0;
 
-const scanRank = getSeriesRank(
-  totalSavedEpisodes,
-  totalKnownEpisodes
-);
+  const progressBar =
+    "█".repeat(Math.floor(percent / 10)) +
+    "░".repeat(10 - Math.floor(percent / 10));
 
-const scanPercent =
-  totalKnownEpisodes > 0
-    ? Math.round((totalSavedEpisodes / totalKnownEpisodes) * 100)
-    : 0;
+  let rank = "BRONZE";
 
-const scanProgress = buildSeriesProgressBar(
-  seriesTitle,
-  totalSavedEpisodes,
-  totalKnownEpisodes
-);
+  if (percent >= 100) {
+    rank = "LEGEND";
+  } else if (percent >= 90) {
+    rank = "ELITE";
+  } else if (percent >= 75) {
+    rank = "GOLD";
+  } else if (percent >= 50) {
+    rank = "SILBER";
+  }
 
-result += "━━━━━━━━━━━━━━━━━━\n";
-result += `📊 GESAMT: ${scanProgress} ${scanPercent}% • ${totalSavedEpisodes}/${totalKnownEpisodes}\n`;
-result += totalMissing
-  ? `⚠️ FEHLENDE EPISODEN: ${totalMissing}\n`
-  : "✅ KOMPLETTE SERIE\n";
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += `📊 GESAMT: ${progressBar} ${percent}% • ${totalSavedEpisodes}/${totalKnownEpisodes}\n`;
 
-result += `🏅 SERIEN-RANG: ${scanRank}\n`;
-result += "@LibraryOfLegends";
+  if (totalMissing) {
+    resultText += `⚠️ FEHLENDE EPISODEN: ${totalMissing}\n`;
+  } else {
+    resultText += "✅ KOMPLETTE SERIE\n";
+  }
+
+  resultText += `🏅 SERIEN-RANG: ${rank}\n`;
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result.slice(0, 4000)
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
