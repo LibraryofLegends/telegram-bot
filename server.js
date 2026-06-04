@@ -12322,18 +12322,41 @@ if (text.startsWith("/seriespick")) {
   return;
 }
   
-  if (text === "/smartduplicates") {
-  const movies = db.prepare(`
-    SELECT id, title, year, file_name
-    FROM movies
-    ORDER BY title ASC
-  `).all();
+  // =============================
+// SMART DUPLICATES
+// =============================
+if (command === "/smartduplicates") {
+  let movies = [];
+  let series = [];
 
-  const series = db.prepare(`
-    SELECT id, series_title, season, episode, file_name
-    FROM series
-    ORDER BY series_title ASC, season ASC, episode ASC
-  `).all();
+  if (pgPool) {
+    const movieResult = await pgPool.query(`
+      SELECT id, title, year, file_name
+      FROM movies
+      ORDER BY title ASC
+    `);
+
+    const seriesResult = await pgPool.query(`
+      SELECT id, series_title, season, episode, file_name
+      FROM series
+      ORDER BY series_title ASC, season ASC, episode ASC
+    `);
+
+    movies = movieResult.rows;
+    series = seriesResult.rows;
+  } else {
+    movies = db.prepare(`
+      SELECT id, title, year, file_name
+      FROM movies
+      ORDER BY title ASC
+    `).all();
+
+    series = db.prepare(`
+      SELECT id, series_title, season, episode, file_name
+      FROM series
+      ORDER BY series_title ASC, season ASC, episode ASC
+    `).all();
+  }
 
   function simpleKey(value = "") {
     return String(value)
@@ -12350,7 +12373,11 @@ if (text.startsWith("/seriespick")) {
 
   for (const m of movies) {
     const key = simpleKey(`${m.title}-${m.year || ""}`);
-    if (!movieMap[key]) movieMap[key] = [];
+
+    if (!movieMap[key]) {
+      movieMap[key] = [];
+    }
+
     movieMap[key].push(m);
   }
 
@@ -12358,48 +12385,63 @@ if (text.startsWith("/seriespick")) {
     const key = simpleKey(
       `${s.series_title}-s${String(s.season).padStart(2, "0")}-e${String(s.episode).padStart(2, "0")}`
     );
-    if (!seriesMap[key]) seriesMap[key] = [];
+
+    if (!seriesMap[key]) {
+      seriesMap[key] = [];
+    }
+
     seriesMap[key].push(s);
   }
 
-  let result =
+  let resultText =
     "━━━━━━━━━━━━━━━━━━\n" +
-    "🧹 SMART DUPLIKATE\n" +
+    "🧠 SMART DUPLIKATE\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
   let found = false;
 
-  result += "🎬 FILME\n";
+  resultText += "🎬 FILME\n";
 
   for (const key of Object.keys(movieMap)) {
     if (movieMap[key].length > 1) {
       found = true;
-      result += "\n⚠️ Mögliches Duplikat:\n";
+      resultText += "\n⚠️ Mögliches Duplikat:\n";
+
       for (const m of movieMap[key]) {
-        result += `• ID ${m.id} — ${m.title} ${m.year || ""}\n`;
+        resultText += `• ID ${m.id} — ${m.title} ${m.year || ""}\n`;
+        resultText += `  📁 ${m.file_name || "leer"}\n`;
       }
     }
   }
 
-  result += "\n📺 SERIEN\n";
+  resultText += "\n📺 SERIEN\n";
 
   for (const key of Object.keys(seriesMap)) {
     if (seriesMap[key].length > 1) {
       found = true;
-      result += "\n⚠️ Mögliches Duplikat:\n";
+      resultText += "\n⚠️ Mögliches Duplikat:\n";
+
       for (const s of seriesMap[key]) {
-        result += `• ID ${s.id} — ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")}\n`;
+        resultText +=
+          `• ID ${s.id} — ${s.series_title} ` +
+          `S${String(s.season).padStart(2, "0")}` +
+          `E${String(s.episode).padStart(2, "0")}\n`;
+
+        resultText += `  📁 ${s.file_name || "leer"}\n`;
       }
     }
   }
 
   if (!found) {
-    result += "✅ Keine Smart-Duplikate gefunden.";
+    resultText += "\n✅ Keine Smart-Duplikate gefunden.\n";
   }
+
+  resultText += "\n━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result.slice(0, 4000)
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
