@@ -9358,11 +9358,6 @@ if (text === "/start" || text === "/admin") {
   return;
 }
 
-if (text.startsWith("/missing")) {
-  await handleMissingCommand(msg, text);
-  return;
-}
-
 // =============================
 // REPAIR MOVIE UNIVERSES
 // =============================
@@ -11642,6 +11637,11 @@ if (command === "/missingseries") {
     text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
+  return;
+}
+
+if (command === "/missing") {
+  await handleMissingCommand(msg, text);
   return;
 }
 
