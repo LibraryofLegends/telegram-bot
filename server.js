@@ -144,9 +144,47 @@ await pgPool.query(`
     unique_key TEXT UNIQUE,
     telegram_message_id INTEGER,
     topic_id INTEGER,
-    series_library_id TEXT,
+    series_library_id INTEGER,
     universe TEXT,
     universe_phase TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+`);
+
+await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS series_library (
+    id SERIAL PRIMARY KEY,
+
+    title TEXT UNIQUE NOT NULL,
+    tmdb_id INTEGER,
+
+    first_air_date TEXT,
+    last_air_date TEXT,
+
+    genres TEXT,
+    rating TEXT,
+
+    overview TEXT,
+    poster_url TEXT,
+
+    total_seasons INTEGER,
+    total_episodes INTEGER,
+
+    status TEXT,
+
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+`);
+
+await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS series_topics (
+    id SERIAL PRIMARY KEY,
+
+    series_name TEXT UNIQUE NOT NULL,
+
+    topic_id BIGINT,
+    topic_title TEXT,
+
     created_at TIMESTAMP DEFAULT NOW()
   );
 `);
