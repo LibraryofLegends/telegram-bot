@@ -8598,6 +8598,12 @@ await createOrUpdateCommandCenter({
   topicName: "🏆 MASTERED",
   caption: await masteredSeriesHubCaption()
 });
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🌌 UNIVERSES",
+  caption: await seriesUniversesHubCaption()
+});
 }
 
 // =============================
@@ -9265,6 +9271,75 @@ async function masteredSeriesHubCaption() {
 
   if (!found) {
     resultText += "Noch keine vollständig wirkenden Serien gefunden.\n";
+  }
+
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
+
+  return cleanTelegramText(resultText).slice(0, 4000);
+}
+
+// =============================
+// SERIES UNIVERSES HUB CAPTION
+// =============================
+async function seriesUniversesHubCaption() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        universe,
+        series_title,
+        COUNT(*) AS count,
+        MAX(rating) AS rating
+      FROM series
+      WHERE universe IS NOT NULL
+        AND universe <> ''
+      GROUP BY universe, series_title
+      ORDER BY universe ASC, series_title ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        universe,
+        series_title,
+        COUNT(*) AS count,
+        MAX(rating) AS rating
+      FROM series
+      WHERE universe IS NOT NULL
+        AND universe <> ''
+      GROUP BY universe, series_title
+      ORDER BY universe ASC, series_title ASC
+    `).all();
+  }
+
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🌌 SERIES UNIVERSES\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "🧭 Serien nach Universum sortiert\n\n";
+
+  if (!rows.length) {
+    resultText += "Noch keine Serien-Universen erkannt.\n";
+  } else {
+    let currentUniverse = "";
+
+    for (const row of rows) {
+      if (row.universe !== currentUniverse) {
+        currentUniverse = row.universe;
+
+        resultText +=
+          "━━━━━━━━━━━━━━━━━━\n" +
+          `🌌 ${currentUniverse}\n` +
+          "━━━━━━━━━━━━━━━━━━\n";
+      }
+
+      resultText += `• ${row.series_title}\n`;
+      resultText += `  🎞 ${row.count} Episode(n)\n`;
+      resultText += `  ⭐ ${row.rating || "Unbekannt"}\n\n`;
+    }
   }
 
   resultText += "━━━━━━━━━━━━━━━━━━\n";
