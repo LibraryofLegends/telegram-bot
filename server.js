@@ -11513,76 +11513,133 @@ if (command === "/serieshub") {
   return;
 }
 
-if (text.startsWith("/missingseries")) {
-  const query = text.replace("/missingseries", "").trim();
+// =============================
+// MISSING SERIES EPISODES
+// =============================
+if (command === "/missingseries") {
+
+  const query = text.replace(command, "").trim();
 
   if (!query) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "⚠️ Nutzung:\n/missingseries Tulsa King"
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/missingseries Tulsa King"
     });
     return;
   }
 
-  const rows = db.prepare(`
-    SELECT series_title, season, episode
-    FROM series
-    WHERE LOWER(series_title) LIKE ?
-    ORDER BY season ASC, episode ASC
-  `).all(`%${query.toLowerCase()}%`);
+  let rows = [];
+
+  if (pgPool) {
+
+    const result = await pgPool.query(
+      `
+      SELECT series_title, season, episode
+      FROM series
+      WHERE LOWER(series_title) LIKE $1
+      ORDER BY season ASC, episode ASC
+      `,
+      [`%${query.toLowerCase()}%`]
+    );
+
+    rows = result.rows;
+
+  } else {
+
+    rows = db.prepare(`
+      SELECT series_title, season, episode
+      FROM series
+      WHERE LOWER(series_title) LIKE ?
+      ORDER BY season ASC, episode ASC
+    `).all(`%${query.toLowerCase()}%`);
+  }
 
   if (!rows.length) {
+
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: `❌ Keine Serie gefunden für:\n${query}`
+      text:
+        "❌ Keine Serie gefunden:\n\n" +
+        query
     });
+
     return;
   }
 
-  const seriesTitle = rows[0].series_title;
   const seasons = {};
 
   for (const row of rows) {
-    const s = Number(row.season);
-    if (!seasons[s]) seasons[s] = [];
-    seasons[s].push(Number(row.episode));
+
+    const season = Number(row.season);
+    const episode = Number(row.episode);
+
+    if (!seasons[season]) {
+      seasons[season] = [];
+    }
+
+    seasons[season].push(episode);
   }
 
-  let result =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🧩 FEHLENDE EPISODEN\n` +
-    `📺 ${seriesTitle}\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+  let resultText =
+    "⚠️ Fehlende Episoden:\n\n" +
+    `📺 ${rows[0].series_title}\n\n`;
 
-  let hasMissing = false;
+  let missingCount = 0;
 
-  for (const season of Object.keys(seasons).map(Number).sort((a, b) => a - b)) {
-    const episodes = [...new Set(seasons[season])].sort((a, b) => a - b);
-    const minEp = episodes[0];
-    const maxEp = episodes[episodes.length - 1];
+  for (const season of Object.keys(seasons)
+    .map(Number)
+    .sort((a, b) => a - b)) {
+
+    const episodes =
+      [...new Set(seasons[season])]
+      .sort((a, b) => a - b);
+
+    const maxEpisode =
+      Math.max(...episodes);
 
     const missing = [];
-    for (let ep = minEp; ep <= maxEp; ep++) {
-      if (!episodes.includes(ep)) missing.push(ep);
+
+    for (let ep = 1; ep <= maxEpisode; ep++) {
+
+      if (!episodes.includes(ep)) {
+        missing.push(ep);
+      }
     }
 
-    result += `📀 Staffel ${String(season).padStart(2, "0")}\n`;
+    if (missing.length) {
 
-    if (!missing.length) {
-      result += "✅ Keine Lücken gefunden\n\n";
-    } else {
-      hasMissing = true;
-      result += `⚠️ Fehlend: ${missing.map((ep) => `E${String(ep).padStart(2, "0")}`).join(", ")}\n\n`;
+      resultText +=
+        `📀 Staffel ${String(season).padStart(2,"0")}\n\n`;
+
+      for (const ep of missing) {
+
+        resultText +=
+          `• S${String(season).padStart(2,"0")}E${String(ep).padStart(2,"0")}\n`;
+
+        missingCount++;
+      }
+
+      resultText += "\n";
     }
   }
 
-  result += "━━━━━━━━━━━━━━━━━━\n";
-  result += hasMissing ? "⚠️ Sammlung unvollständig" : "✅ Sammlung wirkt vollständig";
-  result += "\n@LibraryOfLegends";
+  if (!missingCount) {
+
+    resultText =
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "✅ SERIE VOLLSTÄNDIG\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `📺 ${rows[0].series_title}\n\n` +
+      "Keine fehlenden Episoden gefunden.\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends";
+  }
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
