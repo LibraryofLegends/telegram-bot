@@ -8912,6 +8912,79 @@ async function seriesCommandCenterCaption() {
   );
 }
 
+// =============================
+// SERIES LIBRARY HUB CAPTION
+// =============================
+async function seriesLibraryHubCaption() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        series_title,
+        MAX(genre) AS genre,
+        MAX(rating) AS rating,
+        COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY series_title ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        series_title,
+        genre,
+        rating,
+        COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY series_title ASC
+    `).all();
+  }
+
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📺 SERIES LIBRARY\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "🔤 Serien A-Z Übersicht\n\n";
+
+  if (!rows.length) {
+    resultText += "Noch keine Serien gespeichert.\n";
+  } else {
+    let currentLetter = "";
+
+    for (const s of rows) {
+      const letter = String(s.series_title || "#")
+        .charAt(0)
+        .toUpperCase();
+
+      if (letter !== currentLetter) {
+        currentLetter = letter;
+        resultText += `\n${currentLetter}\n`;
+      }
+
+      const genreText = String(s.genre || "Sonstige")
+        .split("/")
+        .map(g => g.trim())
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(" • ");
+
+      resultText += `• ${s.series_title}\n`;
+      resultText += `  🎞 ${s.count} Episode(n)\n`;
+      resultText += `  🎭 ${genreText || "Unbekannt"}\n`;
+      resultText += `  ⭐ ${s.rating || "Unbekannt"}\n\n`;
+    }
+  }
+
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
+
+  return cleanTelegramText(resultText).slice(0, 4000);
+}
+
 async function createOrUpdateCommandCenter({
   chatId,
   topicName,
