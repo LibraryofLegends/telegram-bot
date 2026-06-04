@@ -11193,14 +11193,35 @@ if (command === "/newseries") {
   return;
 }
 
-if (text === "/trendingseries") {
-  const rows = db.prepare(`
-    SELECT series_title, genre, rating, COUNT(*) AS count
-    FROM series
-    GROUP BY series_title
-    ORDER BY count DESC, series_title ASC
-    LIMIT 10
-  `).all();
+// =============================
+// TRENDING SERIES
+// =============================
+if (command === "/trendingseries") {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        series_title,
+        MAX(genre) AS genre,
+        MAX(rating) AS rating,
+        COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY count DESC, series_title ASC
+      LIMIT 10
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT series_title, genre, rating, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY count DESC, series_title ASC
+      LIMIT 10
+    `).all();
+  }
 
   if (!rows.length) {
     await tg("sendMessage", {
@@ -11210,7 +11231,7 @@ if (text === "/trendingseries") {
     return;
   }
 
-  let result =
+  let resultText =
     "━━━━━━━━━━━━━━━━━━\n" +
     "🔥 TRENDING SERIEN\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
@@ -11225,33 +11246,54 @@ if (text === "/trendingseries") {
       .slice(0, 2)
       .join(" • ");
 
-    result += `#${rank} 📺 ${s.series_title}\n`;
-    result += `📀 ${s.count} Episode(n)\n`;
-    result += `🎭 ${genreText}\n`;
-    result += `⭐ ${s.rating || "Unbekannt"}\n\n`;
+    resultText += `#${rank} 📺 ${s.series_title}\n`;
+    resultText += `📀 ${s.count} Episode(n)\n`;
+    resultText += `🎭 ${genreText}\n`;
+    resultText += `⭐ ${s.rating || "Unbekannt"}\n\n`;
 
     rank++;
   }
 
-  result += "━━━━━━━━━━━━━━━━━━\n";
-  result += "@LibraryOfLegends";
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
 }
 
-if (text === "/featuredseries") {
-  const rows = db.prepare(`
-    SELECT series_title, genre, rating, COUNT(*) AS count
-    FROM series
-    GROUP BY series_title
-    ORDER BY rating DESC, count DESC, series_title ASC
-    LIMIT 10
-  `).all();
+// =============================
+// FEATURED SERIES
+// =============================
+if (command === "/featuredseries") {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        series_title,
+        MAX(genre) AS genre,
+        MAX(rating) AS rating,
+        COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY MAX(rating) DESC, count DESC, series_title ASC
+      LIMIT 10
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT series_title, genre, rating, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY rating DESC, count DESC, series_title ASC
+      LIMIT 10
+    `).all();
+  }
 
   if (!rows.length) {
     await tg("sendMessage", {
@@ -11261,7 +11303,7 @@ if (text === "/featuredseries") {
     return;
   }
 
-  let result =
+  let resultText =
     "━━━━━━━━━━━━━━━━━━\n" +
     "⭐ FEATURED SERIEN\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
@@ -11274,95 +11316,135 @@ if (text === "/featuredseries") {
       .slice(0, 2)
       .join(" • ");
 
-    result += `📺 ${s.series_title}\n`;
-    result += `📀 ${s.count} Episode(n)\n`;
-    result += `🎭 ${genreText}\n`;
-    result += `⭐ ${s.rating || "Unbekannt"}\n\n`;
+    resultText += `📺 ${s.series_title}\n`;
+    resultText += `📀 ${s.count} Episode(n)\n`;
+    resultText += `🎭 ${genreText}\n`;
+    resultText += `⭐ ${s.rating || "Unbekannt"}\n\n`;
   }
 
-  result += "━━━━━━━━━━━━━━━━━━\n";
-  result += "@LibraryOfLegends";
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
 }
 
-if (text === "/serieshub") {
-  const latest = db.prepare(`
-    SELECT series_title, season, episode, episode_title
-    FROM series
-    ORDER BY created_at DESC
-    LIMIT 5
-  `).all();
+// =============================
+// SERIES HUB
+// =============================
+if (command === "/serieshub") {
+  let latest = [];
+  let trending = [];
+  let featured = [];
 
-  const trending = db.prepare(`
-    SELECT series_title, COUNT(*) AS count
-    FROM series
-    GROUP BY series_title
-    ORDER BY count DESC, series_title ASC
-    LIMIT 5
-  `).all();
+  if (pgPool) {
+    const latestResult = await pgPool.query(`
+      SELECT series_title, season, episode, episode_title
+      FROM series
+      ORDER BY created_at DESC
+      LIMIT 5
+    `);
 
-  const featured = db.prepare(`
-    SELECT series_title, genre, rating, COUNT(*) AS count
-    FROM series
-    GROUP BY series_title
-    ORDER BY rating DESC, count DESC, series_title ASC
-    LIMIT 5
-  `).all();
+    const trendingResult = await pgPool.query(`
+      SELECT series_title, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY count DESC, series_title ASC
+      LIMIT 5
+    `);
 
-  let result =
+    const featuredResult = await pgPool.query(`
+      SELECT
+        series_title,
+        MAX(genre) AS genre,
+        MAX(rating) AS rating,
+        COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY MAX(rating) DESC, count DESC, series_title ASC
+      LIMIT 5
+    `);
+
+    latest = latestResult.rows;
+    trending = trendingResult.rows;
+    featured = featuredResult.rows;
+  } else {
+    latest = db.prepare(`
+      SELECT series_title, season, episode, episode_title
+      FROM series
+      ORDER BY created_at DESC
+      LIMIT 5
+    `).all();
+
+    trending = db.prepare(`
+      SELECT series_title, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY count DESC, series_title ASC
+      LIMIT 5
+    `).all();
+
+    featured = db.prepare(`
+      SELECT series_title, genre, rating, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY rating DESC, count DESC, series_title ASC
+      LIMIT 5
+    `).all();
+  }
+
+  let resultText =
     "━━━━━━━━━━━━━━━━━━\n" +
     "📺 SERIES HUB\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
-  result += "🆕 NEUE FOLGEN\n";
+  resultText += "🆕 NEUE FOLGEN\n";
   if (!latest.length) {
-    result += "Noch keine Folgen gespeichert.\n\n";
+    resultText += "Noch keine Folgen gespeichert.\n\n";
   } else {
     for (const s of latest) {
-      result += `• ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")}`;
-      if (s.episode_title) result += ` • ${s.episode_title}`;
-      result += "\n";
+      resultText += `• ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")}`;
+      if (s.episode_title) resultText += ` • ${s.episode_title}`;
+      resultText += "\n";
     }
-    result += "\n";
+    resultText += "\n";
   }
 
-  result += "🔥 TRENDING\n";
+  resultText += "🔥 TRENDING\n";
   if (!trending.length) {
-    result += "Noch keine Trends verfügbar.\n\n";
+    resultText += "Noch keine Trends verfügbar.\n\n";
   } else {
     for (const s of trending) {
-      result += `• ${s.series_title} — ${s.count} Episode(n)\n`;
+      resultText += `• ${s.series_title} — ${s.count} Episode(n)\n`;
     }
-    result += "\n";
+    resultText += "\n";
   }
 
-  result += "⭐ FEATURED\n";
+  resultText += "⭐ FEATURED\n";
   if (!featured.length) {
-    result += "Noch keine Featured-Serien verfügbar.\n\n";
+    resultText += "Noch keine Featured-Serien verfügbar.\n\n";
   } else {
     for (const s of featured) {
-      result += `• ${s.series_title} — ${s.rating || "Unbekannt"}\n`;
+      resultText += `• ${s.series_title} — ${s.rating || "Unbekannt"}\n`;
     }
-    result += "\n";
+    resultText += "\n";
   }
 
-  result += "━━━━━━━━━━━━━━━━━━\n";
-  result += "🔤 /seriesaz — Serien A–Z\n";
-  result += "🆕 /newseries — Neue Folgen\n";
-  result += "🔥 /trendingseries — Trending\n";
-  result += "⭐ /featuredseries — Featured\n";
-  result += "━━━━━━━━━━━━━━━━━━\n";
-  result += "@LibraryOfLegends";
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "🔤 /seriesaz — Serien A-Z\n";
+  resultText += "🆕 /newseries — Neue Folgen\n";
+  resultText += "🔥 /trendingseries — Trending\n";
+  resultText += "⭐ /featuredseries — Featured\n";
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
