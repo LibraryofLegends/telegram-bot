@@ -3321,6 +3321,7 @@ function formatMB(totalMB = 0) {
 }
 
 async function buildPremiumQualityHubCaption() {
+
   const movies = await getPremiumQualityRows();
 
   const uhdMovies = movies.filter(isUHDMovie);
@@ -3336,69 +3337,121 @@ async function buildPremiumQualityHubCaption() {
   const newestPremium = uhdMovies.slice(0, 10);
 
   const premiumHighlights =
-  [...uhdMovies]
-    .sort((a, b) => parseSizeToMB(b.file_size) - parseSizeToMB(a.file_size))
-    .slice(0, 3);
+    [...uhdMovies]
+      .map(movie => {
 
-let text =
-  "███ PREMIUM QUALITY HUB ███\n\n" +
-  "💎 CINEMA MASTER ARCHIVE\n" +
-  "ULTRA HIGH RESOLUTION DATABASE\n\n" +
+        const match =
+          String(movie.rating || "")
+            .match(/(\d+(\.\d+)?)/);
 
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "🏛 QUALITY STATUS\n" +
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `💎 UHD • ${uhdMovies.length}\n` +
-  `📀 FHD • ${fhdMovies.length}\n` +
-  `📼 HD • ${hdMovies.length}\n` +
-  `📱 SD • ${sdMovies.length}\n\n` +
+        return {
+          ...movie,
+          ratingValue:
+            match
+              ? Number(match[1])
+              : 0
+        };
 
-  `💾 Premium Storage • ${formatMB(premiumStorage)}\n` +
-  `🎬 Premium Movies • ${movies.length}\n` +
+      })
+      .sort((a, b) => b.ratingValue - a.ratingValue)
+      .slice(0, 3);
 
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "👑 PREMIUM HIGHLIGHTS\n" +
-  "━━━━━━━━━━━━━━━━━━\n\n";
+  const eliteMovies =
+    movies.filter(movie => {
 
-if (!premiumHighlights.length) {
-  text += "Noch keine Premium Highlights gespeichert.\n\n";
-} else {
-  premiumHighlights.forEach((m, index) => {
-    const medal =
-      index === 0 ? "🥇" :
-      index === 1 ? "🥈" :
-      "🥉";
+      const match =
+        String(movie.rating || "")
+          .match(/(\d+(\.\d+)?)/);
+
+      return match &&
+        Number(match[1]) >= 7;
+
+    });
+
+  let text =
+    "███ PREMIUM QUALITY HUB ███\n\n" +
+    "💎 CINEMA MASTER ARCHIVE\n" +
+    "ULTRA HIGH RESOLUTION DATABASE\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🏛 QUALITY STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `💎 UHD • ${uhdMovies.length}\n` +
+    `📀 FHD • ${fhdMovies.length}\n` +
+    `📼 HD • ${hdMovies.length}\n` +
+    `📱 SD • ${sdMovies.length}\n\n` +
+
+    `💾 Premium Storage • ${formatMB(premiumStorage)}\n` +
+    `🎬 Premium Movies • ${movies.length}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🏆 CINEMA ELITE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!premiumHighlights.length) {
 
     text +=
-      `${medal} ${m.title || "Unbekannt"}${m.year ? ` (${m.year})` : ""}\n` +
-      `💎 ${m.quality || "UHD"} • ${m.file_size || "Unbekannt"}\n\n`;
-  });
-}
+      "Noch keine Elite Titel vorhanden.\n\n";
 
-text +=
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "🔥 LATEST UHD ENTRIES\n" +
-  "━━━━━━━━━━━━━━━━━━\n\n";
+  } else {
 
-if (!newestPremium.length) {
-  text += "Noch keine UHD-Filme gespeichert.\n";
-} else {
-  newestPremium.slice(0, 5).forEach((m, index) => {
-    const prefix =
-      index === Math.min(newestPremium.length, 5) - 1
-        ? "┗"
-        : "┠";
+    premiumHighlights.forEach((m, index) => {
+
+      const medal =
+        index === 0 ? "🥇" :
+        index === 1 ? "🥈" :
+        "🥉";
+
+      text +=
+        `${medal} ${m.title || "Unbekannt"}\n` +
+        `⭐ ${m.ratingValue || "?"} IMDb • ${m.quality || "UHD"}\n\n`;
+
+    });
+
+  }
+
+  text +=
+    "🎯 ARCHIVE ACHIEVEMENTS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `🏆 UHD Movies • ${uhdMovies.length}\n` +
+    `⭐ Elite Movies • ${eliteMovies.length}\n` +
+    `🌌 Universes • 4\n` +
+    `🧩 Collections • 40\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🔥 LATEST UHD ENTRIES\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!newestPremium.length) {
 
     text +=
-      `${prefix} ${m.title || "Unbekannt"}${m.year ? ` (${m.year})` : ""}\n`;
-  });
-}
+      "Noch keine UHD-Filme gespeichert.\n";
 
-text +=
-  "\n━━━━━━━━━━━━━━━━━━\n" +
-  "@LibraryOfLegends";
+  } else {
+
+    newestPremium
+      .slice(0, 5)
+      .forEach((m, index) => {
+
+        const prefix =
+          index === Math.min(newestPremium.length, 5) - 1
+            ? "┗"
+            : "┠";
+
+        text +=
+          `${prefix} ${m.title || "Unbekannt"}${m.year ? ` (${m.year})` : ""}\n`;
+
+      });
+
+  }
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
 
   return text.slice(0, 4000);
+
 }
 
 async function createOrUpdatePremiumQualityHub() {
