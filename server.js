@@ -11056,10 +11056,14 @@ if (command === "/seriesaz") {
 
   if (pgPool) {
     const result = await pgPool.query(`
-      SELECT series_title, genre, rating, COUNT(*) AS count
-      FROM series
-      GROUP BY series_title, genre, rating
-      ORDER BY series_title ASC
+      SELECT
+  series_title,
+  MAX(genre) AS genre,
+  MAX(rating) AS rating,
+  COUNT(*) AS count
+FROM series
+GROUP BY series_title
+ORDER BY series_title ASC
     `);
 
     rows = result.rows;
