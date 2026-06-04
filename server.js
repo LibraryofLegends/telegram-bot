@@ -10626,11 +10626,35 @@ if (text === "/rebuildcommandcenters") {
   return;
 }
 
+// =============================
+// PREMIUM DASHBOARD
+// =============================
 if (text === "/dashboard") {
-  const movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
-  const seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
-  const topicCount = db.prepare("SELECT COUNT(*) AS count FROM topics").get().count;
-  const collectionCount = db.prepare("SELECT COUNT(*) AS count FROM collections").get().count;
+  let movieCount = 0;
+  let seriesCount = 0;
+  let topicCount = 0;
+  let collectionCount = 0;
+  let seriesLibraryCount = 0;
+
+  if (pgPool) {
+    const movies = await pgPool.query(`SELECT COUNT(*) AS count FROM movies`);
+    const series = await pgPool.query(`SELECT COUNT(*) AS count FROM series`);
+    const topics = await pgPool.query(`SELECT COUNT(*) AS count FROM topics`);
+    const collections = await pgPool.query(`SELECT COUNT(*) AS count FROM collections`);
+    const seriesLibrary = await pgPool.query(`SELECT COUNT(*) AS count FROM series_library`);
+
+    movieCount = movies.rows[0].count;
+    seriesCount = series.rows[0].count;
+    topicCount = topics.rows[0].count;
+    collectionCount = collections.rows[0].count;
+    seriesLibraryCount = seriesLibrary.rows[0].count;
+  } else {
+    movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
+    seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
+    topicCount = db.prepare("SELECT COUNT(*) AS count FROM topics").get().count;
+    collectionCount = db.prepare("SELECT COUNT(*) AS count FROM collections").get().count;
+    seriesLibraryCount = db.prepare("SELECT COUNT(*) AS count FROM series_library").get().count;
+  }
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
@@ -10640,7 +10664,8 @@ if (text === "/dashboard") {
       "━━━━━━━━━━━━━━━━━━\n\n" +
       `🎬 Filme: ${movieCount}\n` +
       `🎞 Collections: ${collectionCount}\n` +
-      `📺 Serien-Episoden: ${seriesCount}\n` +
+      `📺 Serien: ${seriesLibraryCount}\n` +
+      `🎞 Serien-Episoden: ${seriesCount}\n` +
       `🧵 Themen: ${topicCount}\n\n` +
       "━━━━━━━━━━━━━━━━━━\n" +
       "⚙️ SYSTEM STATUS: ONLINE\n" +
@@ -10650,21 +10675,53 @@ if (text === "/dashboard") {
   return;
 }
 
-  if (text === "/stats") {
-    const movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
-    const seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
-    const topicCount = db.prepare("SELECT COUNT(*) AS count FROM topics").get().count;
+  // =============================
+// STATS
+// =============================
+if (text === "/stats") {
+  let movieCount = 0;
+  let seriesEpisodeCount = 0;
+  let seriesCount = 0;
+  let topicCount = 0;
+  let collectionCount = 0;
 
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "📊 𝐒𝐓𝐀𝐓𝐈𝐒𝐓𝐈𝐊\n\n" +
-        `🎬 Filme: ${movieCount}\n` +
-        `📺 Serien-Episoden: ${seriesCount}\n` +
-        `🧵 Themen gespeichert: ${topicCount}`
-    });
-    return;
+  if (pgPool) {
+    const movies = await pgPool.query(`SELECT COUNT(*) AS count FROM movies`);
+    const episodes = await pgPool.query(`SELECT COUNT(*) AS count FROM series`);
+    const seriesLib = await pgPool.query(`SELECT COUNT(*) AS count FROM series_library`);
+    const topics = await pgPool.query(`SELECT COUNT(*) AS count FROM topics`);
+    const collections = await pgPool.query(`SELECT COUNT(*) AS count FROM collections`);
+
+    movieCount = movies.rows[0].count;
+    seriesEpisodeCount = episodes.rows[0].count;
+    seriesCount = seriesLib.rows[0].count;
+    topicCount = topics.rows[0].count;
+    collectionCount = collections.rows[0].count;
+  } else {
+    movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
+    seriesEpisodeCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
+    seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series_library").get().count;
+    topicCount = db.prepare("SELECT COUNT(*) AS count FROM topics").get().count;
+    collectionCount = db.prepare("SELECT COUNT(*) AS count FROM collections").get().count;
   }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📊 𝐒𝐓𝐀𝐓𝐈𝐒𝐓𝐈𝐊\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `🎬 Filme: ${movieCount}\n` +
+      `🎞 Collections: ${collectionCount}\n` +
+      `📺 Serien: ${seriesCount}\n` +
+      `🎞 Serien-Episoden: ${seriesEpisodeCount}\n` +
+      `🧵 Themen gespeichert: ${topicCount}\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
   
   if (text === "/queue") {
   await tg("sendMessage", {
