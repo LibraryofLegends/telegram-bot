@@ -4717,19 +4717,20 @@ function movieLiteCaption(tmdb, extras = {}) {
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
-  return (
-  "███ LEGENDS FILE ███\n\n" +
+    return (
+    "███ LEGENDS FILE ███\n\n" +
 
-  `${nexus.line2}\n` +
-  `${nexus.line1}${nexus.line4 ? ` • ${nexus.line4}` : ""}\n\n` +
+    `${nexus.line2}\n` +
+    `${nexus.line1}${nexus.line4 ? ` • ${nexus.line4}` : ""}\n\n` +
 
-  `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
-  `📀 ${extras.quality || "HD"} • ${extras.fileSize || "Unbekannt"}\n` +
-  `🏷 ${extras.libraryId || "Unbekannt"}\n\n` +
+    `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
+    `📀 ${extras.quality || "HD"} • ${extras.fileSize || "Unbekannt"}\n` +
+    `🏷 ${extras.libraryId || "Unbekannt"}\n\n` +
 
-  `${genreTags}\n` +
-  "@LibraryOfLegends"
-);
+    `${genreTags}\n` +
+    "@LibraryOfLegends"
+  );
+}
 
 function buildMovieArchiveProgressBar(movieCount = 0) {
   const size = 10;
