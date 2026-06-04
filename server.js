@@ -909,6 +909,74 @@ async function saveSeriesLibrary(data) {
   return result.lastInsertRowid;
 }
 
+async function saveSeriesTopic(seriesName, topicId) {
+  if (pgPool) {
+    return await pgPool.query(
+      `
+      INSERT INTO series_topics
+      (
+        series_name,
+        topic_id,
+        topic_title
+      )
+      VALUES ($1, $2, $3)
+      ON CONFLICT (series_name)
+      DO UPDATE SET
+        topic_id = EXCLUDED.topic_id,
+        topic_title = EXCLUDED.topic_title
+      `,
+      [
+        seriesName,
+        topicId,
+        seriesName
+      ]
+    );
+  }
+
+  return db.prepare(`
+    INSERT INTO series_topics
+    (
+      series_name,
+      topic_id,
+      topic_title
+    )
+    VALUES (?, ?, ?)
+    ON CONFLICT(series_name)
+    DO UPDATE SET
+      topic_id = excluded.topic_id,
+      topic_title = excluded.topic_title
+  `).run(
+    seriesName,
+    topicId,
+    seriesName
+  );
+}
+
+async function getSeriesTopic(seriesName) {
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT topic_id
+      FROM series_topics
+      WHERE series_name = $1
+      LIMIT 1
+      `,
+      [seriesName]
+    );
+
+    return result.rows[0]?.topic_id || null;
+  }
+
+  const row = db.prepare(`
+    SELECT topic_id
+    FROM series_topics
+    WHERE series_name = ?
+    LIMIT 1
+  `).get(seriesName);
+
+  return row?.topic_id || null;
+}
+
 async function getCollection(tmdbCollectionId) {
 
   if (pgPool) {
@@ -12226,11 +12294,19 @@ const tmdb = await searchSeriesTMDB(
       return;
     }
 
-    const topicId = await createOrGetTopic({
-      chatId: SERIES_GROUP_ID,
-      name: tmdb.seriesTitle,
-      type: "series"
-    });
+    let topicId = await getSeriesTopic(tmdb.seriesTitle);
+
+if (!topicId) {
+  topicId = await createOrGetTopic({
+    chatId: SERIES_GROUP_ID,
+    name: tmdb.seriesTitle,
+    type: "series"
+  });
+
+  if (topicId) {
+    await saveSeriesTopic(tmdb.seriesTitle, topicId);
+  }
+}
     
     console.log("🧵 SERIES TOPIC ID:", topicId, tmdb.seriesTitle);
 
