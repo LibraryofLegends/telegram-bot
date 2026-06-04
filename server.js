@@ -3823,6 +3823,213 @@ async function createOrUpdateNewReleasesHub() {
   return msg;
 }
 
+// =============================
+// MOVIE LIBRARY HUB
+// =============================
+async function getMovieLibraryRows() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        title,
+        year,
+        rating,
+        quality,
+        file_size,
+        created_at
+      FROM movies
+      WHERE (collection IS NULL OR TRIM(collection) = '')
+        AND (universe IS NULL OR TRIM(universe) = '')
+      ORDER BY created_at DESC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        title,
+        year,
+        rating,
+        quality,
+        file_size,
+        created_at
+      FROM movies
+      WHERE (collection IS NULL OR TRIM(collection) = '')
+        AND (universe IS NULL OR TRIM(universe) = '')
+      ORDER BY created_at DESC
+    `).all();
+  }
+
+  return rows;
+}
+
+async function buildMovieLibraryHubCaption() {
+  const movies = await getMovieLibraryRows();
+
+  const years = movies
+    .map((m) => Number(m.year))
+    .filter((y) => Number.isFinite(y));
+
+  const yearRange =
+    years.length
+      ? `${Math.min(...years)}–${Math.max(...years)}`
+      : "Unbekannt";
+
+  const ratings = movies
+    .map((m) => getRatingValue(m.rating))
+    .filter((r) => r > 0);
+
+  const averageRating =
+    ratings.length
+      ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
+      : "Unbekannt";
+
+  const totalStorageMB = movies.reduce(
+    (sum, movie) => sum + parseSizeToMB(movie.file_size),
+    0
+  );
+
+  const qualityLine =
+    [...new Set(movies.map((m) => m.quality).filter(Boolean))]
+      .slice(0, 5)
+      .join(" • ") || "Unbekannt";
+
+  const latestMovies = movies.slice(0, 8);
+
+  const topMovies =
+    [...movies]
+      .map((movie) => ({
+        ...movie,
+        ratingValue: getRatingValue(movie.rating)
+      }))
+      .filter((movie) => movie.ratingValue > 0)
+      .sort((a, b) => b.ratingValue - a.ratingValue)
+      .slice(0, 5);
+
+  let text =
+    "███ MOVIE LIBRARY HUB ███\n\n" +
+    "🎬 STANDALONE CINEMA DATABASE\n" +
+    "MAIN MOVIE ARCHIVE • ACTIVE\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🏛 LIBRARY STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 Standalone Movies • ${movies.length}\n` +
+    `📅 Timeline • ${yearRange}\n` +
+    `⭐ Ø Rating • ${averageRating}\n` +
+    `💾 Storage • ${formatMB(totalStorageMB)}\n` +
+    `📀 Quality • ${qualityLine}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎥 LATEST LIBRARY ENTRIES\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!latestMovies.length) {
+    text += "Noch keine Standalone-Filme gespeichert.\n";
+  } else {
+    latestMovies.forEach((movie, index) => {
+      const prefix =
+        index === latestMovies.length - 1
+          ? "┗"
+          : "┠";
+
+      text +=
+        `${prefix} ${movie.title || "Unbekannt"}${movie.year ? ` (${movie.year})` : ""}\n`;
+    });
+  }
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "🏆 TOP STANDALONE MOVIES\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!topMovies.length) {
+    text += "Noch keine bewerteten Standalone-Filme.\n";
+  } else {
+    topMovies.forEach((movie, index) => {
+      const medal =
+        index === 0 ? "🥇" :
+        index === 1 ? "🥈" :
+        index === 2 ? "🥉" :
+        `#${index + 1}`;
+
+      text +=
+        `${medal} ${movie.title || "Unbekannt"}${movie.year ? ` (${movie.year})` : ""}\n` +
+        `⭐ ${movie.ratingValue} IMDb • ${movie.quality || "?"}\n\n`;
+    });
+  }
+
+  text +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+async function createOrUpdateMovieLibraryHub() {
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "🎬 Movie Library",
+    type: "system_hub"
+  });
+
+  if (!topicId) {
+    console.error("❌ Movie Library Topic konnte nicht erstellt werden");
+    return null;
+  }
+
+  const text = await buildMovieLibraryHubCaption();
+
+  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🎬 Movie Library`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `SELECT * FROM topics WHERE unique_key = $1 LIMIT 1`,
+      [topicKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(topicKey);
+  }
+
+  if (topic?.hub_message_id) {
+    const edited = await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+
+    if (!edited?.__error) return edited;
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `UPDATE topics SET hub_message_id = $1 WHERE unique_key = $2`,
+        [msg.message_id, topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(msg.message_id, topicKey);
+    }
+  }
+
+  return msg;
+}
+
 async function createOrUpdatePremiumQualityHub() {
 
   console.log("💎 PREMIUM HUB START");
@@ -7986,6 +8193,7 @@ await createOrUpdateUniversesIndexHub();
 await createOrUpdatePremiumQualityHub();
 await createOrUpdateEliteArchiveHub();
 await createOrUpdateNewReleasesHub();
+await createOrUpdateMovieLibraryHub();
 
 await createOrUpdateCommandCenter({
   chatId: SERIES_GROUP_ID,
@@ -11698,6 +11906,7 @@ try {
   await createOrUpdatePremiumQualityHub();
   await createOrUpdateEliteArchiveHub();
   await createOrUpdateNewReleasesHub();
+  await createOrUpdateMovieLibraryHub();
 } catch (err) {
   console.error(
     "⚠️ Movie Hubs Update Fehler:",
