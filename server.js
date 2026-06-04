@@ -9335,13 +9335,20 @@ if (text === "/start" || text === "/admin") {
     return;
   }
   
-  if (text.startsWith("/setseries")) {
-  const name = text.replace("/setseries", "").trim();
+  // =============================
+// SET CURRENT SERIES
+// =============================
+if (command === "/setseries") {
+  const name = text.replace(command, "").trim();
 
   if (!name) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "⚠️ Nutzung:\n/setseries Serienname"
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/setseries Serienname\n\n" +
+        "Beispiel:\n" +
+        "/setseries Tulsa King"
     });
     return;
   }
@@ -9351,8 +9358,12 @@ if (text === "/start" || text === "/admin") {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "✅ Aktuelle Serie gesetzt:\n\n" +
-      `📺 ${CURRENT_SERIES_NAME}`
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📺 SERIE GESETZT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `✅ Aktuelle Serie:\n${CURRENT_SERIES_NAME}\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
   });
 
   return;
