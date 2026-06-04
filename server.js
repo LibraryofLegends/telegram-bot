@@ -10493,7 +10493,27 @@ if (command === "/qualitystats") {
   return;
 }
 
-if (text === "/health") {
+// =============================
+// SYSTEM HEALTH
+// =============================
+if (command === "/health") {
+  let dbStatus = "SQLite";
+  let pgStatus = "Nicht aktiv";
+  let pgPing = "Nicht getestet";
+
+  if (pgPool) {
+    dbStatus = "Supabase/PostgreSQL";
+
+    try {
+      const ping = await pgPool.query(`SELECT NOW() AS now`);
+      pgStatus = "Online";
+      pgPing = String(ping.rows[0].now);
+    } catch (err) {
+      pgStatus = "Fehler";
+      pgPing = err.message;
+    }
+  }
+
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
@@ -10501,6 +10521,9 @@ if (text === "/health") {
       "🩺 SYSTEM HEALTH\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
       "✅ Bot: Online\n" +
+      `🗄 Datenbank: ${dbStatus}\n` +
+      `🧪 Supabase: ${pgStatus}\n` +
+      `🕒 DB Ping: ${pgPing}\n\n` +
       `📥 Queue: ${UPLOAD_QUEUE.length}\n` +
       `⚙️ Queue aktiv: ${UPLOAD_QUEUE_RUNNING ? "Ja" : "Nein"}\n` +
       `🧩 Aktive Uploads: ${ACTIVE_UPLOADS.size}\n` +
