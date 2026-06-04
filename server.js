@@ -10120,129 +10120,90 @@ if (text.startsWith("/deletetopic")) {
 
   return;
 }
-
-if (text.startsWith("/deleteseries")) {
-  const query = text.replace("/deleteseries", "").trim();
-
-  if (!query) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "⚠️ Nutzung:\n" +
-        "/deleteseries Tulsa King S01E01"
-    });
-    return;
-  }
   
-  if (text.startsWith("/deleteseriestopic")) {
-  const query = text
-    .replace("/deleteseriestopic", "")
-    .trim();
+  // =============================
+// DELETE SERIES TOPIC
+// =============================
+if (text.startsWith("/deleteseriestopic")) {
+  const query = text.replace("/deleteseriestopic", "").trim();
 
   if (!query) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "⚠️ Nutzung:\n" +
+        "⚠️ Nutzung:\n\n" +
         "/deleteseriestopic Tulsa King"
     });
-
     return;
   }
 
   const targetKey = makeKey(query);
 
-  let topics = [];
+  let topic = null;
 
   if (pgPool) {
     const result = await pgPool.query(
       `
       SELECT *
-      FROM topics
-      WHERE chat_id = $1
+      FROM series_topics
+      WHERE LOWER(series_name) LIKE $1
+      ORDER BY created_at DESC
+      LIMIT 1
       `,
-      [String(SERIES_GROUP_ID)]
+      [`%${query.toLowerCase()}%`]
     );
 
-    topics = result.rows;
+    topic = result.rows[0] || null;
   } else {
-    topics = db.prepare(`
+    topic = db.prepare(`
       SELECT *
-      FROM topics
-      WHERE chat_id = ?
-    `).all(String(SERIES_GROUP_ID));
+      FROM series_topics
+      WHERE LOWER(series_name) LIKE ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `).get(`%${query.toLowerCase()}%`);
   }
-
-  const topic = topics.find((t) =>
-    makeKey(t.name) === targetKey ||
-    makeKey(t.name).includes(targetKey) ||
-    targetKey.includes(makeKey(t.name))
-  );
 
   if (!topic) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "❌ Topic nicht gefunden.\n\n" +
-        `Gesucht: ${query}\n` +
-        `Gefundene Serientopics: ${topics.length}`
+        "❌ Serien-Topic nicht gefunden:\n\n" +
+        query
     });
-
     return;
   }
 
-  let episodes = [];
+  let deletedEpisodes = 0;
 
   if (pgPool) {
-    const result = await pgPool.query(
+    const del = await pgPool.query(
       `
-      SELECT id, series_title
-      FROM series
-      `
+      DELETE FROM series
+      WHERE LOWER(series_title) LIKE $1
+      `,
+      [`%${topic.series_name.toLowerCase()}%`]
     );
 
-    episodes = result.rows;
-  } else {
-    episodes = db.prepare(`
-      SELECT id, series_title
-      FROM series
-    `).all();
-  }
-
-  const matchingEpisodes = episodes.filter((ep) =>
-    makeKey(ep.series_title) === targetKey ||
-    makeKey(ep.series_title).includes(targetKey) ||
-    targetKey.includes(makeKey(ep.series_title))
-  );
-
-  if (pgPool) {
-    for (const ep of matchingEpisodes) {
-      await pgPool.query(
-        `
-        DELETE FROM series
-        WHERE id = $1
-        `,
-        [ep.id]
-      );
-    }
+    deletedEpisodes = del.rowCount || 0;
 
     await pgPool.query(
       `
-      DELETE FROM topics
+      DELETE FROM series_topics
       WHERE id = $1
       `,
       [topic.id]
     );
   } else {
-    for (const ep of matchingEpisodes) {
-      db.prepare(`
-        DELETE FROM series
-        WHERE id = ?
-      `).run(ep.id);
-    }
+    const del = db.prepare(`
+      DELETE FROM series
+      WHERE LOWER(series_title) LIKE ?
+    `).run(`%${topic.series_name.toLowerCase()}%`);
+
+    deletedEpisodes = del.changes || 0;
 
     db.prepare(`
-      DELETE FROM topics
+      DELETE FROM series_topics
       WHERE id = ?
     `).run(topic.id);
   }
@@ -10253,10 +10214,7 @@ if (text.startsWith("/deleteseries")) {
       message_thread_id: Number(topic.topic_id)
     });
   } catch (err) {
-    console.error(
-      "⚠️ Telegram Topic Delete Fehler:",
-      err.message
-    );
+    console.error("⚠️ Telegram Topic Delete Fehler:", err.message);
   }
 
   await tg("sendMessage", {
@@ -10265,14 +10223,31 @@ if (text.startsWith("/deleteseries")) {
       "━━━━━━━━━━━━━━━━━━\n" +
       "🗑 SERIENTOPIC GELÖSCHT\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
-      `📺 Topic: ${topic.name}\n` +
-      `🧹 Episoden gelöscht: ${matchingEpisodes.length}\n\n` +
+      `📺 Serie: ${topic.series_name}\n` +
+      `🧵 Topic ID: ${topic.topic_id}\n` +
+      `🧹 Episoden gelöscht: ${deletedEpisodes}\n\n` +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
 
   return;
 }
+
+// =============================
+// DELETE SINGLE SERIES EPISODE
+// =============================
+if (text.startsWith("/deleteseries")) {
+  const query = text.replace("/deleteseries", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/deleteseries Tulsa King S01E01"
+    });
+    return;
+  }
 
   const match = query.match(/(.+)\s+s(\d{1,2})e(\d{1,3})/i);
 
@@ -10290,7 +10265,6 @@ if (text.startsWith("/deleteseries")) {
   const title = match[1].trim();
   const season = Number(match[2]);
   const episode = Number(match[3]);
-  const targetKey = makeKey(title);
 
   let rows = [];
 
@@ -10315,8 +10289,12 @@ if (text.startsWith("/deleteseries")) {
     `).all(season, episode);
   }
 
+  const targetKey = makeKey(title);
+
   const row = rows.find((r) =>
-    makeKey(r.series_title) === targetKey
+    makeKey(r.series_title || "") === targetKey ||
+    makeKey(r.series_title || "").includes(targetKey) ||
+    targetKey.includes(makeKey(r.series_title || ""))
   );
 
   if (!row) {
@@ -10324,8 +10302,7 @@ if (text.startsWith("/deleteseries")) {
       chat_id: msg.chat.id,
       text:
         "❌ Episode nicht gefunden.\n\n" +
-        `Gesucht: ${title} S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}\n` +
-        `Gefundene Episoden mit S/E: ${rows.length}`
+        `Gesucht: ${title} S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}`
     });
     return;
   }
@@ -10348,8 +10325,14 @@ if (text.startsWith("/deleteseries")) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "🗑 Episode gelöscht:\n\n" +
-      `📺 ${row.series_title} S${String(row.season).padStart(2, "0")}E${String(row.episode).padStart(2, "0")}`
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🗑 EPISODE GELÖSCHT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `📺 ${row.series_title}\n` +
+      `🎞 S${String(row.season).padStart(2, "0")}E${String(row.episode).padStart(2, "0")}\n\n` +
+      "Du kannst die Episode jetzt erneut hochladen.\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
   });
 
   return;
