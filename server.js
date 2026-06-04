@@ -10388,9 +10388,7 @@ console.log("🌌 STAR WARS ERA DETECT:", {
 // MOVIE TOPIC ROUTING — CLEAN STRUCTURE
 // =============================
 const useCollectionTopic =
-  tmdb.collection &&
-  tmdb.collectionId &&
-  shouldCreateCollectionTopic(tmdb.collection);
+  Boolean(tmdb.collection);
 
 let finalTopicName = "🎬 Movie Library";
 let finalTopicType = "movie_library";
