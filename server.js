@@ -11064,18 +11064,22 @@ if (command === "/seriesaz") {
   }
 
   if (!rows.length) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: "📺 Noch keine Serien gespeichert."
-    });
-    return;
-  }
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: "📺 Noch keine Serien gespeichert."
+  });
+  return;
+}
+
+console.log("📺 SERIESAZ ROWS:", rows);
+
+let currentLetter = "";
 
   let currentLetter = "";
   let resultText =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🔤 SERIEN A–Z\n" +
-    "━━━━━━━━━━━━━━━━━━\n";
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "🔤 SERIEN A-Z\n" +
+  "━━━━━━━━━━━━━━━━━━\n";
 
   for (const s of rows) {
     const letter = String(s.series_title || "#").charAt(0).toUpperCase();
@@ -11101,10 +11105,12 @@ if (command === "/seriesaz") {
   resultText += "━━━━━━━━━━━━━━━━━━\n";
   resultText += "@LibraryOfLegends";
 
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: resultText.slice(0, 4000)
-  });
+  console.log("📺 SERIESAZ RESULT:", resultText);
+
+await tg("sendMessage", {
+  chat_id: msg.chat.id,
+  text: resultText.slice(0, 4000)
+});
 
   return;
 }
