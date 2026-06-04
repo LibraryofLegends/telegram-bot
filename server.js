@@ -3454,6 +3454,197 @@ async function buildPremiumQualityHubCaption() {
 
 }
 
+// =============================
+// ELITE ARCHIVE HUB
+// =============================
+async function getEliteArchiveRows() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        title,
+        year,
+        rating,
+        quality,
+        genre,
+        library_id
+      FROM movies
+      WHERE rating IS NOT NULL
+      ORDER BY title ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        title,
+        year,
+        rating,
+        quality,
+        genre,
+        library_id
+      FROM movies
+      WHERE rating IS NOT NULL
+      ORDER BY title ASC
+    `).all();
+  }
+
+  return rows;
+}
+
+function getRatingValue(rating = "") {
+  const match =
+    String(rating || "").match(/(\d+(\.\d+)?)/);
+
+  return match ? Number(match[1]) : 0;
+}
+
+async function buildEliteArchiveHubCaption() {
+  const movies = await getEliteArchiveRows();
+
+  const rankedMovies =
+    movies
+      .map((movie) => ({
+        ...movie,
+        ratingValue: getRatingValue(movie.rating)
+      }))
+      .filter((movie) => movie.ratingValue > 0)
+      .sort((a, b) => b.ratingValue - a.ratingValue);
+
+  const legendaryMovies =
+    rankedMovies.filter((m) => m.ratingValue >= 8);
+
+  const eliteMovies =
+    rankedMovies.filter((m) =>
+      m.ratingValue >= 7 && m.ratingValue < 8
+    );
+
+  const topMovies =
+    rankedMovies.slice(0, 10);
+
+  const averageRating =
+    rankedMovies.length
+      ? (
+          rankedMovies.reduce((sum, m) => sum + m.ratingValue, 0) /
+          rankedMovies.length
+        ).toFixed(1)
+      : "Unbekannt";
+
+  let text =
+    "███ ELITE ARCHIVE HUB ███\n\n" +
+    "🏆 CINEMATIC MASTERPIECES\n" +
+    "LEGENDS RANKING DATABASE • ACTIVE\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🏛 ELITE STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `👑 Legendary Titles • ${legendaryMovies.length}\n` +
+    `⭐ Elite Titles • ${eliteMovies.length}\n` +
+    `📊 Ø Archive Rating • ${averageRating}\n` +
+    `🎬 Rated Movies • ${rankedMovies.length}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🥇 TOP 10 LEGENDS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!topMovies.length) {
+    text += "Noch keine bewerteten Filme gespeichert.\n";
+  } else {
+    topMovies.forEach((movie, index) => {
+      const place =
+        index === 0 ? "🥇" :
+        index === 1 ? "🥈" :
+        index === 2 ? "🥉" :
+        `#${index + 1}`;
+
+      text +=
+        `${place} ${movie.title || "Unbekannt"}${movie.year ? ` (${movie.year})` : ""}\n` +
+        `⭐ ${movie.ratingValue} IMDb • ${movie.quality || "?"}\n\n`;
+    });
+  }
+
+  text +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+async function createOrUpdateEliteArchiveHub() {
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "🏆 Elite Archive",
+    type: "system_hub"
+  });
+
+  if (!topicId) {
+    console.error("❌ Elite Archive Topic konnte nicht erstellt werden");
+    return null;
+  }
+
+  const text = await buildEliteArchiveHubCaption();
+
+  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🏆 Elite Archive`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [topicKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(topicKey);
+  }
+
+  if (topic?.hub_message_id) {
+    const edited = await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+
+    if (!edited?.__error) {
+      return edited;
+    }
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(msg.message_id, topicKey);
+    }
+  }
+
+  return msg;
+}
+
 async function createOrUpdatePremiumQualityHub() {
 
   console.log("💎 PREMIUM HUB START");
@@ -7615,6 +7806,7 @@ await createOrUpdateMovieIndexHub();
 await createOrUpdateCollectionsIndexHub();
 await createOrUpdateUniversesIndexHub();
 await createOrUpdatePremiumQualityHub();
+await createOrUpdateEliteArchiveHub();
 
 await createOrUpdateCommandCenter({
   chatId: SERIES_GROUP_ID,
@@ -11267,6 +11459,7 @@ try {
   await createOrUpdateCollectionsIndexHub();
   await createOrUpdateUniversesIndexHub();
   await createOrUpdatePremiumQualityHub();
+  await createOrUpdateEliteArchiveHub();
 } catch (err) {
   console.error(
     "⚠️ Movie Hubs Update Fehler:",
