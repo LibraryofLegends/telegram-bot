@@ -8574,6 +8574,12 @@ await createOrUpdateCommandCenter({
   topicName: "🎛 SERIES COMMAND CENTER",
   caption: await seriesCommandCenterCaption()
 });
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "📺 SERIES LIBRARY",
+  caption: await seriesLibraryHubCaption()
+});
 }
 
 // =============================
