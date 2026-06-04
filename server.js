@@ -10982,40 +10982,73 @@ if (text.startsWith("/collection")) {
     return;
   }
 
-  if (text === "/series") {
-  const rows = db.prepare(`
-    SELECT series_title, COUNT(*) AS count
-    FROM series
-    GROUP BY series_title
-    ORDER BY series_title ASC
-    LIMIT 50
-  `).all();
+  // =============================
+// SERIES LIST
+// =============================
+if (text === "/series") {
+  let rows = [];
 
-  let result = "📺 𝐒𝐄𝐑𝐈𝐄𝐍\n\n";
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT series_title, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY series_title ASC
+      LIMIT 50
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT series_title, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY series_title ASC
+      LIMIT 50
+    `).all();
+  }
+
+  let resultText = "📺 𝐒𝐄𝐑𝐈𝐄𝐍\n\n";
 
   if (!rows.length) {
-    result += "Noch keine Serien gespeichert.";
+    resultText += "Noch keine Serien gespeichert.";
   } else {
     for (const s of rows) {
-      result += `• ${s.series_title} — ${s.count} Episode(n)\n`;
+      resultText += `• ${s.series_title} — ${s.count} Episode(n)\n`;
     }
   }
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result
+    text: resultText
   });
 
   return;
 }
 
+// =============================
+// SERIES A-Z
+// =============================
 if (text === "/seriesaz") {
-  const rows = db.prepare(`
-    SELECT series_title, genre, rating, COUNT(*) AS count
-    FROM series
-    GROUP BY series_title
-    ORDER BY series_title ASC
-  `).all();
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT series_title, genre, rating, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title, genre, rating
+      ORDER BY series_title ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT series_title, genre, rating, COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY series_title ASC
+    `).all();
+  }
 
   if (!rows.length) {
     await tg("sendMessage", {
@@ -11026,7 +11059,7 @@ if (text === "/seriesaz") {
   }
 
   let currentLetter = "";
-  let result =
+  let resultText =
     "━━━━━━━━━━━━━━━━━━\n" +
     "🔤 SERIEN A–Z\n" +
     "━━━━━━━━━━━━━━━━━━\n";
@@ -11036,7 +11069,7 @@ if (text === "/seriesaz") {
 
     if (letter !== currentLetter) {
       currentLetter = letter;
-      result += `\n${currentLetter}\n`;
+      resultText += `\n${currentLetter}\n`;
     }
 
     const genreText = String(s.genre || "Sonstige")
@@ -11046,30 +11079,46 @@ if (text === "/seriesaz") {
       .slice(0, 2)
       .join(" • ");
 
-    result += `• ${s.series_title}\n`;
-    result += `  📀 ${s.count} Episode(n)\n`;
-    result += `  🎭 ${genreText}\n`;
-    result += `  ⭐ ${s.rating || "Unbekannt"}\n\n`;
+    resultText += `• ${s.series_title}\n`;
+    resultText += `  📀 ${s.count} Episode(n)\n`;
+    resultText += `  🎭 ${genreText}\n`;
+    resultText += `  ⭐ ${s.rating || "Unbekannt"}\n\n`;
   }
 
-  result += "━━━━━━━━━━━━━━━━━━\n";
-  result += "@LibraryOfLegends";
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result
+    text: resultText.slice(0, 4000)
   });
 
   return;
 }
 
+// =============================
+// NEW SERIES EPISODES
+// =============================
 if (text === "/newseries") {
-  const rows = db.prepare(`
-    SELECT series_title, season, episode, episode_title, genre, rating, created_at
-    FROM series
-    ORDER BY created_at DESC
-    LIMIT 10
-  `).all();
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT series_title, season, episode, episode_title, genre, rating, created_at
+      FROM series
+      ORDER BY created_at DESC
+      LIMIT 10
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT series_title, season, episode, episode_title, genre, rating, created_at
+      FROM series
+      ORDER BY created_at DESC
+      LIMIT 10
+    `).all();
+  }
 
   if (!rows.length) {
     await tg("sendMessage", {
@@ -11079,7 +11128,7 @@ if (text === "/newseries") {
     return;
   }
 
-  let result =
+  let resultText =
     "━━━━━━━━━━━━━━━━━━\n" +
     "🆕 NEUE FOLGEN\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
@@ -11095,20 +11144,20 @@ if (text === "/newseries") {
       .slice(0, 2)
       .join(" • ");
 
-    result += `📺 ${s.series_title}\n`;
-    result += `🎞 S${seasonText}E${episodeText}`;
-    if (s.episode_title) result += ` • ${s.episode_title}`;
-    result += "\n";
-    result += `🎭 ${genreText}\n`;
-    result += `⭐ ${s.rating || "Unbekannt"}\n\n`;
+    resultText += `📺 ${s.series_title}\n`;
+    resultText += `🎞 S${seasonText}E${episodeText}`;
+    if (s.episode_title) resultText += ` • ${s.episode_title}`;
+    resultText += "\n";
+    resultText += `🎭 ${genreText}\n`;
+    resultText += `⭐ ${s.rating || "Unbekannt"}\n\n`;
   }
 
-  result += "━━━━━━━━━━━━━━━━━━\n";
-  result += "@LibraryOfLegends";
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result
+    text: resultText.slice(0, 4000)
   });
 
   return;
