@@ -4720,8 +4720,9 @@ function movieLiteCaption(tmdb, extras = {}) {
     return (
     "███ LEGENDS FILE ███\n\n" +
 
-    `${nexus.line2}\n` +
-    `${nexus.line1}${nexus.line4 ? ` • ${nexus.line4}` : ""}\n\n` +
+    `${nexus.line2}\n\n` +
+    `${nexus.line1}\n` +
+    `${nexus.line4 ? `📚 ${nexus.line4.replace("COLLECTION ENTRY •", "Teil").replace("/", " von ")}\n\n` : "\n"}` +
 
     `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
     `📀 ${extras.quality || "HD"} • ${extras.fileSize || "Unbekannt"}\n` +
