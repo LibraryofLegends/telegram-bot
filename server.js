@@ -8592,6 +8592,12 @@ await createOrUpdateCommandCenter({
   topicName: "🧩 INCOMPLETE",
   caption: await incompleteSeriesHubCaption()
 });
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🏆 MASTERED",
+  caption: await masteredSeriesHubCaption()
+});
 }
 
 // =============================
@@ -9156,6 +9162,109 @@ async function incompleteSeriesHubCaption() {
 
   if (!found) {
     resultText += "✅ Alle Serien wirken vollständig nach aktuellem Datenstand.\n";
+  }
+
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
+
+  return cleanTelegramText(resultText).slice(0, 4000);
+}
+
+// =============================
+// MASTERED SERIES HUB CAPTION
+// =============================
+async function masteredSeriesHubCaption() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT series_title, season, episode, genre, rating
+      FROM series
+      ORDER BY series_title ASC, season ASC, episode ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT series_title, season, episode, genre, rating
+      FROM series
+      ORDER BY series_title ASC, season ASC, episode ASC
+    `).all();
+  }
+
+  const grouped = {};
+
+  for (const row of rows) {
+    const title = row.series_title;
+    const season = Number(row.season || 0);
+    const episode = Number(row.episode || 0);
+
+    if (!title || !season || !episode) continue;
+
+    if (!grouped[title]) {
+      grouped[title] = {
+        seasons: {},
+        genre: row.genre || null,
+        rating: row.rating || null
+      };
+    }
+
+    if (!grouped[title].seasons[season]) {
+      grouped[title].seasons[season] = [];
+    }
+
+    grouped[title].seasons[season].push(episode);
+  }
+
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🏆 MASTERED SERIES\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "✅ Vollständige Serien nach aktuellem Datenstand\n\n";
+
+  let found = false;
+
+  for (const title of Object.keys(grouped).sort()) {
+    let isIncomplete = false;
+    let episodeCount = 0;
+
+    for (const season of Object.keys(grouped[title].seasons).map(Number).sort((a, b) => a - b)) {
+      const episodes = [...new Set(grouped[title].seasons[season])]
+        .sort((a, b) => a - b);
+
+      episodeCount += episodes.length;
+
+      const maxEpisode = Math.max(...episodes);
+
+      for (let ep = 1; ep <= maxEpisode; ep++) {
+        if (!episodes.includes(ep)) {
+          isIncomplete = true;
+          break;
+        }
+      }
+
+      if (isIncomplete) break;
+    }
+
+    if (!isIncomplete) {
+      found = true;
+
+      const genreText = String(grouped[title].genre || "Sonstige")
+        .split("/")
+        .map(g => g.trim())
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(" • ");
+
+      resultText += `• ${title}\n`;
+      resultText += `  🎞 ${episodeCount} Episode(n)\n`;
+      resultText += `  🎭 ${genreText || "Unbekannt"}\n`;
+      resultText += `  ⭐ ${grouped[title].rating || "Unbekannt"}\n\n`;
+    }
+  }
+
+  if (!found) {
+    resultText += "Noch keine vollständig wirkenden Serien gefunden.\n";
   }
 
   resultText += "━━━━━━━━━━━━━━━━━━\n";
