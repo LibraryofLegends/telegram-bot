@@ -9191,6 +9191,15 @@ async function handleCallback(callback) {
   });
 }
 
+function cleanTelegramText(value = "") {
+  return String(value)
+    .replace(/\u0000/g, "")
+    .replace(/\uFFFD/g, "")
+    .replace(/[\uD800-\uDFFF]/g, "")
+    .replace(/[^\x09\x0A\x0D\x20-\uFFFF]/g, "")
+    .normalize("NFC");
+}
+
 // =============================
 // COMMAND HANDLER
 // =============================
@@ -11107,7 +11116,7 @@ let resultText =
 
 await tg("sendMessage", {
   chat_id: msg.chat.id,
-  text: resultText.slice(0, 4000)
+  text: cleanTelegramText(resultText).slice(0, 4000)
 });
 
   return;
