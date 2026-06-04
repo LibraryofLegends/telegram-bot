@@ -2915,6 +2915,32 @@ async function buildMovieIndexHubCaption() {
   const movies = await getMovieIndexStats();
 
   const total = movies.length;
+  
+  const nextMilestone =
+  total < 500
+    ? 500
+    : Math.ceil(total / 500) * 500;
+
+const missingToMilestone =
+  Math.max(0, nextMilestone - total);
+
+const milestonePercent =
+  nextMilestone > 0
+    ? Math.round((total / nextMilestone) * 100)
+    : 0;
+
+const archiveLevel =
+  total >= 10000
+    ? "LEVEL 10 • LEGENDARY ARCHIVE"
+    : total >= 5000
+      ? "LEVEL 9 • MYTHIC ARCHIVE"
+      : total >= 2500
+        ? "LEVEL 8 • TITAN ARCHIVE"
+        : total >= 1000
+          ? "LEVEL 7 • MASTER ARCHIVE"
+          : total >= 500
+            ? "LEVEL 6 • ELITE ARCHIVE"
+            : "LEVEL 5 • RISING ARCHIVE";
 
   const uhd = countWhere(movies, (m) =>
     String(m.quality || "").toUpperCase().includes("UHD") ||
@@ -2970,6 +2996,10 @@ async function buildMovieIndexHubCaption() {
 
     "━━━━━━━━━━━━━━━━━━\n" +
     `🎬 TOTAL MOVIES • ${total}\n` +
+    `🏛 ARCHIVE LEVEL • ${archiveLevel}\n` +
+    `🎯 NEXT MILESTONE • ${nextMilestone} MOVIES\n` +
+    `🚀 MISSING • ${missingToMilestone}\n` +
+    `📈 PROGRESS • ${milestonePercent}%\n` +
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
     "📀 QUALITY MATRIX\n" +
