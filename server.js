@@ -281,19 +281,66 @@ CREATE TABLE IF NOT EXISTS movies (
 
 CREATE TABLE IF NOT EXISTS series (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+
   series_title TEXT NOT NULL,
+
   season INTEGER,
   episode INTEGER,
   episode_title TEXT,
+
   genre TEXT,
   rating TEXT,
   overview TEXT,
   poster_url TEXT,
+
   file_name TEXT,
   file_id TEXT,
+
   unique_key TEXT UNIQUE,
+
   telegram_message_id INTEGER,
   topic_id INTEGER,
+
+  series_library_id INTEGER,
+
+  universe TEXT,
+  universe_phase TEXT,
+  starwars_era TEXT,
+
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS series_library (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  title TEXT UNIQUE NOT NULL,
+  tmdb_id INTEGER,
+
+  first_air_date TEXT,
+  last_air_date TEXT,
+
+  genres TEXT,
+  rating TEXT,
+
+  overview TEXT,
+  poster_url TEXT,
+
+  total_seasons INTEGER,
+  total_episodes INTEGER,
+
+  status TEXT,
+
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS series_topics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  series_name TEXT UNIQUE NOT NULL,
+
+  topic_id INTEGER,
+  topic_title TEXT,
+
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -332,6 +379,20 @@ CREATE TABLE IF NOT EXISTS logs (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 `);
+
+function addColumnIfMissing(table, column, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  const exists = columns.some(c => c.name === column);
+
+  if (!exists) {
+    db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
+  }
+}
+
+addColumnIfMissing("series", "series_library_id", "INTEGER");
+addColumnIfMissing("series", "universe", "TEXT");
+addColumnIfMissing("series", "universe_phase", "TEXT");
+addColumnIfMissing("series", "starwars_era", "TEXT");
 
 function addColumnIfMissing(table, column, definition) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all();
@@ -627,21 +688,16 @@ async function saveSeries(data) {
         season,
         episode,
         episode_title,
-
         genre,
         rating,
         overview,
         poster_url,
-
         file_name,
         file_id,
         unique_key,
-
         telegram_message_id,
         topic_id,
-
         series_library_id,
-
         universe,
         universe_phase,
         starwars_era
@@ -658,28 +714,23 @@ async function saveSeries(data) {
       DO NOTHING
       `,
       [
-        data.seriesTitle,
-        data.season,
-        data.episode,
-        data.episodeTitle,
-
-        data.genre,
-        data.rating,
-        data.overview,
-        data.posterUrl,
-
-        data.fileName,
-        data.fileId,
-        data.uniqueKey,
-
-        data.telegramMessageId,
-        data.topicId,
-
-        data.seriesLibraryId,
-
-        data.universe,
-        data.universePhase,
-        data.starWarsEra
+        data.seriesTitle || null,
+        data.season || null,
+        data.episode || null,
+        data.episodeTitle || null,
+        data.genre || null,
+        data.rating || null,
+        data.overview || null,
+        data.posterUrl || null,
+        data.fileName || null,
+        data.fileId || null,
+        data.uniqueKey || null,
+        data.telegramMessageId || null,
+        data.topicId || null,
+        data.seriesLibraryId || null,
+        data.universe || null,
+        data.universePhase || null,
+        data.starWarsEra || null
       ]
     );
   }
@@ -691,21 +742,16 @@ async function saveSeries(data) {
       season,
       episode,
       episode_title,
-
       genre,
       rating,
       overview,
       poster_url,
-
       file_name,
       file_id,
       unique_key,
-
       telegram_message_id,
       topic_id,
-
       series_library_id,
-
       universe,
       universe_phase,
       starwars_era
@@ -713,34 +759,154 @@ async function saveSeries(data) {
     VALUES (
       ?, ?, ?, ?,
       ?, ?, ?, ?,
-      ?, ?, ?, ?,
+      ?, ?, ?,
       ?, ?,
+      ?,
       ?, ?, ?
     )
   `).run(
-    data.seriesTitle,
-    data.season,
-    data.episode,
-    data.episodeTitle,
-
-    data.genre,
-    data.rating,
-    data.overview,
-    data.posterUrl,
-
-    data.fileName,
-    data.fileId,
-    data.uniqueKey,
-
-    data.telegramMessageId,
-    data.topicId,
-
-    data.seriesLibraryId,
-
-    data.universe,
-    data.universePhase,
-    data.starWarsEra
+    data.seriesTitle || null,
+    data.season || null,
+    data.episode || null,
+    data.episodeTitle || null,
+    data.genre || null,
+    data.rating || null,
+    data.overview || null,
+    data.posterUrl || null,
+    data.fileName || null,
+    data.fileId || null,
+    data.uniqueKey || null,
+    data.telegramMessageId || null,
+    data.topicId || null,
+    data.seriesLibraryId || null,
+    data.universe || null,
+    data.universePhase || null,
+    data.starWarsEra || null
   );
+}
+
+async function saveSeriesLibrary(data) {
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      INSERT INTO series_library
+      (
+        title,
+        tmdb_id,
+        first_air_date,
+        last_air_date,
+        genres,
+        rating,
+        overview,
+        poster_url,
+        total_seasons,
+        total_episodes,
+        status
+      )
+      VALUES (
+        $1, $2, $3, $4, $5, $6,
+        $7, $8, $9, $10, $11
+      )
+      ON CONFLICT (title)
+      DO UPDATE SET
+        tmdb_id = EXCLUDED.tmdb_id,
+        first_air_date = EXCLUDED.first_air_date,
+        last_air_date = EXCLUDED.last_air_date,
+        genres = EXCLUDED.genres,
+        rating = EXCLUDED.rating,
+        overview = EXCLUDED.overview,
+        poster_url = EXCLUDED.poster_url,
+        total_seasons = EXCLUDED.total_seasons,
+        total_episodes = EXCLUDED.total_episodes,
+        status = EXCLUDED.status
+      RETURNING id
+      `,
+      [
+        data.title || null,
+        data.tmdbId || null,
+        data.firstAirDate || null,
+        data.lastAirDate || null,
+        data.genres || null,
+        data.rating || null,
+        data.overview || null,
+        data.posterUrl || null,
+        data.totalSeasons || null,
+        data.totalEpisodes || null,
+        data.status || null
+      ]
+    );
+
+    return result.rows[0].id;
+  }
+
+  const existing = db.prepare(`
+    SELECT id FROM series_library
+    WHERE title = ?
+  `).get(data.title);
+
+  if (existing) {
+    db.prepare(`
+      UPDATE series_library
+      SET
+        tmdb_id = ?,
+        first_air_date = ?,
+        last_air_date = ?,
+        genres = ?,
+        rating = ?,
+        overview = ?,
+        poster_url = ?,
+        total_seasons = ?,
+        total_episodes = ?,
+        status = ?
+      WHERE title = ?
+    `).run(
+      data.tmdbId || null,
+      data.firstAirDate || null,
+      data.lastAirDate || null,
+      data.genres || null,
+      data.rating || null,
+      data.overview || null,
+      data.posterUrl || null,
+      data.totalSeasons || null,
+      data.totalEpisodes || null,
+      data.status || null,
+      data.title
+    );
+
+    return existing.id;
+  }
+
+  const result = db.prepare(`
+    INSERT INTO series_library
+    (
+      title,
+      tmdb_id,
+      first_air_date,
+      last_air_date,
+      genres,
+      rating,
+      overview,
+      poster_url,
+      total_seasons,
+      total_episodes,
+      status
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    data.title || null,
+    data.tmdbId || null,
+    data.firstAirDate || null,
+    data.lastAirDate || null,
+    data.genres || null,
+    data.rating || null,
+    data.overview || null,
+    data.posterUrl || null,
+    data.totalSeasons || null,
+    data.totalEpisodes || null,
+    data.status || null
+  );
+
+  return result.lastInsertRowid;
 }
 
 async function getCollection(tmdbCollectionId) {
@@ -12079,8 +12245,7 @@ const tmdb = await searchSeriesTMDB(
     }
 
     const extras = {
-  ...getMediaExtras(fileName, msg),
-  seriesLibraryId: makeSeriesLibraryCode(tmdb.genre)
+  ...getMediaExtras(fileName, msg)
 };
 
 await createSeriesHubIfMissing({
@@ -12136,21 +12301,44 @@ console.log("🌌 SERIES ERA DETECT:", {
   starWarsEra
 });
 
+const seriesLibraryId = await saveSeriesLibrary({
+  title: tmdb.seriesTitle || media.seriesTitle,
+  tmdbId: tmdb.tmdbId || null,
+
+  firstAirDate: tmdb.firstAirDate || null,
+  lastAirDate: tmdb.lastAirDate || null,
+
+  genres: tmdb.genre || null,
+  rating: tmdb.rating || null,
+
+  overview: tmdb.overview || null,
+  posterUrl: tmdb.posterUrl || null,
+
+  totalSeasons: tmdb.totalSeasons || null,
+  totalEpisodes: tmdb.totalEpisodes || null,
+
+  status: tmdb.status || null
+});
+
 await saveSeries({
-  seriesTitle: tmdb.seriesTitle,
+  seriesTitle: tmdb.seriesTitle || media.seriesTitle,
   season: media.season,
   episode: media.episode,
   episodeTitle: tmdb.episodeTitle || media.episodeTitleFromFile || "",
+
   genre: tmdb.genre,
   rating: tmdb.rating,
   overview: tmdb.overview,
   posterUrl: tmdb.posterUrl,
+
   fileName,
   fileId,
   uniqueKey: media.uniqueKey,
+
   telegramMessageId: copied.message_id,
   topicId,
-  seriesLibraryId: extras.seriesLibraryId,
+
+  seriesLibraryId,
 
   universe: seriesUniverseData?.universeName || null,
   universePhase: seriesUniverseData?.phase || null,
