@@ -9615,17 +9615,19 @@ if (text === "/pgstats") {
 }
 
 // =============================
-// FIND MOVIE / FILM SUCHEN
+// FIND MOVIE / FILM DEBUG SEARCH
 // =============================
-if (text.startsWith("/findmovie")) {
-
-  const query =
-    text.replace("/findmovie", "").trim().toLowerCase();
+if (command === "/findmovie") {
+  const query = text.replace(command, "").trim().toLowerCase();
 
   if (!query) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "⚠️ Nutzung:\n/findmovie Hangover"
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/findmovie Hangover\n" +
+        "/findmovie Batman\n" +
+        "/findmovie fast"
     });
     return;
   }
@@ -9635,11 +9637,23 @@ if (text.startsWith("/findmovie")) {
   if (pgPool) {
     const result = await pgPool.query(
       `
-      SELECT id, title, year, unique_key, file_name, collection, topic_id
+      SELECT
+        id,
+        title,
+        year,
+        unique_key,
+        file_name,
+        collection,
+        topic_id,
+        telegram_message_id,
+        quality,
+        resolution,
+        file_size
       FROM movies
       WHERE LOWER(title) LIKE $1
          OR LOWER(unique_key) LIKE $1
          OR LOWER(file_name) LIKE $1
+         OR LOWER(collection) LIKE $1
       ORDER BY created_at DESC
       LIMIT 10
       `,
@@ -9647,35 +9661,70 @@ if (text.startsWith("/findmovie")) {
     );
 
     rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        id,
+        title,
+        year,
+        unique_key,
+        file_name,
+        collection,
+        topic_id,
+        telegram_message_id,
+        quality,
+        resolution,
+        file_size
+      FROM movies
+      WHERE LOWER(title) LIKE ?
+         OR LOWER(unique_key) LIKE ?
+         OR LOWER(file_name) LIKE ?
+         OR LOWER(collection) LIKE ?
+      ORDER BY created_at DESC
+      LIMIT 10
+    `).all(
+      `%${query}%`,
+      `%${query}%`,
+      `%${query}%`,
+      `%${query}%`
+    );
   }
 
   if (!rows.length) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "❌ Kein Film gefunden:\n\n" + query
+      text:
+        "❌ Kein Film gefunden:\n\n" +
+        query
     });
     return;
   }
 
   let resultText =
     "━━━━━━━━━━━━━━━━━━\n" +
-    "🔎 FILM GEFUNDEN\n" +
+    "🔎 FILM DEBUG SUCHE\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
   for (const m of rows) {
     resultText +=
-  `🆔 ID: ${m.id}\n` +
-  `🎬 Titel: ${m.title}\n` +
-  `📅 Jahr: ${m.year || "?"}\n` +
-  `🔑 Key: ${m.unique_key}\n` +
-  `📁 Datei: ${m.file_name || "?"}\n` +
-  `🎞 Collection: ${m.collection || "leer"}\n` +
-  `🧵 Topic ID: ${m.topic_id || "leer"}\n\n`;
+      `🆔 ID: ${m.id}\n` +
+      `🎬 Titel: ${m.title} ${m.year || ""}\n` +
+      `🔑 Key: ${m.unique_key || "leer"}\n` +
+      `📁 Datei: ${m.file_name || "leer"}\n` +
+      `🎞 Collection: ${m.collection || "leer"}\n` +
+      `🧵 Topic ID: ${m.topic_id || "leer"}\n` +
+      `💬 Message ID: ${m.telegram_message_id || "leer"}\n` +
+      `💎 Qualität: ${m.quality || "leer"}\n` +
+      `📺 Auflösung: ${m.resolution || "leer"}\n` +
+      `💾 Größe: ${m.file_size || "leer"}\n\n`;
   }
+
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: resultText.slice(0, 4000)
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
