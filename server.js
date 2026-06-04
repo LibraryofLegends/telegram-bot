@@ -10959,13 +10959,39 @@ if (command === "/search") {
   return;
 }
 
-if (text === "/rebuildcollections") {
-  const collections = db.prepare(`
-    SELECT *
-    FROM collections
-    WHERE topic_id IS NOT NULL
-    ORDER BY collection_name ASC
-  `).all();
+// =============================
+// REBUILD COLLECTION HUBS
+// =============================
+if (command === "/rebuildcollections") {
+  let collections = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT *
+      FROM collections
+      WHERE topic_id IS NOT NULL
+      ORDER BY collection_name ASC
+    `);
+
+    collections = result.rows;
+  } else {
+    collections = db.prepare(`
+      SELECT *
+      FROM collections
+      WHERE topic_id IS NOT NULL
+      ORDER BY collection_name ASC
+    `).all();
+  }
+
+  if (!collections.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Keine Collections mit Topic-ID gefunden.\n\n" +
+        "Erst Filme mit Filmreihen hochladen."
+    });
+    return;
+  }
 
   let updated = 0;
   let failed = 0;
@@ -10974,16 +11000,22 @@ if (text === "/rebuildcollections") {
     try {
       const fakeTmdb = {
         collection: c.collection_name,
-        collectionId: c.tmdb_collection_id
+        collectionId: c.tmdb_collection_id,
+        posterUrl: c.poster_url || null
       };
 
       await createOrUpdateCollectionHub(fakeTmdb, c.topic_id);
+
       updated++;
 
       await new Promise((resolve) => setTimeout(resolve, 700));
     } catch (err) {
       failed++;
-      console.error("⚠️ Collection Rebuild Fehler:", err.message);
+
+      console.error("⚠️ Collection Rebuild Fehler:", {
+        collection: c.collection_name,
+        error: err.message
+      });
     }
   }
 
@@ -11002,19 +11034,41 @@ if (text === "/rebuildcollections") {
   return;
 }
   
-  if (text === "/collections") {
-  const rows = db.prepare(`
-    SELECT 
-      c.collection_name,
-      c.tmdb_collection_id,
-      c.topic_id,
-      COUNT(m.id) AS movie_count
-    FROM collections c
-    LEFT JOIN movies m
-      ON m.collection = c.collection_name
-    GROUP BY c.tmdb_collection_id
-    ORDER BY c.collection_name ASC
-  `).all();
+  // =============================
+// COLLECTIONS LIST
+// =============================
+if (command === "/collections") {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT 
+        c.collection_name,
+        c.tmdb_collection_id,
+        c.topic_id,
+        COUNT(m.id) AS movie_count
+      FROM collections c
+      LEFT JOIN movies m
+        ON m.collection = c.collection_name
+      GROUP BY c.id, c.collection_name, c.tmdb_collection_id, c.topic_id
+      ORDER BY c.collection_name ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT 
+        c.collection_name,
+        c.tmdb_collection_id,
+        c.topic_id,
+        COUNT(m.id) AS movie_count
+      FROM collections c
+      LEFT JOIN movies m
+        ON m.collection = c.collection_name
+      GROUP BY c.id
+      ORDER BY c.collection_name ASC
+    `).all();
+  }
 
   if (!rows.length) {
     await tg("sendMessage", {
@@ -11024,63 +11078,130 @@ if (text === "/rebuildcollections") {
     return;
   }
 
-  let result =
-    "╔══════════════════╗\n" +
-    "      🎞 FILMREIHEN\n" +
-    "╚══════════════════╝\n\n";
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎞 FILMREIHEN\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
 
   for (const row of rows) {
-    result += `🎞 ${row.collection_name}\n`;
-    result += `🎬 Filme: ${row.movie_count || 0}\n\n`;
+    resultText += `🎞 ${row.collection_name}\n`;
+    resultText += `🎬 Filme: ${row.movie_count || 0}\n`;
+    resultText += `🧵 Topic: ${row.topic_id || "nicht gesetzt"}\n\n`;
   }
 
-  result +=
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "@LibraryOfLegends";
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result.slice(0, 4000)
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
 }
 
-if (text.startsWith("/collection")) {
-  const query = text.replace("/collection", "").trim();
+// =============================
+// SINGLE COLLECTION
+// =============================
+if (command === "/collection") {
+  const query = text.replace(command, "").trim();
 
   if (!query) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "⚠️ Nutzung:\n" +
+        "⚠️ Nutzung:\n\n" +
         "/collection Star Wars\n\n" +
-        "Beispiel:\n/collection Stirb langsam"
+        "Beispiel:\n" +
+        "/collection Fast & Furious"
     });
     return;
   }
 
-  const collection = db.prepare(`
-    SELECT *
-    FROM collections
-    WHERE LOWER(collection_name) LIKE ?
-    ORDER BY collection_name ASC
-    LIMIT 1
-  `).get(`%${query.toLowerCase()}%`);
+  let collection = null;
+  let movies = [];
+
+  if (pgPool) {
+    const collectionResult = await pgPool.query(
+      `
+      SELECT *
+      FROM collections
+      WHERE LOWER(collection_name) LIKE $1
+      ORDER BY collection_name ASC
+      LIMIT 1
+      `,
+      [`%${query.toLowerCase()}%`]
+    );
+
+    collection = collectionResult.rows[0] || null;
+
+    if (collection) {
+      const movieResult = await pgPool.query(
+        `
+        SELECT title, year, rating
+        FROM movies
+        WHERE collection = $1
+        ORDER BY year ASC, title ASC
+        `,
+        [collection.collection_name]
+      );
+
+      movies = movieResult.rows;
+    }
+  } else {
+    collection = db.prepare(`
+      SELECT *
+      FROM collections
+      WHERE LOWER(collection_name) LIKE ?
+      ORDER BY collection_name ASC
+      LIMIT 1
+    `).get(`%${query.toLowerCase()}%`);
+
+    if (collection) {
+      movies = db.prepare(`
+        SELECT title, year, rating
+        FROM movies
+        WHERE collection = ?
+        ORDER BY year ASC, title ASC
+      `).all(collection.collection_name);
+    }
+  }
 
   if (!collection) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: `❌ Keine Filmreihe gefunden für:\n${query}`
+      text:
+        "❌ Keine Filmreihe gefunden:\n\n" +
+        query
     });
     return;
   }
 
-  const textOut = collectionHubCaption(collection.collection_name);
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎞 FILMREIHE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `🎬 ${collection.collection_name}\n` +
+    `🧩 TMDB Collection ID: ${collection.tmdb_collection_id || "Unbekannt"}\n` +
+    `🧵 Topic ID: ${collection.topic_id || "nicht gesetzt"}\n\n`;
+
+  if (!movies.length) {
+    resultText += "Noch keine Filme in dieser Filmreihe gespeichert.\n";
+  } else {
+    resultText += "🎬 FILME\n\n";
+
+    for (const m of movies) {
+      resultText += `• ${m.title} ${m.year || ""}\n`;
+      resultText += `  ⭐ ${m.rating || "Unbekannt"}\n\n`;
+    }
+  }
+
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: textOut
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
