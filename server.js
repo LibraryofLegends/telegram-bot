@@ -9200,6 +9200,14 @@ function cleanTelegramText(value = "") {
     .normalize("NFC");
 }
 
+function extractRatingNumber(value = "") {
+  const match = String(value).match(/(\d+(?:[.,]\d+)?)/);
+
+  if (!match) return 0;
+
+  return Number(match[1].replace(",", ".")) || 0;
+}
+
 // =============================
 // COMMAND HANDLER
 // =============================
@@ -11294,6 +11302,17 @@ if (command === "/featuredseries") {
       LIMIT 10
     `).all();
   }
+  
+  rows.sort((a, b) => {
+  const ratingA = extractRatingNumber(a.rating);
+  const ratingB = extractRatingNumber(b.rating);
+
+  if (ratingB !== ratingA) {
+    return ratingB - ratingA;
+  }
+
+  return Number(b.count || 0) - Number(a.count || 0);
+});
 
   if (!rows.length) {
     await tg("sendMessage", {
@@ -11308,22 +11327,27 @@ if (command === "/featuredseries") {
     "⭐ FEATURED SERIEN\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
-  for (const s of rows) {
-    const genreText = String(s.genre || "Sonstige")
-      .split("/")
-      .map((g) => g.trim())
-      .filter(Boolean)
-      .slice(0, 2)
-      .join(" • ");
+  let rank = 1;
 
-    resultText += `📺 ${s.series_title}\n`;
-    resultText += `📀 ${s.count} Episode(n)\n`;
-    resultText += `🎭 ${genreText}\n`;
-    resultText += `⭐ ${s.rating || "Unbekannt"}\n\n`;
-  }
+for (const s of rows) {
 
-  resultText += "━━━━━━━━━━━━━━━━━━\n";
-  resultText += "@LibraryOfLegends";
+  const genreText = String(s.genre || "Sonstige")
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(" • ");
+
+  resultText += `#${rank} 📺 ${s.series_title}\n`;
+  resultText += `📀 ${s.count} Episode(n)\n`;
+  resultText += `🎭 ${genreText}\n`;
+  resultText += `⭐ ${s.rating || "Unbekannt"}\n\n`;
+
+  rank++; // ← GENAU HIER
+}
+
+resultText += "━━━━━━━━━━━━━━━━━━\n";
+resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
