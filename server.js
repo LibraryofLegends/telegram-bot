@@ -8935,6 +8935,35 @@ if (text === "/resetelitetopic") {
   return;
 }
 
+if (text === "/resetnewreleasestopic") {
+  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🔥 New Releases`);
+
+  if (pgPool) {
+    await pgPool.query(
+      `
+      DELETE FROM topics
+      WHERE unique_key = $1
+      `,
+      [topicKey]
+    );
+  } else {
+    db.prepare(`
+      DELETE FROM topics
+      WHERE unique_key = ?
+    `).run(topicKey);
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ New Releases Topic wurde aus der DB gelöscht.\n\n" +
+      "Jetzt bitte ausführen:\n" +
+      "/rebuildcommandcenters"
+  });
+
+  return;
+}
+
 // =============================
 // REBUILD STAR WARS HUB
 // =============================
