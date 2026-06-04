@@ -3043,6 +3043,177 @@ const archiveLevel =
   return text.slice(0, 4000);
 }
 
+// =============================
+// COLLECTIONS INDEX HUB
+// =============================
+async function getCollectionOverviewRows() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        collection,
+        COUNT(*) AS movie_count,
+        MIN(year) AS first_year,
+        MAX(year) AS last_year,
+        STRING_AGG(DISTINCT quality, ' • ') AS qualities
+      FROM movies
+      WHERE collection IS NOT NULL
+        AND TRIM(collection) <> ''
+        AND universe IS NULL
+      GROUP BY collection
+      ORDER BY collection ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        collection,
+        COUNT(*) AS movie_count,
+        MIN(year) AS first_year,
+        MAX(year) AS last_year,
+        GROUP_CONCAT(DISTINCT quality) AS qualities
+      FROM movies
+      WHERE collection IS NOT NULL
+        AND TRIM(collection) <> ''
+        AND universe IS NULL
+      GROUP BY collection
+      ORDER BY collection ASC
+    `).all();
+  }
+
+  return rows;
+}
+
+async function buildCollectionsIndexHubCaption() {
+  const rows = await getCollectionOverviewRows();
+
+  const totalCollections = rows.length;
+  const totalMovies = rows.reduce(
+    (sum, row) => sum + Number(row.movie_count || 0),
+    0
+  );
+
+  let text =
+    "███ COLLECTIONS NEXUS HUB ███\n\n" +
+    "🧩 COLLECTION DATABASE\n" +
+    "COLLECTION ARCHIVE • ACTIVE\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🏛 COLLECTION STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎞 Collections • ${totalCollections}\n` +
+    `🎬 Movies in Collections • ${totalMovies}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📚 COLLECTION INDEX\n" +
+    "━━━━━━━━━━━━━━━━━━\n";
+
+  if (!rows.length) {
+    text += "Noch keine Collections gespeichert.\n";
+  } else {
+    rows.slice(0, 40).forEach((row, index) => {
+      const years =
+        row.first_year && row.last_year
+          ? `${row.first_year}–${row.last_year}`
+          : "Unbekannt";
+
+      const qualities =
+        String(row.qualities || "Unbekannt")
+          .replace(/,/g, " • ");
+
+      text +=
+        `${String(index + 1).padStart(2, "0")} • ${row.collection}\n` +
+        `     ${row.movie_count} Filme • ${years} • ${qualities}\n\n`;
+    });
+
+    if (rows.length > 40) {
+      text += `… +${rows.length - 40} weitere Collections\n`;
+    }
+  }
+
+  text +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+async function createOrUpdateCollectionsIndexHub() {
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "🧩 Collections",
+    type: "system_hub"
+  });
+
+  if (!topicId) {
+    console.error("❌ Collections Topic konnte nicht erstellt werden");
+    return null;
+  }
+
+  const text = await buildCollectionsIndexHubCaption();
+
+  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🧩 Collections`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [topicKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(topicKey);
+  }
+
+  if (topic?.hub_message_id) {
+    const edited = await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+
+    if (!edited?.__error) {
+      return edited;
+    }
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(msg.message_id, topicKey);
+    }
+  }
+
+  return msg;
+}
+
 async function createOrUpdateMovieIndexHub() {
   const topicId = await createOrGetTopic({
     chatId: MOVIE_GROUP_ID,
@@ -6966,6 +7137,7 @@ async function ensureCommandCenters() {
 });
 
 await createOrUpdateMovieIndexHub();
+await createOrUpdateCollectionsIndexHub();
 
 await createOrUpdateCommandCenter({
   chatId: SERIES_GROUP_ID,
@@ -10588,9 +10760,10 @@ await saveMovie({
 // =============================
 try {
   await createOrUpdateMovieIndexHub();
+  await createOrUpdateCollectionsIndexHub();
 } catch (err) {
   console.error(
-    "⚠️ Movie Index Update Fehler:",
+    "⚠️ Movie Hubs Update Fehler:",
     err.message
   );
 }
