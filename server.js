@@ -8580,6 +8580,12 @@ await createOrUpdateCommandCenter({
   topicName: "📺 SERIES LIBRARY",
   caption: await seriesLibraryHubCaption()
 });
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🔥 TRENDING",
+  caption: await trendingSeriesHubCaption()
+});
 }
 
 // =============================
@@ -8982,6 +8988,74 @@ async function seriesLibraryHubCaption() {
       resultText += `  🎞 ${s.count} Episode(n)\n`;
       resultText += `  🎭 ${genreText || "Unbekannt"}\n`;
       resultText += `  ⭐ ${s.rating || "Unbekannt"}\n\n`;
+    }
+  }
+
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
+
+  return cleanTelegramText(resultText).slice(0, 4000);
+}
+
+// =============================
+// TRENDING SERIES HUB CAPTION
+// =============================
+async function trendingSeriesHubCaption() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        series_title,
+        MAX(genre) AS genre,
+        MAX(rating) AS rating,
+        COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY count DESC, series_title ASC
+      LIMIT 20
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        series_title,
+        genre,
+        rating,
+        COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY count DESC, series_title ASC
+      LIMIT 20
+    `).all();
+  }
+
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🔥 TRENDING SERIES\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "📊 Sortiert nach gespeicherten Episoden\n\n";
+
+  if (!rows.length) {
+    resultText += "Noch keine Serien gespeichert.\n";
+  } else {
+    let rank = 1;
+
+    for (const s of rows) {
+      const genreText = String(s.genre || "Sonstige")
+        .split("/")
+        .map(g => g.trim())
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(" • ");
+
+      resultText += `#${rank} ${s.series_title}\n`;
+      resultText += `  🎞 ${s.count} Episode(n)\n`;
+      resultText += `  🎭 ${genreText || "Unbekannt"}\n`;
+      resultText += `  ⭐ ${s.rating || "Unbekannt"}\n\n`;
+
+      rank++;
     }
   }
 
