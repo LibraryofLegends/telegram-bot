@@ -3062,6 +3062,7 @@ async function getCollectionOverviewRows() {
         AND TRIM(collection) <> ''
         AND universe IS NULL
       GROUP BY collection
+      HAVING COUNT(*) >= 2
       ORDER BY collection ASC
     `);
 
@@ -3079,7 +3080,8 @@ async function getCollectionOverviewRows() {
         AND TRIM(collection) <> ''
         AND universe IS NULL
       GROUP BY collection
-      ORDER BY collection ASC
+      HAVING COUNT(*) >= 2
+      ORDER BY Collection ASC
     `).all();
   }
 
@@ -3125,7 +3127,7 @@ async function buildCollectionsIndexHubCaption() {
 
       text +=
         `${String(index + 1).padStart(2, "0")} • ${row.collection}\n` +
-        `     ${row.movie_count} Filme • ${years} • ${qualities}\n\n`;
+        `     `     ${row.movie_count} ${Number(row.movie_count) === 1 ? "Film" : "Filme"} • ${years} • ${qualities}\n\n`;
     });
 
     if (rows.length > 40) {
