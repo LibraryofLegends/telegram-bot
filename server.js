@@ -10395,13 +10395,29 @@ if (text.startsWith("/deleteseries")) {
   return;
 }
 
-if (text === "/qualitystats") {
-  const movies = db.prepare(`
-    SELECT quality, COUNT(*) AS count
-    FROM movies
-    GROUP BY quality
-    ORDER BY count DESC
-  `).all();
+// =============================
+// QUALITY STATS
+// =============================
+if (command === "/qualitystats") {
+  let movies = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT quality, COUNT(*) AS count
+      FROM movies
+      GROUP BY quality
+      ORDER BY count DESC
+    `);
+
+    movies = result.rows;
+  } else {
+    movies = db.prepare(`
+      SELECT quality, COUNT(*) AS count
+      FROM movies
+      GROUP BY quality
+      ORDER BY count DESC
+    `).all();
+  }
 
   if (!movies.length) {
     await tg("sendMessage", {
@@ -10411,18 +10427,21 @@ if (text === "/qualitystats") {
     return;
   }
 
-  let result =
+  let resultText =
     "━━━━━━━━━━━━━━━━━━\n" +
     "📊 QUALITÄTS-STATISTIK\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
   for (const row of movies) {
-    result += `• ${row.quality || "Unbekannt"}: ${row.count}\n`;
+    resultText += `• ${row.quality || "Unbekannt"}: ${row.count}\n`;
   }
+
+  resultText += "\n━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: result
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
