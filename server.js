@@ -10840,60 +10840,124 @@ if (text === "/clearcache") {
   return;
 }
 
-  if (text.startsWith("/search")) {
-    const query = text.replace("/search", "").trim().toLowerCase();
+  // =============================
+// GLOBAL SEARCH
+// =============================
+if (command === "/search") {
+  const query = text.replace(command, "").trim().toLowerCase();
 
-    if (!query) {
-      await tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text: "🔎 Bitte nutze:\n/search tulsa king"
-      });
-      return;
-    }
-
-    const movies = db.prepare(`
-      SELECT * FROM movies
-      WHERE LOWER(title) LIKE ?
-      ORDER BY title ASC
-      LIMIT 10
-    `).all(`%${query}%`);
-
-    const episodes = db.prepare(`
-      SELECT * FROM series
-      WHERE LOWER(series_title) LIKE ? OR LOWER(episode_title) LIKE ?
-      ORDER BY series_title ASC, season ASC, episode ASC
-      LIMIT 15
-    `).all(`%${query}%`, `%${query}%`);
-
-    let result = "🔎 𝐒𝐔𝐂𝐇𝐄\n\n";
-
-    if (!movies.length && !episodes.length) {
-      result += "❌ Nichts gefunden.";
-    }
-
-    if (movies.length) {
-      result += "🎬 𝐅𝐈𝐋𝐌𝐄\n\n";
-      for (const m of movies) {
-        result += `• ${m.title} ${m.year || ""}\n`;
-        result += `  🎭 ${m.genre || "Unbekannt"}\n\n`;
-      }
-    }
-
-    if (episodes.length) {
-      result += "📺 𝐒𝐄𝐑𝐈𝐄𝐍\n\n";
-      for (const s of episodes) {
-        result += `• ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")}\n`;
-        if (s.episode_title) result += `  🎞 ${s.episode_title}\n`;
-        result += `  🎭 ${s.genre || "Unbekannt"}\n\n`;
-      }
-    }
-
+  if (!query) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: result
+      text:
+        "🔎 Bitte nutze:\n\n" +
+        "/search tulsa king"
     });
     return;
   }
+
+  let movies = [];
+  let episodes = [];
+
+  if (pgPool) {
+    const movieResult = await pgPool.query(
+      `
+      SELECT title, year, genre
+      FROM movies
+      WHERE LOWER(title) LIKE $1
+         OR LOWER(file_name) LIKE $1
+         OR LOWER(unique_key) LIKE $1
+      ORDER BY title ASC
+      LIMIT 10
+      `,
+      [`%${query}%`]
+    );
+
+    const episodeResult = await pgPool.query(
+      `
+      SELECT series_title, season, episode, episode_title, genre
+      FROM series
+      WHERE LOWER(series_title) LIKE $1
+         OR LOWER(episode_title) LIKE $1
+         OR LOWER(file_name) LIKE $1
+         OR LOWER(unique_key) LIKE $1
+      ORDER BY series_title ASC, season ASC, episode ASC
+      LIMIT 15
+      `,
+      [`%${query}%`]
+    );
+
+    movies = movieResult.rows;
+    episodes = episodeResult.rows;
+  } else {
+    movies = db.prepare(`
+      SELECT title, year, genre
+      FROM movies
+      WHERE LOWER(title) LIKE ?
+         OR LOWER(file_name) LIKE ?
+         OR LOWER(unique_key) LIKE ?
+      ORDER BY title ASC
+      LIMIT 10
+    `).all(`%${query}%`, `%${query}%`, `%${query}%`);
+
+    episodes = db.prepare(`
+      SELECT series_title, season, episode, episode_title, genre
+      FROM series
+      WHERE LOWER(series_title) LIKE ?
+         OR LOWER(episode_title) LIKE ?
+         OR LOWER(file_name) LIKE ?
+         OR LOWER(unique_key) LIKE ?
+      ORDER BY series_title ASC, season ASC, episode ASC
+      LIMIT 15
+    `).all(`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`);
+  }
+
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🔎 SUCHE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `Suchbegriff: ${query}\n\n`;
+
+  if (!movies.length && !episodes.length) {
+    resultText += "❌ Nichts gefunden.";
+  }
+
+  if (movies.length) {
+    resultText += "🎬 FILME\n\n";
+
+    for (const m of movies) {
+      resultText += `• ${m.title} ${m.year || ""}\n`;
+      resultText += `  🎭 ${m.genre || "Unbekannt"}\n\n`;
+    }
+  }
+
+  if (episodes.length) {
+    resultText += "📺 SERIEN\n\n";
+
+    for (const s of episodes) {
+      resultText +=
+        `• ${s.series_title} ` +
+        `S${String(s.season).padStart(2, "0")}` +
+        `E${String(s.episode).padStart(2, "0")}\n`;
+
+      if (s.episode_title) {
+        resultText += `  🎞 ${s.episode_title}\n`;
+      }
+
+      resultText += `  🎭 ${s.genre || "Unbekannt"}\n\n`;
+    }
+  }
+
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: cleanTelegramText(resultText).slice(0, 4000)
+  });
+
+  return;
+}
 
 if (text === "/rebuildcollections") {
   const collections = db.prepare(`
@@ -11022,29 +11086,55 @@ if (text.startsWith("/collection")) {
   return;
 }
 
-  if (text === "/movies") {
-    const movies = db.prepare(`
-      SELECT * FROM movies
+  // =============================
+// MOVIE LIST
+// =============================
+if (command === "/movies") {
+  let movies = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT title, year, genre, rating
+      FROM movies
+      ORDER BY title ASC
+      LIMIT 50
+    `);
+
+    movies = result.rows;
+  } else {
+    movies = db.prepare(`
+      SELECT title, year, genre, rating
+      FROM movies
       ORDER BY title ASC
       LIMIT 50
     `).all();
-
-    let result = "🎬 𝐅𝐈𝐋𝐌𝐄\n\n";
-
-    if (!movies.length) {
-      result += "Noch keine Filme gespeichert.";
-    } else {
-      for (const m of movies) {
-        result += `• ${m.title} ${m.year || ""}\n`;
-      }
-    }
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: result
-    });
-    return;
   }
+
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎬 FILME\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!movies.length) {
+    resultText += "Noch keine Filme gespeichert.\n";
+  } else {
+    for (const m of movies) {
+      resultText += `• ${m.title} ${m.year || ""}\n`;
+      resultText += `  🎭 ${m.genre || "Unbekannt"}\n`;
+      resultText += `  ⭐ ${m.rating || "Unbekannt"}\n\n`;
+    }
+  }
+
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: cleanTelegramText(resultText).slice(0, 4000)
+  });
+
+  return;
+}
 
   // =============================
 // SERIES LIST
