@@ -9582,33 +9582,79 @@ if (text === "/clearseries") {
 }
 
 // =============================
-// PG STATS DEBUG
+// SUPABASE / POSTGRES STATS
 // =============================
-if (text === "/pgstats") {
+if (command === "/pgstats") {
   if (!pgPool) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
-      text: "❌ Supabase/pgPool ist nicht aktiv."
+      text:
+        "❌ Supabase/pgPool ist nicht aktiv.\n\n" +
+        "Der Bot läuft aktuell mit SQLite."
     });
     return;
   }
 
   const movies = await pgPool.query(`SELECT COUNT(*) AS count FROM movies`);
-  const collections = await pgPool.query(`
-    SELECT COUNT(DISTINCT collection) AS count
+  const seriesEpisodes = await pgPool.query(`SELECT COUNT(*) AS count FROM series`);
+  const seriesLibrary = await pgPool.query(`SELECT COUNT(*) AS count FROM series_library`);
+  const seriesTopics = await pgPool.query(`SELECT COUNT(*) AS count FROM series_topics`);
+  const topics = await pgPool.query(`SELECT COUNT(*) AS count FROM topics`);
+  const collections = await pgPool.query(`SELECT COUNT(*) AS count FROM collections`);
+  const universes = await pgPool.query(`SELECT COUNT(*) AS count FROM universes`);
+
+  const latestMovie = await pgPool.query(`
+    SELECT title, year, created_at
     FROM movies
-    WHERE collection IS NOT NULL
+    ORDER BY created_at DESC
+    LIMIT 1
   `);
+
+  const latestSeries = await pgPool.query(`
+    SELECT series_title, season, episode, created_at
+    FROM series
+    ORDER BY created_at DESC
+    LIMIT 1
+  `);
+
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧪 SUPABASE DEBUG\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `🎬 Filme: ${movies.rows[0].count}\n` +
+    `📺 Serien: ${seriesLibrary.rows[0].count}\n` +
+    `🎞 Serien-Episoden: ${seriesEpisodes.rows[0].count}\n` +
+    `🧵 Serien-Topics: ${seriesTopics.rows[0].count}\n` +
+    `🧩 Topics gesamt: ${topics.rows[0].count}\n` +
+    `🎞 Collections: ${collections.rows[0].count}\n` +
+    `🌌 Universes: ${universes.rows[0].count}\n\n`;
+
+  if (latestMovie.rows.length) {
+    const m = latestMovie.rows[0];
+
+    resultText +=
+      "🎬 Letzter Film:\n" +
+      `• ${m.title} ${m.year || ""}\n\n`;
+  }
+
+  if (latestSeries.rows.length) {
+    const s = latestSeries.rows[0];
+
+    resultText +=
+      "📺 Letzte Serienfolge:\n" +
+      `• ${s.series_title} ` +
+      `S${String(s.season).padStart(2, "0")}` +
+      `E${String(s.episode).padStart(2, "0")}\n\n`;
+  }
+
+  resultText +=
+    "✅ PostgreSQL/Supabase aktiv\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🧪 SUPABASE DEBUG\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `🎬 Filme: ${movies.rows[0].count}\n` +
-      `🎞 Collections: ${collections.rows[0].count}\n\n` +
-      "━━━━━━━━━━━━━━━━━━"
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
