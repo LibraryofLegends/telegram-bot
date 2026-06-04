@@ -4706,6 +4706,29 @@ return (
   ).slice(0, 4000);
 }
 
+function movieLiteCaption(tmdb, extras = {}) {
+  const nexus = getMovieNexusMeta(tmdb, extras);
+
+  const genreTags = String(tmdb.genre || "")
+    .split("/")
+    .map((g) => g.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((g) => `#${g.replace(/\s+/g, "")}`)
+    .join(" ");
+
+  return (
+    "███ LEGENDS FILE ███\n\n" +
+    `${nexus.line1}\n` +
+    `${nexus.line2}\n\n` +
+    `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
+    `📀 ${extras.quality || "HD"} • ${extras.fileSize || "Unbekannt"}\n` +
+    `🏷 ${extras.libraryId || "Unbekannt"}\n\n` +
+    `${genreTags}\n` +
+    "@LibraryOfLegends"
+  ).slice(0, 900);
+}
+
 function buildMovieArchiveProgressBar(movieCount = 0) {
   const size = 10;
   const percent = movieCount >= 100 ? 1 : movieCount / 100;
@@ -10510,7 +10533,7 @@ const copied = await copyOriginalMedia({
   messageId: msg.message_id,
   targetChatId: MOVIE_GROUP_ID,
   topicId,
-  caption: movieCaption(tmdb, {
+  caption: movieLiteCaption(tmdb, {
   ...extras,
 
   topicName: finalTopicName,
@@ -10540,6 +10563,35 @@ if (!copied?.message_id) {
   });
 
   return;
+}
+
+// =============================
+// SEND FULL LEGENDS DOSSIER
+// =============================
+try {
+  await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text: movieCaption(tmdb, {
+      ...extras,
+
+      topicName: finalTopicName,
+
+      universe:
+        universeData?.universeName || null,
+
+      universePhase:
+        universeData?.phase || null,
+
+      collectionMovies:
+        tmdb.collectionMovies?.length || 1,
+
+      collectionOrder:
+        tmdb.collectionMovies || []
+    })
+  });
+} catch (err) {
+  console.error("⚠️ Full Movie Dossier Fehler:", err.message);
 }
 
 // =============================
