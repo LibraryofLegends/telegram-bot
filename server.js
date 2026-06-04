@@ -8586,6 +8586,12 @@ await createOrUpdateCommandCenter({
   topicName: "🔥 TRENDING",
   caption: await trendingSeriesHubCaption()
 });
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🧩 INCOMPLETE",
+  caption: await incompleteSeriesHubCaption()
+});
 }
 
 // =============================
@@ -9057,6 +9063,99 @@ async function trendingSeriesHubCaption() {
 
       rank++;
     }
+  }
+
+  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "@LibraryOfLegends";
+
+  return cleanTelegramText(resultText).slice(0, 4000);
+}
+
+// =============================
+// INCOMPLETE SERIES HUB CAPTION
+// =============================
+async function incompleteSeriesHubCaption() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT series_title, season, episode
+      FROM series
+      ORDER BY series_title ASC, season ASC, episode ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT series_title, season, episode
+      FROM series
+      ORDER BY series_title ASC, season ASC, episode ASC
+    `).all();
+  }
+
+  const grouped = {};
+
+  for (const row of rows) {
+    const title = row.series_title;
+    const season = Number(row.season || 0);
+    const episode = Number(row.episode || 0);
+
+    if (!title || !season || !episode) continue;
+
+    if (!grouped[title]) {
+      grouped[title] = {};
+    }
+
+    if (!grouped[title][season]) {
+      grouped[title][season] = [];
+    }
+
+    grouped[title][season].push(episode);
+  }
+
+  let resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧩 INCOMPLETE SERIES\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "⚠️ Serien mit fehlenden Episoden\n\n";
+
+  let found = false;
+
+  for (const title of Object.keys(grouped).sort()) {
+    let missingLines = "";
+
+    for (const season of Object.keys(grouped[title]).map(Number).sort((a, b) => a - b)) {
+      const episodes = [...new Set(grouped[title][season])].sort((a, b) => a - b);
+      const maxEpisode = Math.max(...episodes);
+
+      const missing = [];
+
+      for (let ep = 1; ep <= maxEpisode; ep++) {
+        if (!episodes.includes(ep)) {
+          missing.push(ep);
+        }
+      }
+
+      if (missing.length) {
+        missingLines +=
+          `  📀 Staffel ${String(season).padStart(2, "0")} fehlt: ` +
+          missing
+            .map(ep => `E${String(ep).padStart(2, "0")}`)
+            .join(", ") +
+          "\n";
+      }
+    }
+
+    if (missingLines) {
+      found = true;
+
+      resultText += `• ${title}\n`;
+      resultText += missingLines + "\n";
+    }
+  }
+
+  if (!found) {
+    resultText += "✅ Alle Serien wirken vollständig nach aktuellem Datenstand.\n";
   }
 
   resultText += "━━━━━━━━━━━━━━━━━━\n";
