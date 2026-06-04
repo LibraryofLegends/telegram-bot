@@ -9581,12 +9581,21 @@ if (text === "/rebuildstarwars") {
   return;
 }
 
-if (text === "/clearseries") {
+// =============================
+// CLEAR CURRENT SERIES
+// =============================
+if (command === "/clearseries") {
   CURRENT_SERIES_NAME = "";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: "🗑 Serienname zurückgesetzt."
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🗑 SERIENNAME ZURÜCKGESETZT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "✅ Aktuelle Serie wurde geleert.\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
   });
 
   return;
