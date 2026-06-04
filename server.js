@@ -3233,6 +3233,222 @@ async function buildUniversesIndexHubCaption() {
   return text.slice(0, 4000);
 }
 
+// =============================
+// PREMIUM QUALITY HUB
+// =============================
+async function getPremiumQualityRows() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        title,
+        year,
+        rating,
+        quality,
+        resolution,
+        file_size,
+        created_at
+      FROM movies
+      ORDER BY created_at DESC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        title,
+        year,
+        rating,
+        quality,
+        resolution,
+        file_size,
+        created_at
+      FROM movies
+      ORDER BY created_at DESC
+    `).all();
+  }
+
+  return rows;
+}
+
+function isUHDMovie(movie) {
+  return (
+    String(movie.quality || "").toUpperCase().includes("UHD") ||
+    String(movie.resolution || "").includes("2160") ||
+    String(movie.resolution || "").includes("3840")
+  );
+}
+
+function isFHDMovie(movie) {
+  return (
+    String(movie.quality || "").toUpperCase().includes("FHD") ||
+    String(movie.resolution || "").includes("1080") ||
+    String(movie.resolution || "").includes("1920")
+  );
+}
+
+function isHDMovie(movie) {
+  return (
+    String(movie.quality || "").toUpperCase() === "HD" ||
+    String(movie.resolution || "").includes("720")
+  );
+}
+
+function isSDMovie(movie) {
+  return (
+    String(movie.quality || "").toUpperCase() === "SD" ||
+    String(movie.resolution || "").includes("480")
+  );
+}
+
+function parseSizeToMB(sizeText = "") {
+  const size = String(sizeText || "").toUpperCase();
+
+  const gb = size.match(/([\d.]+)\s*GB/);
+  const mb = size.match(/([\d.]+)\s*MB/);
+
+  if (gb) return parseFloat(gb[1]) * 1024;
+  if (mb) return parseFloat(mb[1]);
+
+  return 0;
+}
+
+function formatMB(totalMB = 0) {
+  return totalMB >= 1024
+    ? `${(totalMB / 1024).toFixed(1)} GB`
+    : `${Math.round(totalMB)} MB`;
+}
+
+async function buildPremiumQualityHubCaption() {
+  const movies = await getPremiumQualityRows();
+
+  const uhdMovies = movies.filter(isUHDMovie);
+  const fhdMovies = movies.filter(isFHDMovie);
+  const hdMovies = movies.filter(isHDMovie);
+  const sdMovies = movies.filter(isSDMovie);
+
+  const premiumStorage = uhdMovies.reduce(
+    (sum, movie) => sum + parseSizeToMB(movie.file_size),
+    0
+  );
+
+  const newestPremium = uhdMovies.slice(0, 10);
+
+  let text =
+    "███ PREMIUM QUALITY HUB ███\n\n" +
+    "💎 HIGH RESOLUTION ARCHIVE\n" +
+    "QUALITY MATRIX • ACTIVE\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📀 QUALITY STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `💎 UHD / 2160p • ${uhdMovies.length}\n` +
+    `📀 FHD / 1080p • ${fhdMovies.length}\n` +
+    `📼 HD / 720p • ${hdMovies.length}\n` +
+    `📱 SD / 480p • ${sdMovies.length}\n` +
+    `💾 UHD Storage • ${formatMB(premiumStorage)}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🔥 NEWEST PREMIUM ENTRIES\n" +
+    "━━━━━━━━━━━━━━━━━━\n";
+
+  if (!newestPremium.length) {
+    text += "Noch keine UHD-Filme gespeichert.\n";
+  } else {
+    newestPremium.forEach((m, index) => {
+      const prefix =
+        index === newestPremium.length - 1
+          ? "┗"
+          : "┠";
+
+      text +=
+        `${prefix} ${m.title || "Unbekannt"}${m.year ? ` (${m.year})` : ""}\n` +
+        `   ${m.quality || "UHD"} • ${m.resolution || "2160p"} • ${m.file_size || "Unbekannt"}\n`;
+    });
+  }
+
+  text +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
+async function createOrUpdatePremiumQualityHub() {
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "💎 Premium Quality",
+    type: "system_hub"
+  });
+
+  if (!topicId) {
+    console.error("❌ Premium Quality Topic konnte nicht erstellt werden");
+    return null;
+  }
+
+  const text = await buildPremiumQualityHubCaption();
+
+  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-💎 Premium Quality`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [topicKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(topicKey);
+  }
+
+  if (topic?.hub_message_id) {
+    const edited = await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+
+    if (!edited?.__error) {
+      return edited;
+    }
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(msg.message_id, topicKey);
+    }
+  }
+
+  return msg;
+}
+
 async function createOrUpdateUniversesIndexHub() {
   const topicId = await createOrGetTopic({
     chatId: MOVIE_GROUP_ID,
@@ -7306,6 +7522,7 @@ async function ensureCommandCenters() {
 await createOrUpdateMovieIndexHub();
 await createOrUpdateCollectionsIndexHub();
 await createOrUpdateUniversesIndexHub();
+await createOrUpdatePremiumQualityHub();
 
 await createOrUpdateCommandCenter({
   chatId: SERIES_GROUP_ID,
@@ -10930,6 +11147,7 @@ try {
   await createOrUpdateMovieIndexHub();
   await createOrUpdateCollectionsIndexHub();
   await createOrUpdateUniversesIndexHub();
+  await createOrUpdatePremiumQualityHub();
 } catch (err) {
   console.error(
     "⚠️ Movie Hubs Update Fehler:",
