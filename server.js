@@ -3335,42 +3335,68 @@ async function buildPremiumQualityHubCaption() {
 
   const newestPremium = uhdMovies.slice(0, 10);
 
-  let text =
-    "███ PREMIUM QUALITY HUB ███\n\n" +
-    "💎 HIGH RESOLUTION ARCHIVE\n" +
-    "QUALITY MATRIX • ACTIVE\n\n" +
+  const premiumHighlights =
+  [...uhdMovies]
+    .sort((a, b) => parseSizeToMB(b.file_size) - parseSizeToMB(a.file_size))
+    .slice(0, 3);
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📀 QUALITY STATUS\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `💎 UHD / 2160p • ${uhdMovies.length}\n` +
-    `📀 FHD / 1080p • ${fhdMovies.length}\n` +
-    `📼 HD / 720p • ${hdMovies.length}\n` +
-    `📱 SD / 480p • ${sdMovies.length}\n` +
-    `💾 UHD Storage • ${formatMB(premiumStorage)}\n` +
+let text =
+  "███ PREMIUM QUALITY HUB ███\n\n" +
+  "💎 CINEMA MASTER ARCHIVE\n" +
+  "ULTRA HIGH RESOLUTION DATABASE\n\n" +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🔥 NEWEST PREMIUM ENTRIES\n" +
-    "━━━━━━━━━━━━━━━━━━\n";
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "🏛 QUALITY STATUS\n" +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `💎 UHD • ${uhdMovies.length}\n` +
+  `📀 FHD • ${fhdMovies.length}\n` +
+  `📼 HD • ${hdMovies.length}\n` +
+  `📱 SD • ${sdMovies.length}\n\n` +
 
-  if (!newestPremium.length) {
-    text += "Noch keine UHD-Filme gespeichert.\n";
-  } else {
-    newestPremium.forEach((m, index) => {
-      const prefix =
-        index === newestPremium.length - 1
-          ? "┗"
-          : "┠";
+  `💾 Premium Storage • ${formatMB(premiumStorage)}\n` +
+  `🎬 Premium Movies • ${movies.length}\n` +
 
-      text +=
-        `${prefix} ${m.title || "Unbekannt"}${m.year ? ` (${m.year})` : ""}\n` +
-        `   ${m.quality || "UHD"} • ${m.resolution || "2160p"} • ${m.file_size || "Unbekannt"}\n`;
-    });
-  }
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "👑 PREMIUM HIGHLIGHTS\n" +
+  "━━━━━━━━━━━━━━━━━━\n\n";
 
-  text +=
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "@LibraryOfLegends";
+if (!premiumHighlights.length) {
+  text += "Noch keine Premium Highlights gespeichert.\n\n";
+} else {
+  premiumHighlights.forEach((m, index) => {
+    const medal =
+      index === 0 ? "🥇" :
+      index === 1 ? "🥈" :
+      "🥉";
+
+    text +=
+      `${medal} ${m.title || "Unbekannt"}${m.year ? ` (${m.year})` : ""}\n` +
+      `💎 ${m.quality || "UHD"} • ${m.file_size || "Unbekannt"}\n\n`;
+  });
+}
+
+text +=
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "🔥 LATEST UHD ENTRIES\n" +
+  "━━━━━━━━━━━━━━━━━━\n\n";
+
+if (!newestPremium.length) {
+  text += "Noch keine UHD-Filme gespeichert.\n";
+} else {
+  newestPremium.slice(0, 5).forEach((m, index) => {
+    const prefix =
+      index === Math.min(newestPremium.length, 5) - 1
+        ? "┗"
+        : "┠";
+
+    text +=
+      `${prefix} ${m.title || "Unbekannt"}${m.year ? ` (${m.year})` : ""}\n`;
+  });
+}
+
+text +=
+  "\n━━━━━━━━━━━━━━━━━━\n" +
+  "@LibraryOfLegends";
 
   return text.slice(0, 4000);
 }
