@@ -7159,6 +7159,24 @@ function formatCastLine(cast = "") {
     .join(" ");
 }
 
+function formatEpisodeMatrixForCaption(lines = [], maxLines = 14) {
+  if (!Array.isArray(lines) || !lines.length) {
+    return "Keine Episoden gefunden.";
+  }
+
+  if (lines.length <= maxLines) {
+    return lines.join("\n");
+  }
+
+  const visible = lines.slice(0, maxLines);
+  const hiddenCount = lines.length - maxLines;
+
+  return (
+    visible.join("\n") +
+    `\n… ${hiddenCount} weitere Episoden im Thread`
+  );
+}
+
 async function seasonCaption(tmdb, seasonData, season) {
   const seasonKey = String(season).padStart(2, "0");
 
