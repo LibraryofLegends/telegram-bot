@@ -7047,10 +7047,10 @@ async function seriesCaption(tmdb, media, extras = {}) {
     "Unbekannt";
 
   const archiveCode =
-    `LIB-SER-${String(seriesTitle)
-      .replace(/[^a-z0-9]/gi, "")
-      .toUpperCase()
-      .slice(0, 18)}-S${seasonText}E${episodeText}`;
+  `SER-${String(seriesTitle)
+    .replace(/[^a-z0-9]/gi, "")
+    .toUpperCase()
+    .slice(0, 5)}-S${seasonText}E${episodeText}`;
 
   const caption =
     "███ EPISODE NEXUS ███\n\n" +
