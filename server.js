@@ -7008,17 +7008,30 @@ async function seriesCaption(tmdb, media, extras = {}) {
 
   let safeOverview = overviewRaw;
 
-  if (safeOverview.length > 180) {
-    safeOverview = safeOverview.slice(0, 180);
+  if (safeOverview.length > 260) {
+  safeOverview = safeOverview.slice(0, 260);
 
-    const lastSpace = safeOverview.lastIndexOf(" ");
+  const lastSentenceEnd = Math.max(
+    safeOverview.lastIndexOf("."),
+    safeOverview.lastIndexOf("!"),
+    safeOverview.lastIndexOf("?")
+  );
 
-    if (lastSpace > 80) {
-      safeOverview = safeOverview.slice(0, lastSpace);
+  if (lastSentenceEnd > 150) {
+    safeOverview =
+      safeOverview.slice(0, lastSentenceEnd + 1);
+  } else {
+    const lastSpace =
+      safeOverview.lastIndexOf(" ");
+
+    if (lastSpace > 150) {
+      safeOverview =
+        safeOverview.slice(0, lastSpace);
     }
 
     safeOverview += " …";
   }
+}
 
   const quality =
     extras.quality ||
