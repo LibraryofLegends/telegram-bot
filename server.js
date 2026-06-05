@@ -7253,7 +7253,7 @@ async function seasonCaption(tmdb, seasonData, season) {
     "━━━━━━━━━━━━━━━━━━\n" +
     "📊 EPISODE MATRIX\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
-    episodeLines.join("\n") +
+    formatEpisodeMatrixForCaption(episodeLines) +
     "\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
