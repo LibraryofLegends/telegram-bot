@@ -9336,7 +9336,7 @@ async function seriesUniversesHubCaption() {
 }
 
 // =============================
-// SINGLE SERIES HUB CAPTION
+// SINGLE SERIES HUB — SERIES NEXUS
 // =============================
 async function singleSeriesHubCaption(seriesTitle) {
   let rows = [];
@@ -9382,21 +9382,53 @@ async function singleSeriesHubCaption(seriesTitle) {
     `).get(seriesTitle);
   }
 
-  if (!rows.length) {
-    return cleanTelegramText(
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "📺 SERIES HUB\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `📺 ${seriesTitle}\n\n` +
-      "Noch keine Episoden gespeichert.\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
-    );
-  }
+  const title =
+    library?.title ||
+    rows[0]?.series_title ||
+    seriesTitle ||
+    "Unbekannte Serie";
 
-  const genre = library?.genres || rows[0].genre || "Unbekannt";
-  const rating = library?.rating || rows[0].rating || "Unbekannt";
-  const overview = library?.overview || rows[0].overview || "";
+  const genre =
+    library?.genres ||
+    rows[0]?.genre ||
+    "Unbekannt";
+
+  const rating =
+    library?.rating ||
+    rows[0]?.rating ||
+    "Unbekannt";
+
+  const overviewRaw = String(
+    library?.overview ||
+    rows[0]?.overview ||
+    "Keine Beschreibung verfügbar."
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+
+  let overview = overviewRaw;
+
+  if (overview.length > 420) {
+    overview = overview.slice(0, 420);
+
+    const lastSentenceEnd = Math.max(
+      overview.lastIndexOf("."),
+      overview.lastIndexOf("!"),
+      overview.lastIndexOf("?")
+    );
+
+    if (lastSentenceEnd > 220) {
+      overview = overview.slice(0, lastSentenceEnd + 1);
+    } else {
+      const lastSpace = overview.lastIndexOf(" ");
+
+      if (lastSpace > 220) {
+        overview = overview.slice(0, lastSpace);
+      }
+
+      overview += " …";
+    }
+  }
 
   const seasons = {};
 
@@ -9416,7 +9448,7 @@ async function singleSeriesHubCaption(seriesTitle) {
   let totalSaved = 0;
   let totalKnown = 0;
   let totalMissing = 0;
-  let seasonText = "";
+  let seasonLines = "";
 
   for (const season of Object.keys(seasons).map(Number).sort((a, b) => a - b)) {
     const episodes = [...new Set(seasons[season])].sort((a, b) => a - b);
@@ -9435,20 +9467,17 @@ async function singleSeriesHubCaption(seriesTitle) {
 
     totalMissing += missing.length;
 
-    seasonText +=
-      `• Staffel ${String(season).padStart(2, "0")} — ` +
+    seasonLines +=
+      `• Staffel ${String(season).padStart(2, "0")} • ` +
       `${episodes.length}/${known}`;
 
     if (missing.length) {
-      seasonText +=
-        ` ⚠️ Fehlt: ${missing
-          .map(ep => `E${String(ep).padStart(2, "0")}`)
-          .join(", ")}`;
+      seasonLines += " • INCOMPLETE";
     } else {
-      seasonText += " ✅";
+      seasonLines += " • COMPLETE";
     }
 
-    seasonText += "\n";
+    seasonLines += "\n";
   }
 
   const percent =
@@ -9460,6 +9489,16 @@ async function singleSeriesHubCaption(seriesTitle) {
     "█".repeat(Math.floor(percent / 10)) +
     "░".repeat(10 - Math.floor(percent / 10));
 
+  const archiveStatus =
+    totalMissing > 0
+      ? "ARCHIVE INCOMPLETE"
+      : "ARCHIVE VERIFIED";
+
+  const collectionStatus =
+    totalMissing > 0
+      ? "ACTIVE COLLECTION"
+      : "MASTERED COLLECTION";
+
   const genreText = String(genre)
     .split("/")
     .map(g => g.trim())
@@ -9467,36 +9506,46 @@ async function singleSeriesHubCaption(seriesTitle) {
     .slice(0, 3)
     .join(" • ");
 
+  const archiveCode =
+    `SER-${String(title)
+      .replace(/[^a-z0-9]/gi, "")
+      .toUpperCase()
+      .slice(0, 5)}`;
+
+  const seriesTag =
+    `#${String(title)
+      .replace(/[^a-zA-Z0-9ÄÖÜäöüß]/g, "")}`;
+
   let resultText =
+    "███ SERIES NEXUS ███\n\n" +
+
+    `📺 ${String(title).toUpperCase()}\n` +
+    "📡 SERIES ENTRY • VERIFIED\n\n" +
+
     "━━━━━━━━━━━━━━━━━━\n" +
-    `📺 ${String(seriesTitle).toUpperCase()}\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-    `🎭 ${genreText}\n` +
     `⭐ ${rating}\n` +
-    `🎞 Episoden: ${totalSaved}/${totalKnown}\n` +
-    `📊 Fortschritt: ${progressBar} ${percent}%\n\n`;
+    `🎭 ${genreText || "Unbekannt"}\n\n` +
+    `📀 ${Object.keys(seasons).length} Staffeln\n` +
+    `🎞 ${totalSaved}/${totalKnown} Episoden\n` +
+    `📊 ${progressBar} ${percent}%\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-  if (overview) {
-    resultText +=
-      "📖 STORY\n" +
-      String(overview).slice(0, 550) +
-      "\n\n";
-  }
+    "📖 SYNOPSIS\n\n" +
+    `${overview}\n\n` +
 
-  resultText +=
     "━━━━━━━━━━━━━━━━━━\n" +
     "📀 STAFFELN\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
-    seasonText + "\n";
+    `${seasonLines || "Noch keine Staffeln gespeichert.\n"}\n` +
 
-  if (totalMissing) {
-    resultText += `⚠️ Fehlende Episoden: ${totalMissing}\n`;
-  } else {
-    resultText += "✅ Serie vollständig nach aktuellem Datenstand\n";
-  }
-
-  resultText +=
     "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰 SERIES STATUS\n\n" +
+    `📡 ${archiveStatus}\n` +
+    `🏆 ${collectionStatus}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🧬 ${archiveCode}\n\n` +
+    `${seriesTag}\n` +
     "@LibraryOfLegends";
 
   return cleanTelegramText(resultText).slice(0, 4000);
