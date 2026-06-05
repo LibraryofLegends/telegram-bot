@@ -8021,7 +8021,7 @@ async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
         seasonData,
         season
       )
-    ).slice(0, 950);
+    ).slice(0, 1024);
 
   const seasonPoster =
     posterUrl(seasonData?.poster_path) ||
@@ -8111,7 +8111,7 @@ async function updateSeasonCard({ tmdb, topicId, season }) {
         seasonData,
         season
       )
-    ).slice(0, 950);
+    ).slice(0, 1024);
 
   return await tg("editMessageCaption", {
     chat_id: SERIES_GROUP_ID,
