@@ -7161,120 +7161,127 @@ function formatCastLine(cast = "") {
 
 async function seasonCaption(tmdb, seasonData, season) {
   const seasonKey = String(season).padStart(2, "0");
-  const theme = getSeasonTheme(season);
 
-  const seriesTheme =
-    seriesThemes[tmdb.seriesTitle] || {
-      icon: "📺",
-      archive: "SERIES ARCHIVE",
-      subline: "PREMIUM SERIES FILE",
-      status: "🎞 SERIES ACTIVE",
-      divider: "━━━━━━━━━━━━━━━━━━"
-    };
-
-  const divider = seriesTheme.divider;
-
-  const year = seasonData?.air_date?.slice(0, 4) || "Unbekannt";
-  const episodeCount = seasonData?.episodes?.length || "?";
-
-  const overview = String(
-    seasonData?.overview ||
-    tmdb.overview ||
-    "Keine Beschreibung verfügbar."
-  )
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 360);
-
-  const showrunner = String(tmdb.createdBy || "Unbekannt").slice(0, 80);
-  const castLine = formatCastLine(tmdb.cast);
-  const genreLine = formatSeasonGenres(tmdb.genre);
+  const seriesTitle =
+    tmdb.seriesTitle ||
+    "Unbekannte Serie";
 
   const savedEpisodes =
-  await getSavedSeasonEpisodeCount(
-    tmdb.seriesTitle,
-    season
-  );
-
-const totalEpisodes =
-  seasonData?.episodes?.length ||
-  savedEpisodes;
-
-const missingEpisodes = [];
-
-for (let ep = 1; ep <= totalEpisodes; ep++) {
-
-  const exists =
-    await getSavedEpisode(
-      tmdb.seriesTitle,
-      season,
-      ep
+    await getSavedSeasonEpisodeCount(
+      seriesTitle,
+      season
     );
 
-  if (!exists) {
-    missingEpisodes.push(
-      `E${String(ep).padStart(2, "0")}`
-    );
+  const totalEpisodes =
+    seasonData?.episodes?.length ||
+    savedEpisodes ||
+    getKnownSeasonEpisodeCount(seriesTitle, season) ||
+    0;
+
+  const episodeLines = [];
+  const missingEpisodes = [];
+  let ratingSum = 0;
+  let ratingCount = 0;
+
+  for (let ep = 1; ep <= totalEpisodes; ep++) {
+    const epData =
+      seasonData?.episodes?.[ep - 1] || null;
+
+    const exists =
+      await getSavedEpisode(
+        seriesTitle,
+        season,
+        ep
+      );
+
+    const title =
+      epData?.name ||
+      exists?.episode_title ||
+      "Episode";
+
+    const number =
+      String(ep).padStart(2, "0");
+
+    if (exists) {
+      episodeLines.push(
+        `${number} ▸ ${title}`
+      );
+    } else {
+      episodeLines.push(
+        `${number} ▸ FEHLT`
+      );
+
+      missingEpisodes.push(
+        `S${seasonKey}E${number}`
+      );
+    }
+
+    const vote =
+      Number(epData?.vote_average || 0);
+
+    if (vote > 0) {
+      ratingSum += vote;
+      ratingCount++;
+    }
   }
-}
 
-  const progressBlocks =
-  buildSeriesProgressBar(
-    tmdb.seriesTitle,
-    savedEpisodes,
-    totalEpisodes
-  );
+  const averageRating =
+    ratingCount > 0
+      ? (ratingSum / ratingCount).toFixed(1)
+      : extractRatingNumber(tmdb.rating).toFixed(1);
 
-const progressPercent =
-  totalEpisodes > 0
-    ? Math.round((savedEpisodes / totalEpisodes) * 100)
-    : 0;
+  const isComplete =
+    missingEpisodes.length === 0 &&
+    savedEpisodes >= totalEpisodes;
 
-const seasonStatus =
-  savedEpisodes >= totalEpisodes
-    ? "🏆 SEASON COMPLETE"
-    : "⚠️ SEASON INCOMPLETE";
+  const archiveCode =
+    `SER-${String(seriesTitle)
+      .replace(/[^a-z0-9]/gi, "")
+      .toUpperCase()
+      .slice(0, 5)}-S${seasonKey}`;
 
-return (
-  "███ SEASON NEXUS ███\n\n" +
+  const seriesTag =
+    `#${String(seriesTitle)
+      .replace(/[^a-zA-Z0-9ÄÖÜäöüß]/g, "")}`;
 
-  `📺 ${String(tmdb.seriesTitle || "").toUpperCase()}\n` +
-  `SEASON FILE • S${seasonKey}\n\n` +
+  let resultText =
+    "███ SEASON ARCHIVE ███\n\n" +
 
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `⭐ ${tmdb.rating || "Unbekannt"} IMDb\n` +
-  `🎞 Episodes • ${savedEpisodes}/${totalEpisodes}\n` +
-  `📅 ${year} • 🔞 ${tmdb.fsk || "FSK Unbekannt"}\n` +
-  "━━━━━━━━━━━━━━━━━━\n\n" +
+    `📺 ${String(seriesTitle).toUpperCase()}\n` +
+    `📀 STAFFEL ${seasonKey}\n\n` +
 
-  "📀 SEASON STATUS\n" +
-  `🧩 Progress • ${progressBlocks} ${savedEpisodes}/${totalEpisodes}\n` +
-  `📊 Archive • ${progressPercent}%\n` +
-  (
-    missingEpisodes.length
-      ? `⚠️ Missing • ${missingEpisodes.join(", ")}\n`
-      : "✅ Season Archive Complete\n"
-  ) +
-  `${seasonStatus}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📊 EPISODE MATRIX\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    episodeLines.join("\n") +
+    "\n\n" +
 
-  "━━━━━━━━━━━━━━━━━━\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📈 SEASON STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-  "🎬 SHOWRUNNER\n" +
-  `${showrunner}\n\n` +
+    `🎞 Episoden • ${savedEpisodes}/${totalEpisodes}\n` +
+    `⭐ Durchschnitt • ${averageRating}\n\n`;
 
-  "👥 CAST MATRIX\n" +
-  `${castLine}\n\n` +
+  if (isComplete) {
+    resultText +=
+      "🏆 COMPLETE\n" +
+      "📡 ARCHIVE VERIFIED\n\n";
+  } else {
+    resultText +=
+      "⚠️ FEHLENDE EPISODEN\n\n" +
+      missingEpisodes.join("\n") +
+      "\n\n" +
+      "📡 ARCHIVE INCOMPLETE\n\n";
+  }
 
-  "━━━━━━━━━━━━━━━━━━\n" +
+  resultText +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🧬 ${archiveCode}\n\n` +
+    `${seriesTag}\n` +
+    "@LibraryOfLegends";
 
-  "📖 SEASON SYNOPSIS\n\n" +
-  `${overview}\n\n` +
-
-  "━━━━━━━━━━━━━━━━━━\n" +
-
-  `${genreLine}\n` +
-  "@LibraryOfLegends"
-).slice(0, 4000);
+  return cleanTelegramText(resultText).slice(0, 1024);
 }
 
 // =============================
