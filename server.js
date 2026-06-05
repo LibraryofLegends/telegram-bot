@@ -7288,9 +7288,9 @@ async function seasonCaption(tmdb, seasonData, season) {
   } else {
     resultText +=
       "⚠️ FEHLENDE EPISODEN\n\n" +
-      `S${seasonKey}${formatMissingEpisodeRanges(missingEpisodes)}` +
-      "\n\n" +
-      "📡 ARCHIVE INCOMPLETE\n\n";
+missingEpisodes.join("\n") +
+"\n\n" +
+"📡 ARCHIVE INCOMPLETE\n\n";
   }
 
   resultText +=
