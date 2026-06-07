@@ -10582,6 +10582,7 @@ if (text === "/start" || text === "/admin") {
       "• /rebuildstarwarseras\n" +
       "• /rebuilduniversehubs\n" +
       "• /repairmovieuniverses\n\n" +
+      "• /testuniverse TITEL\n" +
 
       "━━━━━━━━━━━━━━━━━━\n" +
       "🧹 𝐒𝐘𝐒𝐓𝐄𝐌 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n" +
@@ -10612,6 +10613,42 @@ if (text === "/start" || text === "/admin") {
       "• /backup — SQLite Backup\n" +
       "• /restoredb — SQLite Restore\n\n" +
 
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
+// =============================
+// TEST UNIVERSE DETECTION
+// =============================
+if (command.startsWith("/testuniverse")) {
+  const query = text.replace("/testuniverse", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/testuniverse The Flash"
+    });
+    return;
+  }
+
+  const detected =
+    detectUniverse(query, "");
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🌌 UNIVERSE DETECTION TEST\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `🔎 Suche: ${query}\n\n` +
+      `🌌 Universe: ${detected?.universeName || "Nicht erkannt"}\n` +
+      `🧩 Key: ${detected?.universeKey || "—"}\n` +
+      `📁 Phase: ${detected?.phase || "—"}\n\n` +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
