@@ -4280,6 +4280,270 @@ async function createOrUpdateDcCommandCenter() {
 }
 
 // =============================
+// MARVEL COMMAND CENTER CAPTION
+// =============================
+async function marvelCommandCenterCaption() {
+  const config = universeConfigs.Marvel;
+
+  if (!config) {
+    return "❌ Marvel Config nicht gefunden";
+  }
+
+  let movies = [];
+  let series = [];
+
+  if (pgPool) {
+    const movieResult = await pgPool.query(
+      `
+      SELECT title, universe_phase
+      FROM movies
+      WHERE universe = $1
+      `,
+      [config.topicName]
+    );
+
+    movies = movieResult.rows;
+
+    const seriesResult = await pgPool.query(
+      `
+      SELECT DISTINCT series_title
+      FROM series
+      WHERE universe = $1
+      `,
+      [config.topicName]
+    );
+
+    series = seriesResult.rows;
+  } else {
+    movies = db.prepare(`
+      SELECT title, universe_phase
+      FROM movies
+      WHERE universe = ?
+    `).all(config.topicName);
+
+    series = db.prepare(`
+      SELECT DISTINCT series_title
+      FROM series
+      WHERE universe = ?
+    `).all(config.topicName);
+  }
+
+  const movieCount = movies.length;
+  const seriesCount = series.length;
+
+  const officialMovies =
+    Object.values(config.phases || {}).flat().length;
+
+  const officialSeries =
+    (config.series || []).length;
+
+  const savedTotal =
+    movieCount + seriesCount;
+
+  const officialTotal =
+    Math.max(
+      officialMovies + officialSeries,
+      savedTotal
+    );
+
+  const percent =
+    officialTotal > 0
+      ? Math.min(
+          100,
+          Math.round((savedTotal / officialTotal) * 100)
+        )
+      : 0;
+
+  const progressBar =
+    "█".repeat(Math.floor(percent / 10)) +
+    "░".repeat(10 - Math.floor(percent / 10));
+
+  let phaseLines = "";
+
+  for (const [phase, entries] of Object.entries(config.phases || {})) {
+    const savedInPhase =
+      entries.filter((title) =>
+        movies.some((m) => {
+          const savedKey = makeKey(m.title);
+          const targetKey = makeKey(title);
+
+          return (
+            savedKey.includes(targetKey) ||
+            targetKey.includes(savedKey)
+          );
+        })
+      ).length;
+
+    const status =
+      savedInPhase >= entries.length
+        ? "MASTERED"
+        : "ACTIVE";
+
+    phaseLines +=
+      `${phase} • ${savedInPhase}/${entries.length} • ${status}\n`;
+  }
+
+  let seriesLines = "";
+
+  for (const seriesTitle of config.series || []) {
+    const exists =
+      series.some((s) => {
+        const savedKey = makeKey(s.series_title);
+        const targetKey = makeKey(seriesTitle);
+
+        return (
+          savedKey.includes(targetKey) ||
+          targetKey.includes(savedKey)
+        );
+      });
+
+    seriesLines +=
+      `${exists ? "✅" : "⬜"} ${seriesTitle}\n`;
+  }
+
+  const archiveStatus =
+    percent >= 100
+      ? "ARCHIVE VERIFIED"
+      : "ARCHIVE ACTIVE";
+
+  const text =
+    "███ MARVEL COMMAND CENTER ███\n\n" +
+
+    "🧬 MARVEL MULTIVERSE ARCHIVE\n" +
+    "PHASES • TIMELINE • SACRED CONTINUITY\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🏛 MARVEL STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `🎬 Filme • ${movieCount}/${officialMovies || movieCount}\n` +
+    `📺 Serien • ${seriesCount}/${officialSeries || seriesCount}\n` +
+    `🎞 Inhalte • ${savedTotal}/${officialTotal || savedTotal}\n` +
+    `📊 Fortschritt • ${progressBar} ${percent}%\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧭 PHASE MATRIX\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `${phaseLines || "Noch keine Phasen definiert.\n"}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📺 SERIES MATRIX\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `${seriesLines || "Keine Serien definiert.\n"}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰 MARVEL STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `📡 ${archiveStatus}\n` +
+    "🏆 COMMAND CENTER VERIFIED\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(text).slice(0, 4000);
+}
+
+// =============================
+// CREATE OR UPDATE MARVEL COMMAND CENTER
+// =============================
+async function createOrUpdateMarvelCommandCenter() {
+  const topicName = "🧬 Marvel Command Center";
+
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: topicName,
+    type: "marvel_command_center"
+  });
+
+  if (!topicId) {
+    console.error("❌ Marvel Command Center Topic konnte nicht erstellt werden");
+    return null;
+  }
+
+  const text = await marvelCommandCenterCaption();
+
+  const topicKey =
+    makeKey(`marvel_command_center-${MOVIE_GROUP_ID}-${topicName}`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [topicKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(topicKey);
+  }
+
+  if (topic?.hub_message_id) {
+    const edited = await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+
+    if (!edited?.__error) {
+      console.log("✅ Marvel Command Center aktualisiert");
+      return edited;
+    }
+
+    const editError =
+      edited?.error?.description ||
+      edited?.description ||
+      "";
+
+    if (editError.includes("message is not modified")) {
+      console.log("ℹ️ Marvel Command Center unverändert");
+      return topic.hub_message_id;
+    }
+
+    console.log(
+      "⚠️ Marvel Command Center Edit fehlgeschlagen, erstelle neu:",
+      editError || edited
+    );
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(
+        msg.message_id,
+        topicKey
+      );
+    }
+
+    console.log("✅ Marvel Command Center erstellt");
+  }
+
+  return msg;
+}
+
+// =============================
 // CREATE OR UPDATE MULTIVERSE COMMAND CENTER
 // =============================
 async function createOrUpdateMultiverseCommandCenter() {
@@ -11482,6 +11746,7 @@ if (text === "/start" || text === "/admin") {
       "• /rebuildmultiverse\n" +
       "• /repairuniverses\n" +
       "• /rebuilddccenter\n" +
+      "• /rebuildmarvelcenter\n" +
 
       "━━━━━━━━━━━━━━━━━━\n" +
       "🧹 𝐒𝐘𝐒𝐓𝐄𝐌 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n" +
@@ -11676,6 +11941,35 @@ console.log("🌌 REPAIR UNIVERSE CHECK:", {
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
+
+  return;
+}
+
+// =============================
+// REBUILD MARVEL COMMAND CENTER
+// =============================
+if (command === "/rebuildmarvelcenter") {
+  try {
+    await createOrUpdateMarvelCommandCenter();
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "🧬 MARVEL COMMAND CENTER\n" +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        "✅ Command Center wurde aktualisiert.\n\n" +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "@LibraryOfLegends"
+    });
+  } catch (err) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Marvel Command Center Fehler:\n\n" +
+        err.message
+    });
+  }
 
   return;
 }
