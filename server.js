@@ -4010,6 +4010,262 @@ const officialTotal =
 }
 
 // =============================
+// DC COMMAND CENTER CAPTION
+// =============================
+async function dcCommandCenterCaption() {
+  const dcKeys = [
+    "DCEU",
+    "DCU_GodsAndMonsters",
+    "DC_Elseworlds",
+    "Arrowverse",
+    "DCAMU",
+    "DCAU"
+  ];
+
+  let universeLines = "";
+
+  let totalMovies = 0;
+  let totalSeries = 0;
+  let masteredCount = 0;
+  let activeCount = 0;
+
+  for (const key of dcKeys) {
+    const config = universeConfigs[key];
+
+    if (!config) continue;
+
+    let movies = [];
+    let series = [];
+
+    if (pgPool) {
+      const movieResult = await pgPool.query(
+        `
+        SELECT id
+        FROM movies
+        WHERE universe = $1
+        `,
+        [config.topicName]
+      );
+
+      movies = movieResult.rows;
+
+      const seriesResult = await pgPool.query(
+        `
+        SELECT DISTINCT series_title
+        FROM series
+        WHERE universe = $1
+        `,
+        [config.topicName]
+      );
+
+      series = seriesResult.rows;
+    } else {
+      movies = db.prepare(`
+        SELECT id
+        FROM movies
+        WHERE universe = ?
+      `).all(config.topicName);
+
+      series = db.prepare(`
+        SELECT DISTINCT series_title
+        FROM series
+        WHERE universe = ?
+      `).all(config.topicName);
+    }
+
+    const movieCount = movies.length;
+    const seriesCount = series.length;
+
+    totalMovies += movieCount;
+    totalSeries += seriesCount;
+
+    const officialMovies =
+      Object.values(config.phases || {})
+        .flat()
+        .length;
+
+    const officialSeries =
+      (config.series || []).length;
+
+    const savedTotal =
+      movieCount + seriesCount;
+
+    const officialTotal =
+      Math.max(
+        officialMovies + officialSeries,
+        savedTotal
+      );
+
+    const percent =
+      officialTotal > 0
+        ? Math.min(
+            100,
+            Math.round((savedTotal / officialTotal) * 100)
+          )
+        : 100;
+
+    const status =
+      percent >= 100
+        ? "MASTERED"
+        : "ACTIVE";
+
+    if (status === "MASTERED") {
+      masteredCount++;
+    } else {
+      activeCount++;
+    }
+
+    universeLines +=
+      `${config.icon} ${config.topicName.replace(config.icon, "").trim()} • ${savedTotal}/${officialTotal || savedTotal} • ${status}\n`;
+  }
+
+  const totalUniverses = dcKeys.length;
+
+  const progress =
+    totalUniverses > 0
+      ? Math.round((masteredCount / totalUniverses) * 100)
+      : 0;
+
+  const progressBar =
+    "█".repeat(Math.floor(progress / 10)) +
+    "░".repeat(10 - Math.floor(progress / 10));
+
+  const text =
+    "███ DC COMMAND CENTER ███\n\n" +
+
+    "🦇 DC MULTIVERSE ARCHIVE\n" +
+    "GOTHAM • METROPOLIS • ELSEWORLDS\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🏛 DC STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `📚 Universes • ${totalUniverses}\n` +
+    `🎬 Filme • ${totalMovies}\n` +
+    `📺 Serien • ${totalSeries}\n` +
+    `🏆 Mastered • ${masteredCount}\n` +
+    `⚠️ Active • ${activeCount}\n\n` +
+    `${progressBar} ${progress}%\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧭 DC MATRIX\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    universeLines +
+    "\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰 DC STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "📡 DC ARCHIVE NETWORK ACTIVE\n" +
+    "🏆 COMMAND CENTER VERIFIED\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(text).slice(0, 4000);
+}
+
+// =============================
+// CREATE OR UPDATE DC COMMAND CENTER
+// =============================
+async function createOrUpdateDcCommandCenter() {
+  const topicName = "🦇 DC Command Center";
+
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: topicName,
+    type: "dc_command_center"
+  });
+
+  if (!topicId) {
+    console.error("❌ DC Command Center Topic konnte nicht erstellt werden");
+    return null;
+  }
+
+  const text = await dcCommandCenterCaption();
+
+  const topicKey =
+    makeKey(`dc_command_center-${MOVIE_GROUP_ID}-${topicName}`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [topicKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(topicKey);
+  }
+
+  if (topic?.hub_message_id) {
+    const edited = await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+
+    if (!edited?.__error) {
+      console.log("✅ DC Command Center aktualisiert");
+      return edited;
+    }
+
+    const editError =
+      edited?.error?.description ||
+      edited?.description ||
+      "";
+
+    if (editError.includes("message is not modified")) {
+      console.log("ℹ️ DC Command Center unverändert");
+      return topic.hub_message_id;
+    }
+
+    console.log(
+      "⚠️ DC Command Center Edit fehlgeschlagen, erstelle neu:",
+      editError || edited
+    );
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(
+        msg.message_id,
+        topicKey
+      );
+    }
+
+    console.log("✅ DC Command Center erstellt");
+  }
+
+  return msg;
+}
+
+// =============================
 // CREATE OR UPDATE MULTIVERSE COMMAND CENTER
 // =============================
 async function createOrUpdateMultiverseCommandCenter() {
@@ -11211,6 +11467,7 @@ if (text === "/start" || text === "/admin") {
       "• /rebuildstarwarscenter\n" +
       "• /rebuildmultiverse\n" +
       "• /repairuniverses\n" +
+      "• /rebuilddccenter\n" +
 
       "━━━━━━━━━━━━━━━━━━\n" +
       "🧹 𝐒𝐘𝐒𝐓𝐄𝐌 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n" +
@@ -11405,6 +11662,35 @@ console.log("🌌 REPAIR UNIVERSE CHECK:", {
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
+
+  return;
+}
+
+// =============================
+// REBUILD DC COMMAND CENTER
+// =============================
+if (command === "/rebuilddccenter") {
+  try {
+    await createOrUpdateDcCommandCenter();
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "🦇 DC COMMAND CENTER\n" +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        "✅ Command Center wurde aktualisiert.\n\n" +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "@LibraryOfLegends"
+    });
+  } catch (err) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ DC Command Center Fehler:\n\n" +
+        err.message
+    });
+  }
 
   return;
 }
