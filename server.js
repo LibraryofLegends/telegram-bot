@@ -8600,39 +8600,30 @@ async function telegramRequest(
   retry = true
 ) {
   try {
-
     const response = await axios.post(
       `${BASE_URL}/${method}`,
       payload
     );
 
     return response.data.result;
-
   } catch (err) {
-
     const errorData =
       err.response?.data || err.message;
 
-    if (!json.ok) {
-  const description = json.description || "";
+    const description =
+      errorData?.description || "";
 
-  if (description.includes("message is not modified")) {
-    return {
-      __error: true,
-      error: json,
-      description
-    };
-  }
-
-  console.error(`❌ Telegram API Fehler (${method}):`);
-  console.error(JSON.stringify(json, null, 2));
-
-  return {
-    __error: true,
-    error: json,
-    description
-  };
-}
+    // =============================
+    // IGNORE: MESSAGE NOT MODIFIED
+    // =============================
+    if (description.includes("message is not modified")) {
+      return {
+        __error: true,
+        method,
+        error: errorData,
+        description
+      };
+    }
 
     // =============================
     // RATE LIMIT AUTO RETRY
@@ -8641,7 +8632,6 @@ async function telegramRequest(
       retry &&
       errorData?.error_code === 429
     ) {
-
       const retryAfter =
         errorData.parameters?.retry_after || 5;
 
@@ -8663,10 +8653,21 @@ async function telegramRequest(
       );
     }
 
+    // =============================
+    // REAL TELEGRAM ERROR
+    // =============================
+    console.error(`❌ Telegram API Fehler (${method}):`);
+    console.error(
+      typeof errorData === "string"
+        ? errorData
+        : JSON.stringify(errorData, null, 2)
+    );
+
     return {
       __error: true,
       method,
-      error: errorData
+      error: errorData,
+      description
     };
   }
 }
