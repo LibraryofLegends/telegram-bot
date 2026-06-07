@@ -1754,79 +1754,118 @@ const collectionThemes = {
 // =============================
 const universeConfigs = {
   Marvel: {
-    topicName: "🧬 Marvel Cinematic Universe",
-    icon: "🧬",
-    archive: "MARVEL MULTIVERSE ARCHIVE",
-    subline: "PHASES • TIMELINE • SACRED CONTINUITY",
-    status: "🔴 MULTIVERSE STATUS ACTIVE",
+  topicName: "🧬 Marvel Cinematic Universe",
+  icon: "🧬",
+  archive: "MARVEL MULTIVERSE ARCHIVE",
+  subline: "PHASES • TIMELINE • SACRED CONTINUITY",
+  status: "🔴 MULTIVERSE STATUS ACTIVE",
 
-    aliases: [
-      "marvel",
-      "mcu",
-      "avengers",
-      "iron man",
-      "captain america",
-      "thor",
-      "guardians of the galaxy",
-      "black panther",
-      "doctor strange",
-      "spider man",
-      "spider-man",
-      "ant-man",
-      "loki",
-      "wanda",
-      "wandavision",
-      "moon knight",
-      "daredevil",
-      "punisher"
+  aliases: [
+    "marvel",
+    "mcu",
+    "avengers",
+    "iron man",
+    "captain america",
+    "thor",
+    "guardians of the galaxy",
+    "black panther",
+    "doctor strange",
+    "spider man",
+    "spider-man",
+    "ant-man",
+    "loki",
+    "wanda",
+    "wandavision",
+    "moon knight",
+    "daredevil",
+    "punisher",
+    "shang-chi",
+    "eternals",
+    "deadpool",
+    "fantastic four",
+    "thunderbolts"
+  ],
+
+  phases: {
+
+    "PHASE 1": [
+      "Iron Man",
+      "Der unglaubliche Hulk",
+      "Iron Man 2",
+      "Thor",
+      "Captain America: The First Avenger",
+      "Marvel's The Avengers"
     ],
 
-    phases: {
-      "PHASE 1": [
-        "Iron Man",
-        "Der unglaubliche Hulk",
-        "Iron Man 2",
-        "Thor",
-        "Captain America: The First Avenger",
-        "Marvel's The Avengers"
-      ],
+    "PHASE 2": [
+      "Iron Man 3",
+      "Thor: The Dark Kingdom",
+      "The Return of the First Avenger",
+      "Guardians of the Galaxy",
+      "Avengers: Age of Ultron",
+      "Ant-Man"
+    ],
 
-      "PHASE 2": [
-        "Iron Man 3",
-        "Thor: The Dark Kingdom",
-        "The Return of the First Avenger",
-        "Guardians of the Galaxy",
-        "Avengers: Age of Ultron",
-        "Ant-Man"
-      ],
+    "PHASE 3": [
+      "The First Avenger: Civil War",
+      "Doctor Strange",
+      "Guardians of the Galaxy Vol. 2",
+      "Spider-Man: Homecoming",
+      "Thor: Tag der Entscheidung",
+      "Black Panther",
+      "Avengers: Infinity War",
+      "Ant-Man and the Wasp",
+      "Captain Marvel",
+      "Avengers: Endgame",
+      "Spider-Man: Far From Home"
+    ],
 
-      "PHASE 3": [
-        "The First Avenger: Civil War",
-        "Doctor Strange",
-        "Guardians of the Galaxy Vol. 2",
-        "Spider-Man: Homecoming",
-        "Thor: Tag der Entscheidung",
-        "Black Panther",
-        "Avengers: Infinity War",
-        "Ant-Man and the Wasp",
-        "Captain Marvel",
-        "Avengers: Endgame",
-        "Spider-Man: Far From Home"
-      ]
-    },
+    "PHASE 4": [
+      "Black Widow",
+      "Shang-Chi and the Legend of the Ten Rings",
+      "Eternals",
+      "Spider-Man: No Way Home",
+      "Doctor Strange in the Multiverse of Madness",
+      "Thor: Love and Thunder",
+      "Black Panther: Wakanda Forever"
+    ],
 
-    series: [
-      "WandaVision",
-      "The Falcon and the Winter Soldier",
-      "Loki",
-      "Hawkeye",
-      "Moon Knight",
-      "Ms. Marvel",
-      "She-Hulk",
-      "Daredevil",
-      "The Punisher"
+    "PHASE 5": [
+      "Ant-Man and the Wasp: Quantumania",
+      "Guardians of the Galaxy Vol. 3",
+      "The Marvels",
+      "Deadpool & Wolverine",
+      "Captain America: Brave New World",
+      "Thunderbolts*"
+    ],
+
+    "PHASE 6": [
+      "The Fantastic Four: First Steps",
+      "Avengers: Doomsday",
+      "Avengers: Secret Wars"
     ]
   },
+
+  series: [
+    "WandaVision",
+    "The Falcon and the Winter Soldier",
+    "Loki",
+    "What If...?",
+    "Hawkeye",
+    "Moon Knight",
+    "Ms. Marvel",
+    "She-Hulk",
+    "Secret Invasion",
+    "Echo",
+    "Agatha All Along",
+    "Ironheart",
+    "Daredevil: Born Again",
+    "Wonder Man",
+    "Vision Quest",
+    "Daredevil",
+    "The Punisher"
+  ]
+},
 
     DCEU: {
     topicName: "🦇 DC Extended Universe",
