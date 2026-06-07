@@ -1809,36 +1809,261 @@ const universeConfigs = {
     ]
   },
 
-  DC: {
-    topicName: "🦇 DC Universe",
+    DCEU: {
+    topicName: "🦇 DC Extended Universe",
     icon: "🦇",
-    archive: "DC MULTIVERSE ARCHIVE",
-    subline: "GOTHAM • METROPOLIS • JUSTICE FILES",
-    status: "⚡ HERO DATABASE ACTIVE",
+    archive: "DC EXTENDED UNIVERSE ARCHIVE",
+    subline: "GOTHAM • METROPOLIS • JUSTICE LEAGUE",
+    status: "⚡ DCEU CONTINUITY ACTIVE",
 
     aliases: [
-      "dc",
-      "batman",
-      "superman",
+      "dc extended universe",
+      "dceu",
+      "man of steel",
+      "batman v superman",
+      "suicide squad",
       "wonder woman",
-      "aquaman",
       "justice league",
-      "joker",
-      "harley quinn",
-      "the flash",
+      "aquaman",
       "shazam",
+      "birds of prey",
       "black adam",
-      "suicide squad"
+      "blue beetle",
+      "peacemaker"
+    ],
+
+    phases: {
+      "DCEU TIMELINE": [
+        "Man of Steel",
+        "Batman v Superman: Dawn of Justice",
+        "Suicide Squad",
+        "Wonder Woman",
+        "Justice League",
+        "Aquaman",
+        "Shazam!",
+        "Birds of Prey",
+        "Wonder Woman 1984",
+        "Zack Snyder's Justice League",
+        "The Suicide Squad",
+        "Black Adam",
+        "Shazam! Fury of the Gods",
+        "The Flash",
+        "Blue Beetle",
+        "Aquaman and the Lost Kingdom"
+      ]
+    },
+
+    series: [
+      "Peacemaker"
+    ]
+  },
+
+  DCU_GodsAndMonsters: {
+    topicName: "🦸 DCU: Gods and Monsters",
+    icon: "🦸",
+    archive: "DCU GODS AND MONSTERS ARCHIVE",
+    subline: "CHAPTER ONE • NEW DC CONTINUITY",
+    status: "⚡ DCU TIMELINE ACTIVE",
+
+    aliases: [
+      "dcu",
+      "gods and monsters",
+      "superman",
+      "supergirl",
+      "clayface",
+      "the authority",
+      "brave and the bold",
+      "swamp thing",
+      "creature commandos",
+      "lanterns",
+      "waller",
+      "paradise lost",
+      "booster gold"
+    ],
+
+    phases: {
+      "GODS AND MONSTERS FILMS": [
+        "Superman",
+        "Supergirl: Woman of Tomorrow",
+        "Clayface",
+        "The Authority",
+        "The Brave and the Bold",
+        "Swamp Thing"
+      ]
+    },
+
+    series: [
+      "Creature Commandos",
+      "Peacemaker",
+      "Lanterns",
+      "Waller",
+      "Paradise Lost",
+      "Booster Gold",
+      "Blue Beetle"
+    ]
+  },
+
+  DC_Elseworlds: {
+    topicName: "🃏 DC Elseworlds",
+    icon: "🃏",
+    archive: "DC ELSEWORLDS ARCHIVE",
+    subline: "JOKER • THE BATMAN • ALTERNATE WORLDS",
+    status: "🃏 ELSEWORLDS FILE ACTIVE",
+
+    aliases: [
+      "elseworlds",
+      "joker",
+      "the batman",
+      "penguin",
+      "constantine",
+      "harley quinn",
+      "teen titans go",
+      "merry little batman"
+    ],
+
+    phases: {
+      "JOKER FILES": [
+        "Joker",
+        "Joker: Folie à Deux"
+      ],
+
+      "THE BATMAN SAGA": [
+        "The Batman",
+        "The Batman Part II"
+      ],
+
+      "ELSEWORLDS MOVIES": [
+        "Merry Little Batman",
+        "Constantine",
+        "Constantine 2"
+      ]
+    },
+
+    series: [
+      "The Penguin",
+      "Harley Quinn",
+      "Teen Titans Go!"
+    ]
+  },
+
+  Arrowverse: {
+    topicName: "🌍 Arrowverse",
+    icon: "🌍",
+    archive: "ARROWVERSE MULTIVERSE ARCHIVE",
+    subline: "EARTHS • CROSSOVERS • CRISIS FILES",
+    status: "🌍 MULTIVERSE SIGNAL ACTIVE",
+
+    aliases: [
+      "arrowverse",
+      "arrow",
+      "the flash",
+      "supergirl",
+      "legends of tomorrow",
+      "black lightning",
+      "batwoman",
+      "smallville",
+      "lucifer",
+      "titans",
+      "doom patrol",
+      "stargirl",
+      "swamp thing"
     ],
 
     phases: {},
 
     series: [
-      "Peacemaker",
-      "Gotham",
-      "The Flash",
+      "Smallville",
       "Arrow",
-      "Titans"
+      "The Flash",
+      "Supergirl",
+      "Legends of Tomorrow",
+      "Black Lightning",
+      "Batwoman",
+      "Lucifer",
+      "Titans",
+      "Doom Patrol",
+      "Swamp Thing",
+      "Stargirl"
+    ]
+  },
+
+  DCAMU: {
+    topicName: "🎞 DC Animated Movie Universe",
+    icon: "🎞",
+    archive: "DCAMU ANIMATED CONTINUITY ARCHIVE",
+    subline: "FLASHPOINT • NEW 52 • APOKOLIPS WAR",
+    status: "🎞 ANIMATED MOVIE TIMELINE ACTIVE",
+
+    aliases: [
+      "dcamu",
+      "flashpoint paradox",
+      "justice league war",
+      "son of batman",
+      "batman vs robin",
+      "justice league dark",
+      "apokolips war",
+      "teen titans"
+    ],
+
+    phases: {
+      "DCAMU TIMELINE": [
+        "Justice League: The Flashpoint Paradox",
+        "Justice League: War",
+        "Son of Batman",
+        "Justice League: Throne of Atlantis",
+        "Batman vs. Robin",
+        "Batman: Bad Blood",
+        "Justice League vs. Teen Titans",
+        "Justice League Dark",
+        "Teen Titans: Der Judas-Auftrag",
+        "Suicide Squad: Hell to Pay",
+        "The Death and Return of Superman",
+        "Batman: Hush",
+        "Wonder Woman: Bloodlines",
+        "Justice League Dark: Apokolips War",
+        "Constantine: The House of Mystery"
+      ]
+    },
+
+    series: []
+  },
+
+  DCAU: {
+    topicName: "📺 DC Animated Universe",
+    icon: "📺",
+    archive: "DCAU LEGACY ANIMATION ARCHIVE",
+    subline: "BATMAN TAS • SUPERMAN TAS • JUSTICE LEAGUE",
+    status: "📺 LEGACY ANIMATION FILE ACTIVE",
+
+    aliases: [
+      "dcau",
+      "batman tas",
+      "superman tas",
+      "batman beyond",
+      "justice league unlimited",
+      "static shock",
+      "zeta project",
+      "phantasm"
+    ],
+
+    phases: {
+      "DCAU MOVIES": [
+        "Batman und das Phantom",
+        "Batman & Mr. Freeze – Eiszeit",
+        "Batman – Rätsel um Batwoman",
+        "Batman und Harley Quinn",
+        "Justice League vs. the Fatal Five"
+      ]
+    },
+
+    series: [
+      "Batman",
+      "Superman",
+      "Batman of the Future",
+      "Die Liga der Gerechten",
+      "Justice League Unlimited",
+      "Static Shock",
+      "The Zeta Project"
     ]
   },
 
