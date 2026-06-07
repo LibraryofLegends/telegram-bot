@@ -12483,12 +12483,36 @@ if (command === "/repairuniverses") {
     }
   }
 
-  try {
+    try {
     await createOrUpdateMultiverseCommandCenter();
     updated++;
   } catch (err) {
     failed++;
     console.error("⚠️ Multiverse Repair Fehler:", err.message);
+  }
+
+  try {
+    await createOrUpdateDcCommandCenter();
+    updated++;
+  } catch (err) {
+    failed++;
+    console.error("⚠️ DC Command Center Repair Fehler:", err.message);
+  }
+
+  try {
+    await createOrUpdateMarvelCommandCenter();
+    updated++;
+  } catch (err) {
+    failed++;
+    console.error("⚠️ Marvel Command Center Repair Fehler:", err.message);
+  }
+
+  try {
+    await createOrUpdateDisneyCommandCenter();
+    updated++;
+  } catch (err) {
+    failed++;
+    console.error("⚠️ Disney Command Center Repair Fehler:", err.message);
   }
 
   try {
