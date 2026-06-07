@@ -2507,7 +2507,56 @@ async function createOrUpdateStarWarsEraHubs() {
 
     const text = await starWarsEraHubCaption(era);
 
-    console.log("🌌 ERA BANNER SEND:", era.topicName, era.banner);
+    const topicKey =
+      makeKey(`starwars_era-${MOVIE_GROUP_ID}-${era.topicName}`);
+
+    let topic = null;
+
+    if (pgPool) {
+      const result = await pgPool.query(
+        `
+        SELECT *
+        FROM topics
+        WHERE unique_key = $1
+        LIMIT 1
+        `,
+        [topicKey]
+      );
+
+      topic = result.rows[0] || null;
+    } else {
+      topic = getTopic(topicKey);
+    }
+
+    if (topic?.hub_message_id) {
+      const edited = await tg("editMessageText", {
+        chat_id: MOVIE_GROUP_ID,
+        message_id: topic.hub_message_id,
+        text
+      });
+
+      if (!edited?.__error) {
+        console.log("✅ Star Wars Era Hub aktualisiert:", era.topicName);
+        await sleep(1000);
+        continue;
+      }
+
+      const editError =
+        edited?.error?.description ||
+        edited?.description ||
+        "";
+
+      if (editError.includes("message is not modified")) {
+        console.log("ℹ️ Star Wars Era Hub unverändert:", era.topicName);
+        await sleep(1000);
+        continue;
+      }
+
+      console.log(
+        "⚠️ Star Wars Era Hub Edit fehlgeschlagen, erstelle neu:",
+        editError || edited
+      );
+    }
 
     let result = null;
 
@@ -2528,9 +2577,31 @@ async function createOrUpdateStarWarsEraHubs() {
       });
     }
 
-    console.log("🌌 ERA BANNER RESULT:", JSON.stringify(result, null, 2));
+    if (result?.message_id) {
+      if (pgPool) {
+        await pgPool.query(
+          `
+          UPDATE topics
+          SET hub_message_id = $1
+          WHERE unique_key = $2
+          `,
+          [result.message_id, topicKey]
+        );
+      } else {
+        db.prepare(`
+          UPDATE topics
+          SET hub_message_id = ?
+          WHERE unique_key = ?
+        `).run(
+          result.message_id,
+          topicKey
+        );
+      }
 
-    await sleep(1200);
+      console.log("✅ Star Wars Era Hub erstellt:", era.topicName);
+    }
+
+    await sleep(1500);
   }
 }
 
