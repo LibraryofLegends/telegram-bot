@@ -3188,6 +3188,20 @@ function detectUniverse(title = "", collection = "") {
 }
 
 // =============================
+// DC UNIVERSE HELPER
+// =============================
+function isDcUniverse(universeKey = "") {
+  return [
+    "DCEU",
+    "DCU_GodsAndMonsters",
+    "DC_Elseworlds",
+    "Arrowverse",
+    "DCAMU",
+    "DCAU"
+  ].includes(universeKey);
+}
+
+// =============================
 // COLLECTION BANNERS
 // =============================
 const collectionBanners = {
@@ -15519,6 +15533,10 @@ if (universeData?.universeName) {
     );
 
     await createOrUpdateMultiverseCommandCenter();
+    
+    if (isDcUniverse(universeData?.universeKey)) {
+  await createOrUpdateDcCommandCenter();
+}
 
   } catch (err) {
     console.error(
@@ -15895,6 +15913,10 @@ try {
     );
 
     await createOrUpdateMultiverseCommandCenter();
+    
+    if (isDcUniverse(seriesUniverseData?.universeKey)) {
+  await createOrUpdateDcCommandCenter();
+}
 
   }
 
