@@ -2640,6 +2640,107 @@ async function starWarsCommandCenterCaption() {
 }
 
 // =============================
+// CREATE OR UPDATE STAR WARS COMMAND CENTER
+// =============================
+async function createOrUpdateStarWarsCommandCenter() {
+  const topicName = "🌌 Star Wars Command Center";
+
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: topicName,
+    type: "starwars_command_center"
+  });
+
+  if (!topicId) {
+    console.error("❌ Star Wars Command Center Topic konnte nicht erstellt werden");
+    return null;
+  }
+
+  const text = await starWarsCommandCenterCaption();
+
+  const topicKey =
+    makeKey(`starwars_command_center-${MOVIE_GROUP_ID}-${topicName}`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [topicKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(topicKey);
+  }
+
+  if (topic?.hub_message_id) {
+    const edited = await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+
+    if (!edited?.__error) {
+      console.log("✅ Star Wars Command Center aktualisiert");
+      return edited;
+    }
+
+    const editError =
+      edited?.error?.description ||
+      edited?.description ||
+      "";
+
+    if (editError.includes("message is not modified")) {
+      console.log("ℹ️ Star Wars Command Center unverändert");
+      return topic.hub_message_id;
+    }
+
+    console.log(
+      "⚠️ Star Wars Command Center Edit fehlgeschlagen, erstelle neu:",
+      editError || edited
+    );
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(
+        msg.message_id,
+        topicKey
+      );
+    }
+
+    console.log("✅ Star Wars Command Center erstellt");
+  }
+
+  return msg;
+}
+
+// =============================
 // CREATE OR UPDATE STAR WARS ERA HUBS
 // =============================
 async function createOrUpdateStarWarsEraHubs() {
@@ -10850,6 +10951,7 @@ if (text === "/start" || text === "/admin") {
       "• /rebuilduniversehubs\n" +
       "• /repairmovieuniverses\n\n" +
       "• /testuniverse TITEL\n" +
+      "• /rebuildstarwarscenter\n" +
 
       "━━━━━━━━━━━━━━━━━━\n" +
       "🧹 𝐒𝐘𝐒𝐓𝐄𝐌 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n" +
@@ -11645,6 +11747,35 @@ if (text === "/rebuildstarwarseras") {
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
+
+  return;
+}
+
+// =============================
+// REBUILD STAR WARS COMMAND CENTER
+// =============================
+if (command === "/rebuildstarwarscenter") {
+  try {
+    await createOrUpdateStarWarsCommandCenter();
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "🌌 STAR WARS COMMAND CENTER\n" +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        "✅ Command Center wurde aktualisiert.\n\n" +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "@LibraryOfLegends"
+    });
+  } catch (err) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Star Wars Command Center Fehler:\n\n" +
+        err.message
+    });
+  }
 
   return;
 }
