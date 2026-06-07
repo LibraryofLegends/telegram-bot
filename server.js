@@ -3319,6 +3319,14 @@ function isDcUniverse(universeKey = "") {
   ].includes(universeKey);
 }
 
+function isMarvelUniverse(universeKey = "") {
+  return universeKey === "Marvel";
+}
+
+function isDisneyUniverse(universeKey = "") {
+  return universeKey === "Disney";
+}
+
 // =============================
 // COLLECTION BANNERS
 // =============================
@@ -16221,6 +16229,14 @@ if (universeData?.universeName) {
   await createOrUpdateDcCommandCenter();
 }
 
+if (isMarvelUniverse(universeData?.universeKey)) {
+  await createOrUpdateMarvelCommandCenter();
+}
+
+if (isDisneyUniverse(universeData?.universeKey)) {
+  await createOrUpdateDisneyCommandCenter();
+}
+
   } catch (err) {
     console.error(
       "⚠️ Universe/Multiverse Hub Update Fehler:",
@@ -16598,6 +16614,14 @@ try {
 
   if (isDcUniverse(seriesUniverseData?.universeKey)) {
     await createOrUpdateDcCommandCenter();
+  }
+
+  if (isMarvelUniverse(seriesUniverseData?.universeKey)) {
+    await createOrUpdateMarvelCommandCenter();
+  }
+
+  if (isDisneyUniverse(seriesUniverseData?.universeKey)) {
+    await createOrUpdateDisneyCommandCenter();
   }
 }
 
