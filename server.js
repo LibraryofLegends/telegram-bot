@@ -11210,6 +11210,7 @@ if (text === "/start" || text === "/admin") {
       "• /testuniverse TITEL\n" +
       "• /rebuildstarwarscenter\n" +
       "• /rebuildmultiverse\n" +
+      "• /repairuniverses\n" +
 
       "━━━━━━━━━━━━━━━━━━\n" +
       "🧹 𝐒𝐘𝐒𝐓𝐄𝐌 𝐂𝐎𝐍𝐓𝐑𝐎𝐋\n" +
@@ -11452,6 +11453,77 @@ if (command === "/rebuilduniversehubs") {
       `✅ Aktualisiert: ${updated}\n` +
       `⚠️ Fehler: ${failed}\n` +
       "🌌 Multiverse Command Center aktualisiert\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
+// =============================
+// REPAIR UNIVERSE SYSTEM
+// =============================
+if (command === "/repairuniverses") {
+  let updated = 0;
+  let failed = 0;
+
+  try {
+    await createOrUpdateUniversesIndexHub();
+    updated++;
+  } catch (err) {
+    failed++;
+    console.error("⚠️ Universes Index Fehler:", err.message);
+  }
+
+  for (const config of Object.values(universeConfigs)) {
+    try {
+      if (!config.topicName) continue;
+
+      await createOrUpdateUniverseHub(config.topicName);
+      updated++;
+
+      await sleep(1500);
+    } catch (err) {
+      failed++;
+      console.error("⚠️ Universe Repair Fehler:", {
+        universe: config.topicName,
+        error: err.message
+      });
+    }
+  }
+
+  try {
+    await createOrUpdateMultiverseCommandCenter();
+    updated++;
+  } catch (err) {
+    failed++;
+    console.error("⚠️ Multiverse Repair Fehler:", err.message);
+  }
+
+  try {
+    await createOrUpdateStarWarsEraHubs();
+    updated++;
+  } catch (err) {
+    failed++;
+    console.error("⚠️ Star Wars Era Repair Fehler:", err.message);
+  }
+
+  try {
+    await createOrUpdateStarWarsCommandCenter();
+    updated++;
+  } catch (err) {
+    failed++;
+    console.error("⚠️ Star Wars Command Center Repair Fehler:", err.message);
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🌌 UNIVERSE SYSTEM REPAIR\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `✅ Aktualisiert: ${updated}\n` +
+      `⚠️ Fehler: ${failed}\n\n` +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
