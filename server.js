@@ -9336,7 +9336,7 @@ async function seriesUniversesHubCaption() {
 }
 
 // =============================
-// SINGLE SERIES HUB — SERIES NEXUS
+// SINGLE SERIES HUB — SERIES NEXUS BLACK EDITION
 // =============================
 async function singleSeriesHubCaption(seriesTitle) {
   let rows = [];
@@ -9398,6 +9398,10 @@ async function singleSeriesHubCaption(seriesTitle) {
     rows[0]?.rating ||
     "Unbekannt";
 
+  const universe =
+    rows[0]?.universe ||
+    "Standalone Series";
+
   const overviewRaw = String(
     library?.overview ||
     rows[0]?.overview ||
@@ -9408,8 +9412,8 @@ async function singleSeriesHubCaption(seriesTitle) {
 
   let overview = overviewRaw;
 
-  if (overview.length > 420) {
-    overview = overview.slice(0, 420);
+  if (overview.length > 430) {
+    overview = overview.slice(0, 430);
 
     const lastSentenceEnd = Math.max(
       overview.lastIndexOf("."),
@@ -9467,17 +9471,15 @@ async function singleSeriesHubCaption(seriesTitle) {
 
     totalMissing += missing.length;
 
-    seasonLines +=
-      `• Staffel ${String(season).padStart(2, "0")} • ` +
-      `${episodes.length}/${known}`;
+    const seasonKey = String(season).padStart(2, "0");
 
     if (missing.length) {
-      seasonLines += " • INCOMPLETE";
+      seasonLines +=
+        `⚠️ Staffel ${seasonKey} • ${episodes.length}/${known} • INCOMPLETE\n`;
     } else {
-      seasonLines += " • COMPLETE";
+      seasonLines +=
+        `🏆 Staffel ${seasonKey} • COMPLETE\n`;
     }
-
-    seasonLines += "\n";
   }
 
   const percent =
@@ -9519,32 +9521,40 @@ async function singleSeriesHubCaption(seriesTitle) {
   let resultText =
     "███ SERIES NEXUS ███\n\n" +
 
-    `📺 ${String(title).toUpperCase()}\n` +
+    `📺 ${String(title).toUpperCase()}\n\n` +
     "📡 SERIES ENTRY • VERIFIED\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    `⭐ ${rating}\n` +
-    `🎭 ${genreText || "Unbekannt"}\n\n` +
-    `📀 ${Object.keys(seasons).length} Staffeln\n` +
-    `🎞 ${totalSaved}/${totalKnown} Episoden\n` +
-    `📊 ${progressBar} ${percent}%\n` +
+    "🏛 SERIES CLASSIFICATION\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
+    `🎭 ${genreText || "Unbekannt"}\n` +
+    `🌌 ${universe}\n\n` +
+    `🧬 ${archiveCode}\n\n` +
 
-    "📖 SYNOPSIS\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📊 ARCHIVE STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `📀 Staffeln • ${Object.keys(seasons).length}\n` +
+    `🎞 Episoden • ${totalSaved}/${totalKnown}\n\n` +
+    `${progressBar} ${percent}%\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📖 SERIES DOSSIER\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
     `${overview}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    "📀 STAFFELN\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
+    "📀 SEASON MATRIX\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
     `${seasonLines || "Noch keine Staffeln gespeichert.\n"}\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    "🛰 SERIES STATUS\n\n" +
+    "🛰 SERIES STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
     `📡 ${archiveStatus}\n` +
     `🏆 ${collectionStatus}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    `🧬 ${archiveCode}\n\n` +
     `${seriesTag}\n` +
     "@LibraryOfLegends";
 
