@@ -1608,22 +1608,32 @@ async function updateSeriesSmartTopics() {
     const text = await item.builder();
 
     if (topic.hub_message_id) {
-      const edited = await tg("editMessageText", {
-        chat_id: SERIES_GROUP_ID,
-        message_id: topic.hub_message_id,
-        text
-      });
+  const edited = await tg("editMessageText", {
+    chat_id: SERIES_GROUP_ID,
+    message_id: topic.hub_message_id,
+    text
+  });
 
-      if (!edited?.__error) {
-        console.log("✅ Smart Topic aktualisiert:", item.topic);
-        continue;
-      }
+  if (!edited?.__error) {
+    console.log("✅ Smart Topic aktualisiert:", item.topic);
+    continue;
+  }
 
-      console.log(
-        "⚠️ Smart Topic Edit fehlgeschlagen, erstelle neu:",
-        edited?.error?.description || edited
-      );
-    }
+  const editError =
+    edited?.error?.description ||
+    edited?.description ||
+    "";
+
+  if (editError.includes("message is not modified")) {
+    console.log("ℹ️ Smart Topic unverändert:", item.topic);
+    continue;
+  }
+
+  console.log(
+    "⚠️ Smart Topic Edit fehlgeschlagen, erstelle neu:",
+    editError || edited
+  );
+}
 
     const msg = await tg("sendMessage", {
       chat_id: SERIES_GROUP_ID,
@@ -3469,21 +3479,31 @@ async function createOrUpdateUniverseHub(universeName = "") {
     await universeHubCaption(universeName);
 
   if (universe?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: universe.hub_message_id,
-      text
-    });
+  const edited = await tg("editMessageText", {
+    chat_id: MOVIE_GROUP_ID,
+    message_id: universe.hub_message_id,
+    text
+  });
 
-    if (!edited?.__error) {
-      return edited;
-    }
-
-    console.error(
-      "⚠️ Universe Hub Edit fehlgeschlagen, erstelle neu:",
-      edited?.error?.description || edited
-    );
+  if (!edited?.__error) {
+    return edited;
   }
+
+  const editError =
+    edited?.error?.description ||
+    edited?.description ||
+    "";
+
+  if (editError.includes("message is not modified")) {
+    console.log("ℹ️ Universe Hub unverändert:", universeName);
+    return universe.hub_message_id;
+  }
+
+  console.error(
+    "⚠️ Universe Hub Edit fehlgeschlagen, erstelle neu:",
+    editError || edited
+  );
+}
 
   const hub =
     await tg("sendMessage", {
@@ -3498,18 +3518,20 @@ async function createOrUpdateUniverseHub(universeName = "") {
       hub.message_id
     );
 
-    try {
-      await tg("pinChatMessage", {
-        chat_id: MOVIE_GROUP_ID,
-        message_id: hub.message_id,
-        disable_notification: true
-      });
-    } catch (err) {
-      console.error(
-        "⚠️ Universe Hub Pin Fehler:",
-        err.message
-      );
-    }
+    /*
+try {
+  await tg("pinChatMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_id: hub.message_id,
+    disable_notification: true
+  });
+} catch (err) {
+  console.error(
+    "⚠️ Universe Hub Pin Fehler:",
+    err.message
+  );
+}
+*/
   }
 
   return hub;
@@ -4251,16 +4273,31 @@ async function createOrUpdateEliteArchiveHub() {
   }
 
   if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
+  const edited = await tg("editMessageText", {
+    chat_id: MOVIE_GROUP_ID,
+    message_id: topic.hub_message_id,
+    text
+  });
 
-    if (!edited?.__error) {
-      return edited;
-    }
+  if (!edited?.__error) {
+    return edited;
   }
+
+  const editError =
+    edited?.error?.description ||
+    edited?.description ||
+    "";
+
+  if (editError.includes("message is not modified")) {
+    console.log("ℹ️ Elite Archive Hub unverändert");
+    return topic.hub_message_id;
+  }
+
+  console.log(
+    "⚠️ Elite Archive Hub Edit fehlgeschlagen, erstelle neu:",
+    editError || edited
+  );
+}
 
   const msg = await tg("sendMessage", {
     chat_id: MOVIE_GROUP_ID,
@@ -4429,16 +4466,31 @@ async function createOrUpdateNewReleasesHub() {
   }
 
   if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
+  const edited = await tg("editMessageText", {
+    chat_id: MOVIE_GROUP_ID,
+    message_id: topic.hub_message_id,
+    text
+  });
 
-    if (!edited?.__error) {
-      return edited;
-    }
+  if (!edited?.__error) {
+    return edited;
   }
+
+  const editError =
+    edited?.error?.description ||
+    edited?.description ||
+    "";
+
+  if (editError.includes("message is not modified")) {
+    console.log("ℹ️ New Releases Hub unverändert");
+    return topic.hub_message_id;
+  }
+
+  console.log(
+    "⚠️ New Releases Hub Edit fehlgeschlagen, erstelle neu:",
+    editError || edited
+  );
+}
 
   const msg = await tg("sendMessage", {
     chat_id: MOVIE_GROUP_ID,
