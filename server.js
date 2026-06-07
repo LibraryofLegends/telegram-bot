@@ -3014,7 +3014,7 @@ async function universeHubCaption(universeName = "") {
     "📊 ARCHIVE STATUS\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
     `🎞 Inhalte • ${savedTotal}/${officialTotal || savedTotal}\n` +
-    ${universeProgress} ${safePercent}%\n\n`;
+    `${universeProgress} ${safePercent}%\n\n`;
 
   if (Object.keys(config.phases || {}).length) {
     result +=
