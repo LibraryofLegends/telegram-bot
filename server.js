@@ -2953,7 +2953,8 @@ async function universeHubCaption(universeName = "") {
     config.series?.length || 0;
 
   const officialTotal =
-    officialMovieTotal + officialSeriesTotal;
+  (officialMovieTotal || movieCount) +
+  (officialSeriesTotal || seriesCount);
 
   const savedTotal =
     movieCount + seriesCount;
