@@ -14890,9 +14890,10 @@ if (universeData?.universeName) {
 if (starWarsEra) {
   try {
     await createOrUpdateStarWarsEraHubs();
+    await createOrUpdateStarWarsCommandCenter();
   } catch (err) {
     console.error(
-      "⚠️ Star Wars Era Hub Update Fehler:",
+      "⚠️ Star Wars Era/Command Center Update Fehler:",
       err.message
     );
   }
@@ -15246,9 +15247,10 @@ try {
 if (starWarsEra) {
   try {
     await createOrUpdateStarWarsEraHubs();
+    await createOrUpdateStarWarsCommandCenter();
   } catch (err) {
     console.error(
-      "⚠️ Serien Star Wars Era Hub Fehler:",
+      "⚠️ Serien Star Wars Era/Command Center Fehler:",
       err.message
     );
   }
