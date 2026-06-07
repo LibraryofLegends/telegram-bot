@@ -8613,13 +8613,26 @@ async function telegramRequest(
     const errorData =
       err.response?.data || err.message;
 
-    console.error(
-      `❌ Telegram API Fehler (${method}):`
-    );
+    if (!json.ok) {
+  const description = json.description || "";
 
-    console.error(
-      JSON.stringify(errorData, null, 2)
-    );
+  if (description.includes("message is not modified")) {
+    return {
+      __error: true,
+      error: json,
+      description
+    };
+  }
+
+  console.error(`❌ Telegram API Fehler (${method}):`);
+  console.error(JSON.stringify(json, null, 2));
+
+  return {
+    __error: true,
+    error: json,
+    description
+  };
+}
 
     // =============================
     // RATE LIMIT AUTO RETRY
