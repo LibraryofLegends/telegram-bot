@@ -7175,7 +7175,7 @@ async function createOrUpdateMovieIndex() {
       text: pageText
     });
 
-    await sleep(1000);
+    await sleep(5000);
   }
 
   return true;
