@@ -3925,7 +3925,10 @@ async function multiverseCommandCenterCaption() {
       (config.series || []).length;
 
     const officialTotal =
-      officialMovies + officialSeries;
+  Math.max(
+    officialMovies + officialSeries,
+    savedTotal
+  );
 
     const savedTotal =
       movieCount + seriesCount;
