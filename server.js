@@ -2184,70 +2184,148 @@ const universeConfigs = {
   },
 
   Disney: {
-    topicName: "🏰 Disney Universe",
-    icon: "🏰",
-    archive: "DISNEY MAGIC ARCHIVE",
-    subline: "CLASSICS • PIXAR • FAIRYTALES",
-    status: "✨ MAGIC KINGDOM ACTIVE",
+  topicName: "🏰 Disney Universe",
+  icon: "🏰",
+  archive: "DISNEY MAGIC ARCHIVE",
+  subline: "CLASSICS • PIXAR • FAIRYTALES",
+  status: "✨ MAGIC KINGDOM ACTIVE",
 
-    aliases: [
-      "disney",
-      "pixar",
-      "toy story",
-      "cars",
-      "findet nemo",
-      "finding nemo",
-      "die eiskönigin",
-      "frozen",
-      "könig der löwen",
-      "lion king",
-      "aladdin",
-      "mulan",
-      "moana",
-      "vaiana",
-      "encanto",
-      "coco",
-      "zootopia",
-      "zoomania",
-      "rapunzel",
-      "tangled",
-      "monster ag",
-      "monsters inc",
-      "inside out",
-      "alles steht kopf"
+  aliases: [
+    "disney",
+    "pixar",
+    "toy story",
+    "cars",
+    "findet nemo",
+    "finding nemo",
+    "frozen",
+    "die eiskönigin",
+    "könig der löwen",
+    "lion king",
+    "aladdin",
+    "mulan",
+    "moana",
+    "vaiana",
+    "encanto",
+    "coco",
+    "zootopia",
+    "zoomania",
+    "rapunzel",
+    "tangled",
+    "monster ag",
+    "monsters inc",
+    "inside out",
+    "alles steht kopf",
+    "baymax",
+    "lilo stitch",
+    "winnie puuh"
+  ],
+
+  phases: {
+    "GOLDENE KLASSIKER": [
+      "Schneewittchen und die sieben Zwerge",
+      "Pinocchio",
+      "Fantasia",
+      "Dumbo",
+      "Bambi",
+      "Cinderella",
+      "Alice im Wunderland",
+      "Peter Pan",
+      "Susi und Strolch",
+      "Dornröschen"
     ],
 
-    phases: {
-      "DISNEY CLASSICS": [
-        "Schneewittchen",
-        "Cinderella",
-        "Dornröschen",
-        "Arielle",
-        "Die Schöne und das Biest",
-        "Aladdin",
-        "Der König der Löwen",
-        "Mulan",
-        "Vaiana",
-        "Encanto"
-      ],
+    "BRONZE ÄRA": [
+      "101 Dalmatiner",
+      "Die Hexe und der Zauberer",
+      "Das Dschungelbuch",
+      "Aristocats",
+      "Robin Hood",
+      "Die vielen Abenteuer von Winnie Puuh",
+      "Bernard und Bianca",
+      "Cap und Capper",
+      "Taran und der Zauberkessel",
+      "Basil, der große Mäusedetektiv",
+      "Oliver & Co."
+    ],
 
-      "PIXAR": [
-        "Toy Story",
-        "Das große Krabbeln",
-        "Monster AG",
-        "Findet Nemo",
-        "Cars",
-        "Ratatouille",
-        "WALL·E",
-        "Oben",
-        "Alles steht Kopf",
-        "Coco"
-      ]
-    },
+    "DISNEY RENAISSANCE": [
+      "Arielle, die Meerjungfrau",
+      "Die Schöne und das Biest",
+      "Aladdin",
+      "Der König der Löwen",
+      "Pocahontas",
+      "Der Glöckner von Notre Dame",
+      "Hercules",
+      "Mulan",
+      "Tarzan"
+    ],
 
-    series: []
-  }
-};
+    "POST RENAISSANCE": [
+      "Fantasia 2000",
+      "Ein Königreich für ein Lama",
+      "Atlantis – Das Geheimnis der verlorenen Stadt",
+      "Lilo & Stitch",
+      "Der Schatzplanet",
+      "Bärenbrüder",
+      "Die Kühe sind los",
+      "Himmel und Huhn",
+      "Triff die Robinsons",
+      "Bolt – Ein Hund für alle Fälle"
+    ],
+
+    "MODERNE CGI ÄRA": [
+      "Rapunzel – Neu verföhnt",
+      "Winnie Puuh",
+      "Ralph reichts",
+      "Die Eiskönigin – Völlig unverfroren",
+      "Baymax – Riesiges Robowabohu",
+      "Zoomania",
+      "Vaiana",
+      "Ralph reichts 2: Chaos im Netz",
+      "Die Eiskönigin 2",
+      "Raya und der letzte Drache",
+      "Encanto",
+      "Strange World",
+      "Wish",
+      "Vaiana 2",
+      "Zoomania 2"
+    ],
+
+    "PIXAR": [
+      "Toy Story",
+      "Das große Krabbeln",
+      "Toy Story 2",
+      "Monster AG",
+      "Findet Nemo",
+      "Die Unglaublichen",
+      "Cars",
+      "Ratatouille",
+      "WALL·E",
+      "Oben",
+      "Toy Story 3",
+      "Cars 2",
+      "Merida",
+      "Die Monster Uni",
+      "Alles steht Kopf",
+      "Arlo & Spot",
+      "Findet Dorie",
+      "Cars 3",
+      "Coco",
+      "Die Unglaublichen 2",
+      "Toy Story 4",
+      "Onward",
+      "Soul",
+      "Luca",
+      "Rot",
+      "Lightyear",
+      "Elemental",
+      "Alles steht Kopf 2",
+      "Elio"
+    ]
+  },
+
+  series: []
+}
 
   // =============================
 // STAR WARS ERA REGISTRY
