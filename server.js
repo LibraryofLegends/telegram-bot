@@ -1833,7 +1833,6 @@ const universeConfigs = {
       "batman v superman",
       "suicide squad",
       "wonder woman",
-      "justice league",
       "aquaman",
       "shazam",
       "birds of prey",
