@@ -2761,101 +2761,11 @@ async function starWarsCommandCenterCaption() {
 // CREATE OR UPDATE STAR WARS COMMAND CENTER
 // =============================
 async function createOrUpdateStarWarsCommandCenter() {
-  const topicName = "🌌 Star Wars Command Center";
-
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: topicName,
-    type: "starwars_command_center"
+  return await createOrUpdateCommandTopicHub({
+    name: "🌌 Star Wars Command Center",
+    type: "starwars_command_center",
+    captionBuilder: starWarsCommandCenterCaption
   });
-
-  if (!topicId) {
-    console.error("❌ Star Wars Command Center Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await starWarsCommandCenterCaption();
-
-  const topicKey =
-    makeKey(`starwars_command_center-${MOVIE_GROUP_ID}-${topicName}`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-
-    if (!edited?.__error) {
-      console.log("✅ Star Wars Command Center aktualisiert");
-      return edited;
-    }
-
-    const editError =
-      edited?.error?.description ||
-      edited?.description ||
-      "";
-
-    if (editError.includes("message is not modified")) {
-      console.log("ℹ️ Star Wars Command Center unverändert");
-      return topic.hub_message_id;
-    }
-
-    console.log(
-      "⚠️ Star Wars Command Center Edit fehlgeschlagen, erstelle neu:",
-      editError || edited
-    );
-  }
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(
-        msg.message_id,
-        topicKey
-      );
-    }
-
-    console.log("✅ Star Wars Command Center erstellt");
-  }
-
-  return msg;
 }
 
 // =============================
@@ -4308,101 +4218,11 @@ async function dcCommandCenterCaption() {
 // CREATE OR UPDATE DC COMMAND CENTER
 // =============================
 async function createOrUpdateDcCommandCenter() {
-  const topicName = "🦇 DC Command Center";
-
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: topicName,
-    type: "dc_command_center"
+  return await createOrUpdateCommandTopicHub({
+    name: "🦇 DC Command Center",
+    type: "dc_command_center",
+    captionBuilder: dcCommandCenterCaption
   });
-
-  if (!topicId) {
-    console.error("❌ DC Command Center Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await dcCommandCenterCaption();
-
-  const topicKey =
-    makeKey(`dc_command_center-${MOVIE_GROUP_ID}-${topicName}`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-
-    if (!edited?.__error) {
-      console.log("✅ DC Command Center aktualisiert");
-      return edited;
-    }
-
-    const editError =
-      edited?.error?.description ||
-      edited?.description ||
-      "";
-
-    if (editError.includes("message is not modified")) {
-      console.log("ℹ️ DC Command Center unverändert");
-      return topic.hub_message_id;
-    }
-
-    console.log(
-      "⚠️ DC Command Center Edit fehlgeschlagen, erstelle neu:",
-      editError || edited
-    );
-  }
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(
-        msg.message_id,
-        topicKey
-      );
-    }
-
-    console.log("✅ DC Command Center erstellt");
-  }
-
-  return msg;
 }
 
 // =============================
@@ -4572,101 +4392,11 @@ async function marvelCommandCenterCaption() {
 // CREATE OR UPDATE MARVEL COMMAND CENTER
 // =============================
 async function createOrUpdateMarvelCommandCenter() {
-  const topicName = "🧬 Marvel Command Center";
-
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: topicName,
-    type: "marvel_command_center"
+  return await createOrUpdateCommandTopicHub({
+    name: "🧬 Marvel Command Center",
+    type: "marvel_command_center",
+    captionBuilder: marvelCommandCenterCaption
   });
-
-  if (!topicId) {
-    console.error("❌ Marvel Command Center Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await marvelCommandCenterCaption();
-
-  const topicKey =
-    makeKey(`marvel_command_center-${MOVIE_GROUP_ID}-${topicName}`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-
-    if (!edited?.__error) {
-      console.log("✅ Marvel Command Center aktualisiert");
-      return edited;
-    }
-
-    const editError =
-      edited?.error?.description ||
-      edited?.description ||
-      "";
-
-    if (editError.includes("message is not modified")) {
-      console.log("ℹ️ Marvel Command Center unverändert");
-      return topic.hub_message_id;
-    }
-
-    console.log(
-      "⚠️ Marvel Command Center Edit fehlgeschlagen, erstelle neu:",
-      editError || edited
-    );
-  }
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(
-        msg.message_id,
-        topicKey
-      );
-    }
-
-    console.log("✅ Marvel Command Center erstellt");
-  }
-
-  return msg;
 }
 
 // =============================
@@ -4813,202 +4543,22 @@ async function disneyCommandCenterCaption() {
 // CREATE OR UPDATE DISNEY COMMAND CENTER
 // =============================
 async function createOrUpdateDisneyCommandCenter() {
-  const topicName = "🏰 Disney Command Center";
-
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: topicName,
-    type: "disney_command_center"
+  return await createOrUpdateCommandTopicHub({
+    name: "🏰 Disney Command Center",
+    type: "disney_command_center",
+    captionBuilder: disneyCommandCenterCaption
   });
-
-  if (!topicId) {
-    console.error("❌ Disney Command Center Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await disneyCommandCenterCaption();
-
-  const topicKey =
-    makeKey(`disney_command_center-${MOVIE_GROUP_ID}-${topicName}`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-
-    if (!edited?.__error) {
-      console.log("✅ Disney Command Center aktualisiert");
-      return edited;
-    }
-
-    const editError =
-      edited?.error?.description ||
-      edited?.description ||
-      "";
-
-    if (editError.includes("message is not modified")) {
-      console.log("ℹ️ Disney Command Center unverändert");
-      return topic.hub_message_id;
-    }
-
-    console.log(
-      "⚠️ Disney Command Center Edit fehlgeschlagen, erstelle neu:",
-      editError || edited
-    );
-  }
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(
-        msg.message_id,
-        topicKey
-      );
-    }
-
-    console.log("✅ Disney Command Center erstellt");
-  }
-
-  return msg;
 }
 
 // =============================
 // CREATE OR UPDATE MULTIVERSE COMMAND CENTER
 // =============================
 async function createOrUpdateMultiverseCommandCenter() {
-  const topicName = "🌌 Multiverse Command Center";
-
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: topicName,
-    type: "multiverse_command_center"
+  return await createOrUpdateCommandTopicHub({
+    name: "🌌 Multiverse Command Center",
+    type: "multiverse_command_center",
+    captionBuilder: multiverseCommandCenterCaption
   });
-
-  if (!topicId) {
-    console.error("❌ Multiverse Command Center Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await multiverseCommandCenterCaption();
-
-  const topicKey =
-    makeKey(`multiverse_command_center-${MOVIE_GROUP_ID}-${topicName}`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-
-    if (!edited?.__error) {
-      console.log("✅ Multiverse Command Center aktualisiert");
-      return edited;
-    }
-
-    const editError =
-      edited?.error?.description ||
-      edited?.description ||
-      "";
-
-    if (editError.includes("message is not modified")) {
-      console.log("ℹ️ Multiverse Command Center unverändert");
-      return topic.hub_message_id;
-    }
-
-    console.log(
-      "⚠️ Multiverse Command Center Edit fehlgeschlagen, erstelle neu:",
-      editError || edited
-    );
-  }
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(
-        msg.message_id,
-        topicKey
-      );
-    }
-
-    console.log("✅ Multiverse Command Center erstellt");
-  }
-
-  return msg;
 }
 
 // =============================
@@ -6099,6 +5649,110 @@ async function createOrUpdateSystemHub({
     }
 
     console.log("✅ System Hub erstellt:", name);
+  }
+
+  return msg;
+}
+
+// =============================
+// COMMAND TOPIC HUB UPSERT HELPER
+// =============================
+async function createOrUpdateCommandTopicHub({
+  name,
+  type,
+  captionBuilder
+}) {
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name,
+    type
+  });
+
+  if (!topicId) {
+    console.error("❌ Command Topic konnte nicht erstellt werden:", name);
+    return null;
+  }
+
+  const text = await captionBuilder();
+
+  const topicKey =
+    makeKey(`${type}-${MOVIE_GROUP_ID}-${name}`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [topicKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(topicKey);
+  }
+
+  if (topic?.hub_message_id) {
+    const edited = await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
+
+    if (!edited?.__error) {
+      console.log("✅ Command Topic aktualisiert:", name);
+      return edited;
+    }
+
+    const editError =
+      edited?.error?.description ||
+      edited?.description ||
+      "";
+
+    if (editError.includes("message is not modified")) {
+      console.log("ℹ️ Command Topic unverändert:", name);
+      return topic.hub_message_id;
+    }
+
+    if (editError.includes("message to edit not found")) {
+      console.log("⚠️ Alte Command Message fehlt, erstelle neu:", name);
+    } else {
+      console.log("⚠️ Command Topic Edit Fehler:", name, editError);
+    }
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(
+        msg.message_id,
+        topicKey
+      );
+    }
+
+    console.log("✅ Command Topic erstellt:", name);
   }
 
   return msg;
