@@ -2962,6 +2962,9 @@ async function universeHubCaption(universeName = "") {
     officialTotal > 0
       ? Math.round((savedTotal / officialTotal) * 100)
       : 0;
+      
+      const safePercent =
+  Math.min(universePercent, 100);
 
   const universeProgress =
     buildUniverseProgressBar(savedTotal, officialTotal)
@@ -2996,7 +2999,7 @@ async function universeHubCaption(universeName = "") {
   let result =
     "███ UNIVERSE NEXUS ███\n\n" +
 
-    `${config.icon || "🌌"} ${String(universeName).toUpperCase()}\n\n` +
+    `${String(universeName).toUpperCase()}` +
     "📡 UNIVERSE ENTRY • VERIFIED\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -3011,7 +3014,7 @@ async function universeHubCaption(universeName = "") {
     "📊 ARCHIVE STATUS\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
     `🎞 Inhalte • ${savedTotal}/${officialTotal || savedTotal}\n` +
-    `${universeProgress} ${universePercent}%\n\n`;
+    `${universeProgress} ${safeUniversePercent}%\n\n`;
 
   if (Object.keys(config.phases || {}).length) {
     result +=
