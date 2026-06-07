@@ -10189,6 +10189,7 @@ if (text === "/start" || text === "/admin") {
       "━━━━━━━━━━━━━━━━━━\n\n" +
       "• /rebuildstarwars\n" +
       "• /rebuildstarwarseras\n" +
+      "• /rebuilduniversehubs\n" +
       "• /repairmovieuniverses\n\n" +
 
       "━━━━━━━━━━━━━━━━━━\n" +
@@ -10345,6 +10346,47 @@ console.log("🌌 REPAIR UNIVERSE CHECK:", {
       "✅ Universe-Zuordnung aktualisiert\n\n" +
       "Jetzt ausführen:\n" +
       "/rebuildcommandcenters\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
+// =============================
+// REBUILD UNIVERSE HUBS
+// =============================
+if (command === "/rebuilduniversehubs") {
+  let updated = 0;
+  let failed = 0;
+
+  for (const config of Object.values(universeConfigs)) {
+    try {
+      if (!config.topicName) continue;
+
+      await createOrUpdateUniverseHub(config.topicName);
+
+      updated++;
+
+      await sleep(1000);
+    } catch (err) {
+      failed++;
+
+      console.error("⚠️ Universe Hub Rebuild Fehler:", {
+        universe: config.topicName,
+        error: err.message
+      });
+    }
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🌌 UNIVERSE HUBS REBUILT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `✅ Aktualisiert: ${updated}\n` +
+      `⚠️ Fehler: ${failed}\n\n` +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
