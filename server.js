@@ -6125,6 +6125,170 @@ async function createOrUpdateNewReleasesHub() {
 }
 
 // =============================
+// SYSTEM HUB UPSERT HELPER
+// =============================
+async function createOrUpdateSystemHub({
+  name,
+  captionBuilder,
+  pin = false
+}) {
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name,
+    type: "system_hub"
+  });
+
+  if (!topicId) {
+    console.error("❌ System Hub Topic konnte nicht erstellt werden:", name);
+    return null;
+  }
+
+  const text = await captionBuilder();
+
+  const topicKey =
+    makeKey(`system_hub-${MOVIE_GROUP_ID}-${name}`);
+
+  let topic = null;
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [topicKey]
+    );
+
+    topic = result.rows[0] || null;
+  } else {
+    topic = getTopic(topicKey);
+  }
+
+  if (topic?.hub_message_id) {
+
+  const edited = await tg("editMessageText", {
+    chat_id: MOVIE_GROUP_ID,
+    message_id: topic.hub_message_id,
+    text
+  });
+
+  if (!edited?.__error) {
+    console.log("✅ System Hub aktualisiert:", name);
+    return edited;
+  }
+
+  const editError =
+    edited?.error?.description ||
+    edited?.description ||
+    "";
+
+  if (
+    editError.includes("message is not modified")
+  ) {
+    console.log("ℹ️ System Hub unverändert:", name);
+    return topic.hub_message_id;
+  }
+
+  if (
+    editError.includes("message to edit not found")
+  ) {
+
+    console.log(
+      "⚠️ Hub Message fehlt, lösche alte Message-ID:",
+      name
+    );
+
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = NULL
+        WHERE unique_key = $1
+        `,
+        [topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = NULL
+        WHERE unique_key = ?
+      `).run(topicKey);
+    }
+
+  } else {
+
+    console.log(
+      "⚠️ Hub Edit Fehler:",
+      name,
+      editError
+    );
+  }
+}
+
+    if (editError.includes("message is not modified")) {
+      console.log("ℹ️ System Hub unverändert:", name);
+      return topic.hub_message_id;
+    }
+
+    if (editError.includes("message to edit not found")) {
+      console.log("⚠️ Alte Hub Message fehlt, erstelle neu:", name);
+    } else {
+      console.log(
+        "⚠️ System Hub Edit fehlgeschlagen, erstelle neu:",
+        name,
+        editError || edited
+      );
+    }
+  }
+
+  const msg = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
+
+  if (msg?.message_id) {
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = $1
+        WHERE unique_key = $2
+        `,
+        [msg.message_id, topicKey]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = ?
+        WHERE unique_key = ?
+      `).run(
+        msg.message_id,
+        topicKey
+      );
+    }
+
+    if (pin) {
+      try {
+        await tg("pinChatMessage", {
+          chat_id: MOVIE_GROUP_ID,
+          message_id: msg.message_id,
+          disable_notification: true
+        });
+      } catch (err) {
+        console.error("⚠️ System Hub Pin Fehler:", name, err.message);
+      }
+    }
+
+    console.log("✅ System Hub erstellt:", name);
+  }
+
+  return msg;
+}
+
+// =============================
 // MOVIE LIBRARY HUB
 // =============================
 async function getMovieLibraryRows() {
@@ -6269,385 +6433,39 @@ async function buildMovieLibraryHubCaption() {
 }
 
 async function createOrUpdateMovieLibraryHub() {
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
+  return await createOrUpdateSystemHub({
     name: "🎬 Movie Library",
-    type: "system_hub"
+    captionBuilder: buildMovieLibraryHubCaption
   });
-
-  if (!topicId) {
-    console.error("❌ Movie Library Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await buildMovieLibraryHubCaption();
-
-  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🎬 Movie Library`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `SELECT * FROM topics WHERE unique_key = $1 LIMIT 1`,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-
-    if (!edited?.__error) return edited;
-  }
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `UPDATE topics SET hub_message_id = $1 WHERE unique_key = $2`,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(msg.message_id, topicKey);
-    }
-  }
-
-  return msg;
 }
 
 async function createOrUpdatePremiumQualityHub() {
-
-  console.log("💎 PREMIUM HUB START");
-
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
+  return await createOrUpdateSystemHub({
     name: "💎 Premium Quality",
-    type: "system_hub"
+    captionBuilder: buildPremiumQualityHubCaption
   });
-
-  if (!topicId) {
-    console.error("❌ Premium Quality Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await buildPremiumQualityHubCaption();
-
-console.log(
-  "💎 PREMIUM HUB TEXT LENGTH:",
-  text.length
-);
-
-  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-💎 Premium Quality`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-
-    if (!edited?.__error) {
-      return edited;
-    }
-  }
-
-  const msg = await tg("sendMessage", {
-  chat_id: MOVIE_GROUP_ID,
-  message_thread_id: Number(topicId),
-  text
-});
-
-console.log(
-  "💎 PREMIUM HUB RESULT:",
-  JSON.stringify(msg, null, 2)
-);
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(msg.message_id, topicKey);
-    }
-  }
-
-  return msg;
 }
 
 async function createOrUpdateUniversesIndexHub() {
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
+  return await createOrUpdateSystemHub({
     name: "🌌 Universes",
-    type: "system_hub"
+    captionBuilder: buildUniversesIndexHubCaption
   });
-
-  if (!topicId) {
-    console.error("❌ Universes Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await buildUniversesIndexHubCaption();
-
-  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🌌 Universes`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-
-    if (!edited?.__error) {
-      return edited;
-    }
-  }
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(msg.message_id, topicKey);
-    }
-  }
-
-  return msg;
 }
 
 async function createOrUpdateCollectionsIndexHub() {
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
+  return await createOrUpdateSystemHub({
     name: "🧩 Collections",
-    type: "system_hub"
+    captionBuilder: buildCollectionsIndexHubCaption
   });
-
-  if (!topicId) {
-    console.error("❌ Collections Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await buildCollectionsIndexHubCaption();
-
-  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🧩 Collections`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-
-    if (!edited?.__error) {
-      return edited;
-    }
-  }
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(msg.message_id, topicKey);
-    }
-  }
-
-  return msg;
 }
 
 async function createOrUpdateMovieIndexHub() {
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
+  return await createOrUpdateSystemHub({
     name: "📚 Movie Index",
-    type: "system_hub"
+    captionBuilder: buildMovieIndexHubCaption,
+    pin: true
   });
-
-  if (!topicId) {
-    console.error("❌ Movie Index Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await buildMovieIndexHubCaption();
-
-  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-📚 Movie Index`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
-
-    if (!edited?.__error) {
-      return edited;
-    }
-  }
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(msg.message_id, topicKey);
-    }
-
-    try {
-      await tg("pinChatMessage", {
-        chat_id: MOVIE_GROUP_ID,
-        message_id: msg.message_id,
-        disable_notification: true
-      });
-    } catch (err) {
-      console.error("⚠️ Movie Index Pin Fehler:", err.message);
-    }
-  }
-
-  return msg;
 }
 
 async function createOrUpdateCollectionHub(tmdb, topicId) {
