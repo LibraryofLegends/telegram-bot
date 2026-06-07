@@ -2971,11 +2971,16 @@ async function universeHubCaption(universeName = "") {
     .filter((y) => Number.isFinite(y));
 
   const period =
-    years.length
-      ? `${Math.min(...years)} → ${Math.max(...years)}`
-      : "Unbekannt";
+  years.length
+    ? `${Math.min(...years)} → ${Math.max(...years)}`
+    : "Unbekannt";
 
-  let result =
+const multiverseStatus =
+  savedTotal >= officialTotal
+    ? "ARCHIVE VERIFIED"
+    : "ARCHIVE INCOMPLETE";
+
+let result =
     "━━━━━━━━━━━━━━━━━━\n" +
     `${config.icon} ${universeName.toUpperCase()}\n` +
     "━━━━━━━━━━━━━━━━━━\n\n" +
