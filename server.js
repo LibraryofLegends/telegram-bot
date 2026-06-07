@@ -614,7 +614,8 @@ async function saveMovie(data) {
         hdr,
 
         universe,
-        universe_phase
+        universe_phase,
+        starwars_era
       )
       VALUES (
         $1, $2, $3, $4, $5, $6,
@@ -627,7 +628,7 @@ async function saveMovie(data) {
         $21, $22,
         $23, $24, $25,
         $26,
-        $27, $28
+        $27, $28, $29
       )
       ON CONFLICT (unique_key)
       DO NOTHING
@@ -670,7 +671,8 @@ async function saveMovie(data) {
         data.hdr,
 
         data.universe,
-        data.universePhase
+        data.universePhase,
+        data.starWarsEra
       ]
     );
   }
@@ -683,9 +685,9 @@ async function saveMovie(data) {
       telegram_message_id, topic_id,
       collection, quality, audio, source, fsk, director, cast, library_id,
       resolution, file_size, video_codec, audio_codec, audio_channels, hdr,
-      universe, universe_phase
+      universe, universe_phase, starwars_era
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.title,
     data.year,
@@ -717,7 +719,8 @@ async function saveMovie(data) {
     data.hdr,
 
     data.universe,
-    data.universePhase
+    data.universePhase,
+    data.starWarsEra
   );
 }
 
