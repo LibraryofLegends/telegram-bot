@@ -2671,13 +2671,91 @@ function detectUniverse(title = "", collection = "") {
   const rawSearch =
     `${title} ${collection}`.trim();
 
-  const search =
-    rawSearch.toLowerCase();
-
   const searchKey =
     makeKey(rawSearch);
 
+  // =============================
+  // DC PRIORITY DETECTION
+  // =============================
+  const dcPriority = [
+    "DCEU",
+    "DCU_GodsAndMonsters",
+    "DC_Elseworlds",
+    "Arrowverse",
+    "DCAMU",
+    "DCAU"
+  ];
+
+  for (const key of dcPriority) {
+    const config = universeConfigs[key];
+    if (!config) continue;
+
+    const aliasMatch =
+      (config.aliases || []).some((alias) => {
+        const aliasKey = makeKey(alias);
+
+        return (
+          aliasKey.length >= 4 &&
+          searchKey.includes(aliasKey)
+        );
+      });
+
+    const seriesMatch =
+      (config.series || []).some((seriesTitle) => {
+        const seriesKey = makeKey(seriesTitle);
+
+        return (
+          seriesKey.length >= 4 &&
+          searchKey.includes(seriesKey)
+        );
+      });
+
+    const phaseMatchFound =
+      Object.values(config.phases || {})
+        .flat()
+        .some((movieTitle) => {
+          const movieKey = makeKey(movieTitle);
+
+          return (
+            movieKey.length >= 4 &&
+            searchKey.includes(movieKey)
+          );
+        });
+
+    if (aliasMatch || seriesMatch || phaseMatchFound) {
+      let detectedPhase = null;
+
+      for (const [phase, movies] of Object.entries(config.phases || {})) {
+        const phaseMatch =
+          movies.some((movieTitle) => {
+            const movieKey = makeKey(movieTitle);
+
+            return (
+              movieKey.length >= 4 &&
+              searchKey.includes(movieKey)
+            );
+          });
+
+        if (phaseMatch) {
+          detectedPhase = phase;
+          break;
+        }
+      }
+
+      return {
+        universeKey: key,
+        universeName: config.topicName,
+        phase: detectedPhase
+      };
+    }
+  }
+
+  // =============================
+  // NORMAL UNIVERSE DETECTION
+  // =============================
   for (const [key, config] of Object.entries(universeConfigs)) {
+    if (dcPriority.includes(key)) continue;
+
     const aliasMatch =
       (config.aliases || []).some((alias) => {
         const aliasKey = makeKey(alias);
