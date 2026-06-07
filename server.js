@@ -129,6 +129,11 @@ await pgPool.query(`
 `);
 
 await pgPool.query(`
+  ALTER TABLE movies
+  ADD COLUMN IF NOT EXISTS starwars_era TEXT;
+`);
+
+await pgPool.query(`
   CREATE TABLE IF NOT EXISTS series (
     id SERIAL PRIMARY KEY,
     series_title TEXT,
