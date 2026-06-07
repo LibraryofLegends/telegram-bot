@@ -11716,6 +11716,28 @@ async function refreshCommandCenters() {
   }
 }
 
+async function refreshMainCommandCentersOnly() {
+  try {
+    await createOrUpdateCommandCenter({
+      chatId: MOVIE_GROUP_ID,
+      topicName: "🎛 MOVIE COMMAND CENTER",
+      caption: await movieCommandCenterCaption()
+    });
+  } catch (err) {
+    console.error("❌ Movie Command Center Update Fehler:", err.message);
+  }
+
+  try {
+    await createOrUpdateCommandCenter({
+      chatId: SERIES_GROUP_ID,
+      topicName: "🎛 SERIES COMMAND CENTER",
+      caption: await seriesCommandCenterCaption()
+    });
+  } catch (err) {
+    console.error("❌ Series Command Center Update Fehler:", err.message);
+  }
+}
+
 async function createGenreTopicIfMissing(genreName = "") {
   if (!genreName) return null;
 
@@ -13121,41 +13143,13 @@ if (text === "/rebuildcommandcenters") {
     text
   });
 
-  let updated = 0;
-  let failed = 0;
-
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text: "🧪 Rebuild Command Centers wurde erkannt."
   });
 
-  try {
-    await ensureCommandCenters();
-    await refreshCommandCenters();
-    updated += 2;
-  } catch (err) {
-    failed++;
-    console.error("⚠️ Movie/Series Command Center Fehler:", err.message);
-  }
-
-  const jobs = [
-    ["Multiverse", createOrUpdateMultiverseCommandCenter],
-    ["Marvel", createOrUpdateMarvelCommandCenter],
-    ["DC", createOrUpdateDcCommandCenter],
-    ["Disney", createOrUpdateDisneyCommandCenter],
-    ["Star Wars", createOrUpdateStarWarsCommandCenter]
-  ];
-
-  for (const [name, fn] of jobs) {
-    try {
-      await fn();
-      updated++;
-      await sleep(1200);
-    } catch (err) {
-      failed++;
-      console.error(`⚠️ ${name} Command Center Fehler:`, err.message);
-    }
-  }
+  await ensureCommandCenters();
+  await refreshCommandCenters();
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
@@ -13163,8 +13157,13 @@ if (text === "/rebuildcommandcenters") {
       "━━━━━━━━━━━━━━━━━━\n" +
       "🎛 COMMAND CENTERS AKTUALISIERT\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
-      `✅ Aktualisiert: ${updated}\n` +
-      `⚠️ Fehler: ${failed}\n\n` +
+      "✅ Movie Command Center\n" +
+      "✅ Series Command Center\n" +
+      "✅ Multiverse Command Center\n" +
+      "✅ Marvel Command Center\n" +
+      "✅ DC Command Center\n" +
+      "✅ Disney Command Center\n" +
+      "✅ Star Wars Command Center\n\n" +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
@@ -15860,7 +15859,12 @@ if (text === "/rebuildcommandcenters") {
       "🎛 COMMAND CENTERS AKTUALISIERT\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
       "✅ Movie Command Center aktualisiert\n" +
-      "✅ Series Command Center aktualisiert\n\n" +
+      "✅ Series Command Center aktualisiert\n" +
+      "✅ Multiverse Command Center aktualisiert\n" +
+      "✅ Marvel Command Center aktualisiert\n" +
+      "✅ DC Command Center aktualisiert\n" +
+      "✅ Disney Command Center aktualisiert\n" +
+      "✅ Star Wars Command Center aktualisiert\n\n" +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
@@ -16380,9 +16384,9 @@ await tg("sendMessage", {
 // REFRESH GLOBAL SYSTEMS
 // =============================
 try {
-  await refreshCommandCenters();
+  await refreshMainCommandCentersOnly();
 } catch (err) {
-  console.error("⚠️ Command Center Refresh Fehler:", err.message);
+  console.error("⚠️ Main Command Center Refresh Fehler:", err.message);
 }
 
 try {
@@ -16737,9 +16741,9 @@ await tg("sendMessage", {
 });
 
 try {
-  await refreshCommandCenters();
+  await refreshMainCommandCentersOnly();
 } catch (err) {
-  console.error("⚠️ Command Center Refresh Fehler:", err.message);
+  console.error("⚠️ Main Command Center Refresh Fehler:", err.message);
 }
 
 logToDb(
