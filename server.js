@@ -16224,18 +16224,18 @@ if (universeData?.universeName) {
     );
 
     await createOrUpdateMultiverseCommandCenter();
-    
+
     if (isDcUniverse(universeData?.universeKey)) {
-  await createOrUpdateDcCommandCenter();
-}
+      await createOrUpdateDcCommandCenter();
+    }
 
-if (isMarvelUniverse(universeData?.universeKey)) {
-  await createOrUpdateMarvelCommandCenter();
-}
+    if (isMarvelUniverse(universeData?.universeKey)) {
+      await createOrUpdateMarvelCommandCenter();
+    }
 
-if (isDisneyUniverse(universeData?.universeKey)) {
-  await createOrUpdateDisneyCommandCenter();
-}
+    if (isDisneyUniverse(universeData?.universeKey)) {
+      await createOrUpdateDisneyCommandCenter();
+    }
 
   } catch (err) {
     console.error(
