@@ -9544,8 +9544,14 @@ async function singleSeriesHubCaption(seriesTitle) {
     `#${String(title)
       .replace(/[^a-zA-Z0-9ÄÖÜäöüß]/g, "")}`;
 
-  let resultText =
-    "███ SERIES NEXUS ███\n\n" +
+  const seasonCount =
+  Object.keys(seasons).length;
+
+const seasonLabel =
+  seasonCount === 1 ? "Staffel" : "Staffeln";
+
+let resultText =
+  "███ SERIES NEXUS ███\n\n" +
 
     `📺 ${String(title).toUpperCase()}\n\n` +
     "📡 SERIES ENTRY • VERIFIED\n\n" +
@@ -9560,11 +9566,6 @@ async function singleSeriesHubCaption(seriesTitle) {
     "━━━━━━━━━━━━━━━━━━\n" +
     "📊 ARCHIVE STATUS\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
-    const seasonCount =
-  Object.keys(seasons).length;
-
-const seasonLabel =
-  seasonCount === 1 ? "Staffel" : "Staffeln";
     `📀 ${seasonLabel} • ${seasonCount}\n` +
     `🎞 Episoden • ${totalSaved}/${totalKnown}\n\n` +
     `${progressBar} ${percent}%\n\n` +
