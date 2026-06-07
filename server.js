@@ -2742,10 +2742,12 @@ function detectUniverse(title = "", collection = "") {
       }
 
       return {
-        universeKey: key,
-        universeName: config.topicName,
-        phase: detectedPhase
-      };
+  universeKey: key,
+  universeName: config.topicName,
+  universeArchive: config.archive,
+  universeStatus: config.status,
+  phase: detectedPhase
+};
     }
   }
 
@@ -14421,8 +14423,9 @@ await saveMovie({
   audioCodec: extras.audioCodec,
   audioChannels: extras.audioChannels,
   hdr: extras.hdr,
-  universe: universeData?.universeName || null,
-  universePhase: universeData?.phase || null
+universe: universeData?.universeName || null,
+universePhase: universeData?.phase || null,
+starWarsEra: starWarsEra?.key || null
 });
 
 // =============================
