@@ -2999,8 +2999,8 @@ async function universeHubCaption(universeName = "") {
   let result =
     "███ UNIVERSE NEXUS ███\n\n" +
 
-    `${String(universeName).toUpperCase()}` +
-    "📡 UNIVERSE ENTRY • VERIFIED\n\n" +
+    `${String(universeName).toUpperCase()}\n\n` +
+"📡 UNIVERSE ENTRY • VERIFIED\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "🏛 UNIVERSE CLASSIFICATION\n" +
@@ -3014,7 +3014,7 @@ async function universeHubCaption(universeName = "") {
     "📊 ARCHIVE STATUS\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
     `🎞 Inhalte • ${savedTotal}/${officialTotal || savedTotal}\n` +
-    `${universeProgress} ${safeUniversePercent}%\n\n`;
+    ${universeProgress} ${safePercent}%\n\n`;
 
   if (Object.keys(config.phases || {}).length) {
     result +=
