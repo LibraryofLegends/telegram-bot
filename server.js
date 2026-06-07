@@ -2981,11 +2981,24 @@ async function universeHubCaption(universeName = "") {
       ? `${Math.min(...years)} → ${Math.max(...years)}`
       : "Unbekannt";
 
-  const universeCode =
-    `UNI-${String(universeName)
-      .replace(/[^a-z0-9]/gi, "")
-      .toUpperCase()
-      .slice(0, 8)}`;
+  const universeCodeMap = {
+  "Marvel Cinematic Universe": "UNI-MCU",
+  "DC Universe": "UNI-DCU",
+  "Star Wars Universe": "UNI-SW",
+  "Disney Universe": "UNI-DISNEY"
+};
+
+const cleanUniverseName =
+  String(universeName)
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .trim();
+
+const universeCode =
+  universeCodeMap[cleanUniverseName] ||
+  `UNI-${cleanUniverseName
+    .replace(/[^a-z0-9]/gi, "")
+    .toUpperCase()
+    .slice(0, 8)}`;
 
   const archiveStatus =
     savedTotal >= officialTotal
@@ -2996,12 +3009,17 @@ async function universeHubCaption(universeName = "") {
     savedTotal >= officialTotal
       ? "MASTERED UNIVERSE"
       : "ACTIVE UNIVERSE";
+      
+      const entryStatus =
+  savedTotal >= officialTotal
+    ? "VERIFIED"
+    : "ACTIVE";
 
   let result =
     "███ UNIVERSE NEXUS ███\n\n" +
 
     `${String(universeName).toUpperCase()}\n\n` +
-"📡 UNIVERSE ENTRY • VERIFIED\n\n" +
+`📡 UNIVERSE ENTRY • ${entryStatus}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "🏛 UNIVERSE CLASSIFICATION\n" +
