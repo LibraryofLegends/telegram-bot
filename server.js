@@ -5843,92 +5843,10 @@ async function buildEliteArchiveHubCaption() {
 }
 
 async function createOrUpdateEliteArchiveHub() {
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
+  return await createOrUpdateSystemHub({
     name: "🏆 Elite Archive",
-    type: "system_hub"
+    captionBuilder: buildEliteArchiveHubCaption
   });
-
-  if (!topicId) {
-    console.error("❌ Elite Archive Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await buildEliteArchiveHubCaption();
-
-  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🏆 Elite Archive`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-  const edited = await tg("editMessageText", {
-    chat_id: MOVIE_GROUP_ID,
-    message_id: topic.hub_message_id,
-    text
-  });
-
-  if (!edited?.__error) {
-    return edited;
-  }
-
-  const editError =
-    edited?.error?.description ||
-    edited?.description ||
-    "";
-
-  if (editError.includes("message is not modified")) {
-    console.log("ℹ️ Elite Archive Hub unverändert");
-    return topic.hub_message_id;
-  }
-
-  console.log(
-    "⚠️ Elite Archive Hub Edit fehlgeschlagen, erstelle neu:",
-    editError || edited
-  );
-}
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(msg.message_id, topicKey);
-    }
-  }
-
-  return msg;
 }
 
 async function getNewReleaseRows() {
@@ -6036,92 +5954,10 @@ async function buildNewReleasesHubCaption() {
 }
 
 async function createOrUpdateNewReleasesHub() {
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
+  return await createOrUpdateSystemHub({
     name: "🔥 New Releases",
-    type: "system_hub"
+    captionBuilder: buildNewReleasesHubCaption
   });
-
-  if (!topicId) {
-    console.error("❌ New Releases Topic konnte nicht erstellt werden");
-    return null;
-  }
-
-  const text = await buildNewReleasesHubCaption();
-
-  const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🔥 New Releases`);
-
-  let topic = null;
-
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT *
-      FROM topics
-      WHERE unique_key = $1
-      LIMIT 1
-      `,
-      [topicKey]
-    );
-
-    topic = result.rows[0] || null;
-  } else {
-    topic = getTopic(topicKey);
-  }
-
-  if (topic?.hub_message_id) {
-  const edited = await tg("editMessageText", {
-    chat_id: MOVIE_GROUP_ID,
-    message_id: topic.hub_message_id,
-    text
-  });
-
-  if (!edited?.__error) {
-    return edited;
-  }
-
-  const editError =
-    edited?.error?.description ||
-    edited?.description ||
-    "";
-
-  if (editError.includes("message is not modified")) {
-    console.log("ℹ️ New Releases Hub unverändert");
-    return topic.hub_message_id;
-  }
-
-  console.log(
-    "⚠️ New Releases Hub Edit fehlgeschlagen, erstelle neu:",
-    editError || edited
-  );
-}
-
-  const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
-
-  if (msg?.message_id) {
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = $1
-        WHERE unique_key = $2
-        `,
-        [msg.message_id, topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = ?
-        WHERE unique_key = ?
-      `).run(msg.message_id, topicKey);
-    }
-  }
-
-  return msg;
 }
 
 // =============================
