@@ -15907,18 +15907,16 @@ try {
 try {
 
   if (seriesUniverseData?.universeName) {
+  await createOrUpdateUniverseHub(
+    seriesUniverseData.universeName
+  );
 
-    await createOrUpdateUniverseHub(
-      seriesUniverseData.universeName
-    );
+  await createOrUpdateMultiverseCommandCenter();
 
-    await createOrUpdateMultiverseCommandCenter();
-    
-    if (isDcUniverse(seriesUniverseData?.universeKey)) {
-  await createOrUpdateDcCommandCenter();
-}
-
+  if (isDcUniverse(seriesUniverseData?.universeKey)) {
+    await createOrUpdateDcCommandCenter();
   }
+}
 
 } catch (err) {
 
