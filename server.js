@@ -2874,6 +2874,9 @@ function buildUniverseProgressBar(current = 0, total = 0) {
   return "■".repeat(filled) + "□".repeat(size - filled);
 }
 
+// =============================
+// UNIVERSE HUB CAPTION — UNIVERSE NEXUS BLACK EDITION
+// =============================
 async function universeHubCaption(universeName = "") {
   const config =
     Object.values(universeConfigs)
@@ -2910,9 +2913,6 @@ async function universeHubCaption(universeName = "") {
     );
 
     series = seriesResult.rows;
-    
-    console.log("🌌 UNIVERSE SERIES:", series);
-
   } else {
     movies = db.prepare(`
       SELECT title, year, rating, universe_phase
@@ -2964,43 +2964,59 @@ async function universeHubCaption(universeName = "") {
       : 0;
 
   const universeProgress =
-    buildUniverseProgressBar(savedTotal, officialTotal);
+    buildUniverseProgressBar(savedTotal, officialTotal)
+      .replace(/■/g, "█")
+      .replace(/□/g, "░");
 
   const years = movies
     .map((m) => Number(m.year))
     .filter((y) => Number.isFinite(y));
 
   const period =
-  years.length
-    ? `${Math.min(...years)} → ${Math.max(...years)}`
-    : "Unbekannt";
+    years.length
+      ? `${Math.min(...years)} → ${Math.max(...years)}`
+      : "Unbekannt";
 
-const multiverseStatus =
-  savedTotal >= officialTotal
-    ? "ARCHIVE VERIFIED"
-    : "ARCHIVE INCOMPLETE";
+  const universeCode =
+    `UNI-${String(universeName)
+      .replace(/[^a-z0-9]/gi, "")
+      .toUpperCase()
+      .slice(0, 8)}`;
 
-let result =
+  const archiveStatus =
+    savedTotal >= officialTotal
+      ? "ARCHIVE VERIFIED"
+      : "ARCHIVE INCOMPLETE";
+
+  const universeStatus =
+    savedTotal >= officialTotal
+      ? "MASTERED UNIVERSE"
+      : "ACTIVE UNIVERSE";
+
+  let result =
+    "███ UNIVERSE NEXUS ███\n\n" +
+
+    `${config.icon || "🌌"} ${String(universeName).toUpperCase()}\n\n` +
+    "📡 UNIVERSE ENTRY • VERIFIED\n\n" +
+
     "━━━━━━━━━━━━━━━━━━\n" +
-    `${config.icon} ${universeName.toUpperCase()}\n` +
+    "🏛 UNIVERSE CLASSIFICATION\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
-
-    `📁 ${config.archive}\n` +
-    `${config.subline}\n` +
-    `${config.status}\n\n` +
+    `🎬 Filme • ${movieCount}/${officialMovieTotal || movieCount}\n` +
+    `📺 Serien • ${seriesCount}/${officialSeriesTotal || seriesCount}\n` +
+    `📅 Zeitraum • ${period}\n\n` +
+    `🧬 ${universeCode}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 FILME • ${movieCount}/${officialMovieTotal || movieCount}\n` +
-    `📺 SERIEN • ${seriesCount}/${officialSeriesTotal || seriesCount}\n` +
-    `🧩 UNIVERSE STATUS • ${savedTotal}/${officialTotal || savedTotal}\n` +
-    `📊 FORTSCHRITT • ${universeProgress} ${universePercent}%\n` +
-    `📅 ZEITRAUM • ${period}\n` +
-    `🛰 STATUS • ${multiverseStatus}\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+    "📊 ARCHIVE STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `🎞 Inhalte • ${savedTotal}/${officialTotal || savedTotal}\n` +
+    `${universeProgress} ${universePercent}%\n\n`;
 
   if (Object.keys(config.phases || {}).length) {
     result +=
-      "🧭 TIMELINE\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🧭 TIMELINE MATRIX\n" +
       "━━━━━━━━━━━━━━━━━━\n\n";
 
     for (const [phase, entries] of Object.entries(config.phases)) {
@@ -3041,46 +3057,44 @@ let result =
   if (config.series?.length) {
     result +=
       "━━━━━━━━━━━━━━━━━━\n" +
-      "📺 SERIEN\n" +
+      "📺 SERIES MATRIX\n" +
       "━━━━━━━━━━━━━━━━━━\n\n";
 
     config.series.forEach((seriesTitle, index) => {
+      const exists = series.some((s) => {
+        const savedKey = makeKey(s.series_title);
+        const targetKey = makeKey(seriesTitle);
 
-  const exists = series.some((s) => {
+        return (
+          savedKey.includes(targetKey) ||
+          targetKey.includes(savedKey)
+        );
+      });
 
-    const savedKey =
-      makeKey(s.series_title);
+      const prefix =
+        index === config.series.length - 1
+          ? "┗"
+          : "┠";
 
-    const targetKey =
-      makeKey(seriesTitle);
-
-    return (
-      savedKey.includes(targetKey) ||
-      targetKey.includes(savedKey)
-    );
-
-  });
-
-  const prefix =
-    index === config.series.length - 1
-      ? "┗"
-      : "┠";
-
-  result +=
-    `${prefix} ` +
-    (exists ? "✅ " : "⬜ ") +
-    `${seriesTitle}\n`;
-
-});
+      result +=
+        `${prefix} ` +
+        (exists ? "✅ " : "⬜ ") +
+        `${seriesTitle}\n`;
+    });
 
     result += "\n";
   }
 
   result +=
     "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰 UNIVERSE STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `📡 ${archiveStatus}\n` +
+    `🏆 ${universeStatus}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends";
 
-  return result.slice(0, 4000);
+  return cleanTelegramText(result).slice(0, 4000);
 }
 
 // =============================
