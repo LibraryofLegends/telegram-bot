@@ -6003,65 +6003,21 @@ async function createOrUpdateSystemHub({
   }
 
   if (topic?.hub_message_id) {
+    const edited = await tg("editMessageText", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: topic.hub_message_id,
+      text
+    });
 
-  const edited = await tg("editMessageText", {
-    chat_id: MOVIE_GROUP_ID,
-    message_id: topic.hub_message_id,
-    text
-  });
-
-  if (!edited?.__error) {
-    console.log("✅ System Hub aktualisiert:", name);
-    return edited;
-  }
-
-  const editError =
-    edited?.error?.description ||
-    edited?.description ||
-    "";
-
-  if (
-    editError.includes("message is not modified")
-  ) {
-    console.log("ℹ️ System Hub unverändert:", name);
-    return topic.hub_message_id;
-  }
-
-  if (
-    editError.includes("message to edit not found")
-  ) {
-
-    console.log(
-      "⚠️ Hub Message fehlt, lösche alte Message-ID:",
-      name
-    );
-
-    if (pgPool) {
-      await pgPool.query(
-        `
-        UPDATE topics
-        SET hub_message_id = NULL
-        WHERE unique_key = $1
-        `,
-        [topicKey]
-      );
-    } else {
-      db.prepare(`
-        UPDATE topics
-        SET hub_message_id = NULL
-        WHERE unique_key = ?
-      `).run(topicKey);
+    if (!edited?.__error) {
+      console.log("✅ System Hub aktualisiert:", name);
+      return edited;
     }
 
-  } else {
-
-    console.log(
-      "⚠️ Hub Edit Fehler:",
-      name,
-      editError
-    );
-  }
-}
+    const editError =
+      edited?.error?.description ||
+      edited?.description ||
+      "";
 
     if (editError.includes("message is not modified")) {
       console.log("ℹ️ System Hub unverändert:", name);
@@ -6069,7 +6025,27 @@ async function createOrUpdateSystemHub({
     }
 
     if (editError.includes("message to edit not found")) {
-      console.log("⚠️ Alte Hub Message fehlt, erstelle neu:", name);
+      console.log(
+        "⚠️ Hub Message fehlt, lösche alte Message-ID:",
+        name
+      );
+
+      if (pgPool) {
+        await pgPool.query(
+          `
+          UPDATE topics
+          SET hub_message_id = NULL
+          WHERE unique_key = $1
+          `,
+          [topicKey]
+        );
+      } else {
+        db.prepare(`
+          UPDATE topics
+          SET hub_message_id = NULL
+          WHERE unique_key = ?
+        `).run(topicKey);
+      }
     } else {
       console.log(
         "⚠️ System Hub Edit fehlgeschlagen, erstelle neu:",
@@ -6114,7 +6090,11 @@ async function createOrUpdateSystemHub({
           disable_notification: true
         });
       } catch (err) {
-        console.error("⚠️ System Hub Pin Fehler:", name, err.message);
+        console.error(
+          "⚠️ System Hub Pin Fehler:",
+          name,
+          err.message
+        );
       }
     }
 
