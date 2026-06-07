@@ -6997,8 +6997,15 @@ async function seriesCaption(tmdb, media, extras = {}) {
     .join(" ");
 
   const seriesTag =
-    `#${String(seriesTitle)
-      .replace(/[^a-zA-Z0-9ÄÖÜäöüß]/g, "")}`;
+  "#" + String(title)
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(word =>
+      word.charAt(0).toUpperCase() +
+      word.slice(1).toLowerCase()
+    )
+    .join("")
+    .replace(/[^a-zA-Z0-9ÄÖÜäöüß]/g, "");
 
   const overviewRaw = String(
     tmdb.overview || "Keine Beschreibung verfügbar."
@@ -9534,7 +9541,12 @@ async function singleSeriesHubCaption(seriesTitle) {
     "━━━━━━━━━━━━━━━━━━\n" +
     "📊 ARCHIVE STATUS\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
-    `📀 Staffeln • ${Object.keys(seasons).length}\n` +
+    const seasonCount =
+  Object.keys(seasons).length;
+
+const seasonLabel =
+  seasonCount === 1 ? "Staffel" : "Staffeln";
+    `📀 ${seasonLabel} • ${seasonCount}\n` +
     `🎞 Episoden • ${totalSaved}/${totalKnown}\n\n` +
     `${progressBar} ${percent}%\n\n` +
 
