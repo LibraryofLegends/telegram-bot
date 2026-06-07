@@ -11684,6 +11684,36 @@ async function refreshCommandCenters() {
   } catch (err) {
     console.error("❌ Series Command Center Update Fehler:", err.message);
   }
+
+  try {
+    await createOrUpdateMultiverseCommandCenter();
+  } catch (err) {
+    console.error("❌ Multiverse Command Center Update Fehler:", err.message);
+  }
+
+  try {
+    await createOrUpdateMarvelCommandCenter();
+  } catch (err) {
+    console.error("❌ Marvel Command Center Update Fehler:", err.message);
+  }
+
+  try {
+    await createOrUpdateDcCommandCenter();
+  } catch (err) {
+    console.error("❌ DC Command Center Update Fehler:", err.message);
+  }
+
+  try {
+    await createOrUpdateDisneyCommandCenter();
+  } catch (err) {
+    console.error("❌ Disney Command Center Update Fehler:", err.message);
+  }
+
+  try {
+    await createOrUpdateStarWarsCommandCenter();
+  } catch (err) {
+    console.error("❌ Star Wars Command Center Update Fehler:", err.message);
+  }
 }
 
 async function createGenreTopicIfMissing(genreName = "") {
