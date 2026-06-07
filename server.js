@@ -13091,13 +13091,41 @@ if (text === "/rebuildcommandcenters") {
     text
   });
 
+  let updated = 0;
+  let failed = 0;
+
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text: "🧪 Rebuild Command Centers wurde erkannt."
   });
 
-  await ensureCommandCenters();
-  await refreshCommandCenters();
+  try {
+    await ensureCommandCenters();
+    await refreshCommandCenters();
+    updated += 2;
+  } catch (err) {
+    failed++;
+    console.error("⚠️ Movie/Series Command Center Fehler:", err.message);
+  }
+
+  const jobs = [
+    ["Multiverse", createOrUpdateMultiverseCommandCenter],
+    ["Marvel", createOrUpdateMarvelCommandCenter],
+    ["DC", createOrUpdateDcCommandCenter],
+    ["Disney", createOrUpdateDisneyCommandCenter],
+    ["Star Wars", createOrUpdateStarWarsCommandCenter]
+  ];
+
+  for (const [name, fn] of jobs) {
+    try {
+      await fn();
+      updated++;
+      await sleep(1200);
+    } catch (err) {
+      failed++;
+      console.error(`⚠️ ${name} Command Center Fehler:`, err.message);
+    }
+  }
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
@@ -13105,8 +13133,8 @@ if (text === "/rebuildcommandcenters") {
       "━━━━━━━━━━━━━━━━━━\n" +
       "🎛 COMMAND CENTERS AKTUALISIERT\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
-      "✅ Movie Command Center aktualisiert\n" +
-      "✅ Series Command Center aktualisiert\n\n" +
+      `✅ Aktualisiert: ${updated}\n` +
+      `⚠️ Fehler: ${failed}\n\n` +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
