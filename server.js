@@ -124,6 +124,7 @@ await pgPool.query(`
     hdr TEXT,
     universe TEXT,
     universe_phase TEXT,
+    starwars_era TEXT,
     created_at TIMESTAMP DEFAULT NOW()
   );
 `);
@@ -2341,115 +2342,151 @@ async function ensureStarWarsEraTopics() {
 }
 
 // =============================
-// STAR WARS ERA HUB CAPTION
+// STAR WARS ERA HUB CAPTION — NEXUS BLACK EDITION
 // =============================
 async function starWarsEraHubCaption(era) {
   const entries = era.entries || [];
 
+  let savedCount = 0;
+  let matrixText = "";
+
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+
+    const prefix =
+      i === entries.length - 1
+        ? "┗"
+        : "┠";
+
+    let existsMovie = null;
+    let existsSeries = null;
+
+    if (pgPool) {
+      const movieResult = await pgPool.query(`
+        SELECT id, title
+        FROM movies
+      `);
+
+      existsMovie = movieResult.rows.find((m) => {
+        const movieKey = makeKey(m.title);
+        const entryKey = makeKey(entry);
+
+        return (
+          movieKey.includes(entryKey) ||
+          entryKey.includes(movieKey)
+        );
+      });
+
+      const seriesResult = await pgPool.query(`
+        SELECT id, series_title
+        FROM series
+      `);
+
+      existsSeries = seriesResult.rows.find((s) => {
+        const seriesKey = makeKey(s.series_title);
+        const entryKey = makeKey(entry);
+
+        return (
+          seriesKey.includes(entryKey) ||
+          entryKey.includes(seriesKey)
+        );
+      });
+    } else {
+      const movies = db.prepare(`
+        SELECT id, title
+        FROM movies
+      `).all();
+
+      existsMovie = movies.find((m) => {
+        const movieKey = makeKey(m.title);
+        const entryKey = makeKey(entry);
+
+        return (
+          movieKey.includes(entryKey) ||
+          entryKey.includes(movieKey)
+        );
+      });
+
+      const seriesRows = db.prepare(`
+        SELECT id, series_title
+        FROM series
+      `).all();
+
+      existsSeries = seriesRows.find((s) => {
+        const seriesKey = makeKey(s.series_title);
+        const entryKey = makeKey(entry);
+
+        return (
+          seriesKey.includes(entryKey) ||
+          entryKey.includes(seriesKey)
+        );
+      });
+    }
+
+    const exists =
+      !!existsMovie || !!existsSeries;
+
+    if (exists) savedCount++;
+
+    const icon =
+      exists ? "✅" : "⬜";
+
+    matrixText +=
+      `${prefix} ${icon} ${entry}\n`;
+  }
+
+  const totalCount =
+    entries.length;
+
+  const percent =
+    totalCount > 0
+      ? Math.round((savedCount / totalCount) * 100)
+      : 0;
+
+  const progressBar =
+    "█".repeat(Math.floor(percent / 10)) +
+    "░".repeat(10 - Math.floor(percent / 10));
+
+  const archiveStatus =
+    savedCount >= totalCount && totalCount > 0
+      ? "ARCHIVE VERIFIED"
+      : "ARCHIVE INCOMPLETE";
+
+  const eraStatus =
+    savedCount >= totalCount && totalCount > 0
+      ? "MASTERED ERA"
+      : "ACTIVE ERA";
+
   let text =
     "███ STAR WARS ERA NEXUS ███\n\n" +
 
-    `${era.topicName.toUpperCase()}\n` +
-    `${era.subtitle}\n\n` +
+    `${String(era.topicName || "").toUpperCase()}\n\n` +
+    `${era.subtitle || ""}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    `🧭 ERA CODE • ${era.key.toUpperCase()}\n` +
-    `📚 TIMELINE ENTRIES • ${entries.length}\n` +
+    "🏛 ERA CLASSIFICATION\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
+    `🧭 ERA CODE • ${String(era.key || "").toUpperCase()}\n` +
+    `📚 TIMELINE ENTRIES • ${totalCount}\n` +
+    `📊 ARCHIVE • ${savedCount}/${totalCount}\n\n` +
+    `${progressBar} ${percent}%\n\n` +
 
-    "🛰 TIMELINE ARCHIVE\n";
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰 TIMELINE MATRIX\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    matrixText +
+    "\n" +
 
-  for (let i = 0; i < entries.length; i++) {
-  const entry = entries[i];
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰 ERA STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `📡 ${archiveStatus}\n` +
+    `🏆 ${eraStatus}\n\n` +
 
-  const prefix =
-    i === entries.length - 1
-      ? "┗"
-      : "┠";
-
-  let existsMovie = null;
-  let existsSeries = null;
-
-  if (pgPool) {
-    const movieResult = await pgPool.query(
-      `
-      SELECT id, title
-      FROM movies
-      `
-    );
-
-    existsMovie = movieResult.rows.find((m) => {
-      const movieKey = makeKey(m.title);
-      const entryKey = makeKey(entry);
-
-      return (
-        movieKey.includes(entryKey) ||
-        entryKey.includes(movieKey)
-      );
-    });
-
-    const seriesResult = await pgPool.query(
-      `
-      SELECT id, series_title
-      FROM series
-      `
-    );
-
-    existsSeries = seriesResult.rows.find((s) => {
-      const seriesKey = makeKey(s.series_title);
-      const entryKey = makeKey(entry);
-
-      return (
-        seriesKey.includes(entryKey) ||
-        entryKey.includes(seriesKey)
-      );
-    });
-
-  } else {
-    const movies = db.prepare(`
-      SELECT id, title
-      FROM movies
-    `).all();
-
-    existsMovie = movies.find((m) => {
-      const movieKey = makeKey(m.title);
-      const entryKey = makeKey(entry);
-
-      return (
-        movieKey.includes(entryKey) ||
-        entryKey.includes(movieKey)
-      );
-    });
-
-    const seriesRows = db.prepare(`
-      SELECT id, series_title
-      FROM series
-    `).all();
-
-    existsSeries = seriesRows.find((s) => {
-      const seriesKey = makeKey(s.series_title);
-      const entryKey = makeKey(entry);
-
-      return (
-        seriesKey.includes(entryKey) ||
-        entryKey.includes(seriesKey)
-      );
-    });
-  }
-
-  const icon =
-    existsMovie || existsSeries
-      ? "✅"
-      : "⬜";
-
-  text += `${prefix} ${icon} ${entry}\n`;
-}
-
-  text +=
-    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends";
 
-  return text.slice(0, 4000);
+  return cleanTelegramText(text).slice(0, 4000);
 }
 
 // =============================
@@ -14412,28 +14449,39 @@ await saveMovie({
   runtime: tmdb.runtime,
   overview: tmdb.overview,
   posterUrl: tmdb.posterUrl,
+
   fileName,
   fileId,
   uniqueKey: media.uniqueKey,
+
   telegramMessageId: copied.message_id,
   topicId,
+
   collection: tmdb.collection,
+
   quality: extras.quality,
   audio: extras.audio,
   source: extras.source,
+
   fsk: tmdb.fsk,
   director: tmdb.director,
   cast: tmdb.cast,
+
   libraryId: extras.libraryId,
+
   resolution: extras.resolution,
   fileSize: extras.fileSize,
+
   videoCodec: extras.videoCodec,
   audioCodec: extras.audioCodec,
   audioChannels: extras.audioChannels,
+
   hdr: extras.hdr,
-universe: universeData?.universeName || null,
-universePhase: universeData?.phase || null,
-starWarsEra: starWarsEra?.key || null
+
+  universe: universeData?.universeName || null,
+  universePhase: universeData?.phase || null,
+
+  starWarsEra: starWarsEra?.key || null
 });
 
 // =============================
@@ -14841,6 +14889,17 @@ try {
     err.message
   );
 
+}
+
+if (starWarsEra) {
+  try {
+    await createOrUpdateStarWarsEraHubs();
+  } catch (err) {
+    console.error(
+      "⚠️ Serien Star Wars Era Hub Fehler:",
+      err.message
+    );
+  }
 }
 
 await tg("sendMessage", {
