@@ -2507,6 +2507,139 @@ async function starWarsEraHubCaption(era) {
 }
 
 // =============================
+// STAR WARS COMMAND CENTER CAPTION
+// =============================
+async function starWarsCommandCenterCaption() {
+  let totalEntries = 0;
+  let totalSaved = 0;
+  let eraLines = "";
+
+  for (const era of STAR_WARS_ERAS) {
+    const entries = era.entries || [];
+    let savedCount = 0;
+
+    let movieRows = [];
+    let seriesRows = [];
+
+    if (pgPool) {
+      const movieResult = await pgPool.query(
+        `
+        SELECT title, starwars_era
+        FROM movies
+        WHERE starwars_era = $1
+        `,
+        [era.key]
+      );
+
+      movieRows = movieResult.rows;
+
+      const seriesResult = await pgPool.query(
+        `
+        SELECT series_title, starwars_era
+        FROM series
+        WHERE starwars_era = $1
+        `,
+        [era.key]
+      );
+
+      seriesRows = seriesResult.rows;
+    } else {
+      movieRows = db.prepare(`
+        SELECT title, starwars_era
+        FROM movies
+        WHERE starwars_era = ?
+      `).all(era.key);
+
+      seriesRows = db.prepare(`
+        SELECT series_title, starwars_era
+        FROM series
+        WHERE starwars_era = ?
+      `).all(era.key);
+    }
+
+    for (const entry of entries) {
+      const entryKey = makeKey(entry);
+
+      const existsMovie = movieRows.some((m) => {
+        const movieKey = makeKey(m.title);
+
+        return (
+          movieKey.includes(entryKey) ||
+          entryKey.includes(movieKey)
+        );
+      });
+
+      const existsSeries = seriesRows.some((s) => {
+        const seriesKey = makeKey(s.series_title);
+
+        return (
+          seriesKey.includes(entryKey) ||
+          entryKey.includes(seriesKey)
+        );
+      });
+
+      if (existsMovie || existsSeries) {
+        savedCount++;
+      }
+    }
+
+    totalEntries += entries.length;
+    totalSaved += savedCount;
+
+    const status =
+      savedCount >= entries.length && entries.length > 0
+        ? "MASTERED"
+        : "ACTIVE";
+
+    eraLines +=
+      `${era.topicName} • ${savedCount}/${entries.length} • ${status}\n`;
+  }
+
+  const percent =
+    totalEntries > 0
+      ? Math.round((totalSaved / totalEntries) * 100)
+      : 0;
+
+  const progressBar =
+    "█".repeat(Math.floor(percent / 10)) +
+    "░".repeat(10 - Math.floor(percent / 10));
+
+  const archiveStatus =
+    totalSaved >= totalEntries && totalEntries > 0
+      ? "ARCHIVE VERIFIED"
+      : "ARCHIVE ACTIVE";
+
+  const text =
+    "███ STAR WARS COMMAND CENTER ███\n\n" +
+
+    "🌌 GALACTIC ARCHIVE SYSTEM\n" +
+    "JEDI • SITH • REPUBLIC • EMPIRE\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🏛 GALACTIC STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `📚 Eras • ${STAR_WARS_ERAS.length}\n` +
+    `🎬 Inhalte • ${totalSaved}/${totalEntries}\n` +
+    `📊 Fortschritt • ${progressBar} ${percent}%\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧭 ERA MATRIX\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `${eraLines}\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰 GALACTIC STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `📡 ${archiveStatus}\n` +
+    "🏆 TIMELINE SYSTEM VERIFIED\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(text).slice(0, 4000);
+}
+
+// =============================
 // CREATE OR UPDATE STAR WARS ERA HUBS
 // =============================
 async function createOrUpdateStarWarsEraHubs() {
