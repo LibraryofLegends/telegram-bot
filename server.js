@@ -4415,7 +4415,7 @@ async function marvelCommandCenterCaption() {
     "━━━━━━━━━━━━━━━━━━\n" +
     "🏛 MARVEL STATUS\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
-    `🎬 Filme • ${movieCount}/${officialMovies || movieCount}\n` +
+    `🎬 Filme • ${movieCount}/${Math.max(officialMovies, movieCount)}\n` +
     `📺 Serien • ${seriesCount}/${officialSeries || seriesCount}\n` +
     `🎞 Inhalte • ${savedTotal}/${officialTotal || savedTotal}\n` +
     `📊 Fortschritt • ${progressBar} ${percent}%\n\n` +
