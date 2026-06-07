@@ -11423,7 +11423,7 @@ if (command === "/rebuilduniversehubs") {
 
       updated++;
 
-      await sleep(1000);
+      await sleep(1500);
     } catch (err) {
       failed++;
 
@@ -11434,6 +11434,15 @@ if (command === "/rebuilduniversehubs") {
     }
   }
 
+  try {
+    await createOrUpdateMultiverseCommandCenter();
+  } catch (err) {
+    console.error(
+      "⚠️ Multiverse Command Center Rebuild Fehler:",
+      err.message
+    );
+  }
+
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
@@ -11441,7 +11450,8 @@ if (command === "/rebuilduniversehubs") {
       "🌌 UNIVERSE HUBS REBUILT\n" +
       "━━━━━━━━━━━━━━━━━━\n\n" +
       `✅ Aktualisiert: ${updated}\n` +
-      `⚠️ Fehler: ${failed}\n\n` +
+      `⚠️ Fehler: ${failed}\n` +
+      "🌌 Multiverse Command Center aktualisiert\n\n" +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
   });
@@ -15149,8 +15159,14 @@ if (universeData?.universeName) {
     await createOrUpdateUniverseHub(
       universeData.universeName
     );
+
+    await createOrUpdateMultiverseCommandCenter();
+
   } catch (err) {
-    console.error("⚠️ Universe Hub Update Fehler:", err.message);
+    console.error(
+      "⚠️ Universe/Multiverse Hub Update Fehler:",
+      err.message
+    );
   }
 } else {
   try {
@@ -15520,12 +15536,14 @@ try {
       seriesUniverseData.universeName
     );
 
+    await createOrUpdateMultiverseCommandCenter();
+
   }
 
 } catch (err) {
 
   console.error(
-    "⚠️ Serien Universe Hub Fehler:",
+    "⚠️ Serien Universe/Multiverse Hub Fehler:",
     err.message
   );
 
