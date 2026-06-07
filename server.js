@@ -2677,13 +2677,13 @@ function detectUniverse(title = "", collection = "") {
   // DC PRIORITY DETECTION
   // =============================
   const dcPriority = [
-    "DCEU",
-    "DCU_GodsAndMonsters",
-    "DC_Elseworlds",
-    "Arrowverse",
-    "DCAMU",
-    "DCAU"
-  ];
+  "DCAMU",
+  "DCAU",
+  "DC_Elseworlds",
+  "Arrowverse",
+  "DCEU",
+  "DCU_GodsAndMonsters"
+];
 
   for (const key of dcPriority) {
     const config = universeConfigs[key];
