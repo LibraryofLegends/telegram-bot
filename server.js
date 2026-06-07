@@ -2324,8 +2324,9 @@ const universeConfigs = {
     ]
   },
 
-  series: []
+    series: []
 }
+};
 
   // =============================
 // STAR WARS ERA REGISTRY
