@@ -14485,6 +14485,20 @@ if (universeData?.universeName) {
 }
 
 // =============================
+// UPDATE STAR WARS ERA HUBS
+// =============================
+if (starWarsEra) {
+  try {
+    await createOrUpdateStarWarsEraHubs();
+  } catch (err) {
+    console.error(
+      "⚠️ Star Wars Era Hub Update Fehler:",
+      err.message
+    );
+  }
+}
+
+// =============================
 // ADMIN CONFIRMATION
 // =============================
 await tg("sendMessage", {
