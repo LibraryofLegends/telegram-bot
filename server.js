@@ -9360,11 +9360,9 @@ async function updateSeriesHub({ tmdb, topicId }) {
 // SERIES SEASON CARDS
 // =============================
 async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
-  const separators =
-    await getSeasonSeparators(topicId);
+  const separators = await getSeasonSeparators(topicId);
 
-  const seasonKey =
-    String(season).padStart(2, "0");
+  const seasonKey = String(season).padStart(2, "0");
 
   if (separators[`card_${seasonKey}`]) {
     return separators[`card_${seasonKey}`];
@@ -9376,8 +9374,10 @@ async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
     "S" + seasonKey
   );
 
-  let seasonData =
-    await getSeasonTMDB(tmdb.tmdbId, season);
+  let seasonData = await getSeasonTMDB(
+    tmdb.tmdbId,
+    season
+  );
 
   if (!seasonData) {
     seasonData = {
@@ -9406,36 +9406,70 @@ async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
     ).slice(0, 1024);
 
   const seasonPoster =
-    posterUrl(seasonData?.poster_path) ||
-    tmdb.backdropUrl ||
+    seasonData?.poster_path
+      ? posterUrl(seasonData.poster_path)
+      : null;
+
+  const fallbackPoster =
     tmdb.seriesPosterUrl ||
     tmdb.posterUrl ||
-    "https://via.placeholder.com/500x750.png?text=No+Cover";
+    tmdb.backdropUrl ||
+    null;
 
-  const brandedSeasonPoster =
-    await createBrandedCover(
-      seasonPoster,
-      tmdb.seriesTitle,
-      `Staffel ${seasonKey}`
-    );
+  const sourcePoster =
+    seasonPoster ||
+    fallbackPoster;
 
-  let card = await tg("sendPhoto", {
-    chat_id: SERIES_GROUP_ID,
-    message_thread_id: topicId,
-    photo: brandedSeasonPoster,
-    caption
-  });
+  let brandedSeasonPoster = null;
 
-  if (!card?.message_id && tmdb.seriesPosterUrl) {
+  if (sourcePoster) {
+    try {
+      brandedSeasonPoster = await createBrandedCover(
+        sourcePoster,
+        tmdb.seriesTitle,
+        `Staffel ${seasonKey}`
+      );
+    } catch (err) {
+      console.error(
+        "⚠️ Branded Season Cover Fehler:",
+        err.message
+      );
+    }
+  }
+
+  let card = null;
+
+  if (brandedSeasonPoster) {
+    card = await tg("sendPhoto", {
+      chat_id: SERIES_GROUP_ID,
+      message_thread_id: Number(topicId),
+      photo: brandedSeasonPoster,
+      caption
+    });
+  }
+
+  if (!card?.message_id && sourcePoster) {
     console.log(
-      "⚠️ Staffelposter fehlgeschlagen — versuche Serienposter"
+      "⚠️ Branded Cover fehlgeschlagen — versuche Originalposter"
     );
 
     card = await tg("sendPhoto", {
       chat_id: SERIES_GROUP_ID,
-      message_thread_id: topicId,
-      photo: tmdb.seriesPosterUrl,
+      message_thread_id: Number(topicId),
+      photo: sourcePoster,
       caption
+    });
+  }
+
+  if (!card?.message_id) {
+    console.log(
+      "⚠️ Kein gültiges Poster — erstelle Text-Staffelkarte"
+    );
+
+    card = await tg("sendMessage", {
+      chat_id: SERIES_GROUP_ID,
+      message_thread_id: Number(topicId),
+      text: caption
     });
   }
 
@@ -9446,6 +9480,12 @@ async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
     await saveSeasonSeparators(
       topicId,
       separators
+    );
+
+    console.log(
+      "✅ Staffelkarte erstellt:",
+      tmdb.seriesTitle,
+      "S" + seasonKey
     );
 
     return card.message_id;
