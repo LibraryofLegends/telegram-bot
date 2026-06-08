@@ -13383,11 +13383,23 @@ if (text.startsWith("/rebuildseasoncards")) {
     return;
   }
 
-  const allRows = db.prepare(`
-  SELECT *
-  FROM series
-  ORDER BY series_title ASC, season ASC, episode ASC
-`).all();
+  let allRows = [];
+
+if (pgPool) {
+  const result = await pgPool.query(`
+    SELECT *
+    FROM series
+    ORDER BY series_title ASC, season ASC, episode ASC
+  `);
+
+  allRows = result.rows;
+} else {
+  allRows = db.prepare(`
+    SELECT *
+    FROM series
+    ORDER BY series_title ASC, season ASC, episode ASC
+  `).all();
+}
 
 const queryKey = makeKey(query);
 
@@ -13397,13 +13409,27 @@ const rows = allRows.filter((row) => {
 });
 
   if (!rows.length) {
-  const names = db.prepare(`
+  let names = [];
+
+if (pgPool) {
+  const result = await pgPool.query(`
+    SELECT series_title, COUNT(*) AS count
+    FROM series
+    GROUP BY series_title
+    ORDER BY series_title ASC
+    LIMIT 30
+  `);
+
+  names = result.rows;
+} else {
+  names = db.prepare(`
     SELECT series_title, COUNT(*) AS count
     FROM series
     GROUP BY series_title
     ORDER BY series_title ASC
     LIMIT 30
   `).all();
+}
 
   let list = "";
 
@@ -13437,13 +13463,30 @@ const rows = allRows.filter((row) => {
     return;
   }
 
-  const topic = db.prepare(`
+  let topic = null;
+
+if (pgPool) {
+  const result = await pgPool.query(
+    `
+    SELECT *
+    FROM topics
+    WHERE name = $1
+      AND type = 'series'
+    LIMIT 1
+    `,
+    [first.series_title]
+  );
+
+  topic = result.rows[0] || null;
+} else {
+  topic = db.prepare(`
     SELECT *
     FROM topics
     WHERE name = ?
-    AND type = 'series'
+      AND type = 'series'
     LIMIT 1
   `).get(first.series_title);
+}
 
   if (!topic) {
     await tg("sendMessage", {
