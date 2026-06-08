@@ -7146,9 +7146,32 @@ async function searchSeriesTMDB(title, season, episode) {
 async function getSeasonTMDB(tvId, season) {
   if (!tvId || !season) return null;
 
-  return await tmdbGet(
-    `/tv/${tvId}/season/${season}`
-  );
+  const german =
+    await tmdbGet(
+      `/tv/${tvId}/season/${season}`,
+      {
+        language: "de-DE"
+      }
+    );
+
+  if (
+    german?.episodes?.some((ep) =>
+      ep?.name &&
+      !/^Folge\s+\d+$/i.test(ep.name)
+    )
+  ) {
+    return german;
+  }
+
+  const english =
+    await tmdbGet(
+      `/tv/${tvId}/season/${season}`,
+      {
+        language: "en-US"
+      }
+    );
+
+  return german || english;
 }
 
 // =============================
