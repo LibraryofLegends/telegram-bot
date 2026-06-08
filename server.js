@@ -16088,30 +16088,43 @@ const seriesLibraryId = await saveSeriesLibrary({
   status: tmdb.status || null
 });
 
-await saveSeries({
-  seriesTitle: tmdb.seriesTitle || media.seriesTitle,
-  season: media.season,
-  episode: media.episode,
-  episodeTitle: tmdb.episodeTitle || media.episodeTitleFromFile || "",
+const episodesToSave =
+  media.episodes?.length
+    ? media.episodes
+    : [media.episode];
 
-  genre: tmdb.genre,
-  rating: tmdb.rating,
-  overview: tmdb.overview,
-  posterUrl: tmdb.posterUrl,
+for (const ep of episodesToSave) {
+  await saveSeries({
+    seriesTitle: tmdb.seriesTitle || media.seriesTitle,
+    season: media.season,
+    episode: ep,
+    episodeTitle:
+      ep === media.episode
+        ? (tmdb.episodeTitle || media.episodeTitleFromFile || "")
+        : (media.episodeTitleFromFile || ""),
 
-  fileName,
-  fileId,
-  uniqueKey: media.uniqueKey,
+    genre: tmdb.genre,
+    rating: tmdb.rating,
+    overview: tmdb.overview,
+    posterUrl: tmdb.posterUrl,
 
-  telegramMessageId: copied.message_id,
-  topicId,
+    fileName,
+    fileId,
+    uniqueKey:
+      episodesToSave.length > 1
+        ? `${makeKey(tmdb.seriesTitle || media.seriesTitle)}-s${String(media.season).padStart(2, "0")}-e${String(ep).padStart(2, "0")}`
+        : media.uniqueKey,
 
-  seriesLibraryId,
+    telegramMessageId: copied.message_id,
+    topicId,
 
-  universe: seriesUniverseData?.universeName || null,
-  universePhase: seriesUniverseData?.phase || null,
-  starWarsEra: starWarsEra?.key || null
-});
+    seriesLibraryId,
+
+    universe: seriesUniverseData?.universeName || null,
+    universePhase: seriesUniverseData?.phase || null,
+    starWarsEra: starWarsEra?.key || null
+  });
+}
 
 try {
   await createOrUpdateSingleSeriesHub(
