@@ -8146,7 +8146,7 @@ async function seriesCaption(tmdb, media, extras = {}) {
     .join(" ");
 
   const seriesTag =
-  "#" + String(title)
+  "#" + String(seriesTitle)
     .split(/\s+/)
     .filter(Boolean)
     .map(word =>
