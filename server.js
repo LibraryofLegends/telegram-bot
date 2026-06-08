@@ -6085,6 +6085,23 @@ function makeKey(value = "") {
     .replace(/^-+|-+$/g, "");
 }
 
+function expandEpisodeRange(start, end) {
+  const a = Number(start);
+  const b = Number(end);
+
+  if (!Number.isFinite(a) || !Number.isFinite(b)) {
+    return [];
+  }
+
+  const from = Math.min(a, b);
+  const to = Math.max(a, b);
+
+  return Array.from(
+    { length: to - from + 1 },
+    (_, i) => from + i
+  );
+}
+
 function normalizeSeriesTitle(title = "") {
   const key = String(title || "")
     .toLowerCase()
@@ -6349,6 +6366,45 @@ function parseManualSeriesCommand(text = "") {
 
   if (!raw) return null;
 
+  const doublePipeMatch = raw.match(
+    /^(.+?)\s*\|\s*S?(\d{1,2})E?(\d{1,3})\s*\+\s*S?\d{0,2}E?(\d{1,3})$/i
+  );
+
+  if (doublePipeMatch) {
+    let title = normalizeSeriesTitle(
+      doublePipeMatch[1].trim()
+    );
+
+    const season = Number(doublePipeMatch[2]);
+    const episodeStart = Number(doublePipeMatch[3]);
+    const episodeEnd = Number(doublePipeMatch[4]);
+
+    const episodes =
+      expandEpisodeRange(episodeStart, episodeEnd);
+
+    const seasonText =
+      String(season).padStart(2, "0");
+
+    const episodeText =
+      `${String(episodeStart).padStart(2, "0")}+${String(episodeEnd).padStart(2, "0")}`;
+
+    return {
+      type: "series",
+      isSeries: true,
+      seriesTitle: title,
+      season,
+      episode: episodeStart,
+      episodeEnd,
+      episodes,
+      isDoubleEpisode: episodes.length > 1,
+      seasonText,
+      episodeText,
+      episodeTitleFromFile: "",
+      uniqueKey:
+        makeKey(`${title}-s${seasonText}-e${String(episodeStart).padStart(2, "0")}-e${String(episodeEnd).padStart(2, "0")}`)
+    };
+  }
+
   const specialDoubleMatch = raw.match(
     /^(.+?)\s*\|\s*S?(\d{1,2})\s*E?(\d{1,3})a\s*&\s*E?\d{1,3}b\s*-\s*(.+)$/i
   );
@@ -6371,6 +6427,7 @@ function parseManualSeriesCommand(text = "") {
       season,
       episode,
       episodeEnd: episode,
+      episodes: [episode],
       seasonText,
       episodeText,
       episodeEndText: episodeText,
@@ -6381,8 +6438,8 @@ function parseManualSeriesCommand(text = "") {
     };
   }
 
-  const pipeMatch = raw.match(/^(.+?)\s*\|\s*S?(\d{1,2})E?(\d{1,2})$/i);
-  const normalMatch = raw.match(/^(.+?)\s+S(\d{1,2})E(\d{1,2})$/i);
+  const pipeMatch = raw.match(/^(.+?)\s*\|\s*S?(\d{1,2})E?(\d{1,3})$/i);
+  const normalMatch = raw.match(/^(.+?)\s+S(\d{1,2})E(\d{1,3})$/i);
 
   let title = "";
   let season = null;
@@ -6402,10 +6459,10 @@ function parseManualSeriesCommand(text = "") {
     return null;
   }
 
+  title = normalizeSeriesTitle(title);
+
   const seasonText = String(season).padStart(2, "0");
   const episodeText = String(episode).padStart(2, "0");
-
-  title = normalizeSeriesTitle(title);
 
   return {
     type: "series",
@@ -6413,6 +6470,8 @@ function parseManualSeriesCommand(text = "") {
     seriesTitle: title,
     season,
     episode,
+    episodeEnd: episode,
+    episodes: [episode],
     seasonText,
     episodeText,
     episodeTitleFromFile: "",
