@@ -16099,9 +16099,9 @@ for (const ep of episodesToSave) {
     season: media.season,
     episode: ep,
     episodeTitle:
-      ep === media.episode
-        ? (tmdb.episodeTitle || media.episodeTitleFromFile || "")
-        : (media.episodeTitleFromFile || ""),
+  episodesToSave.length > 1
+    ? `${media.episodeTitleFromFile || tmdb.episodeTitle || "Doppelfolge"} Teil ${episodesToSave.indexOf(ep) + 1}`
+    : (tmdb.episodeTitle || media.episodeTitleFromFile || ""),
 
     genre: tmdb.genre,
     rating: tmdb.rating,
