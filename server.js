@@ -9374,10 +9374,20 @@ async function createSeasonCardIfMissing({ tmdb, topicId, season }) {
     "S" + seasonKey
   );
 
-  let seasonData = await getSeasonTMDB(
+  let seasonData =
+  await getSeasonTMDB(
     tmdb.tmdbId,
     season
   );
+
+console.log(
+  "🧪 SEASON DATA DEBUG:",
+  JSON.stringify(
+    seasonData?.episodes?.slice(0, 3),
+    null,
+    2
+  )
+);
 
   if (!seasonData) {
     seasonData = {
