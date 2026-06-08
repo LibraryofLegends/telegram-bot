@@ -9058,16 +9058,58 @@ async function createOrUpdateEpisodeList({ topicId, seriesTitle }) {
     await fullEpisodeListCaption(seriesTitle);
 
   if (topic.episode_list_message_id) {
-    return await tg("editMessageText", {
+    const edited = await tg("editMessageText", {
       chat_id: SERIES_GROUP_ID,
-      message_id: topic.episode_list_message_id,
+      message_id: Number(topic.episode_list_message_id),
       text
     });
+
+    if (!edited?.__error) {
+      console.log("✅ Episodenliste aktualisiert:", seriesTitle);
+      return edited;
+    }
+
+    const editError =
+      edited?.error?.description ||
+      edited?.description ||
+      "";
+
+    if (editError.includes("message is not modified")) {
+      console.log("ℹ️ Episodenliste unverändert:", seriesTitle);
+      return topic.episode_list_message_id;
+    }
+
+    if (editError.includes("message to edit not found")) {
+      console.log("⚠️ Episodenliste fehlt, lösche alte ID:", seriesTitle);
+
+      if (pgPool) {
+        await pgPool.query(
+          `
+          UPDATE topics
+          SET episode_list_message_id = NULL
+          WHERE topic_id = $1
+          `,
+          [topicId]
+        );
+      } else {
+        db.prepare(`
+          UPDATE topics
+          SET episode_list_message_id = NULL
+          WHERE topic_id = ?
+        `).run(topicId);
+      }
+    } else {
+      console.log(
+        "⚠️ Episodenliste Edit Fehler:",
+        seriesTitle,
+        editError || edited
+      );
+    }
   }
 
   const msg = await tg("sendMessage", {
     chat_id: SERIES_GROUP_ID,
-    message_thread_id: topicId,
+    message_thread_id: Number(topicId),
     text
   });
 
@@ -9086,8 +9128,13 @@ async function createOrUpdateEpisodeList({ topicId, seriesTitle }) {
         UPDATE topics
         SET episode_list_message_id = ?
         WHERE topic_id = ?
-      `).run(msg.message_id, topicId);
+      `).run(
+        msg.message_id,
+        topicId
+      );
     }
+
+    console.log("✅ Episodenliste erstellt:", seriesTitle);
   }
 
   return msg;
@@ -9141,11 +9188,80 @@ async function updateSeriesHub({ tmdb, topicId }) {
     return null;
   }
 
-  return await tg("editMessageText", {
+  const text =
+    await seriesHubCaption(tmdb);
+
+  const edited = await tg("editMessageText", {
     chat_id: SERIES_GROUP_ID,
-    message_id: topic.hub_message_id,
-    text: await seriesHubCaption(tmdb)
+    message_id: Number(topic.hub_message_id),
+    text
   });
+
+  if (!edited?.__error) {
+    console.log(
+      "✅ Series Hub aktualisiert:",
+      tmdb.seriesTitle
+    );
+
+    return edited;
+  }
+
+  const editError =
+    edited?.error?.description ||
+    edited?.description ||
+    "";
+
+  if (
+    editError.includes(
+      "message is not modified"
+    )
+  ) {
+    console.log(
+      "ℹ️ Series Hub unverändert:",
+      tmdb.seriesTitle
+    );
+
+    return topic.hub_message_id;
+  }
+
+  if (
+    editError.includes(
+      "message to edit not found"
+    )
+  ) {
+
+    console.log(
+      "⚠️ Series Hub fehlt, lösche alte ID:",
+      tmdb.seriesTitle
+    );
+
+    if (pgPool) {
+      await pgPool.query(
+        `
+        UPDATE topics
+        SET hub_message_id = NULL
+        WHERE topic_id = $1
+        `,
+        [topicId]
+      );
+    } else {
+      db.prepare(`
+        UPDATE topics
+        SET hub_message_id = NULL
+        WHERE topic_id = ?
+      `).run(topicId);
+    }
+
+    return null;
+  }
+
+  console.log(
+    "⚠️ Series Hub Edit Fehler:",
+    tmdb.seriesTitle,
+    editError || edited
+  );
+
+  return null;
 }
 
 // =============================
@@ -9256,7 +9372,10 @@ async function updateSeasonCard({ tmdb, topicId, season }) {
   const messageId =
     separators[`card_${seasonKey}`];
 
-  if (!messageId) return null;
+  if (!messageId) {
+    console.log("ℹ️ Keine Staffelkarte vorhanden:", tmdb.seriesTitle, seasonKey);
+    return null;
+  }
 
   let seasonData =
     await getSeasonTMDB(tmdb.tmdbId, season);
@@ -9287,11 +9406,48 @@ async function updateSeasonCard({ tmdb, topicId, season }) {
       )
     ).slice(0, 1024);
 
-  return await tg("editMessageCaption", {
+  const edited = await tg("editMessageCaption", {
     chat_id: SERIES_GROUP_ID,
-    message_id: messageId,
+    message_id: Number(messageId),
     caption
   });
+
+  if (!edited?.__error) {
+    console.log("✅ Staffelkarte aktualisiert:", tmdb.seriesTitle, seasonKey);
+    return edited;
+  }
+
+  const editError =
+    edited?.error?.description ||
+    edited?.description ||
+    "";
+
+  if (editError.includes("message is not modified")) {
+    console.log("ℹ️ Staffelkarte unverändert:", tmdb.seriesTitle, seasonKey);
+    return messageId;
+  }
+
+  if (editError.includes("message to edit not found")) {
+    console.log("⚠️ Staffelkarte fehlt, lösche alte ID:", tmdb.seriesTitle, seasonKey);
+
+    delete separators[`card_${seasonKey}`];
+
+    await saveSeasonSeparators(
+      topicId,
+      separators
+    );
+
+    return null;
+  }
+
+  console.log(
+    "⚠️ Staffelkarte Edit Fehler:",
+    tmdb.seriesTitle,
+    seasonKey,
+    editError || edited
+  );
+
+  return null;
 }
 
 async function getSeasonSeparators(topicId) {
@@ -10774,16 +10930,52 @@ async function createOrUpdateSingleSeriesHub(seriesTitle, topicId) {
     existingTopic?.hub_message_id || null;
 
   if (existingHubMessageId) {
-    try {
-      await tg("editMessageText", {
-        chat_id: SERIES_GROUP_ID,
-        message_id: Number(existingHubMessageId),
-        text: caption
-      });
+    const edited = await tg("editMessageText", {
+      chat_id: SERIES_GROUP_ID,
+      message_id: Number(existingHubMessageId),
+      text: caption
+    });
 
+    if (!edited?.__error) {
+      console.log("✅ Single Series Hub aktualisiert:", seriesTitle);
       return existingHubMessageId;
-    } catch (err) {
-      console.error("⚠️ Single Series Hub Edit Fehler:", err.message);
+    }
+
+    const editError =
+      edited?.error?.description ||
+      edited?.description ||
+      "";
+
+    if (editError.includes("message is not modified")) {
+      console.log("ℹ️ Single Series Hub unverändert:", seriesTitle);
+      return existingHubMessageId;
+    }
+
+    if (editError.includes("message to edit not found")) {
+      console.log("⚠️ Single Series Hub Message fehlt, erstelle neu:", seriesTitle);
+
+      if (pgPool) {
+        await pgPool.query(
+          `
+          UPDATE series_topics
+          SET hub_message_id = NULL
+          WHERE series_name = $1
+          `,
+          [seriesTitle]
+        );
+      } else {
+        db.prepare(`
+          UPDATE series_topics
+          SET hub_message_id = NULL
+          WHERE series_name = ?
+        `).run(seriesTitle);
+      }
+    } else {
+      console.log(
+        "⚠️ Single Series Hub Edit Fehler:",
+        seriesTitle,
+        editError || edited
+      );
     }
   }
 
@@ -10819,6 +11011,8 @@ async function createOrUpdateSingleSeriesHub(seriesTitle, topicId) {
       seriesTitle
     );
   }
+
+  console.log("✅ Single Series Hub erstellt:", seriesTitle);
 
   return sent.message_id;
 }
