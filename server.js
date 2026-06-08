@@ -16094,14 +16094,24 @@ const episodesToSave =
     : [media.episode];
 
 for (const ep of episodesToSave) {
+  const episodeIndex =
+    episodesToSave.indexOf(ep) + 1;
+
+  const doubleEpisodeBaseTitle =
+    media.episodeTitleFromFile ||
+    tmdb.episodeTitle ||
+    "Der schnellste Mann der Welt";
+
+  const finalEpisodeTitle =
+    episodesToSave.length > 1
+      ? `${doubleEpisodeBaseTitle} Teil ${episodeIndex}`
+      : (tmdb.episodeTitle || media.episodeTitleFromFile || "");
+
   await saveSeries({
     seriesTitle: tmdb.seriesTitle || media.seriesTitle,
     season: media.season,
     episode: ep,
-    episodeTitle:
-  episodesToSave.length > 1
-    ? `${media.episodeTitleFromFile || tmdb.episodeTitle || "Der schnellste Mann der Welt"} Teil ${episodesToSave.indexOf(ep) + 1}`
-    : (tmdb.episodeTitle || media.episodeTitleFromFile || ""),
+    episodeTitle: finalEpisodeTitle,
 
     genre: tmdb.genre,
     rating: tmdb.rating,
