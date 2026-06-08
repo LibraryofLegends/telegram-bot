@@ -8261,17 +8261,27 @@ async function seriesCaption(tmdb, media, extras = {}) {
     extras.fileSize ||
     "Unbekannt";
 
-  const archiveCode =
+  const archiveEpisodeCode =
+  media.isDoubleEpisode && media.episodeEnd
+    ? `S${seasonText}E${String(media.episode).padStart(2, "0")}-E${String(media.episodeEnd).padStart(2, "0")}`
+    : `S${seasonText}E${episodeText}`;
+
+const archiveCode =
   `SER-${String(seriesTitle)
     .replace(/[^a-z0-9]/gi, "")
     .toUpperCase()
-    .slice(0, 5)}-S${seasonText}E${episodeText}`;
+    .slice(0, 5)}-${archiveEpisodeCode}`;
+
+const episodeDisplay =
+  media.isDoubleEpisode && media.episodeEnd
+    ? `S${seasonText}E${String(media.episode).padStart(2, "0")}+E${String(media.episodeEnd).padStart(2, "0")}`
+    : `S${seasonText}E${episodeText}`;
 
   const caption =
     "███ EPISODE NEXUS ███\n\n" +
 
     `📺 ${String(seriesTitle).toUpperCase()}\n` +
-    `🎞 S${seasonText}E${episodeText} • ${finalEpisodeTitle}\n\n` +
+    `🎞 ${episodeDisplay} • ${finalEpisodeTitle}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     `⭐ ${tmdb.rating || "Unbekannt"}\n` +
