@@ -8438,9 +8438,9 @@ async function seasonCaption(tmdb, seasonData, season) {
       );
 
     const title =
-      epData?.name ||
-      exists?.episode_title ||
-      "Episode";
+  exists?.episode_title ||
+  epData?.name ||
+  "Episode";
 
     const number =
       String(ep).padStart(2, "0");
