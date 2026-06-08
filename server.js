@@ -4474,8 +4474,7 @@ async function createOrUpdateUniverseHub(universeName = "") {
 
   if (!config) return null;
 
-  let universe =
-    await getUniverseByName(universeName);
+  let universe = await getUniverseByName(universeName);
 
   if (!universe) {
     if (pgPool) {
@@ -4497,16 +4496,14 @@ async function createOrUpdateUniverseHub(universeName = "") {
       `).run(universeName);
     }
 
-    universe =
-      await getUniverseByName(universeName);
+    universe = await getUniverseByName(universeName);
   }
 
-  const topicId =
-    await createOrGetTopic({
-      chatId: MOVIE_GROUP_ID,
-      name: config.topicName,
-      type: "universe"
-    });
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: config.topicName,
+    type: "universe"
+  });
 
   if (!topicId) {
     console.error("❌ Universe Topic konnte nicht erstellt werden:", universeName);
@@ -4530,42 +4527,63 @@ async function createOrUpdateUniverseHub(universeName = "") {
     `).run(topicId, universeName);
   }
 
-  const text =
-    await universeHubCaption(universeName);
+  const text = await universeHubCaption(universeName);
 
   if (universe?.hub_message_id) {
-  const edited = await tg("editMessageText", {
-    chat_id: MOVIE_GROUP_ID,
-    message_id: universe.hub_message_id,
-    text
-  });
-
-  if (!edited?.__error) {
-    return edited;
-  }
-
-  const editError =
-    edited?.error?.description ||
-    edited?.description ||
-    "";
-
-  if (editError.includes("message is not modified")) {
-    console.log("ℹ️ Universe Hub unverändert:", universeName);
-    return universe.hub_message_id;
-  }
-
-  console.error(
-    "⚠️ Universe Hub Edit fehlgeschlagen, erstelle neu:",
-    editError || edited
-  );
-}
-
-  const hub =
-    await tg("sendMessage", {
+    const edited = await tg("editMessageText", {
       chat_id: MOVIE_GROUP_ID,
-      message_thread_id: topicId,
+      message_id: universe.hub_message_id,
       text
     });
+
+    if (!edited?.__error) {
+      console.log("✅ Universe Hub aktualisiert:", universeName);
+      return edited;
+    }
+
+    const editError =
+      edited?.error?.description ||
+      edited?.description ||
+      "";
+
+    if (editError.includes("message is not modified")) {
+      console.log("ℹ️ Universe Hub unverändert:", universeName);
+      return universe.hub_message_id;
+    }
+
+    if (editError.includes("message to edit not found")) {
+      console.log("⚠️ Universe Hub Message fehlt, erstelle neu:", universeName);
+
+      if (pgPool) {
+        await pgPool.query(
+          `
+          UPDATE universes
+          SET hub_message_id = NULL
+          WHERE universe_name = $1
+          `,
+          [universeName]
+        );
+      } else {
+        db.prepare(`
+          UPDATE universes
+          SET hub_message_id = NULL
+          WHERE universe_name = ?
+        `).run(universeName);
+      }
+    } else {
+      console.error(
+        "⚠️ Universe Hub Edit Fehler:",
+        universeName,
+        editError || edited
+      );
+    }
+  }
+
+  const hub = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text
+  });
 
   if (hub?.message_id) {
     await saveUniverseHubMessageId(
@@ -4573,20 +4591,7 @@ async function createOrUpdateUniverseHub(universeName = "") {
       hub.message_id
     );
 
-    /*
-try {
-  await tg("pinChatMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_id: hub.message_id,
-    disable_notification: true
-  });
-} catch (err) {
-  console.error(
-    "⚠️ Universe Hub Pin Fehler:",
-    err.message
-  );
-}
-*/
+    console.log("✅ Universe Hub erstellt:", universeName);
   }
 
   return hub;
@@ -5848,27 +5853,60 @@ async function createOrUpdateCollectionHub(tmdb, topicId) {
   const hubText = await collectionHubCaption(tmdb.collection);
 
   if (collection.hub_message_id) {
-    return await tg("editMessageText", {
+    const edited = await tg("editMessageText", {
       chat_id: MOVIE_GROUP_ID,
       message_id: collection.hub_message_id,
       text: hubText
     });
+
+    if (!edited?.__error) {
+      console.log("✅ Collection Hub aktualisiert:", tmdb.collection);
+      return edited;
+    }
+
+    const editError =
+      edited?.error?.description ||
+      edited?.description ||
+      "";
+
+    if (editError.includes("message is not modified")) {
+      console.log("ℹ️ Collection Hub unverändert:", tmdb.collection);
+      return collection.hub_message_id;
+    }
+
+    if (editError.includes("message to edit not found")) {
+      console.log("⚠️ Collection Hub Message fehlt, erstelle neu:", tmdb.collection);
+    } else {
+      console.log("⚠️ Collection Hub Edit Fehler:", tmdb.collection, editError);
+    }
   }
 
   const hub = await tg("sendMessage", {
     chat_id: MOVIE_GROUP_ID,
-    message_thread_id: topicId,
+    message_thread_id: Number(topicId),
     text: hubText
   });
 
   if (hub?.message_id) {
-    saveCollectionHubMessageId(tmdb.collectionId, hub.message_id);
+    saveCollectionHubMessageId(
+      tmdb.collectionId,
+      hub.message_id
+    );
 
-    await tg("pinChatMessage", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: hub.message_id,
-      disable_notification: true
-    });
+    try {
+      await tg("pinChatMessage", {
+        chat_id: MOVIE_GROUP_ID,
+        message_id: hub.message_id,
+        disable_notification: true
+      });
+    } catch (err) {
+      console.error(
+        "⚠️ Collection Hub Pin Fehler:",
+        err.message
+      );
+    }
+
+    console.log("✅ Collection Hub erstellt:", tmdb.collection);
   }
 
   return hub;
