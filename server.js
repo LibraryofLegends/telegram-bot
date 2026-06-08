@@ -429,15 +429,6 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 `);
 
-function addColumnIfMissing(table, column, definition) {
-  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
-  const exists = columns.some(c => c.name === column);
-
-  if (!exists) {
-    db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
-  }
-}
-
 addColumnIfMissing("series", "series_library_id", "INTEGER");
 addColumnIfMissing("series", "universe", "TEXT");
 addColumnIfMissing("series", "universe_phase", "TEXT");
@@ -490,6 +481,19 @@ addColumnIfMissing("series", "universe", "TEXT");
 addColumnIfMissing("series", "universe_phase", "TEXT");
 addColumnIfMissing("series", "universe_order", "INTEGER");
 addColumnIfMissing("series", "starwars_era", "TEXT");
+addColumnIfMissing("series_topics", "hub_message_id", "INTEGER");
+addColumnIfMissing("series_topics", "banner_message_id", "INTEGER");
+
+addColumnIfMissing("series_library", "tmdb_id", "INTEGER");
+addColumnIfMissing("series_library", "first_air_date", "TEXT");
+addColumnIfMissing("series_library", "last_air_date", "TEXT");
+addColumnIfMissing("series_library", "genres", "TEXT");
+addColumnIfMissing("series_library", "rating", "TEXT");
+addColumnIfMissing("series_library", "overview", "TEXT");
+addColumnIfMissing("series_library", "poster_url", "TEXT");
+addColumnIfMissing("series_library", "total_seasons", "INTEGER");
+addColumnIfMissing("series_library", "total_episodes", "INTEGER");
+addColumnIfMissing("series_library", "status", "TEXT");
 
 addColumnIfMissing("topics", "universe_hub_message_id", "INTEGER");
 addColumnIfMissing("topics", "universe_banner_message_id", "INTEGER");
@@ -1155,9 +1159,7 @@ async function getCollection(tmdbCollectionId) {
 }
 
 async function saveCollection(data) {
-
   if (pgPool) {
-
     return await pgPool.query(
       `
       INSERT INTO collections
@@ -1169,7 +1171,10 @@ async function saveCollection(data) {
       )
       VALUES ($1, $2, $3, $4)
       ON CONFLICT (tmdb_collection_id)
-      DO NOTHING
+      DO UPDATE SET
+        collection_name = EXCLUDED.collection_name,
+        topic_id = EXCLUDED.topic_id,
+        poster_url = EXCLUDED.poster_url
       `,
       [
         data.collectionName,
@@ -1189,6 +1194,11 @@ async function saveCollection(data) {
       poster_url
     )
     VALUES (?, ?, ?, ?)
+    ON CONFLICT(tmdb_collection_id)
+    DO UPDATE SET
+      collection_name = excluded.collection_name,
+      topic_id = excluded.topic_id,
+      poster_url = excluded.poster_url
   `).run(
     data.collectionName,
     data.tmdbCollectionId,
@@ -1282,29 +1292,49 @@ async function getSavedEpisode(seriesTitle, season, episode) {
   if (pgPool) {
     const result = await pgPool.query(
       `
-      SELECT id, series_title
+      SELECT
+        id,
+        series_title,
+        season,
+        episode,
+        episode_title,
+        rating,
+        telegram_message_id,
+        file_id
       FROM series
       WHERE season = $1
-      AND episode = $2
+        AND episode = $2
       `,
       [season, episode]
     );
 
-    return result.rows.find((row) =>
-      makeKey(row.series_title) === targetKey
-    ) || null;
+    return (
+      result.rows.find((row) =>
+        makeKey(row.series_title) === targetKey
+      ) || null
+    );
   }
 
   const rows = db.prepare(`
-    SELECT id, series_title
+    SELECT
+      id,
+      series_title,
+      season,
+      episode,
+      episode_title,
+      rating,
+      telegram_message_id,
+      file_id
     FROM series
     WHERE season = ?
-    AND episode = ?
+      AND episode = ?
   `).all(season, episode);
 
-  return rows.find((row) =>
-    makeKey(row.series_title) === targetKey
-  ) || null;
+  return (
+    rows.find((row) =>
+      makeKey(row.series_title) === targetKey
+    ) || null
+  );
 }
 
 // =============================
