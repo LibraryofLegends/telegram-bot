@@ -16100,7 +16100,7 @@ for (const ep of episodesToSave) {
     episode: ep,
     episodeTitle:
   episodesToSave.length > 1
-    ? `${media.episodeTitleFromFile || tmdb.episodeTitle || "Doppelfolge"} Teil ${episodesToSave.indexOf(ep) + 1}`
+    ? `${media.episodeTitleFromFile || tmdb.episodeTitle || "Der schnellste Mann der Welt"} Teil ${episodesToSave.indexOf(ep) + 1}`
     : (tmdb.episodeTitle || media.episodeTitleFromFile || ""),
 
     genre: tmdb.genre,
