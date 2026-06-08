@@ -9432,21 +9432,6 @@ console.log(
 
   let brandedSeasonPoster = null;
 
-  if (sourcePoster) {
-    try {
-      brandedSeasonPoster = await createBrandedCover(
-        sourcePoster,
-        tmdb.seriesTitle,
-        `Staffel ${seasonKey}`
-      );
-    } catch (err) {
-      console.error(
-        "⚠️ Branded Season Cover Fehler:",
-        err.message
-      );
-    }
-  }
-
   let card = null;
 
   if (brandedSeasonPoster) {
