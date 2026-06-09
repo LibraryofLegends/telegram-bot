@@ -1288,53 +1288,50 @@ async function getSavedSeasonEpisodeCount(seriesTitle, season) {
   ).length;
 }
 
-async function getSavedEpisode(seriesTitle, season, episode) {
-  const targetKey = makeKey(seriesTitle);
+async function getSavedEpisode(
+  seriesTitle,
+  season,
+  episode
+) {
+  const targetKey =
+    makeKey(seriesTitle);
 
   if (pgPool) {
     const result = await pgPool.query(
       `
       SELECT
-        id,
-        series_title,
-        season,
-        episode,
-        episode_title,
-        rating,
-        telegram_message_id,
-        file_id
+        *
       FROM series
       WHERE season = $1
-        AND episode = $2
+      AND episode = $2
       `,
       [season, episode]
     );
 
     return (
-      result.rows.find((row) =>
-        makeKey(row.series_title) === targetKey
+      result.rows.find(
+        (row) =>
+          makeKey(row.series_title) ===
+          targetKey
       ) || null
     );
   }
 
   const rows = db.prepare(`
-    SELECT
-      id,
-      series_title,
-      season,
-      episode,
-      episode_title,
-      rating,
-      telegram_message_id,
-      file_id
+    SELECT *
     FROM series
     WHERE season = ?
-      AND episode = ?
-  `).all(season, episode);
+    AND episode = ?
+  `).all(
+    season,
+    episode
+  );
 
   return (
-    rows.find((row) =>
-      makeKey(row.series_title) === targetKey
+    rows.find(
+      (row) =>
+        makeKey(row.series_title) ===
+        targetKey
     ) || null
   );
 }
