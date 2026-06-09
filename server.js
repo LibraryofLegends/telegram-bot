@@ -2388,7 +2388,7 @@ const STAR_WARS_ERAS = [
     banner: "https://image.tmdb.org/t/p/w1280/PLACEHOLDER.jpg",
 
     entries: [
-      "Young Jedi Adventures",
+      "Star Wars: Die Abenteuer der jungen Jedi",
       "The Acolyte"
     ]
   },
