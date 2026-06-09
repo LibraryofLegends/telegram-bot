@@ -7184,9 +7184,24 @@ async function searchSeriesTMDB(title, season, episode) {
     seriesBackdropUrl:
       backdropUrl(details.backdrop_path),
 
-    createdBy,
-    cast,
-    fsk
+    firstAirDate:
+  details.first_air_date || null,
+
+lastAirDate:
+  details.last_air_date || null,
+
+totalSeasons:
+  Number(details.number_of_seasons || 0) || null,
+
+totalEpisodes:
+  Number(details.number_of_episodes || 0) || null,
+
+status:
+  details.status || null,
+
+createdBy,
+cast,
+fsk
   };
 }
 
