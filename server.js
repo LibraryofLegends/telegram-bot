@@ -1489,9 +1489,9 @@ async function buildTrendingSeriesCaption() {
     const official = await getOfficialSeriesTotal(row.series_title, saved);
 
     const percent =
-      official > 0
-        ? Math.round((saved / official) * 100)
-        : 0;
+  official && official > 0
+    ? Math.min(100, Math.round((saved / official) * 100))
+    : 0;
 
     if (percent >= 35 && percent < 100) {
       filtered.push(row);
