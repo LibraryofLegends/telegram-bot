@@ -1265,7 +1265,7 @@ async function getSavedSeasonEpisodeCount(seriesTitle, season) {
   if (pgPool) {
     const result = await pgPool.query(
       `
-      SELECT id, series_title
+      SELECT series_title
       FROM series
       WHERE season = $1
       `,
@@ -1278,7 +1278,7 @@ async function getSavedSeasonEpisodeCount(seriesTitle, season) {
   }
 
   const rows = db.prepare(`
-    SELECT id, series_title
+    SELECT series_title
     FROM series
     WHERE season = ?
   `).all(season);
