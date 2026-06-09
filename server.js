@@ -1457,9 +1457,7 @@ async function buildSeriesSmartLine(row) {
 }
 
 async function buildSeriesLibraryCaption() {
-
-  const rows =
-    await getSeriesOverviewRows();
+  const rows = await getSeriesOverviewRows();
 
   let text =
     "███ SERIES LIBRARY ███\n\n" +
@@ -1467,19 +1465,11 @@ async function buildSeriesLibraryCaption() {
     "━━━━━━━━━━━━━━━━━━\n\n";
 
   if (!rows.length) {
-
-    text +=
-      "Noch keine Serien gespeichert.\n";
-
+    text += "Noch keine Serien gespeichert.\n";
   } else {
-
     for (const row of rows) {
-
-      text +=
-        buildSeriesSmartLine(row) + "\n";
-
+      text += await buildSeriesSmartLine(row) + "\n";
     }
-
   }
 
   text +=
@@ -1490,37 +1480,36 @@ async function buildSeriesLibraryCaption() {
 }
 
 async function buildTrendingSeriesCaption() {
+  const rows = await getSeriesOverviewRows();
 
-  const rows =
-    await getSeriesOverviewRows();
+  const filtered = [];
 
-  const filtered = rows.filter((row) => {
-
-    const saved =
-      Number(row.episode_count || 0);
-
-    const official =
-      getOfficialSeriesTotal(
-        row.series_title,
-        saved
-      );
+  for (const row of rows) {
+    const saved = Number(row.episode_count || 0);
+    const official = await getOfficialSeriesTotal(row.series_title, saved);
 
     const percent =
       official > 0
         ? Math.round((saved / official) * 100)
         : 0;
 
-    return percent >= 35 && percent < 100;
-  });
+    if (percent >= 35 && percent < 100) {
+      filtered.push(row);
+    }
+  }
 
   let text =
     "███ TRENDING SERIES ███\n\n" +
     "🔥 ACTIVE / GROWING ARCHIVES\n\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
-  text += filtered.length
-    ? filtered.map(buildSeriesSmartLine).join("\n")
-    : "Keine Trending-Serien gefunden.\n";
+  if (filtered.length) {
+    for (const row of filtered) {
+      text += await buildSeriesSmartLine(row) + "\n";
+    }
+  } else {
+    text += "Keine Trending-Serien gefunden.\n";
+  }
 
   text +=
     "\n━━━━━━━━━━━━━━━━━━\n" +
@@ -1530,32 +1519,31 @@ async function buildTrendingSeriesCaption() {
 }
 
 async function buildIncompleteSeriesCaption() {
+  const rows = await getSeriesOverviewRows();
 
-  const rows =
-    await getSeriesOverviewRows();
+  const filtered = [];
 
-  const filtered = rows.filter((row) => {
+  for (const row of rows) {
+    const saved = Number(row.episode_count || 0);
+    const official = await getOfficialSeriesTotal(row.series_title, saved);
 
-    const saved =
-      Number(row.episode_count || 0);
-
-    const official =
-      getOfficialSeriesTotal(
-        row.series_title,
-        saved
-      );
-
-    return official > 0 && saved < official;
-  });
+    if (official > 0 && saved < official) {
+      filtered.push(row);
+    }
+  }
 
   let text =
     "███ INCOMPLETE SERIES ███\n\n" +
     "🧩 FEHLENDE / UNVOLLSTÄNDIGE SERIEN\n\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
-  text += filtered.length
-    ? filtered.map(buildSeriesSmartLine).join("\n")
-    : "Alle bekannten Serien sind vollständig.\n";
+  if (filtered.length) {
+    for (const row of filtered) {
+      text += await buildSeriesSmartLine(row) + "\n";
+    }
+  } else {
+    text += "Alle bekannten Serien sind vollständig.\n";
+  }
 
   text +=
     "\n━━━━━━━━━━━━━━━━━━\n" +
@@ -1565,32 +1553,31 @@ async function buildIncompleteSeriesCaption() {
 }
 
 async function buildMasteredSeriesCaption() {
+  const rows = await getSeriesOverviewRows();
 
-  const rows =
-    await getSeriesOverviewRows();
+  const filtered = [];
 
-  const filtered = rows.filter((row) => {
+  for (const row of rows) {
+    const saved = Number(row.episode_count || 0);
+    const official = await getOfficialSeriesTotal(row.series_title, saved);
 
-    const saved =
-      Number(row.episode_count || 0);
-
-    const official =
-      getOfficialSeriesTotal(
-        row.series_title,
-        saved
-      );
-
-    return official > 0 && saved >= official;
-  });
+    if (official > 0 && saved >= official) {
+      filtered.push(row);
+    }
+  }
 
   let text =
     "███ MASTERED SERIES ███\n\n" +
     "🏆 COMPLETE SERIES ARCHIVES\n\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
-  text += filtered.length
-    ? filtered.map(buildSeriesSmartLine).join("\n")
-    : "Noch keine Serie vollständig archiviert.\n";
+  if (filtered.length) {
+    for (const row of filtered) {
+      text += await buildSeriesSmartLine(row) + "\n";
+    }
+  } else {
+    text += "Noch keine Serie vollständig archiviert.\n";
+  }
 
   text +=
     "\n━━━━━━━━━━━━━━━━━━\n" +
