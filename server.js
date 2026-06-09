@@ -1375,7 +1375,40 @@ async function getSeriesOverviewRows() {
   return rows;
 }
 
-function getOfficialSeriesTotal(seriesTitle, savedEpisodes = 0) {
+async function getSeriesLibraryInfo(seriesTitle) {
+  const targetKey = makeKey(seriesTitle);
+
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT *
+      FROM series_library
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT *
+      FROM series_library
+    `).all();
+  }
+
+  return rows.find((row) =>
+    makeKey(row.title) === targetKey
+  ) || null;
+}
+
+async function getOfficialSeriesTotal(seriesTitle, savedEpisodes = 0) {
+  const library =
+    await getSeriesLibraryInfo(seriesTitle);
+
+  const libraryTotal =
+    Number(library?.total_episodes || 0);
+
+  if (libraryTotal > 0) {
+    return libraryTotal;
+  }
 
   const seasonCount =
     getKnownSeasonCount(seriesTitle);
@@ -1387,37 +1420,35 @@ function getOfficialSeriesTotal(seriesTitle, savedEpisodes = 0) {
   let total = 0;
 
   for (let season = 1; season <= seasonCount; season++) {
-
     total +=
       getKnownSeasonEpisodeCount(
         seriesTitle,
         season
       ) || 0;
-
   }
 
   return total || null;
 }
 
-function buildSeriesSmartLine(row) {
-
+async function buildSeriesSmartLine(row) {
   const saved =
     Number(row.episode_count || 0);
 
   const official =
-    getOfficialSeriesTotal(
+    await getOfficialSeriesTotal(
       row.series_title,
       saved
     );
 
   const percent =
-  official && official > 0
+    official && official > 0
       ? Math.round((saved / official) * 100)
       : 0;
 
-  const bar = official
-  ? buildSeriesProgressBar(row.series_title, saved, official)
-  : "□□□□□□□□□□";
+  const bar =
+    official
+      ? buildSeriesProgressBar(row.series_title, saved, official)
+      : "□□□□□□□□□□";
 
   return (
     `📺 ${String(row.series_title || "Unbekannt").toUpperCase()}\n` +
