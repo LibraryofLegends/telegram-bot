@@ -2463,11 +2463,11 @@ const STAR_WARS_ERAS = [
     banner: "https://via.placeholder.com/1280x720.png?text=Star+Wars+Era",
 
     entries: [
-      "Star Wars Resistance",
-      "Star Wars: Episode VII - Das Erwachen der Macht",
-      "Star Wars: Episode VIII - Die letzten Jedi",
-      "Star Wars: Episode IX - Der Aufstieg Skywalkers"
-    ]
+  "Star Wars Resistance",
+  "Star Wars: Das Erwachen der Macht",
+  "Star Wars: Die letzten Jedi",
+  "Star Wars: Der Aufstieg Skywalkers"
+]
   }
 
 ];
