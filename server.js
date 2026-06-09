@@ -2433,7 +2433,7 @@ const STAR_WARS_ERAS = [
       "Star Wars Rebels",
       "Andor",
       "Rogue One: A Star Wars Story",
-      "Star Wars: Episode IV - Eine neue Hoffnung",
+      "Krieg Der Sterne",
       "Star Wars: Episode V - Das Imperium schlägt zurück",
       "Star Wars: Episode VI - Die Rückkehr der Jedi-Ritter"
     ]
@@ -2448,7 +2448,7 @@ const STAR_WARS_ERAS = [
 
     entries: [
       "The Mandalorian",
-      "The Book of Boba Fett",
+      "Das Buch von Boba Fett",
       "Skeleton Crew",
       "Ahsoka",
       "The Mandalorian & Grogu"
