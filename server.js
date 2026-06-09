@@ -11975,6 +11975,60 @@ console.log("🌌 REPAIR UNIVERSE CHECK:", {
   return;
 }
 
+if (text === "/repairserieslibrary") {
+  const rows = await getSeriesOverviewRows();
+
+  let updated = 0;
+  let failed = 0;
+
+  for (const row of rows) {
+    try {
+      const tmdb = await searchSeriesTMDB(
+        row.series_title,
+        1,
+        1
+      );
+
+      if (!tmdb?.tmdbId) {
+        failed++;
+        continue;
+      }
+
+      await saveSeriesLibrary({
+        title: tmdb.seriesTitle || row.series_title,
+        tmdbId: tmdb.tmdbId || null,
+        firstAirDate: tmdb.firstAirDate || null,
+        lastAirDate: tmdb.lastAirDate || null,
+        genres: tmdb.genre || null,
+        rating: tmdb.seriesRating || tmdb.rating || null,
+        overview: tmdb.overview || null,
+        posterUrl: tmdb.seriesPosterUrl || tmdb.posterUrl || null,
+        totalSeasons: tmdb.totalSeasons || null,
+        totalEpisodes: tmdb.totalEpisodes || null,
+        status: tmdb.status || null
+      });
+
+      updated++;
+      await sleep(700);
+    } catch (err) {
+      failed++;
+      console.error("⚠️ Series Library Repair Fehler:", row.series_title, err.message);
+    }
+  }
+
+  await updateSeriesSmartTopics();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Series Library repariert\n\n" +
+      `📺 Aktualisiert: ${updated}\n` +
+      `⚠️ Fehler: ${failed}`
+  });
+
+  return;
+}
+
 // =============================
 // REBUILD MARVEL COMMAND CENTER
 // =============================
