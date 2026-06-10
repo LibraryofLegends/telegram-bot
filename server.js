@@ -13104,11 +13104,12 @@ if (text === "/backup") {
 // REBUILD COMMAND CENTERS
 // =============================
 if (text === "/rebuildcommandcenters") {
-  console.log("🧪 REBUILD COMMAND CENTERS TRIGGERED", {
-    fromId: msg.from?.id,
-    chatId: msg.chat?.id,
-    text
-  });
+  if (REBUILD_COMMAND_CENTERS_RUNNING) {
+    console.log("⚠️ Rebuild läuft bereits — ignoriert");
+    return;
+  }
+
+  REBUILD_COMMAND_CENTERS_RUNNING = true;
 
   try {
     await tg("sendMessage", {
@@ -13125,28 +13126,14 @@ if (text === "/rebuildcommandcenters") {
         "━━━━━━━━━━━━━━━━━━\n" +
         "🎛 COMMAND CENTERS AKTUALISIERT\n" +
         "━━━━━━━━━━━━━━━━━━\n\n" +
-        "✅ Movie Command Center\n" +
-        "✅ Series Command Center\n" +
-        "✅ Multiverse Command Center\n" +
-        "✅ Marvel Command Center\n" +
-        "✅ DC Command Center\n" +
-        "✅ Disney Command Center\n" +
-        "✅ Star Wars Command Center\n\n" +
+        "✅ Fertig\n\n" +
         "━━━━━━━━━━━━━━━━━━\n" +
         "@LibraryOfLegends"
     });
   } catch (err) {
-    console.error(
-      "❌ Rebuild Command Centers Fehler:",
-      err.message
-    );
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "❌ Rebuild Command Centers Fehler:\n\n" +
-        String(err.message || err)
-    });
+    console.error("❌ Rebuild Fehler:", err.message);
+  } finally {
+    REBUILD_COMMAND_CENTERS_RUNNING = false;
   }
 
   return;
