@@ -13090,37 +13090,50 @@ if (text === "/backup") {
 // REBUILD COMMAND CENTERS
 // =============================
 if (text === "/rebuildcommandcenters") {
-
   console.log("🧪 REBUILD COMMAND CENTERS TRIGGERED", {
     fromId: msg.from?.id,
     chatId: msg.chat?.id,
     text
   });
 
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: "🧪 Rebuild Command Centers wurde erkannt."
-  });
+  try {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "⏳ Command Centers werden aktualisiert..."
+    });
 
-  await ensureCommandCenters();
-  await refreshCommandCenters();
+    await ensureCommandCenters();
+    await refreshCommandCenters();
 
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🎛 COMMAND CENTERS AKTUALISIERT\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      "✅ Movie Command Center\n" +
-      "✅ Series Command Center\n" +
-      "✅ Multiverse Command Center\n" +
-      "✅ Marvel Command Center\n" +
-      "✅ DC Command Center\n" +
-      "✅ Disney Command Center\n" +
-      "✅ Star Wars Command Center\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
-  });
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "🎛 COMMAND CENTERS AKTUALISIERT\n" +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        "✅ Movie Command Center\n" +
+        "✅ Series Command Center\n" +
+        "✅ Multiverse Command Center\n" +
+        "✅ Marvel Command Center\n" +
+        "✅ DC Command Center\n" +
+        "✅ Disney Command Center\n" +
+        "✅ Star Wars Command Center\n\n" +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "@LibraryOfLegends"
+    });
+  } catch (err) {
+    console.error(
+      "❌ Rebuild Command Centers Fehler:",
+      err.message
+    );
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Rebuild Command Centers Fehler:\n\n" +
+        String(err.message || err)
+    });
+  }
 
   return;
 }
@@ -14002,41 +14015,6 @@ for (const season of seasons) {
 `✅ Erstellt: ${createdCount}\n` +
 (failedSeasons.length ? `⚠️ Fehler: ${failedSeasons.join(", ")}` : "🏆 Alle Staffelkarten erstellt")
   });
-
-  return;
-}
-
-if (text === "/rebuildcommandcenters") {
-  try {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text: "⏳ Command Centers werden neu aufgebaut..."
-    });
-
-    await ensureCommandCenters();
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "✅ Command Centers neu aufgebaut.\n\n" +
-        "📚 Movie Index\n" +
-        "🎬 Movie Library\n" +
-        "🧩 Collections\n" +
-        "🌌 Universes\n" +
-        "💎 Premium Quality\n" +
-        "🔥 New Releases\n" +
-        "🏆 Elite Archive"
-    });
-  } catch (err) {
-    console.error("❌ Rebuild Command Centers Fehler:", err);
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "❌ Fehler beim Neuaufbau:\n\n" +
-        String(err.message || err)
-    });
-  }
 
   return;
 }
@@ -15837,33 +15815,6 @@ if (command === "/duplicates") {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text: cleanTelegramText(resultText).slice(0, 4000)
-  });
-
-  return;
-}
-
-  // =============================
-// REBUILD COMMAND CENTERS
-// =============================
-if (text === "/rebuildcommandcenters") {
-  await ensureCommandCenters();
-  await refreshCommandCenters();
-
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🎛 COMMAND CENTERS AKTUALISIERT\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      "✅ Movie Command Center aktualisiert\n" +
-      "✅ Series Command Center aktualisiert\n" +
-      "✅ Multiverse Command Center aktualisiert\n" +
-      "✅ Marvel Command Center aktualisiert\n" +
-      "✅ DC Command Center aktualisiert\n" +
-      "✅ Disney Command Center aktualisiert\n" +
-      "✅ Star Wars Command Center aktualisiert\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
   });
 
   return;
