@@ -922,6 +922,33 @@ async function saveSeriesNews(data) {
   );
 }
 
+async function seriesNewsExists(seriesTitle, headline) {
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT id
+      FROM series_news
+      WHERE LOWER(series_title) = LOWER($1)
+      AND LOWER(headline) = LOWER($2)
+      LIMIT 1
+      `,
+      [seriesTitle, headline]
+    );
+
+    return !!result.rows[0];
+  }
+
+  const row = db.prepare(`
+    SELECT id
+    FROM series_news
+    WHERE LOWER(series_title) = LOWER(?)
+    AND LOWER(headline) = LOWER(?)
+    LIMIT 1
+  `).get(seriesTitle, headline);
+
+  return !!row;
+}
+
 async function getSeriesNewsByCategory(category = "news") {
   if (pgPool) {
     const result = await pgPool.query(
@@ -977,25 +1004,17 @@ function buildSeriesNewsList(rows) {
 
 function detectNewsCategory(title = "") {
   const text =
-    String(title).toLowerCase();
+    String(title || "").toLowerCase();
 
   if (
-    text.includes("renewed") ||
-    text.includes("confirmed") ||
-    text.includes("season 2") ||
-    text.includes("season 3") ||
-    text.includes("season 4") ||
-    text.includes("officially renewed")
-  ) {
-    return "new_season";
-  }
-
-  if (
-    text.includes("production") ||
     text.includes("filming") ||
     text.includes("shooting") ||
+    text.includes("production") ||
     text.includes("production update") ||
-    text.includes("production begins")
+    text.includes("production begins") ||
+    text.includes("begins filming") ||
+    text.includes("starts filming") ||
+    text.includes("filming progress")
   ) {
     return "production";
   }
@@ -1003,10 +1022,22 @@ function detectNewsCategory(title = "") {
   if (
     text.includes("release date") ||
     text.includes("premiere") ||
-    text.includes("coming") ||
+    text.includes("coming soon") ||
     text.includes("launch")
   ) {
     return "coming_soon";
+  }
+
+  if (
+    text.includes("renewed") ||
+    text.includes("confirmed") ||
+    text.includes("officially renewed") ||
+    text.includes("new season") ||
+    text.includes("season 2 update") ||
+    text.includes("season 3 update") ||
+    text.includes("season 4 update")
+  ) {
+    return "new_season";
   }
 
   return "news";
@@ -1037,8 +1068,16 @@ async function importSeriesNews(seriesTitle) {
     await scanSeriesNews(seriesTitle);
 
   let imported = 0;
+  let skipped = 0;
 
   for (const item of results) {
+    const exists =
+      await seriesNewsExists(seriesTitle, item.title);
+
+    if (exists) {
+      skipped++;
+      continue;
+    }
 
     const category =
       detectNewsCategory(item.title);
@@ -1055,7 +1094,7 @@ async function importSeriesNews(seriesTitle) {
     imported++;
   }
 
-  return imported;
+  return { imported, skipped };
 }
 
 async function saveSeriesLibrary(data) {
@@ -12748,8 +12787,8 @@ if (command === "/importseriesnews") {
     return;
   }
 
-  const count =
-    await importSeriesNews(seriesTitle);
+  const result =
+  await importSeriesNews(seriesTitle);
 
   await refreshCommandCenters();
   await updateSeriesSmartTopics();
@@ -12759,7 +12798,8 @@ if (command === "/importseriesnews") {
     text:
       "✅ News importiert\n\n" +
       `📺 ${seriesTitle}\n` +
-      `📰 ${count} Einträge übernommen`
+      `📰 Importiert: ${result.imported}\n` +
+      `⏭ Übersprungen: ${result.skipped}`
   });
 
   return;
