@@ -1043,6 +1043,53 @@ function detectNewsCategory(title = "") {
   return "news";
 }
 
+async function repairSeriesNewsCategories() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT id, headline
+      FROM series_news
+    `);
+
+    rows = result.rows;
+
+    for (const row of rows) {
+      const category =
+        detectNewsCategory(row.headline);
+
+      await pgPool.query(
+        `
+        UPDATE series_news
+        SET category = $1
+        WHERE id = $2
+        `,
+        [category, row.id]
+      );
+    }
+
+    return rows.length;
+  }
+
+  rows = db.prepare(`
+    SELECT id, headline
+    FROM series_news
+  `).all();
+
+  for (const row of rows) {
+    const category =
+      detectNewsCategory(row.headline);
+
+    db.prepare(`
+      UPDATE series_news
+      SET category = ?
+      WHERE id = ?
+    `).run(category, row.id);
+  }
+
+  return rows.length;
+}
+
 async function scanSeriesNews(seriesTitle) {
   const query =
     encodeURIComponent(`${seriesTitle} season release date production renewed`);
@@ -12800,6 +12847,22 @@ if (command === "/importseriesnews") {
       `📺 ${seriesTitle}\n` +
       `📰 Importiert: ${result.imported}\n` +
       `⏭ Übersprungen: ${result.skipped}`
+  });
+
+  return;
+}
+
+if (command === "/repairseriesnews") {
+  const count =
+    await repairSeriesNewsCategories();
+
+  await updateSeriesSmartTopics();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Serien-News Kategorien repariert\n\n" +
+      `📰 Geprüft: ${count}`
   });
 
   return;
