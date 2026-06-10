@@ -1441,9 +1441,9 @@ async function buildSeriesSmartLine(row) {
     );
 
   const percent =
-    official && official > 0
-      ? Math.round((saved / official) * 100)
-      : 0;
+  official && official > 0
+    ? Math.min(100, Math.round((saved / official) * 100))
+    : 0;
 
   const bar =
     official
@@ -1586,28 +1586,242 @@ async function buildMasteredSeriesCaption() {
   return text.slice(0, 4000);
 }
 
+async function seriesNewsCenterCaption() {
+  return (
+    "███ NEWS CENTER ███\n\n" +
+    "🚨 AKTUELLE SERIEN NEWS\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "🎬 Produktionsmeldungen\n" +
+    "📅 Starttermine\n" +
+    "🆕 Neue Staffeln\n" +
+    "🔥 Wichtige Ankündigungen\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function seriesComingSoonCaption() {
+  return (
+    "███ COMING SOON ███\n\n" +
+    "📅 KOMMENDE SERIEN\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "Noch keine Einträge.\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function seriesProductionStatusCaption() {
+  return (
+    "███ PRODUKTIONSSTATUS ███\n\n" +
+    "🎬 SERIEN IN PRODUKTION\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "Noch keine Einträge.\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function seriesNewSeasonsCaption() {
+  return (
+    "███ NEUE STAFFELN ███\n\n" +
+    "🆕 BESTÄTIGTE STAFFELN\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "Noch keine Einträge.\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function miniSeriesHubCaption() {
+  const rows =
+    (await getSeriesLibraryRows())
+      .filter(isMiniSeriesLibraryRow);
+
+  return (
+    "███ MINI SERIES ███\n\n" +
+    "🎭 ABGESCHLOSSENE MINI-SERIEN\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    buildSimpleSeriesList(rows) +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function kidsSeriesHubCaption() {
+  const rows =
+    (await getSeriesLibraryRows())
+      .filter(isKidsSeriesLibraryRow);
+
+  return (
+    "███ KIDS SERIES ███\n\n" +
+    "👶 KINDERSERIEN ARCHIV\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    buildSimpleSeriesList(rows) +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function animeSeriesHubCaption() {
+  const rows =
+    (await getSeriesLibraryRows())
+      .filter(isAnimeSeriesLibraryRow);
+
+  return (
+    "███ ANIME HUB ███\n\n" +
+    "🌸 ANIME ARCHIV\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    buildSimpleSeriesList(rows) +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function documentarySeriesHubCaption() {
+  const rows =
+    (await getSeriesLibraryRows())
+      .filter(isDocumentarySeriesLibraryRow);
+
+  return (
+    "███ DOCUMENTARY SERIES ███\n\n" +
+    "🌍 DOKUMENTATIONS ARCHIV\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    buildSimpleSeriesList(rows) +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function getSeriesLibraryRows() {
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT *
+      FROM series_library
+      ORDER BY title ASC
+    `);
+
+    return result.rows;
+  }
+
+  return db.prepare(`
+    SELECT *
+    FROM series_library
+    ORDER BY title ASC
+  `).all();
+}
+
+function buildSimpleSeriesList(rows) {
+  if (!rows.length) {
+    return "Noch keine Serien gefunden.\n";
+  }
+
+  return rows
+    .slice(0, 30)
+    .map((row) => {
+      const total =
+        row.total_episodes
+          ? `${row.total_episodes} Episoden`
+          : "Episoden unbekannt";
+
+      const status =
+        row.status || "Status unbekannt";
+
+      return (
+        `📺 ${String(row.title || "Unbekannt").toUpperCase()}\n` +
+        `└ ${total} • ${status}\n`
+      );
+    })
+    .join("\n");
+}
+
+function isMiniSeriesLibraryRow(row) {
+  const seasons = Number(row.total_seasons || 0);
+  const episodes = Number(row.total_episodes || 0);
+  const status = String(row.status || "").toLowerCase();
+
+  return (
+    seasons === 1 &&
+    episodes > 0 &&
+    episodes <= 12 &&
+    status.includes("ended")
+  );
+}
+
+function isKidsSeriesLibraryRow(row) {
+  const text =
+    `${row.title || ""} ${row.genres || ""}`
+      .toLowerCase();
+
+  return (
+    text.includes("kids") ||
+    text.includes("family") ||
+    text.includes("kinder") ||
+    text.includes("familie")
+  );
+}
+
+function isAnimeSeriesLibraryRow(row) {
+  const text =
+    `${row.title || ""} ${row.genres || ""}`
+      .toLowerCase();
+
+  return (
+    text.includes("anime") ||
+    text.includes("animation")
+  );
+}
+
+function isDocumentarySeriesLibraryRow(row) {
+  const text =
+    `${row.title || ""} ${row.genres || ""}`
+      .toLowerCase();
+
+  return (
+    text.includes("documentary") ||
+    text.includes("dokumentation") ||
+    text.includes("doku")
+  );
+}
+
 // =============================
 // UPDATE SERIES SMART TOPICS
 // =============================
 async function updateSeriesSmartTopics() {
   const smartTopics = [
-    {
-      topic: "📺 Series Library",
-      builder: buildSeriesLibraryCaption
-    },
-    {
-      topic: "🔥 Trending",
-      builder: buildTrendingSeriesCaption
-    },
-    {
-      topic: "🧩 Incomplete",
-      builder: buildIncompleteSeriesCaption
-    },
-    {
-      topic: "🏆 Mastered",
-      builder: buildMasteredSeriesCaption
-    }
-  ];
+  {
+    topic: "📺 Series Library",
+    builder: buildSeriesLibraryCaption
+  },
+  {
+    topic: "🔥 Trending",
+    builder: buildTrendingSeriesCaption
+  },
+  {
+    topic: "🧩 Incomplete",
+    builder: buildIncompleteSeriesCaption
+  },
+  {
+    topic: "🏆 Mastered",
+    builder: buildMasteredSeriesCaption
+  },
+  {
+    topic: "🎭 Mini Series",
+    builder: miniSeriesHubCaption
+  },
+  {
+    topic: "👶 Kids Series",
+    builder: kidsSeriesHubCaption
+  },
+  {
+    topic: "🌸 Anime Hub",
+    builder: animeSeriesHubCaption
+  },
+  {
+    topic: "🌍 Documentary Series",
+    builder: documentarySeriesHubCaption
+  }
+];ä
 
   for (const item of smartTopics) {
     let topic = null;
@@ -10012,13 +10226,25 @@ async function ensureCommandCenters() {
   ];
 
   const seriesCenters = [
-    "🎛 SERIES COMMAND CENTER",
-    "🌌 UNIVERSES",
-    "📺 SERIES LIBRARY",
-    "🔥 TRENDING",
-    "🧩 INCOMPLETE",
-    "🏆 MASTERED"
-  ];
+  "🎛 SERIES COMMAND CENTER",
+
+  "📺 SERIES LIBRARY",
+  "🔥 TRENDING",
+  "🧩 INCOMPLETE",
+  "🏆 MASTERED",
+
+  "🚨 NEWS CENTER",
+  "📅 COMING SOON",
+  "🎬 PRODUKTIONSSTATUS",
+  "🆕 NEUE STAFFELN",
+
+  "🎭 MINI SERIES",
+  "👶 KIDS SERIES",
+  "🌸 ANIME HUB",
+  "🌍 DOCUMENTARY SERIES",
+
+  "🌌 UNIVERSES"
+];
 
   for (const name of movieCenters) {
 
@@ -10099,6 +10325,54 @@ await createOrUpdateCommandCenter({
   chatId: SERIES_GROUP_ID,
   topicName: "🏆 MASTERED",
   caption: await masteredSeriesHubCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🚨 NEWS CENTER",
+  caption: await seriesNewsCenterCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "📅 COMING SOON",
+  caption: await seriesComingSoonCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🎬 PRODUKTIONSSTATUS",
+  caption: await seriesProductionStatusCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🆕 NEUE STAFFELN",
+  caption: await seriesNewSeasonsCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🎭 MINI SERIES",
+  caption: await miniSeriesHubCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "👶 KIDS SERIES",
+  caption: await kidsSeriesHubCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🌸 ANIME HUB",
+  caption: await animeSeriesHubCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🌍 DOCUMENTARY SERIES",
+  caption: await documentarySeriesHubCaption()
 });
 
 await createOrUpdateCommandCenter({
