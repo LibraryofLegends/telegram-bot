@@ -1695,6 +1695,66 @@ async function documentarySeriesHubCaption() {
   );
 }
 
+async function starWarsSeriesHubCaption() {
+  const rows =
+    (await getSeriesLibraryRows())
+      .filter(isStarWarsSeries);
+
+  return (
+    "███ STAR WARS SERIES ███\n\n" +
+    "⭐ STAR WARS ARCHIV\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    buildSimpleSeriesList(rows) +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function marvelSeriesHubCaption() {
+  const rows =
+    (await getSeriesLibraryRows())
+      .filter(isMarvelSeries);
+
+  return (
+    "███ MARVEL SERIES ███\n\n" +
+    "🧬 MARVEL ARCHIV\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    buildSimpleSeriesList(rows) +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function dcSeriesHubCaption() {
+  const rows =
+    (await getSeriesLibraryRows())
+      .filter(isDCSeries);
+
+  return (
+    "███ DC SERIES ███\n\n" +
+    "🦇 DC ARCHIV\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    buildSimpleSeriesList(rows) +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function disneySeriesHubCaption() {
+  const rows =
+    (await getSeriesLibraryRows())
+      .filter(isDisneySeries);
+
+  return (
+    "███ DISNEY SERIES ███\n\n" +
+    "🏰 DISNEY ARCHIV\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    buildSimpleSeriesList(rows) +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
 async function getSeriesLibraryRows() {
   if (pgPool) {
     const result = await pgPool.query(`
@@ -1812,6 +1872,49 @@ function isDocumentarySeriesLibraryRow(row) {
   );
 }
 
+function isStarWarsSeries(row) {
+  const text =
+    `${row.title || ""} ${row.universe || ""}`
+      .toLowerCase();
+
+  return text.includes("star wars");
+}
+
+function isMarvelSeries(row) {
+  const text =
+    `${row.title || ""} ${row.universe || ""}`
+      .toLowerCase();
+
+  return (
+    text.includes("marvel") ||
+    text.includes("mcu")
+  );
+}
+
+function isDCSeries(row) {
+  const text =
+    `${row.title || ""} ${row.universe || ""}`
+      .toLowerCase();
+
+  return (
+    text.includes("dc") ||
+    text.includes("harley quinn") ||
+    text.includes("penguin")
+  );
+}
+
+function isDisneySeries(row) {
+  const text =
+    `${row.title || ""} ${row.universe || ""}`
+      .toLowerCase();
+
+  return (
+    text.includes("disney") ||
+    text.includes("timon") ||
+    text.includes("pumbaa")
+  );
+}
+
 // =============================
 // UPDATE SERIES SMART TOPICS
 // =============================
@@ -1865,6 +1968,22 @@ async function updateSeriesSmartTopics() {
     topic: "🌍 DOCUMENTARY SERIES",
     builder: documentarySeriesHubCaption
   }
+  {
+  topic: "⭐ STAR WARS SERIES",
+  builder: starWarsSeriesHubCaption
+},
+{
+  topic: "🧬 MARVEL SERIES",
+  builder: marvelSeriesHubCaption
+},
+{
+  topic: "🦇 DC SERIES",
+  builder: dcSeriesHubCaption
+},
+{
+  topic: "🏰 DISNEY SERIES",
+  builder: disneySeriesHubCaption
+},
 ];
 
   for (const item of smartTopics) {
@@ -10287,6 +10406,11 @@ async function ensureCommandCenters() {
   "🌸 ANIME HUB",
   "🌍 DOCUMENTARY SERIES",
 
+  "⭐ STAR WARS SERIES",
+  "🧬 MARVEL SERIES",
+  "🦇 DC SERIES",
+  "🏰 DISNEY SERIES",
+
   "🌌 UNIVERSES"
 ];
 
@@ -10423,6 +10547,30 @@ await createOrUpdateCommandCenter({
   chatId: SERIES_GROUP_ID,
   topicName: "🌌 UNIVERSES",
   caption: await seriesUniversesHubCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "⭐ STAR WARS SERIES",
+  caption: await starWarsSeriesHubCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🧬 MARVEL SERIES",
+  caption: await marvelSeriesHubCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🦇 DC SERIES",
+  caption: await dcSeriesHubCaption()
+});
+
+await createOrUpdateCommandCenter({
+  chatId: SERIES_GROUP_ID,
+  topicName: "🏰 DISNEY SERIES",
+  caption: await disneySeriesHubCaption()
 });
 }
 
