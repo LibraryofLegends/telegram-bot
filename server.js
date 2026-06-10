@@ -5,6 +5,8 @@ const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
 const { Pool } = require("pg");
+const Parser = require("rss-parser");
+const rssParser = new Parser();
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -971,6 +973,26 @@ function buildSeriesNewsList(rows) {
       return text;
     })
     .join("\n━━━━━━━━━━━━━━━━━━\n\n");
+}
+
+async function scanSeriesNews(seriesTitle) {
+  const query =
+    encodeURIComponent(`${seriesTitle} season release date production renewed`);
+
+  const url =
+    `https://news.google.com/rss/search?q=${query}&hl=de&gl=DE&ceid=DE:de`;
+
+  const feed =
+    await rssParser.parseURL(url);
+
+  return (feed.items || [])
+    .slice(0, 5)
+    .map((item) => ({
+      title: item.title || "",
+      link: item.link || "",
+      date: item.pubDate || "",
+      source: item.source?.title || "Google News"
+    }));
 }
 
 async function saveSeriesLibrary(data) {
@@ -12596,6 +12618,57 @@ if (command.startsWith("/testuniverse")) {
     });
     return;
   }
+  
+  if (command === "/scanseriesnews") {
+  const seriesTitle =
+    text.replace(command, "").trim();
+
+  if (!seriesTitle) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/scanseriesnews Landman"
+    });
+    return;
+  }
+
+  const results =
+    await scanSeriesNews(seriesTitle);
+
+  if (!results.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Keine News gefunden für:\n\n" +
+        seriesTitle
+    });
+    return;
+  }
+
+  let resultText =
+    "███ SERIES NEWS SCAN ███\n\n" +
+    `📺 ${seriesTitle.toUpperCase()}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  for (const item of results) {
+    resultText +=
+      `🚨 ${item.title}\n` +
+      `📅 ${item.date || "Datum unbekannt"}\n` +
+      `📰 ${item.source}\n` +
+      `${item.link}\n\n` +
+      "━━━━━━━━━━━━━━━━━━\n\n";
+  }
+
+  resultText += "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: cleanTelegramText(resultText).slice(0, 4000)
+  });
+
+  return;
+}
   
   // =============================
 // SET CURRENT SERIES
