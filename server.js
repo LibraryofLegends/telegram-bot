@@ -236,6 +236,8 @@ let CURRENT_SERIES_NAME = "";
 
 let LAST_RESTORE_FILE_ID = "";
 
+let REBUILD_COMMAND_CENTERS_RUNNING = false;
+
 const PENDING_MOVIE_UPLOADS = new Map();
 
 // =============================
