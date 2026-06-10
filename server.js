@@ -1790,38 +1790,54 @@ function isDocumentarySeriesLibraryRow(row) {
 async function updateSeriesSmartTopics() {
   const smartTopics = [
   {
-    topic: "📺 Series Library",
+    topic: "📺 SERIES LIBRARY",
     builder: buildSeriesLibraryCaption
   },
   {
-    topic: "🔥 Trending",
+    topic: "🔥 TRENDING",
     builder: buildTrendingSeriesCaption
   },
   {
-    topic: "🧩 Incomplete",
+    topic: "🧩 INCOMPLETE",
     builder: buildIncompleteSeriesCaption
   },
   {
-    topic: "🏆 Mastered",
+    topic: "🏆 MASTERED",
     builder: buildMasteredSeriesCaption
   },
   {
-    topic: "🎭 Mini Series",
+    topic: "🚨 NEWS CENTER",
+    builder: seriesNewsCenterCaption
+  },
+  {
+    topic: "📅 COMING SOON",
+    builder: seriesComingSoonCaption
+  },
+  {
+    topic: "🎬 PRODUKTIONSSTATUS",
+    builder: seriesProductionStatusCaption
+  },
+  {
+    topic: "🆕 NEUE STAFFELN",
+    builder: seriesNewSeasonsCaption
+  },
+  {
+    topic: "🎭 MINI SERIES",
     builder: miniSeriesHubCaption
   },
   {
-    topic: "👶 Kids Series",
+    topic: "👶 KIDS SERIES",
     builder: kidsSeriesHubCaption
   },
   {
-    topic: "🌸 Anime Hub",
+    topic: "🌸 ANIME HUB",
     builder: animeSeriesHubCaption
   },
   {
-    topic: "🌍 Documentary Series",
+    topic: "🌍 DOCUMENTARY SERIES",
     builder: documentarySeriesHubCaption
   }
-];ä
+];
 
   for (const item of smartTopics) {
     let topic = null;
