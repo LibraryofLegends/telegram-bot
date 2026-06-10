@@ -11734,20 +11734,34 @@ async function handleUpdate(update) {
   // =============================
   // NORMAL MESSAGES
   // =============================
-  const msg = update.message || update.edited_message;
-  if (!msg) return;
+  const msg =
+  update.message ||
+  update.edited_message;
 
-  const userId = String(msg.from?.id || "");
+if (!msg) return;
 
-  console.log("USER ID:", userId);
-  console.log("CHAT ID:", msg.chat?.id, "CHAT TITLE:", msg.chat?.title);
+if (msg.from?.is_bot) {
+  console.log("🤖 Bot Nachricht ignoriert");
+  return;
+}
 
-  if (userId !== ADMIN_ID) {
-    if (process.env.DEBUG === "true") {
-      console.log("⛔ Ignored - nicht Admin");
-    }
-    return;
+const userId =
+  String(msg.from?.id || "");
+
+console.log("USER ID:", userId);
+console.log(
+  "CHAT ID:",
+  msg.chat?.id,
+  "CHAT TITLE:",
+  msg.chat?.title
+);
+
+if (userId !== ADMIN_ID) {
+  if (process.env.DEBUG === "true") {
+    console.log("⛔ Ignored - nicht Admin");
   }
+  return;
+}
 
   // =============================
   // COMMANDS
