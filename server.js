@@ -1801,6 +1801,20 @@ async function getSeriesLibraryRows() {
   `).all();
 }
 
+const SERIES_STATUS_OVERRIDES = {
+  "the-mandalorian": "returning"
+};
+
+function getSeriesStatus(row) {
+  const key = makeKey(row.title || "");
+
+  return (
+    SERIES_STATUS_OVERRIDES[key] ||
+    row.status ||
+    ""
+  );
+}
+
 function formatSeriesStatus(status = "") {
   const s = String(status || "").toLowerCase();
 
@@ -1844,7 +1858,7 @@ function buildSimpleSeriesList(rows) {
           : "📀 Episoden unbekannt";
 
       const status =
-        formatSeriesStatus(row.status);
+  formatSeriesStatus(getSeriesStatus(row));
 
       const rating =
         row.rating
