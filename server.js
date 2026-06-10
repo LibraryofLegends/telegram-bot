@@ -1696,9 +1696,37 @@ async function documentarySeriesHubCaption() {
 }
 
 async function starWarsSeriesHubCaption() {
-  const rows =
-    (await getSeriesLibraryRows())
-      .filter(isStarWarsSeries);
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        sl.*
+      FROM series_library sl
+      JOIN (
+        SELECT DISTINCT series_title
+        FROM series
+        WHERE universe ILIKE '%Star Wars%'
+      ) s
+      ON LOWER(sl.title) = LOWER(s.series_title)
+      ORDER BY sl.title ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        sl.*
+      FROM series_library sl
+      JOIN (
+        SELECT DISTINCT series_title
+        FROM series
+        WHERE LOWER(universe) LIKE '%star wars%'
+      ) s
+      ON LOWER(sl.title) = LOWER(s.series_title)
+      ORDER BY sl.title ASC
+    `).all();
+  }
 
   return (
     "███ STAR WARS SERIES ███\n\n" +
