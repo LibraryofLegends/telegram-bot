@@ -975,6 +975,43 @@ function buildSeriesNewsList(rows) {
     .join("\n━━━━━━━━━━━━━━━━━━\n\n");
 }
 
+function detectNewsCategory(title = "") {
+  const text =
+    String(title).toLowerCase();
+
+  if (
+    text.includes("renewed") ||
+    text.includes("confirmed") ||
+    text.includes("season 2") ||
+    text.includes("season 3") ||
+    text.includes("season 4") ||
+    text.includes("officially renewed")
+  ) {
+    return "new_season";
+  }
+
+  if (
+    text.includes("production") ||
+    text.includes("filming") ||
+    text.includes("shooting") ||
+    text.includes("production update") ||
+    text.includes("production begins")
+  ) {
+    return "production";
+  }
+
+  if (
+    text.includes("release date") ||
+    text.includes("premiere") ||
+    text.includes("coming") ||
+    text.includes("launch")
+  ) {
+    return "coming_soon";
+  }
+
+  return "news";
+}
+
 async function scanSeriesNews(seriesTitle) {
   const query =
     encodeURIComponent(`${seriesTitle} season release date production renewed`);
@@ -993,6 +1030,32 @@ async function scanSeriesNews(seriesTitle) {
       date: item.pubDate || "",
       source: item.source?.title || "Google News"
     }));
+}
+
+async function importSeriesNews(seriesTitle) {
+  const results =
+    await scanSeriesNews(seriesTitle);
+
+  let imported = 0;
+
+  for (const item of results) {
+
+    const category =
+      detectNewsCategory(item.title);
+
+    await saveSeriesNews({
+      category,
+      seriesTitle,
+      headline: item.title,
+      body: item.link,
+      tag: seriesTitle,
+      newsDate: item.date
+    });
+
+    imported++;
+  }
+
+  return imported;
 }
 
 async function saveSeriesLibrary(data) {
@@ -12665,6 +12728,38 @@ if (command.startsWith("/testuniverse")) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text: cleanTelegramText(resultText).slice(0, 4000)
+  });
+
+  return;
+}
+
+if (command === "/importseriesnews") {
+
+  const seriesTitle =
+    text.replace(command, "").trim();
+
+  if (!seriesTitle) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/importseriesnews Landman"
+    });
+    return;
+  }
+
+  const count =
+    await importSeriesNews(seriesTitle);
+
+  await refreshCommandCenters();
+  await updateSeriesSmartTopics();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ News importiert\n\n" +
+      `📺 ${seriesTitle}\n` +
+      `📰 ${count} Einträge übernommen`
   });
 
   return;
