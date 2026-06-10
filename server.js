@@ -1801,6 +1801,32 @@ async function getSeriesLibraryRows() {
   `).all();
 }
 
+function formatSeriesStatus(status = "") {
+  const s = String(status || "").toLowerCase();
+
+  if (s.includes("returning")) {
+    return "🔄 Fortlaufend";
+  }
+
+  if (s.includes("ended")) {
+    return "🏆 Abgeschlossen";
+  }
+
+  if (s.includes("cancel")) {
+    return "❌ Abgesetzt";
+  }
+
+  if (s.includes("planned")) {
+    return "📅 Geplant";
+  }
+
+  if (s.includes("production")) {
+    return "🎬 In Produktion";
+  }
+
+  return "❔ Status unbekannt";
+}
+
 function buildSimpleSeriesList(rows) {
   if (!rows.length) {
     return "Noch keine Serien gefunden.\n";
@@ -1809,17 +1835,25 @@ function buildSimpleSeriesList(rows) {
   return rows
     .slice(0, 30)
     .map((row) => {
+      const totalEpisodes =
+        Number(row.total_episodes || 0);
+
       const total =
-        row.total_episodes
-          ? `${row.total_episodes} Episoden`
-          : "Episoden unbekannt";
+        totalEpisodes > 0
+          ? `📀 ${totalEpisodes} Episoden`
+          : "📀 Episoden unbekannt";
 
       const status =
-        row.status || "Status unbekannt";
+        formatSeriesStatus(row.status);
+
+      const rating =
+        row.rating
+          ? `⭐ ${row.rating}`
+          : "⭐ Keine Bewertung";
 
       return (
         `📺 ${String(row.title || "Unbekannt").toUpperCase()}\n` +
-        `└ ${total} • ${status}\n`
+        `└ ${total} • ${status} • ${rating}\n`
       );
     })
     .join("\n");
