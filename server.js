@@ -69,6 +69,18 @@ async function ensurePostgresTables() {
   `);
   
   await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS series_news (
+    id SERIAL PRIMARY KEY,
+    series_title TEXT NOT NULL,
+    headline TEXT NOT NULL,
+    body TEXT,
+    tag TEXT,
+    news_date TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+`);
+  
+  await pgPool.query(`
   ALTER TABLE topics
   ADD COLUMN IF NOT EXISTS movie_hub_message_id INTEGER;
 `);
@@ -427,6 +439,16 @@ CREATE TABLE IF NOT EXISTS logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   type TEXT,
   message TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS series_news (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  series_title TEXT NOT NULL,
+  headline TEXT NOT NULL,
+  body TEXT,
+  tag TEXT,
+  news_date TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 `);
@@ -842,6 +864,49 @@ async function saveSeries(data) {
     data.universe || null,
     data.universePhase || null,
     data.starWarsEra || null
+  );
+}
+
+async function saveSeriesNews(data) {
+  if (pgPool) {
+    return await pgPool.query(
+      `
+      INSERT INTO series_news
+      (
+        series_title,
+        headline,
+        body,
+        tag,
+        news_date
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      `,
+      [
+        data.seriesTitle,
+        data.headline,
+        data.body || null,
+        data.tag || null,
+        data.newsDate || null
+      ]
+    );
+  }
+
+  return db.prepare(`
+    INSERT INTO series_news
+    (
+      series_title,
+      headline,
+      body,
+      tag,
+      news_date
+    )
+    VALUES (?, ?, ?, ?, ?)
+  `).run(
+    data.seriesTitle,
+    data.headline,
+    data.body || null,
+    data.tag || null,
+    data.newsDate || null
   );
 }
 
@@ -1589,17 +1654,58 @@ async function buildMasteredSeriesCaption() {
 }
 
 async function seriesNewsCenterCaption() {
-  return (
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT *
+      FROM series_news
+      ORDER BY created_at DESC
+      LIMIT 10
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT *
+      FROM series_news
+      ORDER BY created_at DESC
+      LIMIT 10
+    `).all();
+  }
+
+  let text =
     "███ NEWS CENTER ███\n\n" +
     "🚨 AKTUELLE SERIEN NEWS\n\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-    "🎬 Produktionsmeldungen\n" +
-    "📅 Starttermine\n" +
-    "🆕 Neue Staffeln\n" +
-    "🔥 Wichtige Ankündigungen\n\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "@LibraryOfLegends"
-  );
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!rows.length) {
+    text += "Noch keine News gespeichert.\n\n";
+  } else {
+    for (const n of rows) {
+      text +=
+        `📺 ${String(n.series_title || "Unbekannt").toUpperCase()}\n` +
+        `🚨 ${n.headline || "Update"}\n`;
+
+      if (n.news_date) {
+        text += `📅 ${n.news_date}\n`;
+      }
+
+      if (n.body) {
+        text += `\n${String(n.body).slice(0, 500)}\n`;
+      }
+
+      if (n.tag) {
+        text += `\n#${String(n.tag).replace(/\s+/g, "")}\n`;
+      }
+
+      text += "\n━━━━━━━━━━━━━━━━━━\n\n";
+    }
+  }
+
+  text += "@LibraryOfLegends";
+
+  return cleanTelegramText(text).slice(0, 4000);
 }
 
 async function seriesComingSoonCaption() {
@@ -12448,6 +12554,52 @@ if (command === "/setseries") {
       `✅ Aktuelle Serie:\n${CURRENT_SERIES_NAME}\n\n` +
       "━━━━━━━━━━━━━━━━━━\n" +
       "@LibraryOfLegends"
+  });
+
+  return;
+}
+
+if (command === "/addseriesnews") {
+  const raw = text.replace(command, "").trim();
+
+  const parts = raw.split("|").map((p) => p.trim());
+
+  if (parts.length < 3) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/addseriesnews Serie | Überschrift | Text | Tag | Datum\n\n" +
+        "Beispiel:\n" +
+        "/addseriesnews Landman | Staffel 3 startet Produktion | Drehbeginn Ende August 2026 in Fort Worth, Texas. | Landman | Mai 2026"
+    });
+    return;
+  }
+
+  const [
+    seriesTitle,
+    headline,
+    body,
+    tag,
+    newsDate
+  ] = parts;
+
+  await saveSeriesNews({
+    seriesTitle,
+    headline,
+    body,
+    tag,
+    newsDate
+  });
+
+  await updateSeriesSmartTopics();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Serien-News gespeichert\n\n" +
+      `📺 ${seriesTitle}\n` +
+      `🚨 ${headline}`
   });
 
   return;
