@@ -1751,15 +1751,39 @@ function isMiniSeriesLibraryRow(row) {
 }
 
 function isKidsSeriesLibraryRow(row) {
+  const title =
+    String(row.title || "").toLowerCase();
+
+  const genres =
+    String(row.genres || "").toLowerCase();
+
   const text =
-    `${row.title || ""} ${row.genres || ""}`
-      .toLowerCase();
+    `${title} ${genres}`;
+
+  const blocked =
+    [
+      "skeleton crew",
+      "andor",
+      "ahsoka",
+      "the acolyte",
+      "obi-wan kenobi",
+      "the mandalorian",
+      "boba fett"
+    ];
+
+  if (blocked.some((name) => text.includes(name))) {
+    return false;
+  }
 
   return (
     text.includes("kids") ||
     text.includes("family") ||
     text.includes("kinder") ||
-    text.includes("familie")
+    text.includes("familie") ||
+    text.includes("animation") ||
+    text.includes("cartoon") ||
+    text.includes("disney junior") ||
+    text.includes("nickelodeon")
   );
 }
 
