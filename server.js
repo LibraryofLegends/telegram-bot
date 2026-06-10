@@ -1965,10 +1965,10 @@ async function updateSeriesSmartTopics() {
     builder: animeSeriesHubCaption
   },
   {
-    topic: "🌍 DOCUMENTARY SERIES",
-    builder: documentarySeriesHubCaption
-  }
-  {
+  topic: "🌍 DOCUMENTARY SERIES",
+  builder: documentarySeriesHubCaption
+},
+{
   topic: "⭐ STAR WARS SERIES",
   builder: starWarsSeriesHubCaption
 },
