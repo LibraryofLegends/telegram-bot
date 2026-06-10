@@ -1751,50 +1751,52 @@ function isMiniSeriesLibraryRow(row) {
 }
 
 function isKidsSeriesLibraryRow(row) {
-  const title =
-    String(row.title || "").toLowerCase();
+  const title = String(row.title || "").toLowerCase();
+  const genres = String(row.genres || "").toLowerCase();
+  const text = `${title} ${genres}`;
 
-  const genres =
-    String(row.genres || "").toLowerCase();
+  const allowed = [
+    "timon",
+    "pumbaa",
+    "jungen jedi",
+    "galaxy of adventures",
+    "darkwing",
+    "ducktales",
+    "bluey",
+    "paw patrol"
+  ];
 
-  const text =
-    `${title} ${genres}`;
+  const blocked = [
+    "harley quinn",
+    "rebels",
+    "clone wars",
+    "bad batch",
+    "resistance",
+    "visionen",
+    "geschichten der jedi",
+    "geschichten des imperiums",
+    "geschichten der unterwelt"
+  ];
 
-  const blocked =
-    [
-      "skeleton crew",
-      "andor",
-      "ahsoka",
-      "the acolyte",
-      "obi-wan kenobi",
-      "the mandalorian",
-      "boba fett"
-    ];
-
-  if (blocked.some((name) => text.includes(name))) {
-    return false;
-  }
+  if (blocked.some((name) => text.includes(name))) return false;
 
   return (
+    allowed.some((name) => text.includes(name)) ||
     text.includes("kids") ||
-    text.includes("family") ||
-    text.includes("kinder") ||
-    text.includes("familie") ||
-    text.includes("animation") ||
-    text.includes("cartoon") ||
-    text.includes("disney junior") ||
-    text.includes("nickelodeon")
+    text.includes("children") ||
+    text.includes("kinder")
   );
 }
 
 function isAnimeSeriesLibraryRow(row) {
-  const text =
-    `${row.title || ""} ${row.genres || ""}`
-      .toLowerCase();
+  const title = String(row.title || "").toLowerCase();
+  const genres = String(row.genres || "").toLowerCase();
+  const text = `${title} ${genres}`;
 
   return (
     text.includes("anime") ||
-    text.includes("animation")
+    text.includes("visionen") ||
+    text.includes("visions")
   );
 }
 
