@@ -920,6 +920,59 @@ async function saveSeriesNews(data) {
   );
 }
 
+async function getSeriesNewsByCategory(category = "news") {
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM series_news
+      WHERE category = $1
+      ORDER BY created_at DESC
+      LIMIT 10
+      `,
+      [category]
+    );
+
+    return result.rows;
+  }
+
+  return db.prepare(`
+    SELECT *
+    FROM series_news
+    WHERE category = ?
+    ORDER BY created_at DESC
+    LIMIT 10
+  `).all(category);
+}
+
+function buildSeriesNewsList(rows) {
+  if (!rows.length) {
+    return "Noch keine Einträge.\n";
+  }
+
+  return rows
+    .map((n) => {
+      let text =
+        `📺 ${String(n.series_title || "Unbekannt").toUpperCase()}\n` +
+        `🚨 ${n.headline || "Update"}\n`;
+
+      if (n.news_date) {
+        text += `📅 ${n.news_date}\n`;
+      }
+
+      if (n.body) {
+        text += `\n${String(n.body).slice(0, 500)}\n`;
+      }
+
+      if (n.tag) {
+        text += `\n#${String(n.tag).replace(/\s+/g, "")}\n`;
+      }
+
+      return text;
+    })
+    .join("\n━━━━━━━━━━━━━━━━━━\n\n");
+}
+
 async function saveSeriesLibrary(data) {
   if (pgPool) {
     const result = await pgPool.query(
@@ -1719,34 +1772,43 @@ async function seriesNewsCenterCaption() {
 }
 
 async function seriesComingSoonCaption() {
+  const rows =
+    await getSeriesNewsByCategory("coming_soon");
+
   return (
     "███ COMING SOON ███\n\n" +
     "📅 KOMMENDE SERIEN\n\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
-    "Noch keine Einträge.\n\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
+    buildSeriesNewsList(rows) +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends"
   );
 }
 
 async function seriesProductionStatusCaption() {
+  const rows =
+    await getSeriesNewsByCategory("production");
+
   return (
     "███ PRODUKTIONSSTATUS ███\n\n" +
     "🎬 SERIEN IN PRODUKTION\n\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
-    "Noch keine Einträge.\n\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
+    buildSeriesNewsList(rows) +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends"
   );
 }
 
 async function seriesNewSeasonsCaption() {
+  const rows =
+    await getSeriesNewsByCategory("new_season");
+
   return (
     "███ NEUE STAFFELN ███\n\n" +
     "🆕 BESTÄTIGTE STAFFELN\n\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
-    "Noch keine Einträge.\n\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
+    buildSeriesNewsList(rows) +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends"
   );
 }
