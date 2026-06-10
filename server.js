@@ -104,6 +104,11 @@ await pgPool.query(`
   ALTER TABLE topics
   ADD COLUMN IF NOT EXISTS season_separators TEXT DEFAULT '{}';
 `);
+
+await pgPool.query(`
+  ALTER TABLE series_news
+  ADD COLUMN IF NOT EXISTS category TEXT;
+`);
   
   await pgPool.query(`
   CREATE TABLE IF NOT EXISTS movies (
@@ -493,6 +498,7 @@ addColumnIfMissing("series", "universe", "TEXT");
 addColumnIfMissing("series", "universe_phase", "TEXT");
 addColumnIfMissing("series", "universe_order", "INTEGER");
 addColumnIfMissing("series", "starwars_era", "TEXT");
+addColumnIfMissing("series_news", "category", "TEXT");
 
 // Series Library
 addColumnIfMissing("series_library", "tmdb_id", "INTEGER");
@@ -877,16 +883,18 @@ async function saveSeriesNews(data) {
         headline,
         body,
         tag,
-        news_date
+        news_date,
+        category
       )
-      VALUES ($1, $2, $3, $4, $5)
+      VALUES ($1, $2, $3, $4, $5, $6)
       `,
       [
         data.seriesTitle,
         data.headline,
         data.body || null,
         data.tag || null,
-        data.newsDate || null
+        data.newsDate || null,
+        data.category || "news"
       ]
     );
   }
@@ -898,15 +906,17 @@ async function saveSeriesNews(data) {
       headline,
       body,
       tag,
-      news_date
+      news_date,
+      category
     )
-    VALUES (?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?)
   `).run(
     data.seriesTitle,
     data.headline,
     data.body || null,
     data.tag || null,
-    data.newsDate || null
+    data.newsDate || null,
+    data.category || "news"
   );
 }
 
