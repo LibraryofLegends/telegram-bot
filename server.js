@@ -12571,22 +12571,27 @@ if (command === "/setseries") {
 
 if (command === "/addseriesnews") {
   const raw = text.replace(command, "").trim();
-
   const parts = raw.split("|").map((p) => p.trim());
 
-  if (parts.length < 3) {
+  if (parts.length < 4) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
         "⚠️ Nutzung:\n\n" +
-        "/addseriesnews Serie | Überschrift | Text | Tag | Datum\n\n" +
+        "/addseriesnews Kategorie | Serie | Überschrift | Text | Tag | Datum\n\n" +
+        "Kategorien:\n" +
+        "• news\n" +
+        "• coming_soon\n" +
+        "• production\n" +
+        "• new_season\n\n" +
         "Beispiel:\n" +
-        "/addseriesnews Landman | Staffel 3 startet Produktion | Drehbeginn Ende August 2026 in Fort Worth, Texas. | Landman | Mai 2026"
+        "/addseriesnews production | Landman | Staffel 3 geht in Produktion | Drehbeginn Ende August 2026 in Fort Worth, Texas. | Landman | Mai 2026"
     });
     return;
   }
 
   const [
+    category,
     seriesTitle,
     headline,
     body,
@@ -12595,6 +12600,7 @@ if (command === "/addseriesnews") {
   ] = parts;
 
   await saveSeriesNews({
+    category: category || "news",
     seriesTitle,
     headline,
     body,
@@ -12608,6 +12614,7 @@ if (command === "/addseriesnews") {
     chat_id: msg.chat.id,
     text:
       "✅ Serien-News gespeichert\n\n" +
+      `🏷 Kategorie: ${category || "news"}\n` +
       `📺 ${seriesTitle}\n` +
       `🚨 ${headline}`
   });
