@@ -10272,7 +10272,7 @@ async function ensureCommandCenters() {
       type: "system_hub"
     });
 
-    await sleep(1500);
+    await sleep(300);
   }
 
   await ensureStarWarsEraTopics();
@@ -13119,7 +13119,7 @@ if (text === "/rebuildcommandcenters") {
       text: "⏳ Command Centers werden aktualisiert..."
     });
 
-    await ensureCommandCenters();
+    await refreshCommandCenters();
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
