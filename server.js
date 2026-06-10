@@ -13120,7 +13120,6 @@ if (text === "/rebuildcommandcenters") {
     });
 
     await ensureCommandCenters();
-    await refreshCommandCenters();
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
