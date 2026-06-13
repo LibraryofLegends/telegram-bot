@@ -16949,7 +16949,8 @@ try {
 
       collectionOrder:
         tmdb.collectionMovies || []
-    })
+    }),
+    parse_mode: "HTML"
   });
 } catch (err) {
   console.error("⚠️ Full Movie Dossier Fehler:", err.message);
