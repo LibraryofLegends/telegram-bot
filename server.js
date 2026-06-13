@@ -8369,13 +8369,11 @@ function getLegendStatusAndRank(rating = "") {
 }
 
 function movieCaption(tmdb, extras = {}) {
-  const nexus = getMovieNexusMeta(tmdb, extras);
-
   const genreText = String(tmdb.genre || "Sonstige")
     .split("/")
     .map((g) => g.trim())
     .filter(Boolean)
-    .slice(0, 2)
+    .slice(0, 3)
     .join(" • ");
 
   const genreTags = String(tmdb.genre || "")
@@ -8395,23 +8393,13 @@ function movieCaption(tmdb, extras = {}) {
 
   const safeOverview = trimTextAtSentence(
     tmdb.overview || "Keine Beschreibung verfügbar.",
-    260
+    230
   );
-
-  const cleanSource =
-    extras.source && extras.source !== "Unbekannt"
-      ? ` • ${extras.source}`
-      : "";
 
   const cleanVideoCodec =
     extras.videoCodec && extras.videoCodec !== "Unbekannt"
       ? extras.videoCodec
       : "H.264";
-
-  const cleanAudio =
-    extras.audioCodec && extras.audioCodec !== "Unbekannt"
-      ? ` • 🔊 ${extras.audioCodec}${extras.audioChannels && extras.audioChannels !== "Unbekannt" ? ` ${extras.audioChannels}` : ""}`
-      : "";
 
   const ratingText = tmdb.rating || "Unbekannt";
   const { legend, rank } = getLegendStatusAndRank(ratingText);
@@ -8427,36 +8415,37 @@ function movieCaption(tmdb, extras = {}) {
       : `${runtime} Min.`;
 
   return (
-  "███ LEGENDS DOSSIER ███\n\n" +
+    "███ LEGENDS DOSSIER ███\n\n" +
 
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `<b>🎬 ${title}${year}</b>\n` +
-  "━━━━━━━━━━━━━━━━━━\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `<b>🎬 ${title}${year}</b>\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-  `🏷 ${libraryId}\n` +
-  `🎭 ${escapeHtml(genreText)}\n` +
-  `⭐ IMDb • ${escapeHtml(ratingText)}${ratingText !== "Unbekannt" ? "/10" : ""}\n\n` +
+    `🏷 ${libraryId}\n` +
+    `🎭 ${escapeHtml(genreText)}\n` +
+    `⭐ IMDb • ${escapeHtml(ratingText)}${ratingText !== "Unbekannt" ? "/10" : ""}\n\n` +
 
-  `📀 ${escapeHtml(extras.quality || "HD")} • ${escapeHtml(extras.resolution || "1920x1080")}\n` +
-  `💾 ${escapeHtml(extras.fileSize || "Unbekannt")} • ⏱ ${escapeHtml(runtimeText)}\n` +
-  `🎞 ${escapeHtml(cleanVideoCodec)} • 🔞 ${escapeHtml(tmdb.fsk || "FSK Unbekannt")}\n\n` +
+    `📀 ${escapeHtml(extras.quality || "HD")} • ${escapeHtml(extras.resolution || "1920x1080")}\n` +
+    `💾 ${escapeHtml(extras.fileSize || "Unbekannt")} • ⏱ ${escapeHtml(runtimeText)}\n` +
+    `🎞 ${escapeHtml(cleanVideoCodec)} • 🔞 ${escapeHtml(tmdb.fsk || "FSK Unbekannt")}\n\n` +
 
-  `<b>👑 ${escapeHtml(legend)} • 🏆 ${escapeHtml(rank)}</b>\n\n` +
+    `<b>👑 ${escapeHtml(legend)} • 🏆 ${escapeHtml(rank)}</b>\n\n` +
 
-  `🎬 ${escapeHtml(tmdb.director || "Unbekannt")}\n` +
-  `👥 ${escapeHtml(castText || "Unbekannt")}\n\n` +
+    `🎬 ${escapeHtml(tmdb.director || "Unbekannt")}\n` +
+    `👥 ${escapeHtml(castText || "Unbekannt")}\n\n` +
 
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "<b>📖 STORY DOSSIER</b>\n" +
-  "━━━━━━━━━━━━━━━━━━\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "<b>📖 STORY DOSSIER</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-  `${escapeHtml(safeOverview)}\n\n` +
+    `${escapeHtml(safeOverview)}\n\n` +
 
-  "✅ VERIFIED\n\n" +
+    "✅ VERIFIED\n\n" +
 
-  `${genreTags}\n\n` +
-  "@LibraryOfLegends"
-).slice(0, 1024);
+    `${genreTags}\n\n` +
+    "@LibraryOfLegends"
+  ).slice(0, 1024);
+}
 
 function movieLiteCaption(tmdb, extras = {}) {
   const nexus = getMovieNexusMeta(tmdb, extras);
