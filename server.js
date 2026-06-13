@@ -8334,7 +8334,7 @@ function getLegendStatusAndRank(rating = "") {
   const match = String(rating).match(/\d+(\.\d+)?/);
   const value = match ? Number(match[0]) : 0;
 
-  if (value >= 9.0) {
+  if (value >= 8.8) {
     return {
       legend: "⭐⭐⭐⭐⭐ Masterpiece",
       rank: "Hall of Fame"
@@ -8348,7 +8348,7 @@ function getLegendStatusAndRank(rating = "") {
     };
   }
 
-  if (value >= 7.0) {
+  if (value >= 7.2) {
     return {
       legend: "⭐⭐⭐ Legendary",
       rank: "Elite Entry"
@@ -8418,7 +8418,7 @@ function movieCaption(tmdb, extras = {}) {
     "███ LEGENDS DOSSIER ███\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    `<b>🎬 ${title}${year}</b>\n` +
+    `<b>🎬 ${String(title).toUpperCase()}${year}</b>\n` +
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
     `🏷 ${libraryId}\n` +
@@ -8440,7 +8440,7 @@ function movieCaption(tmdb, extras = {}) {
 
     `${escapeHtml(safeOverview)}\n\n` +
 
-    "✅ VERIFIED\n\n" +
+    "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
 
     `${genreTags}\n\n` +
     "@LibraryOfLegends"
