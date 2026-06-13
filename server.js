@@ -9179,27 +9179,37 @@ const episodeDisplay =
     ? `S${seasonText}E${String(media.episode).padStart(2, "0")}+E${String(media.episodeEnd).padStart(2, "0")}`
     : `S${seasonText}E${episodeText}`;
 
-  const caption =
-    "███ EPISODE NEXUS ███\n\n" +
+  const { legend, rank } =
+  getLegendStatusAndRank(tmdb.rating || "");
 
-    `📺 ${String(seriesTitle).toUpperCase()}\n` +
-    `🎞 ${episodeDisplay} • ${finalEpisodeTitle}\n\n` +
+const caption =
+  "███ LEGENDS SERIES DOSSIER ███\n\n" +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `⭐ ${tmdb.rating || "Unbekannt"}\n` +
-    `🎭 ${genreText || "Sonstige"}\n` +
-    `📀 ${quality} • ${resolution} • 💾 ${fileSize}\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `<b>📺 ${String(seriesTitle).toUpperCase()} • ${episodeDisplay}</b>\n` +
+  "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    `📖 ${safeOverview}\n\n` +
+  `🎬 ${finalEpisodeTitle || "Unbekannter Episodentitel"}\n` +
+  `🎭 ${genreText || "Sonstige"}\n` +
+  `⭐ IMDb • ${tmdb.rating || "Unbekannt"}\n\n` +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🧬 ${archiveCode}\n\n` +
+  `📀 ${quality} • ${resolution}\n` +
+  `💾 ${fileSize}\n\n` +
 
-    `${seriesTag} ${genreTags}\n` +
-    "@LibraryOfLegends";
+  `<b>👑 ${legend} • 🏆 ${rank}</b>\n\n` +
 
-  return cleanTelegramText(caption).slice(0, 4000);
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "<b>📖 EPISODE DOSSIER</b>\n" +
+  "━━━━━━━━━━━━━━━━━━\n\n" +
+
+  `${safeOverview}\n\n` +
+
+  "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
+
+  `${seriesTag} ${genreTags}\n` +
+  "@LibraryOfLegends";
+
+  return cleanTelegramText(caption).slice(0, 1024);
 }
 
 // =============================
@@ -12077,10 +12087,11 @@ async function createOrUpdateSingleSeriesHub(seriesTitle, topicId) {
   }
 
   const sent = await tg("sendMessage", {
-    chat_id: SERIES_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text: caption
-  });
+  chat_id: SERIES_GROUP_ID,
+  message_thread_id: Number(topicId),
+  text: caption,
+  parse_mode: "HTML"
+});
 
   if (!sent?.message_id) {
     return null;
