@@ -8427,34 +8427,36 @@ function movieCaption(tmdb, extras = {}) {
       : `${runtime} Min.`;
 
   return (
-    "███ LEGENDS DOSSIER ███\n\n" +
+  "███ LEGENDS DOSSIER ███\n\n" +
 
-    `<b>🎬 ${title}${year}</b>\n\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `<b>🎬 ${title}${year}</b>\n` +
+  "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    `🏷 ${libraryId}\n` +
-    `🎭 ${escapeHtml(genreText)}\n` +
-    `⭐ IMDb • ${escapeHtml(ratingText)}/10\n\n` +
+  `🏷 ${libraryId}\n` +
+  `🎭 ${escapeHtml(genreText)}\n` +
+  `⭐ IMDb • ${escapeHtml(ratingText)}${ratingText !== "Unbekannt" ? "/10" : ""}\n\n` +
 
-    `📀 ${escapeHtml(extras.quality || "HD")} • ${escapeHtml(extras.resolution || "1920x1080")}${escapeHtml(cleanSource)}\n` +
-    `💾 ${escapeHtml(extras.fileSize || "Unbekannt")} • ⏱ ${escapeHtml(runtimeText)}\n` +
-    `🎞 ${escapeHtml(cleanVideoCodec)}${escapeHtml(cleanAudio)}\n` +
-    `🔞 ${escapeHtml(tmdb.fsk || "FSK Unbekannt")}\n\n` +
+  `📀 ${escapeHtml(extras.quality || "HD")} • ${escapeHtml(extras.resolution || "1920x1080")}\n` +
+  `💾 ${escapeHtml(extras.fileSize || "Unbekannt")} • ⏱ ${escapeHtml(runtimeText)}\n` +
+  `🎞 ${escapeHtml(cleanVideoCodec)} • 🔞 ${escapeHtml(tmdb.fsk || "FSK Unbekannt")}\n\n` +
 
-    `<b>👑 ${escapeHtml(legend)} • 🏆 ${escapeHtml(rank)}</b>\n\n` +
+  `<b>👑 ${escapeHtml(legend)} • 🏆 ${escapeHtml(rank)}</b>\n\n` +
 
-    `🎬 ${escapeHtml(tmdb.director || "Unbekannt")}\n` +
-    `👥 ${escapeHtml(castText || "Unbekannt")}\n\n` +
+  `🎬 ${escapeHtml(tmdb.director || "Unbekannt")}\n` +
+  `👥 ${escapeHtml(castText || "Unbekannt")}\n\n` +
 
-    `<b>📖 STORY DOSSIER</b>\n\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "<b>📖 STORY DOSSIER</b>\n" +
+  "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    `${escapeHtml(safeOverview)}\n\n` +
+  `${escapeHtml(safeOverview)}\n\n` +
 
-    `🛰 ${escapeHtml(nexus.line4 || "ENTRY • VERIFIED ✅")}\n\n` +
+  "✅ VERIFIED\n\n" +
 
-    `${genreTags}\n` +
-    "@LibraryOfLegends"
-  ).slice(0, 4000);
-}
+  `${genreTags}\n\n` +
+  "@LibraryOfLegends"
+).slice(0, 1024);
 
 function movieLiteCaption(tmdb, extras = {}) {
   const nexus = getMovieNexusMeta(tmdb, extras);
