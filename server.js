@@ -10534,7 +10534,7 @@ isVideo = false,
 adminChatId = "",
 replyMarkup = null
 }) {
-  const safeCaption = String(caption || "").slice(0, 900);
+  const safeCaption = String(caption || "").slice(0, 1024);
 
   const baseData = {
     chat_id: targetChatId,
@@ -10544,8 +10544,9 @@ replyMarkup = null
   };
 
   if (safeCaption) {
-    baseData.caption = safeCaption;
-  }
+  baseData.caption = safeCaption;
+  baseData.parse_mode = "HTML";
+}
   
   if (replyMarkup) {
   baseData.reply_markup = replyMarkup;
@@ -10569,6 +10570,7 @@ replyMarkup = null
   message_thread_id: topicId,
   [mediaField]: fileId,
   caption: safeCaption,
+  parse_mode: "HTML",
   ...(replyMarkup ? { reply_markup: replyMarkup } : {})
 });
 
