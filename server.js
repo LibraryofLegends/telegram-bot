@@ -585,6 +585,65 @@ function getTopic(uniqueKey) {
 
 }
 
+async function saveKnowledge({
+  title,
+  category,
+  content,
+  relatedMovie = null,
+  relatedSeries = null,
+  relatedPerson = null,
+  libraryId = null
+}) {
+  if (pgPool) {
+    return await pgPool.query(
+      `
+      INSERT INTO knowledge
+      (
+        title,
+        category,
+        content,
+        related_movie,
+        related_series,
+        related_person,
+        library_id
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `,
+      [
+        title,
+        category,
+        content,
+        relatedMovie,
+        relatedSeries,
+        relatedPerson,
+        libraryId
+      ]
+    );
+  }
+
+  return db.prepare(`
+    INSERT INTO knowledge
+    (
+      title,
+      category,
+      content,
+      related_movie,
+      related_series,
+      related_person,
+      library_id
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    title,
+    category,
+    content,
+    relatedMovie,
+    relatedSeries,
+    relatedPerson,
+    libraryId
+  );
+}
+
 function saveTopic({ name, type, chatId, topicId, uniqueKey }) {
   return db.prepare(`
     INSERT OR IGNORE INTO topics
