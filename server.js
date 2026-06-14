@@ -13188,6 +13188,63 @@ if (command === "/addfact") {
   return;
 }
 
+if (command === "/knowledge") {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT title, category, library_id, created_at
+      FROM knowledge
+      ORDER BY created_at DESC
+      LIMIT 50
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT title, category, library_id, created_at
+      FROM knowledge
+      ORDER BY created_at DESC
+      LIMIT 50
+    `).all();
+  }
+
+  let text =
+    "███ KNOWLEDGE ARCHIVE HUB ███\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "<b>📚 FILMWISSEN DATENBANK</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `📚 Einträge • ${rows.length}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "<b>📖 LATEST INTEL FILES</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!rows.length) {
+    text += "Noch keine Knowledge-Einträge gespeichert.\n\n";
+  } else {
+    rows.forEach((item, index) => {
+      text +=
+        `${String(index + 1).padStart(2, "0")} • ${item.title || "Unbekannt"}\n` +
+        `     📂 ${item.category || "Unbekannt"} • ${item.library_id || "NO-ID"}\n\n`;
+    });
+  }
+
+  text +=
+    "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
+    "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text,
+    parse_mode: "HTML"
+  });
+
+  return;
+}
+
 if (command === "/repairseriesnews") {
   const count =
     await repairSeriesNewsCategories();
