@@ -8598,10 +8598,7 @@ async function movieHubCaption(topicName = "", topicId = null) {
 
   const averageRating =
     ratings.length
-      ? (
-          ratings.reduce((a, b) => a + b, 0) /
-          ratings.length
-        ).toFixed(1)
+      ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
       : "Unbekannt";
 
   const topMovie = [...movies]
@@ -8609,60 +8606,55 @@ async function movieHubCaption(topicName = "", topicId = null) {
       const ar = String(a.rating || "").match(/(\d+(\.\d+)?)/g);
       const br = String(b.rating || "").match(/(\d+(\.\d+)?)/g);
 
-      return (
-        (br ? Number(br.pop()) : 0) -
-        (ar ? Number(ar.pop()) : 0)
-      );
+      return (br ? Number(br.pop()) : 0) - (ar ? Number(ar.pop()) : 0);
     })[0];
 
   const qualityLine =
     [...new Set(movies.map((m) => m.quality).filter(Boolean))]
-      .slice(0, 5)
+      .slice(0, 4)
       .join(" • ") || "Unbekannt";
 
   const hubTitle =
     isCollectionHub
-      ? `🎞 ${shortName.toUpperCase()} COLLECTION`
-      : `🎬 ${cleanTopic.toUpperCase()} LIBRARY`;
+      ? `🎞 ${shortName.toUpperCase()}`
+      : `🎬 ${cleanTopic.toUpperCase()}`;
 
   let result =
-    "███ COLLECTION NEXUS HUB ███\n\n" +
-    `${hubTitle}\n` +
-    "COLLECTION ARCHIVE • ACTIVE\n\n" +
+    "███ LEGENDS COLLECTION HUB ███\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    "🏛 ARCHIVE STATUS\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 Movies • ${movieCount}\n` +
+    `<b>${hubTitle}</b>\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `🎬 Filme • ${movieCount}\n` +
     `📅 Timeline • ${yearRange}\n` +
-    `⭐ Ø Rating • ${averageRating}\n` +
+    `⭐ Ø IMDb • ${averageRating}/10\n` +
     `💾 Storage • ${totalStorage}\n` +
     `📀 Quality • ${qualityLine}\n` +
     (topMovie ? `👑 Top Film • ${topMovie.title}\n` : "") +
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📚 COLLECTION INDEX\n" +
-    "━━━━━━━━━━━━━━━━━━\n";
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "<b>📚 COLLECTION INDEX</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
 
   if (!movies.length) {
-    result += "Noch keine Filme gespeichert.\n";
+    result += "Noch keine Filme gespeichert.\n\n";
   } else {
-    const visibleMovies = movies.slice(0, 25);
+    const visibleMovies = movies.slice(0, 20);
 
     visibleMovies.forEach((m, index) => {
       result +=
         `${String(index + 1).padStart(2, "0")} • ${m.title || "Unbekannt"}${m.year ? ` (${m.year})` : ""}\n` +
-        `     ${m.rating || "?"} • ${m.quality || "?"}${m.runtime ? ` • ⏱ ${m.runtime}` : ""}\n\n`;
+        `     ⭐ ${m.rating || "?"} • ${m.quality || "?"}${m.runtime ? ` • ⏱ ${m.runtime}` : ""}\n\n`;
     });
 
     if (movies.length > visibleMovies.length) {
-      result +=
-        `… +${movies.length - visibleMovies.length} weitere Filme\n`;
+      result += `… +${movies.length - visibleMovies.length} weitere Filme\n\n`;
     }
   }
 
   result +=
-    "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
     "@LibraryOfLegends";
 
   return result.slice(0, 4000);
@@ -8799,10 +8791,11 @@ console.log("🖼 MOVIE HUB BANNER CHECK:", {
   // CREATE HUB
   // =============================
   const hub = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: topicId,
-    text: await movieHubCaption(topicName, topicId)
-  });
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: topicId,
+  text: await movieHubCaption(topicName, topicId),
+  parse_mode: "HTML"
+});
 
   if (hub?.message_id) {
 
