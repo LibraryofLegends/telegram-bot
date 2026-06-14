@@ -2469,7 +2469,8 @@ async function updateSeriesSmartTopics() {
   const edited = await tg("editMessageText", {
     chat_id: SERIES_GROUP_ID,
     message_id: topic.hub_message_id,
-    text
+    text,
+    parse_mode: "HTML"
   });
 
   if (!edited?.__error) {
@@ -6221,11 +6222,12 @@ async function createOrUpdateSystemHub({
   }
 
   if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
+  const edited = await tg("editMessageText", {
+    chat_id: MOVIE_GROUP_ID,
+    message_id: topic.hub_message_id,
+    text,
+    parse_mode: "HTML"
+  });
 
     if (!edited?.__error) {
       console.log("✅ System Hub aktualisiert:", name);
@@ -6365,11 +6367,12 @@ async function createOrUpdateCommandTopicHub({
   }
 
   if (topic?.hub_message_id) {
-    const edited = await tg("editMessageText", {
-      chat_id: MOVIE_GROUP_ID,
-      message_id: topic.hub_message_id,
-      text
-    });
+  const edited = await tg("editMessageText", {
+    chat_id: MOVIE_GROUP_ID,
+    message_id: topic.hub_message_id,
+    text,
+    parse_mode: "HTML"
+  });
 
     if (!edited?.__error) {
       console.log("✅ Command Topic aktualisiert:", name);
@@ -6644,10 +6647,11 @@ async function createOrUpdateCollectionHub(tmdb, topicId) {
   }
 
   const hub = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text: hubText
-  });
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: Number(topicId),
+  text: hubText,
+  parse_mode: "HTML"
+});
 
   if (hub?.message_id) {
     saveCollectionHubMessageId(
@@ -10087,10 +10091,11 @@ async function createSeriesHubIfMissing({ tmdb, topicId }) {
   }
 
   const hub = await tg("sendMessage", {
-    chat_id: SERIES_GROUP_ID,
-    message_thread_id: topicId,
-    text: await seriesHubCaption(tmdb)
-  });
+  chat_id: SERIES_GROUP_ID,
+  message_thread_id: topicId,
+  text: await seriesHubCaption(tmdb),
+  parse_mode: "HTML"
+});
 
   if (hub?.message_id) {
     await saveHubMessageId(topicId, hub.message_id);
