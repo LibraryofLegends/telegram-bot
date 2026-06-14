@@ -81,6 +81,20 @@ async function ensurePostgresTables() {
     created_at TIMESTAMP DEFAULT NOW()
   );
 `);
+
+await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS knowledge (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL,
+    content TEXT NOT NULL,
+    related_movie TEXT,
+    related_series TEXT,
+    related_person TEXT,
+    library_id TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+  );
+`);
   
   await pgPool.query(`
   ALTER TABLE topics
@@ -421,6 +435,18 @@ CREATE TABLE IF NOT EXISTS topics (
   chat_id TEXT NOT NULL,
   topic_id INTEGER NOT NULL,
   unique_key TEXT UNIQUE,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS knowledge (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL,
+  content TEXT NOT NULL,
+  related_movie TEXT,
+  related_series TEXT,
+  related_person TEXT,
+  library_id TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
