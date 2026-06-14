@@ -6477,7 +6477,7 @@ async function actorDossierCaption(actorName = "") {
   if (bestMovie) {
     text +=
       `👑 Höchstbewertet • ${bestMovie.title}\n` +
-      `⭐ ${bestMovie.rating}\n`;
+      `⭐ IMDb • ${bestMovie.rating}${String(bestMovie.rating || "").includes("/10") ? "" : "/10"}\n`;
   }
 
   text +=
