@@ -644,6 +644,47 @@ async function saveKnowledge({
   );
 }
 
+function knowledgeCaption({
+  title = "Unbekannt",
+  category = "Filmwissen",
+  content = "",
+  relatedMovie = "",
+  relatedSeries = "",
+  relatedPerson = "",
+  libraryId = ""
+}) {
+  const relation =
+    relatedMovie
+      ? `🎬 Film • ${escapeHtml(relatedMovie)}\n`
+      : relatedSeries
+        ? `📺 Serie • ${escapeHtml(relatedSeries)}\n`
+        : relatedPerson
+          ? `🎭 Person • ${escapeHtml(relatedPerson)}\n`
+          : "";
+
+  return (
+    "███ KNOWLEDGE DOSSIER ███\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `<b>📚 ${escapeHtml(title).toUpperCase()}</b>\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `🏷 ${escapeHtml(libraryId || "KNOWLEDGE ENTRY")}\n` +
+    `📂 ${escapeHtml(category)}\n` +
+    relation +
+    "\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "<b>📖 ARCHIVE INTEL</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `${escapeHtml(content || "Keine Informationen verfügbar.")}\n\n` +
+
+    "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
+    "@LibraryOfLegends"
+  ).slice(0, 4000);
+}
+
 function saveTopic({ name, type, chatId, topicId, uniqueKey }) {
   return db.prepare(`
     INSERT OR IGNORE INTO topics
