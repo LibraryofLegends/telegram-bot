@@ -6147,32 +6147,66 @@ async function buildHallOfFameHubCaption() {
       .sort((a, b) => b.ratingValue - a.ratingValue)
       .slice(0, 50);
 
+  const masterpieces =
+    hallMovies.filter((m) => m.ratingValue >= 8.8);
+
+  const hallOfFame =
+    hallMovies.filter((m) =>
+      m.ratingValue >= 8.0 &&
+      m.ratingValue < 8.8
+    );
+
   let text =
-    "███ HALL OF FAME HUB ███\n\n" +
+    "███ HALL OF FAME DOSSIER ███\n\n" +
+
+    `👑 MASTERPIECES • ${masterpieces.length}\n` +
+    `🏆 HALL OF FAME • ${hallOfFame.length}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    "<b>🏆 LEGENDARY MOVIE ARCHIVE</b>\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-
-    `🎬 Filme • ${hallMovies.length}\n` +
-    "⭐ Mindestwertung • 8.0/10\n\n" +
-
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "<b>👑 HALL OF FAME INDEX</b>\n" +
+    "<b>👑 MASTERPIECE INDEX</b>\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
-  if (!hallMovies.length) {
-    text += "Noch keine Hall-of-Fame-Filme gespeichert.\n\n";
+  if (!masterpieces.length) {
+    text += "Noch keine Einträge\n\n";
   } else {
-    hallMovies.forEach((m, index) => {
+    masterpieces.forEach((movie, index) => {
+      const medal =
+        index === 0 ? "🥇" :
+        index === 1 ? "🥈" :
+        index === 2 ? "🥉" :
+        `#${index + 1}`;
+
       text +=
-        `${String(index + 1).padStart(2, "0")} • ${m.title || "Unbekannt"}${m.year ? ` (${m.year})` : ""}\n` +
-        `     ⭐ ${m.ratingValue}/10 • ${m.quality || "?"} • ${m.library_id || "NO-ID"}\n\n`;
+        `${medal} ${movie.title || "Unbekannt"}${movie.year ? ` (${movie.year})` : ""}\n` +
+        `   ⭐ ${movie.ratingValue}/10 • ${movie.library_id || "NO-ID"}\n\n`;
     });
   }
 
   text +=
-    "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "<b>🏆 HALL OF FAME INDEX</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!hallOfFame.length) {
+    text += "Noch keine Hall-of-Fame-Einträge\n\n";
+  } else {
+    hallOfFame.forEach((movie, index) => {
+      const medal =
+        index === 0 ? "🥇" :
+        index === 1 ? "🥈" :
+        index === 2 ? "🥉" :
+        `#${index + 1}`;
+
+      text +=
+        `${medal} ${movie.title || "Unbekannt"}${movie.year ? ` (${movie.year})` : ""}\n` +
+        `   ⭐ ${movie.ratingValue}/10 • ${movie.library_id || "NO-ID"}\n\n`;
+    });
+  }
+
+  text +=
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🛰 ARCHIV VERIFIZIERT ✅\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
     "@LibraryOfLegends";
 
   return text.slice(0, 4000);
