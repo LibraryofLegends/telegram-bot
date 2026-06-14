@@ -6488,6 +6488,120 @@ async function getKnowledgeByMovie(movieTitle = "") {
   `).all(`%${movieTitle.toLowerCase()}%`);
 }
 
+async function getKnowledgeBySeries(seriesTitle = "") {
+  if (!seriesTitle) return [];
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT title, category, content, library_id
+      FROM knowledge
+      WHERE LOWER(COALESCE(related_series, '')) LIKE LOWER($1)
+      ORDER BY created_at DESC
+      LIMIT 10
+      `,
+      [`%${seriesTitle}%`]
+    );
+
+    return result.rows;
+  }
+
+  return db.prepare(`
+    SELECT title, category, content, library_id
+    FROM knowledge
+    WHERE LOWER(COALESCE(related_series, '')) LIKE LOWER(?)
+    ORDER BY created_at DESC
+    LIMIT 10
+  `).all(`%${seriesTitle.toLowerCase()}%`);
+}
+
+async function findSeriesForInfo(query = "") {
+  if (!query) return null;
+
+  const key = makeKey(query);
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT
+        series_title,
+        MAX(genre) AS genre,
+        MAX(rating) AS rating,
+        COUNT(*) AS episode_count
+      FROM series
+      GROUP BY series_title
+      ORDER BY series_title ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT
+        series_title,
+        genre,
+        rating,
+        COUNT(*) AS episode_count
+      FROM series
+      GROUP BY series_title
+      ORDER BY series_title ASC
+    `).all();
+  }
+
+  return rows.find((series) => {
+    const seriesKey = makeKey(series.series_title || "");
+
+    return (
+      seriesKey === key ||
+      seriesKey.includes(key) ||
+      key.includes(seriesKey)
+    );
+  }) || null;
+}
+
+async function seriesInfoCaption(query = "") {
+  const series =
+    await findSeriesForInfo(query);
+
+  if (!series) {
+    return null;
+  }
+
+  const facts =
+    await getKnowledgeBySeries(series.series_title);
+
+  let text =
+    "███ SERIES INTEL DOSSIER ███\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `<b>📺 ${escapeHtml(String(series.series_title || "Unbekannt").toUpperCase())}</b>\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `🎭 ${escapeHtml(series.genre || "Unbekannt")}\n` +
+    `⭐ IMDb • ${escapeHtml(series.rating || "Unbekannt")}${String(series.rating || "").includes("/10") ? "" : "/10"}\n` +
+    `🎞 Episoden im Archiv • ${series.episode_count || 0}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "<b>📚 KNOWLEDGE FILES</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!facts.length) {
+    text += "Noch keine Knowledge-Fakten für diese Serie gespeichert.\n\n";
+  } else {
+    facts.forEach((fact, index) => {
+      text +=
+        `${String(index + 1).padStart(2, "0")} • ${escapeHtml(fact.content)}\n`;
+    });
+
+    text += "\n";
+  }
+
+  text +=
+    "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
 async function findMovieForInfo(query = "") {
   if (!query) return null;
 
@@ -13471,6 +13585,44 @@ if (command === "/addfact") {
       `📚 ${title}\n` +
       `📂 ${category}` +
       (relatedMovie ? `\n🎬 Film • ${relatedMovie}` : "")
+  });
+
+  return;
+}
+
+if (command === "/seriesinfo") {
+  const query =
+    text.replace(command, "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/seriesinfo SERIENTITEL\n\n" +
+        "Beispiel:\n" +
+        "/seriesinfo Tulsa King"
+    });
+    return;
+  }
+
+  const dossier =
+    await seriesInfoCaption(query);
+
+  if (!dossier) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Serie nicht gefunden:\n\n" +
+        query
+    });
+    return;
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: dossier,
+    parse_mode: "HTML"
   });
 
   return;
