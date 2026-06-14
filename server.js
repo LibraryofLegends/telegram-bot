@@ -13534,7 +13534,8 @@ if (command === "/addfact") {
   const title = parts[1];
 
   let relatedMovie = null;
-  let content = "";
+let relatedSeries = null;
+let content = "";
 
   if (parts.length >= 4) {
     relatedMovie = parts[2];
