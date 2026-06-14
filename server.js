@@ -6387,6 +6387,99 @@ async function getNewReleaseRows() {
   return rows;
 }
 
+async function getActorMovies(actorName = "") {
+
+  if (!actorName) return [];
+
+  if (pgPool) {
+
+    const result = await pgPool.query(
+      `
+      SELECT
+        title,
+        year,
+        rating,
+        quality,
+        cast
+      FROM movies
+      WHERE LOWER(cast) LIKE LOWER($1)
+      ORDER BY year ASC
+      `,
+      [`%${actorName}%`]
+    );
+
+    return result.rows;
+  }
+
+  return db.prepare(`
+    SELECT
+      title,
+      year,
+      rating,
+      quality,
+      cast
+    FROM movies
+    WHERE LOWER(cast) LIKE LOWER(?)
+    ORDER BY year ASC
+  `).all(`%${actorName.toLowerCase()}%`);
+}
+
+async function actorDossierCaption(actorName = "") {
+
+  const movies =
+    await getActorMovies(actorName);
+
+  const bestMovie =
+    [...movies].sort((a, b) =>
+      getRatingValue(b.rating) -
+      getRatingValue(a.rating)
+    )[0];
+
+  let text =
+    "███ ACTOR DOSSIER ███\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `<b>🎭 ${escapeHtml(actorName.toUpperCase())}</b>\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `🎬 Filme im Archiv • ${movies.length}\n`;
+
+  if (bestMovie) {
+    text +=
+      `👑 Höchstbewertet • ${bestMovie.title}\n` +
+      `⭐ ${bestMovie.rating}\n`;
+  }
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "<b>🎞 FILMOGRAFIE</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!movies.length) {
+
+    text +=
+      "Keine Filme im Archiv gefunden.\n\n";
+
+  } else {
+
+    movies.slice(0, 30).forEach((movie, index) => {
+
+      text +=
+        `${String(index + 1).padStart(2, "0")} • ${movie.title}` +
+        `${movie.year ? ` (${movie.year})` : ""}\n`;
+
+    });
+
+    text += "\n";
+  }
+
+  text +=
+    "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
 async function buildNewReleasesHubCaption() {
 
   const movies =
@@ -12912,6 +13005,13 @@ if (text === "/start" || text === "/admin") {
       "• /rebuildcollections\n" +
       "• /rebuildmovieindex\n" +
       "• /repairmovieuniverses\n\n" +
+      
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🏆 𝐄𝐋𝐈𝐓𝐄 & 𝐇𝐀𝐋𝐋 𝐎𝐅 𝐅𝐀𝐌𝐄\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "• /rebuildhalloffame — Hall of Fame aktualisieren\n" +
+      "• /rebuildmovieindex — Movie Index aktualisieren\n" +
+      "• /rebuildcollections — Collections aktualisieren\n\n" +
 
       "━━━━━━━━━━━━━━━━━━\n" +
       "📺 𝐒𝐄𝐑𝐈𝐄𝐒 𝐀𝐑𝐂𝐇𝐈𝐕𝐄\n" +
@@ -12935,6 +13035,13 @@ if (text === "/start" || text === "/admin") {
       "• /deleteseries NAME S01E01\n" +
       "• /deleteseriestopic NAME\n" +
       "• /rebuildseasoncards NAME\n\n" +
+      
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📚 𝐊𝐍𝐎𝐖𝐋𝐄𝐃𝐆𝐄 𝐀𝐑𝐂𝐇𝐈𝐕𝐄\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "• /knowledge — Filmwissen anzeigen\n" +
+      "• /addfact Kategorie | Titel | Fakt\n" +
+      "• /actor NAME — Schauspieler-Dossier erstellen\n\n" +
 
       "━━━━━━━━━━━━━━━━━━\n" +
       "🌌 𝐔𝐍𝐈𝐕𝐄𝐑𝐒𝐄 𝐒𝐘𝐒𝐓𝐄𝐌\n" +
@@ -13256,6 +13363,48 @@ if (command === "/repairseriesnews") {
     text:
       "✅ Serien-News Kategorien repariert\n\n" +
       `📰 Geprüft: ${count}`
+  });
+
+  return;
+}
+
+if (command === "/actor") {
+  const actorName =
+    text.replace(command, "").trim();
+
+  if (!actorName) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/actor Schauspielername\n\n" +
+        "Beispiel:\n" +
+        "/actor Jason Statham"
+    });
+    return;
+  }
+
+  const dossier =
+    await actorDossierCaption(actorName);
+
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "🎭 Schauspieler-Dossiers",
+    type: "knowledge_actor"
+  });
+
+  await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text: dossier,
+    parse_mode: "HTML"
+  });
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Actor Dossier erstellt\n\n" +
+      `🎭 ${actorName}`
   });
 
   return;
