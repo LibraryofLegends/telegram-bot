@@ -6388,11 +6388,9 @@ async function getNewReleaseRows() {
 }
 
 async function getActorMovies(actorName = "") {
-
   if (!actorName) return [];
 
   if (pgPool) {
-
     const result = await pgPool.query(
       `
       SELECT
@@ -6400,9 +6398,9 @@ async function getActorMovies(actorName = "") {
         year,
         rating,
         quality,
-        cast
+        cast_list AS cast
       FROM movies
-      WHERE LOWER(cast) LIKE LOWER($1)
+      WHERE LOWER(COALESCE(cast_list, '')) LIKE LOWER($1)
       ORDER BY year ASC
       `,
       [`%${actorName}%`]
@@ -6419,7 +6417,7 @@ async function getActorMovies(actorName = "") {
       quality,
       cast
     FROM movies
-    WHERE LOWER(cast) LIKE LOWER(?)
+    WHERE LOWER(COALESCE(cast, '')) LIKE LOWER(?)
     ORDER BY year ASC
   `).all(`%${actorName.toLowerCase()}%`);
 }
