@@ -8368,6 +8368,20 @@ function getLegendStatusAndRank(rating = "") {
   };
 }
 
+function getMovieDossierHeader(tmdb = {}, extras = {}) {
+  const text = `${tmdb.collection || ""} ${extras.universe || ""} ${tmdb.title || ""}`
+    .toLowerCase();
+
+  if (text.includes("james bond")) return "███ BOND DOSSIER ███";
+  if (text.includes("marvel")) return "███ MARVEL DOSSIER ███";
+  if (text.includes("star wars")) return "███ GALACTIC DOSSIER ███";
+  if (text.includes("jurassic")) return "███ JURASSIC DOSSIER ███";
+  if (text.includes("fast") || text.includes("furious")) return "███ FAST SAGA DOSSIER ███";
+  if (text.includes("mission impossible")) return "███ IMF DOSSIER ███";
+
+  return "███ LEGENDS DOSSIER ███";
+}
+
 function movieCaption(tmdb, extras = {}) {
   const genreText = String(tmdb.genre || "Sonstige")
     .split("/")
@@ -8405,8 +8419,16 @@ function movieCaption(tmdb, extras = {}) {
   const { legend, rank } = getLegendStatusAndRank(ratingText);
 
   const title = escapeHtml(tmdb.title || "Unbekannt");
+  const titleUpper = title.toUpperCase();
   const year = tmdb.year ? ` (${escapeHtml(tmdb.year)})` : "";
   const libraryId = escapeHtml(extras.libraryId || "Unbekannt");
+  
+  const collectionLine =
+  tmdb.collection
+    ? `🌌 ${escapeHtml(tmdb.collection)}\n`
+    : extras.universe
+      ? `🌌 ${escapeHtml(extras.universe)}\n`
+      : "";
 
   const runtime = tmdb.runtime || "Unbekannt";
   const runtimeText =
@@ -8415,14 +8437,15 @@ function movieCaption(tmdb, extras = {}) {
       : `${runtime} Min.`;
 
   return (
-    "███ LEGENDS DOSSIER ███\n\n" +
+    `${getMovieDossierHeader(tmdb, extras)}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    `<b>🎬 ${String(title).toUpperCase()}${year}</b>\n` +
+    `<b>🎬 ${titleUpper}${year}</b>\n` +
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
     `🏷 ${libraryId}\n` +
     `🎭 ${escapeHtml(genreText)}\n` +
+    collectionLine +
     `⭐ IMDb • ${escapeHtml(ratingText)}${ratingText !== "Unbekannt" ? "/10" : ""}\n\n` +
 
     `📀 ${escapeHtml(extras.quality || "HD")} • ${escapeHtml(extras.resolution || "1920x1080")}\n` +
@@ -9125,7 +9148,7 @@ async function seriesCaption(tmdb, media, extras = {}) {
 
   let safeOverview = overviewRaw;
 
-  if (safeOverview.length > 260) {
+  if (safeOverview.length > 350) {
   safeOverview = safeOverview.slice(0, 260);
 
   const lastSentenceEnd = Math.max(
@@ -9191,7 +9214,7 @@ const caption =
 
   `🎬 ${finalEpisodeTitle || "Unbekannter Episodentitel"}\n` +
   `🎭 ${genreText || "Sonstige"}\n` +
-  `⭐ IMDb • ${tmdb.rating || "Unbekannt"}\n\n` +
+  `⭐ IMDb • ${tmdb.rating || "Unbekannt"}${String(tmdb.rating || "").includes("/10") ? "" : "/10"}\n\n` +
 
   `📀 ${quality} • ${resolution}\n` +
   `💾 ${fileSize}\n\n` +
@@ -9206,7 +9229,7 @@ const caption =
 
   "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
 
-  `${seriesTag} ${genreTags}\n` +
+  `${seriesTag} #S${seasonText} ${genreTags}\n` +
   "@LibraryOfLegends";
 
   return cleanTelegramText(caption).slice(0, 1024);
