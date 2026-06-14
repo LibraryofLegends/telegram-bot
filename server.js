@@ -6507,6 +6507,20 @@ async function actorDossierCaption(actorName = "") {
     text += "\n";
   }
 
+    if (facts.length) {
+    text +=
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "<b>📚 ARCHIVE FACTS</b>\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n";
+
+    facts.forEach((fact, index) => {
+      text +=
+        `${String(index + 1).padStart(2, "0")} • ${fact.content}\n`;
+    });
+
+    text += "\n";
+  }
+
   text +=
     "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
     "@LibraryOfLegends";
