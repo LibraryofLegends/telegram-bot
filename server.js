@@ -3809,6 +3809,79 @@ async function getOrCreateMovieBucketTopic(tmdb = {}) {
   };
 }
 
+function detectCollection(title = "") {
+  const t = String(title || "").toLowerCase();
+
+  if (t.includes("james bond") || t.includes("007")) {
+    return "James Bond Filmreihe";
+  }
+
+  if (t.includes("jurassic")) {
+    return "Jurassic Park Filmreihe";
+  }
+
+  if (t.includes("fast") || t.includes("furious")) {
+    return "Fast & Furious Filmreihe";
+  }
+
+  if (t.includes("mission impossible")) {
+    return "Mission: Impossible Filmreihe";
+  }
+
+  if (t.includes("bourne")) {
+    return "Bourne Filmreihe";
+  }
+
+  if (t.includes("john wick")) {
+    return "John Wick Filmreihe";
+  }
+
+  if (t.includes("final destination")) {
+    return "Final Destination Filmreihe";
+  }
+
+  return "";
+}
+
+function detectUniverse(title = "") {
+  const t = String(title || "").toLowerCase();
+
+  if (
+    t.includes("avengers") ||
+    t.includes("iron man") ||
+    t.includes("captain america") ||
+    t.includes("thor") ||
+    t.includes("guardians")
+  ) {
+    return "Marvel Cinematic Universe";
+  }
+
+  if (
+    t.includes("star wars")
+  ) {
+    return "Star Wars Universe";
+  }
+
+  if (
+    t.includes("toy story") ||
+    t.includes("frozen") ||
+    t.includes("vaiana") ||
+    t.includes("encanto")
+  ) {
+    return "Disney Universe";
+  }
+
+  if (
+    t.includes("batman") ||
+    t.includes("superman") ||
+    t.includes("justice league")
+  ) {
+    return "DC Universe";
+  }
+
+  return null;
+}
+
 // =============================
 // UNIVERSE DETECTION
 // =============================
@@ -6061,10 +6134,61 @@ async function buildEliteArchiveHubCaption() {
   return text.slice(0, 4000);
 }
 
+async function buildHallOfFameHubCaption() {
+  const movies = await getEliteArchiveRows();
+
+  const hallMovies =
+    movies
+      .map((movie) => ({
+        ...movie,
+        ratingValue: getRatingValue(movie.rating)
+      }))
+      .filter((movie) => movie.ratingValue >= 8.0)
+      .sort((a, b) => b.ratingValue - a.ratingValue)
+      .slice(0, 50);
+
+  let text =
+    "███ HALL OF FAME HUB ███\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "<b>🏆 LEGENDARY MOVIE ARCHIVE</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `🎬 Filme • ${hallMovies.length}\n` +
+    "⭐ Mindestwertung • 8.0/10\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "<b>👑 HALL OF FAME INDEX</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!hallMovies.length) {
+    text += "Noch keine Hall-of-Fame-Filme gespeichert.\n\n";
+  } else {
+    hallMovies.forEach((m, index) => {
+      text +=
+        `${String(index + 1).padStart(2, "0")} • ${m.title || "Unbekannt"}${m.year ? ` (${m.year})` : ""}\n` +
+        `     ⭐ ${m.ratingValue}/10 • ${m.quality || "?"} • ${m.library_id || "NO-ID"}\n\n`;
+    });
+  }
+
+  text +=
+    "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
 async function createOrUpdateEliteArchiveHub() {
   return await createOrUpdateSystemHub({
     name: "🏆 Elite Archive",
     captionBuilder: buildEliteArchiveHubCaption
+  });
+}
+
+async function createOrUpdateHallOfFameHub() {
+  return await createOrUpdateSystemHub({
+    name: "🏆 Hall of Fame",
+    captionBuilder: buildHallOfFameHubCaption
   });
 }
 
@@ -6397,10 +6521,11 @@ async function createOrUpdateCommandTopicHub({
   }
 
   const msg = await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text
-  });
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: Number(topicId),
+  text,
+  parse_mode: "HTML"
+});
 
   if (msg?.message_id) {
     if (pgPool) {
@@ -8283,6 +8408,13 @@ function getLegendStatusAndRank(rating = "") {
     legend: "⭐ Standard",
     rank: "Standard Entry"
   };
+}
+
+function isHallOfFameMovie(rating = "") {
+  const match = String(rating).match(/\d+(\.\d+)?/);
+  const value = match ? Number(match[0]) : 0;
+
+  return value >= 8.0;
 }
 
 function getMovieDossierHeader(tmdb = {}, extras = {}) {
@@ -10861,6 +10993,7 @@ await createOrUpdateCollectionsIndexHub();
 await createOrUpdateUniversesIndexHub();
 await createOrUpdatePremiumQualityHub();
 await createOrUpdateEliteArchiveHub();
+await createOrUpdateHallOfFameHub();
 await createOrUpdateNewReleasesHub();
 await createOrUpdateMovieLibraryHub();
 
@@ -13863,6 +13996,19 @@ if (text === "/rebuildcommandcenters") {
   } finally {
     REBUILD_COMMAND_CENTERS_RUNNING = false;
   }
+
+  return;
+}
+
+if (text === "/rebuildhalloffame") {
+  await createOrUpdateHallOfFameHub();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Hall of Fame Hub aktualisiert\n\n" +
+      "🏆 Mindestwertung • 8.0/10"
+  });
 
   return;
 }
@@ -16933,7 +17079,10 @@ await saveMovie({
   telegramMessageId: copied.message_id,
   topicId,
 
-  collection: tmdb.collection,
+  collection:
+  tmdb.collection ||
+  detectCollection(tmdb.title) ||
+  null,
 
   quality: extras.quality,
   audio: extras.audio,
@@ -16954,11 +17103,24 @@ await saveMovie({
 
   hdr: extras.hdr,
 
-  universe: universeData?.universeName || null,
+  universe:
+  universeData?.universeName ||
+  detectUniverse(tmdb.title) ||
+  null,
   universePhase: universeData?.phase || null,
 
   starWarsEra: starWarsEra?.key || null
 });
+
+if (isHallOfFameMovie(tmdb.rating)) {
+  await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "🏆 Hall of Fame",
+    type: "system_hub"
+  });
+
+  console.log("🏆 Hall of Fame Movie erkannt:", tmdb.title);
+}
 
 // =============================
 // UPDATE MOVIE INDEX HUB
