@@ -13408,25 +13408,39 @@ if (command === "/addfact") {
       text:
         "⚠️ Nutzung:\n\n" +
         "/addfact Kategorie | Titel | Fakt\n\n" +
+        "Oder mit Film-Verknüpfung:\n\n" +
+        "/addfact Kategorie | Titel | Film | Fakt\n\n" +
         "Beispiel:\n" +
-        "/addfact Schauspieler-Dossier | Jason Statham | Vor seiner Schauspielkarriere war er professioneller Turmspringer."
+        "/addfact Romanvorlage | Blitz Novel | Blitz | Der Film basiert auf dem Roman Blitz von Ken Bruen."
     });
     return;
   }
 
-  const [category, title, content] = parts;
+  const category = parts[0];
+  const title = parts[1];
+
+  let relatedMovie = null;
+  let content = "";
+
+  if (parts.length >= 4) {
+    relatedMovie = parts[2];
+    content = parts.slice(3).join(" | ");
+  } else {
+    content = parts.slice(2).join(" | ");
+  }
 
   const libraryId =
     `KNOW-${String(Date.now()).slice(-6)}`;
+
+  const isActorFact =
+    category.toLowerCase().includes("schauspieler");
 
   await saveKnowledge({
     title,
     category,
     content,
-    relatedPerson:
-      category.toLowerCase().includes("schauspieler")
-        ? title
-        : null,
+    relatedMovie,
+    relatedPerson: isActorFact ? title : null,
     libraryId
   });
 
@@ -13443,10 +13457,8 @@ if (command === "/addfact") {
       title,
       category,
       content,
-      relatedPerson:
-        category.toLowerCase().includes("schauspieler")
-          ? title
-          : "",
+      relatedMovie,
+      relatedPerson: isActorFact ? title : "",
       libraryId
     }),
     parse_mode: "HTML"
@@ -13457,7 +13469,8 @@ if (command === "/addfact") {
     text:
       "✅ Knowledge Fact gespeichert\n\n" +
       `📚 ${title}\n` +
-      `📂 ${category}`
+      `📂 ${category}` +
+      (relatedMovie ? `\n🎬 Film • ${relatedMovie}` : "")
   });
 
   return;
