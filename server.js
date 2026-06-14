@@ -6422,10 +6422,42 @@ async function getActorMovies(actorName = "") {
   `).all(`%${actorName.toLowerCase()}%`);
 }
 
+async function getKnowledgeByPerson(personName = "") {
+  if (!personName) return [];
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT title, category, content, library_id
+      FROM knowledge
+      WHERE LOWER(COALESCE(related_person, '')) LIKE LOWER($1)
+         OR LOWER(COALESCE(title, '')) LIKE LOWER($1)
+      ORDER BY created_at DESC
+      LIMIT 5
+      `,
+      [`%${personName}%`]
+    );
+
+    return result.rows;
+  }
+
+  return db.prepare(`
+    SELECT title, category, content, library_id
+    FROM knowledge
+    WHERE LOWER(COALESCE(related_person, '')) LIKE LOWER(?)
+       OR LOWER(COALESCE(title, '')) LIKE LOWER(?)
+    ORDER BY created_at DESC
+    LIMIT 5
+  `).all(`%${personName.toLowerCase()}%`, `%${personName.toLowerCase()}%`);
+}
+
 async function actorDossierCaption(actorName = "") {
 
   const movies =
     await getActorMovies(actorName);
+    
+    const facts =
+  await getKnowledgeByPerson(actorName);
 
   const bestMovie =
     [...movies].sort((a, b) =>
