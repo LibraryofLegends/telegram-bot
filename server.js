@@ -8505,6 +8505,19 @@ function buildMovieArchiveProgressBar(movieCount = 0) {
   return "■".repeat(filled) + "□".repeat(size - filled);
 }
 
+function getCollectionHubHeader(topicName = "") {
+  const text = String(topicName || "").toLowerCase();
+
+  if (text.includes("james bond")) return "███ BOND ARCHIVE HUB ███";
+  if (text.includes("marvel")) return "███ MARVEL ARCHIVE HUB ███";
+  if (text.includes("star wars")) return "███ GALACTIC ARCHIVE HUB ███";
+  if (text.includes("jurassic")) return "███ JURASSIC ARCHIVE HUB ███";
+  if (text.includes("fast") || text.includes("furious")) return "███ FAST SAGA ARCHIVE HUB ███";
+  if (text.includes("mission impossible")) return "███ IMF ARCHIVE HUB ███";
+
+  return "███ LEGENDS COLLECTION HUB ███";
+}
+
 // =============================
 // MOVIE HUB CAPTION — COLLECTION / LIBRARY V2
 // =============================
@@ -8620,7 +8633,7 @@ async function movieHubCaption(topicName = "", topicId = null) {
       : `🎬 ${cleanTopic.toUpperCase()}`;
 
   let result =
-    "███ LEGENDS COLLECTION HUB ███\n\n" +
+    `${getCollectionHubHeader(topicName)}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     `<b>${hubTitle}</b>\n` +
