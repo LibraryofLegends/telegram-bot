@@ -13120,6 +13120,74 @@ if (command === "/importseriesnews") {
   return;
 }
 
+if (command === "/addfact") {
+  const raw = text.replace(command, "").trim();
+
+  const parts = raw
+    .split("|")
+    .map((p) => p.trim());
+
+  if (parts.length < 3) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/addfact Kategorie | Titel | Fakt\n\n" +
+        "Beispiel:\n" +
+        "/addfact Schauspieler-Dossier | Jason Statham | Vor seiner Schauspielkarriere war er professioneller Turmspringer."
+    });
+    return;
+  }
+
+  const [category, title, content] = parts;
+
+  const libraryId =
+    `KNOW-${String(Date.now()).slice(-6)}`;
+
+  await saveKnowledge({
+    title,
+    category,
+    content,
+    relatedPerson:
+      category.toLowerCase().includes("schauspieler")
+        ? title
+        : null,
+    libraryId
+  });
+
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "📚 Knowledge Archive",
+    type: "knowledge"
+  });
+
+  await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text: knowledgeCaption({
+      title,
+      category,
+      content,
+      relatedPerson:
+        category.toLowerCase().includes("schauspieler")
+          ? title
+          : "",
+      libraryId
+    }),
+    parse_mode: "HTML"
+  });
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Knowledge Fact gespeichert\n\n" +
+      `📚 ${title}\n` +
+      `📂 ${category}`
+  });
+
+  return;
+}
+
 if (command === "/repairseriesnews") {
   const count =
     await repairSeriesNewsCategories();
