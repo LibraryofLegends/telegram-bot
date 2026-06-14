@@ -6461,12 +6461,16 @@ async function actorDossierCaption(actorName = "") {
   } else {
 
     movies.slice(0, 30).forEach((movie, index) => {
+  const ratingText =
+    movie.rating
+      ? `⭐ ${movie.rating}${String(movie.rating).includes("/10") ? "" : "/10"}`
+      : "⭐ ?";
 
-      text +=
-        `${String(index + 1).padStart(2, "0")} • ${movie.title}` +
-        `${movie.year ? ` (${movie.year})` : ""}\n`;
-
-    });
+  text +=
+    `${String(index + 1).padStart(2, "0")} • ${movie.title}` +
+    `${movie.year ? ` (${movie.year})` : ""}\n` +
+    `     ${ratingText} • ${movie.quality || "?"}\n\n`;
+});
 
     text += "\n";
   }
