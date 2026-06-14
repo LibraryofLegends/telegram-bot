@@ -6451,6 +6451,126 @@ async function getKnowledgeByPerson(personName = "") {
   `).all(`%${personName.toLowerCase()}%`, `%${personName.toLowerCase()}%`);
 }
 
+async function getKnowledgeByMovie(movieTitle = "") {
+  if (!movieTitle) return [];
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT
+        title,
+        category,
+        content,
+        library_id
+      FROM knowledge
+      WHERE LOWER(COALESCE(related_movie, ''))
+        LIKE LOWER($1)
+      ORDER BY created_at DESC
+      LIMIT 10
+      `,
+      [`%${movieTitle}%`]
+    );
+
+    return result.rows;
+  }
+
+  return db.prepare(`
+    SELECT
+      title,
+      category,
+      content,
+      library_id
+    FROM knowledge
+    WHERE LOWER(COALESCE(related_movie, ''))
+      LIKE LOWER(?)
+    ORDER BY created_at DESC
+    LIMIT 10
+  `).all(`%${movieTitle.toLowerCase()}%`);
+}
+
+async function findMovieForInfo(query = "") {
+  if (!query) return null;
+
+  const key = makeKey(query);
+
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT *
+      FROM movies
+      ORDER BY title ASC
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT *
+      FROM movies
+      ORDER BY title ASC
+    `).all();
+  }
+
+  return rows.find((movie) => {
+    const movieKey = makeKey(movie.title || "");
+
+    return (
+      movieKey === key ||
+      movieKey.includes(key) ||
+      key.includes(movieKey)
+    );
+  }) || null;
+}
+
+async function movieInfoCaption(query = "") {
+  const movie = await findMovieForInfo(query);
+
+  if (!movie) {
+    return null;
+  }
+
+  const facts =
+    await getKnowledgeByMovie(movie.title);
+
+  let text =
+    "███ MOVIE INTEL DOSSIER ███\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `<b>🎬 ${escapeHtml(String(movie.title || "Unbekannt").toUpperCase())}${movie.year ? ` (${escapeHtml(movie.year)})` : ""}</b>\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `🏷 ${escapeHtml(movie.library_id || "NO-ID")}\n` +
+    `🎭 ${escapeHtml(movie.genre || "Unbekannt")}\n` +
+    `⭐ IMDb • ${escapeHtml(movie.rating || "Unbekannt")}${String(movie.rating || "").includes("/10") ? "" : "/10"}\n\n` +
+
+    `📀 ${escapeHtml(movie.quality || "Unbekannt")} • ${escapeHtml(movie.resolution || "Unbekannt")}\n` +
+    `💾 ${escapeHtml(movie.file_size || "Unbekannt")} • ⏱ ${escapeHtml(movie.runtime || "Unbekannt")}\n\n` +
+
+    `🎬 Regie • ${escapeHtml(movie.director || "Unbekannt")}\n` +
+    `👥 Cast • ${escapeHtml(movie.cast || movie.cast_list || "Unbekannt")}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "<b>📚 KNOWLEDGE FILES</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (!facts.length) {
+    text += "Noch keine Knowledge-Fakten für diesen Film gespeichert.\n\n";
+  } else {
+    facts.forEach((fact, index) => {
+      text +=
+        `${String(index + 1).padStart(2, "0")} • ${escapeHtml(fact.content)}\n`;
+    });
+
+    text += "\n";
+  }
+
+  text +=
+    "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
+    "@LibraryOfLegends";
+
+  return text.slice(0, 4000);
+}
+
 async function actorDossierCaption(actorName = "") {
 
   const movies =
@@ -13338,6 +13458,44 @@ if (command === "/addfact") {
       "✅ Knowledge Fact gespeichert\n\n" +
       `📚 ${title}\n` +
       `📂 ${category}`
+  });
+
+  return;
+}
+
+if (command === "/movieinfo") {
+  const query =
+    text.replace(command, "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/movieinfo FILMTITEL\n\n" +
+        "Beispiel:\n" +
+        "/movieinfo Blitz"
+    });
+    return;
+  }
+
+  const dossier =
+    await movieInfoCaption(query);
+
+  if (!dossier) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Film nicht gefunden:\n\n" +
+        query
+    });
+    return;
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: dossier,
+    parse_mode: "HTML"
   });
 
   return;
