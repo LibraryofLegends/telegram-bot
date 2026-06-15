@@ -8246,6 +8246,14 @@ function getMediaExtras(fileName, msg) {
   const resolution = detectResolution(msg.video);
   const detectedQuality = detectQuality(fileName, msg.video);
 
+  const fileBytes =
+    msg.video?.file_size ||
+    msg.document?.file_size ||
+    0;
+
+  const fileSizeGB =
+    fileBytes / (1024 * 1024 * 1024);
+
   let autoQuality = "SD";
 
   const width =
@@ -8259,14 +8267,25 @@ function getMediaExtras(fileName, msg) {
     autoQuality = "HD";
   }
 
-  return {
-    quality:
-      detectedQuality && detectedQuality !== "Unbekannt"
-        ? detectedQuality
-        : autoQuality,
+  let finalQuality =
+    detectedQuality && detectedQuality !== "Unbekannt"
+      ? detectedQuality
+      : autoQuality;
 
+  // Telegram liefert manchmal nur Preview-Auflösung.
+  // Große Dateien werden deshalb zusätzlich über Dateigröße korrigiert.
+  if (finalQuality === "SD" && fileSizeGB >= 3) {
+    finalQuality = "UHD";
+  } else if (finalQuality === "SD" && fileSizeGB >= 1.5) {
+    finalQuality = "FHD";
+  } else if (finalQuality === "HD" && fileSizeGB >= 3) {
+    finalQuality = "UHD";
+  }
+
+  return {
+    quality: finalQuality,
     resolution,
-    fileSize: formatFileSize(msg.video?.file_size || msg.document?.file_size),
+    fileSize: formatFileSize(fileBytes),
     audio: detectAudio(fileName),
     source: detectSource(fileName),
     videoCodec: detectVideoCodec(fileName),
