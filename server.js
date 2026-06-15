@@ -18087,8 +18087,13 @@ try {
 }
 
 // =============================
-// UPDATE HUBS
+// UPDATE HUBS — DISABLED IN MOVIE V3
 // =============================
+// Keine automatischen Hub-Updates mehr pro Upload.
+// Filme werden nur noch in die feste V3-Topic-Struktur einsortiert.
+// Das verhindert doppelte Topics, technische Hubs und überfüllte Themenbereiche.
+
+/*
 if (universeData?.universeName) {
   try {
     await createOrUpdateUniverseHub(
@@ -18133,6 +18138,7 @@ if (universeData?.universeName) {
     }
   }
 }
+*/
 
 // =============================
 // UPDATE STAR WARS ERA HUBS
