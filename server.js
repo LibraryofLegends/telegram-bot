@@ -11817,6 +11817,7 @@ async function movieCommandCenterCaption() {
   let hallOfFameCount = 0;
   let knowledgeCount = 0;
   let newReleaseCount = 0;
+  let totalBytes = 0;
 
   if (pgPool) {
     movieCount = Number((await pgPool.query(`
@@ -11853,10 +11854,15 @@ async function movieCommandCenterCaption() {
     `)).rows[0]?.count || 0);
 
     newReleaseCount = Number((await pgPool.query(`
-  SELECT COUNT(*) AS count
-  FROM movies
-  WHERE NULLIF(year, '')::int >= 2024
-`)).rows[0]?.count || 0);
+      SELECT COUNT(*) AS count
+      FROM movies
+      WHERE NULLIF(year, '')::int >= 2024
+    `)).rows[0]?.count || 0);
+
+    totalBytes = Number((await pgPool.query(`
+      SELECT COALESCE(SUM(file_size_bytes), 0) AS total
+      FROM movies
+    `)).rows[0]?.total || 0);
   } else {
     movieCount = db.prepare(`
       SELECT COUNT(*) AS count
@@ -11892,47 +11898,54 @@ async function movieCommandCenterCaption() {
     `).get()?.count || 0;
 
     newReleaseCount = db.prepare(`
-  SELECT COUNT(*) AS count
-  FROM movies
-  WHERE CAST(NULLIF(year, '') AS INTEGER) >= 2024
-`).get()?.count || 0;
+      SELECT COUNT(*) AS count
+      FROM movies
+      WHERE CAST(NULLIF(year, '') AS INTEGER) >= 2024
+    `).get()?.count || 0;
+
+    totalBytes = Number(db.prepare(`
+      SELECT COALESCE(SUM(file_size_bytes), 0) AS total
+      FROM movies
+    `).get()?.total || 0);
   }
 
+  const totalGB =
+    (totalBytes / 1024 / 1024 / 1024).toFixed(2);
+
   return (
-    "███ MOVIE COMMAND CENTER ███\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎛 FILM-KOMMANDOZENTRUM\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    "🎛 LIBRARY OF LEGENDS OS\n" +
-    "CINEMATIC DATABASE CORE • ONLINE\n\n" +
+    "📁 PREMIUM-FILMARCHIV\n" +
+    "🎬 AUTOMATISIERTES FILM-SYSTEM\n" +
+    "🧠 SMARTES FILM-MANAGEMENT\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    "📊 ARCHIVE STATUS\n" +
+    "📊 ARCHIV-STATUS\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
-
-    `🎬 Filme • ${movieCount}\n` +
-    `🎞 Filmreihen • ${collectionCount}\n` +
-    `🌌 Universen • ${universeCount}\n` +
-    `🏆 Hall of Fame • ${hallOfFameCount}\n` +
-    `📚 Knowledge Files • ${knowledgeCount}\n` +
-    `🔥 Neuerscheinungen • ${newReleaseCount}\n\n` +
+    `🎬 Filme: ${movieCount}\n` +
+    `🎞 Filmreihen: ${collectionCount}\n` +
+    `🌌 Universen: ${universeCount}\n` +
+    `💾 Speicher: ${totalGB} GB\n` +
+    `🏆 Hall of Fame: ${hallOfFameCount}\n` +
+    `📚 Knowledge Files: ${knowledgeCount}\n` +
+    `🔥 Neuerscheinungen: ${newReleaseCount}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    "🧭 NAVIGATION CORE\n" +
+    "🧭 NAVIGATION\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
-
     "🔥 Neuerscheinungen\n" +
     "🌌 Star Wars Universe\n" +
     "🏰 Disney Universe\n" +
     "🧬 Marvel Universe\n" +
-    "🦇 DC Universe\n\n" +
-
-    "🎞 Filmreihen\n\n" +
-
+    "🦇 DC Universe\n" +
+    "🎞 Filmreihen\n" +
     "🎬 Klassische Filme\n" +
     "📼 Filme der 80er\n" +
     "📀 Filme der 90er\n" +
     "🎥 Filme der 2000er\n" +
-    "🚀 Neuere Filme\n\n" +
-
+    "🚀 Neuere Filme\n" +
     "🌍 Internationale Filme\n" +
     "📚 Dokumentationen\n" +
     "🎨 Animation\n" +
