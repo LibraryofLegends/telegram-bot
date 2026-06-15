@@ -9198,8 +9198,13 @@ function movieCaption(tmdb, extras = {}) {
       ? extras.videoCodec
       : "H.264";
 
-  const ratingText = tmdb.rating || "Unbekannt";
-  const { legend } = getLegendStatusAndRank(ratingText);
+  const rawRating = String(tmdb.rating || "");
+
+const ratingText =
+  rawRating.match(/\d+(\.\d+)?/)?.[0] ||
+  "Unbekannt";
+
+const { legend } = getLegendStatusAndRank(ratingText);
 
   const title = escapeHtml(tmdb.title || "Unbekannt");
   const titleUpper = title.toUpperCase();
