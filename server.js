@@ -17607,7 +17607,7 @@ if (detectedCollection && !universeData?.universeName) {
 // =============================
 await tg("sendPhoto", {
   chat_id: MOVIE_GROUP_ID,
-  message_thread_id: Number(topicId),
+  message_thread_id: topicId,
   photo:
     tmdb.posterUrl ||
     "https://via.placeholder.com/500x750.png?text=No+Cover"
