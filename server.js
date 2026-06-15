@@ -11872,10 +11872,10 @@ async function movieCommandCenterCaption() {
     `).get()?.count || 0;
 
     newReleaseCount = db.prepare(`
-      SELECT COUNT(*) AS count
-      FROM movies
-      WHERE year >= 2024
-    `).get()?.count || 0;
+  SELECT COUNT(*) AS count
+  FROM movies
+  WHERE CAST(NULLIF(year, '') AS INTEGER) >= 2024
+`).get()?.count || 0;
   }
 
   return (
