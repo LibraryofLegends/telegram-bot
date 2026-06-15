@@ -6263,69 +6263,35 @@ async function buildEliteArchiveHubCaption() {
 async function buildHallOfFameHubCaption() {
   const movies = await getEliteArchiveRows();
 
-  const hallMovies =
-    movies
-      .map((movie) => ({
-        ...movie,
-        ratingValue: getRatingValue(movie.rating)
-      }))
-      .filter((movie) => movie.ratingValue >= 8.0)
-      .sort((a, b) => b.ratingValue - a.ratingValue)
-      .slice(0, 50);
-
-  const masterpieces =
-    hallMovies.filter((m) => m.ratingValue >= 8.8);
-
-  const hallOfFame =
-    hallMovies.filter((m) =>
-      m.ratingValue >= 8.0 &&
-      m.ratingValue < 8.8
-    );
+  const hallMovies = movies
+    .map((m) => ({
+      ...m,
+      ratingValue: getRatingValue(m.rating)
+    }))
+    .filter((m) => m.ratingValue >= 8)
+    .sort((a, b) => b.ratingValue - a.ratingValue)
+    .slice(0, 50);
 
   let text =
     "███ HALL OF FAME DOSSIER ███\n\n" +
-
-    `👑 MASTERPIECES • ${masterpieces.length}\n` +
-    `🏆 HALL OF FAME • ${hallOfFame.length}\n\n` +
-
+    `🏆 HALL OF FAME • ${hallMovies.length}\n\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
-    "<b>👑 MASTERPIECE INDEX</b>\n" +
+    "🏆 HALL OF FAME INDEX\n" +
     "━━━━━━━━━━━━━━━━━━\n\n";
 
-  if (!masterpieces.length) {
-    text += "Noch keine Einträge\n\n";
+  if (!hallMovies.length) {
+    text += "Noch keine Einträge\n";
   } else {
-    masterpieces.forEach((movie, index) => {
+    hallMovies.forEach((m, index) => {
       const medal =
         index === 0 ? "🥇" :
         index === 1 ? "🥈" :
         index === 2 ? "🥉" :
-        `#${index + 1}`;
+        `${String(index + 1).padStart(2, "0")} •`;
 
       text +=
-        `${medal} ${movie.title || "Unbekannt"}${movie.year ? ` (${movie.year})` : ""}\n` +
-        `   ⭐ ${movie.ratingValue}/10 • ${movie.library_id || "NO-ID"}\n\n`;
-    });
-  }
-
-  text +=
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "<b>🏆 HALL OF FAME INDEX</b>\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
-
-  if (!hallOfFame.length) {
-    text += "Noch keine Hall-of-Fame-Einträge\n\n";
-  } else {
-    hallOfFame.forEach((movie, index) => {
-      const medal =
-        index === 0 ? "🥇" :
-        index === 1 ? "🥈" :
-        index === 2 ? "🥉" :
-        `#${index + 1}`;
-
-      text +=
-        `${medal} ${movie.title || "Unbekannt"}${movie.year ? ` (${movie.year})` : ""}\n` +
-        `   ⭐ ${movie.ratingValue}/10 • ${movie.library_id || "NO-ID"}\n\n`;
+        `${medal} ${m.title}${m.year ? ` (${m.year})` : ""}\n` +
+        `   ⭐ ${m.ratingValue}/10 • ${m.library_id || "NO-ID"}\n\n`;
     });
   }
 
@@ -6338,17 +6304,17 @@ async function buildHallOfFameHubCaption() {
   return text.slice(0, 4000);
 }
 
-async function createOrUpdateEliteArchiveHub() {
-  return await createOrUpdateSystemHub({
-    name: "🏆 Elite Archive",
-    captionBuilder: buildEliteArchiveHubCaption
-  });
-}
-
 async function createOrUpdateHallOfFameHub() {
   return await createOrUpdateSystemHub({
     name: "🏆 Hall of Fame",
     captionBuilder: buildHallOfFameHubCaption
+  });
+}
+
+async function createOrUpdateEliteArchiveHub() {
+  return await createOrUpdateSystemHub({
+    name: "🏆 Elite Archive",
+    captionBuilder: buildEliteArchiveHubCaption
   });
 }
 
@@ -14305,7 +14271,6 @@ if (
   text === "/rebuildstarwars" ||
   text === "/rebuildstarwarseras" ||
   text === "/rebuildstarwarscenter" ||
-  text === "/rebuildhalloffame"
 ) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
