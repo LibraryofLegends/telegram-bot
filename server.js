@@ -11833,10 +11833,10 @@ async function movieCommandCenterCaption() {
     `)).rows[0]?.count || 0);
 
     newReleaseCount = Number((await pgPool.query(`
-      SELECT COUNT(*) AS count
-      FROM movies
-      WHERE year >= 2024
-    `)).rows[0]?.count || 0);
+  SELECT COUNT(*) AS count
+  FROM movies
+  WHERE NULLIF(year, '')::int >= 2024
+`)).rows[0]?.count || 0);
   } else {
     movieCount = db.prepare(`
       SELECT COUNT(*) AS count
@@ -18505,19 +18505,21 @@ try {
     seriesUniverseData.universeName
   );
 
-  await createOrUpdateMultiverseCommandCenter();
+  /*
+await createOrUpdateMultiverseCommandCenter();
 
-  if (isDcUniverse(seriesUniverseData?.universeKey)) {
-    await createOrUpdateDcCommandCenter();
-  }
+if (isDcUniverse(seriesUniverseData?.universeKey)) {
+  await createOrUpdateDcCommandCenter();
+}
 
-  if (isMarvelUniverse(seriesUniverseData?.universeKey)) {
-    await createOrUpdateMarvelCommandCenter();
-  }
+if (isMarvelUniverse(seriesUniverseData?.universeKey)) {
+  await createOrUpdateMarvelCommandCenter();
+}
 
-  if (isDisneyUniverse(seriesUniverseData?.universeKey)) {
-    await createOrUpdateDisneyCommandCenter();
-  }
+if (isDisneyUniverse(seriesUniverseData?.universeKey)) {
+  await createOrUpdateDisneyCommandCenter();
+}
+*/
 }
 
 } catch (err) {
@@ -18529,6 +18531,7 @@ try {
 
 }
 
+/*
 if (starWarsEra) {
   try {
     await createOrUpdateStarWarsEraHubs();
@@ -18540,6 +18543,7 @@ if (starWarsEra) {
     );
   }
 }
+*/
 
 await tg("sendMessage", {
   chat_id: msg.chat.id,
