@@ -8021,35 +8021,45 @@ function normalizeAllowedMovieTopic(topicName = "") {
 }
 
 function getSmartMovieTopic(tmdb = {}) {
-
-  const title =
-    String(tmdb.title || "").toLowerCase();
-
-  const genre =
-    String(tmdb.genre || "").toLowerCase();
-
-  const collection =
-    String(tmdb.collection || "").toLowerCase();
-
-  const year =
-    Number(tmdb.year || 0);
+  const title = String(tmdb.title || "").toLowerCase();
+  const genre = String(tmdb.genre || "").toLowerCase();
+  const collection = String(tmdb.collection || "").toLowerCase();
+  const universe = String(tmdb.universe || "").toLowerCase();
+  const country = String(tmdb.country || tmdb.land || "").toLowerCase();
+  const year = Number(tmdb.year || 0);
 
   // =============================
-  // STAR WARS
+  // NEUERSCHEINUNGEN
   // =============================
+  if (year >= 2024) {
+    return "🔥 Neuerscheinungen";
+  }
 
+  // =============================
+  // UNIVERSES
+  // =============================
   if (
+    universe.includes("star wars") ||
     title.includes("star wars") ||
     collection.includes("star wars")
   ) {
     return "🌌 Star Wars Universe";
   }
 
-  // =============================
-  // MARVEL
-  // =============================
+  if (
+    universe.includes("disney") ||
+    collection.includes("disney") ||
+    title.includes("frozen") ||
+    title.includes("vaiana") ||
+    title.includes("encanto") ||
+    title.includes("aladdin") ||
+    title.includes("lion king")
+  ) {
+    return "🏰 Disney Universe";
+  }
 
   if (
+    universe.includes("marvel") ||
     collection.includes("marvel") ||
     title.includes("avengers") ||
     title.includes("iron man") ||
@@ -8059,11 +8069,8 @@ function getSmartMovieTopic(tmdb = {}) {
     return "🧬 Marvel Universe";
   }
 
-  // =============================
-  // DC
-  // =============================
-
   if (
+    universe.includes("dc") ||
     title.includes("batman") ||
     title.includes("joker") ||
     title.includes("superman") ||
@@ -8075,67 +8082,65 @@ function getSmartMovieTopic(tmdb = {}) {
   }
 
   // =============================
-  // DISNEY
+  // FILMREIHEN
   // =============================
-
-  if (
-    title.includes("frozen") ||
-    title.includes("vaiana") ||
-    title.includes("encanto") ||
-    title.includes("aladdin") ||
-    title.includes("lion king")
-  ) {
-    return "🏰 Disney Universe";
-  }
-
-  // =============================
-  // ANIME
-  // =============================
-
-  if (genre.includes("anime")) {
-  return "⛩ Anime";
-}
-
-if (
-  genre.includes("animation") ||
-  genre.includes("animationsfilm")
-) {
-  return "🎨 Animation";
-}
-
-  // =============================
-  // DOKUMENTATION
-  // =============================
-
-  if (
-    genre.includes("dokumentation")
-  ) {
-    return "📚 Dokumentationen";
-  }
-
-  // =============================
-  // KINDER
-  // =============================
-
-  if (
-    genre.includes("familie") ||
-    genre.includes("kinder")
-  ) {
-    return "🧸 Kinderfilme";
-  }
-
-  // =============================
-  // FILMREIHE
-  // =============================
-
   if (tmdb.collection) {
     return "🎞 Filmreihen";
   }
 
   // =============================
+  // SPECIAL CATEGORIES
+  // =============================
+  if (
+    genre.includes("dokumentation") ||
+    genre.includes("doku") ||
+    genre.includes("documentary")
+  ) {
+    return "📚 Dokumentationen";
+  }
+
+  if (
+    genre.includes("anime") ||
+    title.includes("anime")
+  ) {
+    return "⛩ Anime";
+  }
+
+  if (
+    genre.includes("animation") ||
+    genre.includes("animationsfilm")
+  ) {
+    return "🎨 Animation";
+  }
+
+  if (
+    genre.includes("familie") ||
+    genre.includes("family") ||
+    genre.includes("kinder")
+  ) {
+    return "🧸 Kinderfilme";
+  }
+
+  if (
+    genre.includes("komödie") ||
+    genre.includes("comedy")
+  ) {
+    return "🍿 Familienfilme";
+  }
+
+  if (
+    country &&
+    !country.includes("usa") &&
+    !country.includes("united states") &&
+    !country.includes("deutschland") &&
+    !country.includes("germany")
+  ) {
+    return "🌍 Internationale Filme";
+  }
+
+  // =============================
   // JAHRGANG
   // =============================
-
   if (year > 0 && year < 1980) {
     return "🎬 Klassische Filme";
   }
