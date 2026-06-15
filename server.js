@@ -9741,53 +9741,26 @@ if (ratingNumber >= 8) {
 }
 
 // =============================
-// CREATE OR UPDATE MOVIE INDEX
+// CREATE OR UPDATE MOVIE INDEX — DISABLED IN LIBRARY V3
 // =============================
 async function createOrUpdateMovieIndex() {
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: "🔤 MOVIE INDEX A–Z",
-    type: "movie_index"
-  });
-
-  if (!topicId) return null;
-
-  const pages = await buildMovieIndexPages();
-
-  for (let i = 0; i < pages.length; i++) {
-    const pageText = pages[i];
-
-    await tg("sendMessage", {
-      chat_id: MOVIE_GROUP_ID,
-      message_thread_id: topicId,
-      text: pageText
-    });
-
-    await sleep(5000);
-  }
-
-  return true;
+  console.log("ℹ️ Movie A–Z Index in Library V3 deaktiviert");
+  return null;
 }
 
 // =============================
-// UPDATE MOVIE HUB
+// UPDATE MOVIE HUB — DISABLED IN LIBRARY V3
 // =============================
 async function updateMovieHub({
   topicId,
   topicName
 }) {
-  const topic =
-    await getMovieHubTopic(topicId);
+  console.log(
+    "ℹ️ Movie Hub Update in Library V3 deaktiviert:",
+    topicName
+  );
 
-  if (!topic?.movie_hub_message_id) {
-    return null;
-  }
-
-  return await tg("editMessageText", {
-    chat_id: MOVIE_GROUP_ID,
-    message_id: topic.movie_hub_message_id,
-    text: await movieHubCaption(topicName, topicId)
-  });
+  return null;
 }
 
 function getQualityBadge(quality = "") {
@@ -13313,12 +13286,9 @@ async function handleCallback(callback) {
   }
   
   if (data === "panel_movie_index") {
-
-  await createOrUpdateMovieIndex();
-
   await tg("answerCallbackQuery", {
     callback_query_id: query.id,
-    text: "🔤 Movie Index aktualisiert"
+    text: "Movie Index ist in Library V3 deaktiviert"
   });
 
   return;
@@ -17841,12 +17811,6 @@ try {
   await refreshMainCommandCentersOnly();
 } catch (err) {
   console.error("⚠️ Main Command Center Refresh Fehler:", err.message);
-}
-
-try {
-  await createOrUpdateMovieIndex();
-} catch (err) {
-  console.error("⚠️ Movie Index Update Fehler:", err.message);
 }
 
 logToDb(
