@@ -8252,9 +8252,11 @@ function getMediaExtras(fileName, msg) {
 
     audio: detectAudio(fileName),
     source: detectSource(fileName),
+
     videoCodec: detectVideoCodec(fileName),
     audioCodec: detectAudioCodec(fileName),
     audioChannels: detectAudioChannels(fileName),
+
     hdr: detectHDR(fileName)
   };
 }
