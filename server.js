@@ -17603,25 +17603,9 @@ if (detectedCollection && !universeData?.universeName) {
 }
 
 // =============================
-// POST COVER
+// COPY ORIGINAL MEDIA WITH FULL DOSSIER
 // =============================
-await tg("sendPhoto", {
-  chat_id: MOVIE_GROUP_ID,
-  message_thread_id: topicId,
-  photo:
-    tmdb.posterUrl ||
-    "https://via.placeholder.com/500x750.png?text=No+Cover"
-});
-
-// =============================
-// COPY ORIGINAL MEDIA
-// =============================
-const copied = await copyOriginalMedia({
-  fromChatId: msg.chat.id,
-  messageId: msg.message_id,
-  targetChatId: MOVIE_GROUP_ID,
-  topicId,
-  caption: movieLiteCaption(tmdb, {
+const movieDossierCaption = movieCaption(tmdb, {
   ...extras,
 
   topicName: finalTopicName,
@@ -17637,7 +17621,14 @@ const copied = await copyOriginalMedia({
 
   collectionOrder:
     tmdb.collectionMovies || []
-}),
+});
+
+const copied = await copyOriginalMedia({
+  fromChatId: msg.chat.id,
+  messageId: msg.message_id,
+  targetChatId: MOVIE_GROUP_ID,
+  topicId,
+  caption: movieDossierCaption,
   fileId,
   isVideo: !!msg.video,
   adminChatId: msg.chat.id
@@ -17647,40 +17638,10 @@ if (!copied?.message_id) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "⚠️ Film-Cover wurde gepostet, aber Datei konnte nicht kopiert werden."
+      "⚠️ Film konnte nicht kopiert werden."
   });
 
   return;
-}
-
-// =============================
-// SEND FULL LEGENDS DOSSIER
-// =============================
-try {
-  await tg("sendMessage", {
-    chat_id: MOVIE_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text: movieCaption(tmdb, {
-      ...extras,
-
-      topicName: finalTopicName,
-
-      universe:
-        universeData?.universeName || null,
-
-      universePhase:
-        universeData?.phase || null,
-
-      collectionMovies:
-        tmdb.collectionMovies?.length || 1,
-
-      collectionOrder:
-        tmdb.collectionMovies || []
-    }),
-    parse_mode: "HTML"
-  });
-} catch (err) {
-  console.error("⚠️ Full Movie Dossier Fehler:", err.message);
 }
 
 // =============================
