@@ -9205,7 +9205,7 @@ const ratingText =
   rawRating.match(/\d+(\.\d+)?/)?.[0] ||
   "Unbekannt";
 
-const { legend } = getLegendStatusAndRank(ratingText);
+const { legend, rank } = getLegendStatusAndRank(ratingText);
 
   const title = escapeHtml(tmdb.title || "Unbekannt");
   const titleUpper = title.toUpperCase();
