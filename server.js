@@ -14270,7 +14270,7 @@ if (
   text === "/rebuildmultiverse" ||
   text === "/rebuildstarwars" ||
   text === "/rebuildstarwarseras" ||
-  text === "/rebuildstarwarscenter" ||
+  text === "/rebuildstarwarscenter"
 ) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
