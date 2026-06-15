@@ -151,6 +151,7 @@ await pgPool.query(`
     library_id TEXT,
     resolution TEXT,
     file_size TEXT,
+    file_size_bytes BIGINT,
     video_codec TEXT,
     audio_codec TEXT,
     audio_channels TEXT,
@@ -160,6 +161,11 @@ await pgPool.query(`
     starwars_era TEXT,
     created_at TIMESTAMP DEFAULT NOW()
   );
+`);
+
+await pgPool.query(`
+  ALTER TABLE movies
+  ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT;
 `);
 
 await pgPool.query(`
@@ -8217,9 +8223,6 @@ function getMediaExtras(fileName, msg) {
     msg.document?.file_size ||
     0;
 
-  const fileSizeGB =
-    fileBytes / (1024 * 1024 * 1024);
-
   let autoQuality = "SD";
 
   const width =
@@ -8233,25 +8236,17 @@ function getMediaExtras(fileName, msg) {
     autoQuality = "HD";
   }
 
-  let finalQuality =
-    detectedQuality && detectedQuality !== "Unbekannt"
-      ? detectedQuality
-      : autoQuality;
-
-  // Telegram liefert manchmal nur Preview-Auflösung.
-  // Große Dateien werden deshalb zusätzlich über Dateigröße korrigiert.
-  if (finalQuality === "SD" && fileSizeGB >= 3) {
-    finalQuality = "UHD";
-  } else if (finalQuality === "SD" && fileSizeGB >= 1.5) {
-    finalQuality = "FHD";
-  } else if (finalQuality === "HD" && fileSizeGB >= 3) {
-    finalQuality = "UHD";
-  }
-
   return {
-    quality: finalQuality,
+    quality:
+      detectedQuality && detectedQuality !== "Unbekannt"
+        ? detectedQuality
+        : autoQuality,
+
     resolution,
+
     fileSize: formatFileSize(fileBytes),
+    fileSizeBytes: fileBytes,
+
     audio: detectAudio(fileName),
     source: detectSource(fileName),
     videoCodec: detectVideoCodec(fileName),
@@ -17700,6 +17695,7 @@ await saveMovie({
 
   resolution: extras.resolution,
   fileSize: extras.fileSize,
+  fileSizeBytes: extras.fileSizeBytes,
 
   videoCodec: extras.videoCodec,
   audioCodec: extras.audioCodec,
