@@ -9128,6 +9128,17 @@ function getLegendStatusAndRank(rating = "") {
   };
 }
 
+function getRatingStars(value = 0) {
+  const rating = Number(value || 0);
+
+  if (rating >= 8) return "★★★★☆";
+  if (rating >= 6) return "★★★☆☆";
+  if (rating >= 4) return "★★☆☆☆";
+  if (rating >= 2) return "★☆☆☆☆";
+
+  return "☆☆☆☆☆";
+}
+
 function isHallOfFameMovie(rating = "") {
   const match = String(rating).match(/\d+(\.\d+)?/);
   const value = match ? Number(match[0]) : 0;
@@ -9213,6 +9224,11 @@ function movieCaption(tmdb, extras = {}) {
     !["320x180", "480x270", "640x360"].includes(String(extras.resolution))
       ? ` • ${escapeHtml(extras.resolution)}`
       : "";
+      
+      const stars =
+  getRatingStars(
+    getRatingValue(ratingText)
+  );
 
   return (
     `${getMovieDossierHeader(tmdb, extras)}\n\n` +
@@ -9224,7 +9240,7 @@ function movieCaption(tmdb, extras = {}) {
     collectionLine +
     `🏷 ${libraryId}\n\n` +
 
-    `⭐ IMDb • ${escapeHtml(legend.replace("Hall of Fame", "").replace("Masterpiece", "").replace("Legendary", "").replace("Essential", "").replace("Standard", "").trim())} • (${escapeHtml(ratingText)}/10)\n` +
+    `⭐ IMDb • ${stars} • (${escapeHtml(ratingText)}/10)\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     `📀 ${escapeHtml(extras.quality || "HD")}${resolution}\n` +
     `💾 ${escapeHtml(extras.fileSize || "Unbekannt")} • ⏱ ${escapeHtml(runtimeText)}\n` +
