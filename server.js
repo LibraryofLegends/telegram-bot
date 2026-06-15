@@ -17603,6 +17603,17 @@ if (detectedCollection && !universeData?.universeName) {
 }
 
 // =============================
+// POST COVER
+// =============================
+await tg("sendPhoto", {
+  chat_id: MOVIE_GROUP_ID,
+  message_thread_id: Number(topicId),
+  photo:
+    tmdb.posterUrl ||
+    "https://via.placeholder.com/500x750.png?text=No+Cover"
+});
+
+// =============================
 // COPY ORIGINAL MEDIA WITH FULL DOSSIER
 // =============================
 const movieDossierCaption = movieCaption(tmdb, {
@@ -17638,7 +17649,7 @@ if (!copied?.message_id) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "⚠️ Film konnte nicht kopiert werden."
+      "⚠️ Cover wurde gepostet, aber Film konnte nicht kopiert werden."
   });
 
   return;
