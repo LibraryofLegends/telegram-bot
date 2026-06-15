@@ -11905,11 +11905,15 @@ async function movieCommandCenterCaption() {
       WHERE CAST(NULLIF(year, '') AS INTEGER) >= 2024
     `).get()?.count || 0;
 
-    totalBytes = Number(db.prepare(`
-      SELECT COALESCE(SUM(file_size_bytes), 0) AS total
-      FROM movies
-    `).get()?.total || 0);
-  }
+    try {
+  totalBytes = Number(db.prepare(`
+    SELECT COALESCE(SUM(file_size_bytes), 0) AS total
+    FROM movies
+  `).get()?.total || 0);
+} catch (err) {
+  console.error("⚠️ SQLite file_size_bytes fehlt:", err.message);
+  totalBytes = 0;
+}
 
   const totalGB =
     (totalBytes / 1024 / 1024 / 1024).toFixed(2);
