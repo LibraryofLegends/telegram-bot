@@ -11821,6 +11821,43 @@ async function movieCommandCenterCaption() {
   let newReleaseCount = 0;
   let totalBytes = 0;
 
+  let topicLines = "";
+
+  async function getTopicCount(topicName) {
+    if (pgPool) {
+      const topicKey = makeKey(`movie_category-${MOVIE_GROUP_ID}-${topicName}`);
+      const systemKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-${topicName}`);
+
+      const result = await pgPool.query(
+        `
+        SELECT COUNT(m.id) AS count
+        FROM movies m
+        LEFT JOIN topics t
+          ON Number(m.topic_id) = Number(t.topic_id)
+        WHERE t.unique_key = $1
+           OR t.unique_key = $2
+        `,
+        [topicKey, systemKey]
+      );
+
+      return Number(result.rows[0]?.count || 0);
+    }
+
+    const topicKey = makeKey(`movie_category-${MOVIE_GROUP_ID}-${topicName}`);
+    const systemKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-${topicName}`);
+
+    const row = db.prepare(`
+      SELECT COUNT(m.id) AS count
+      FROM movies m
+      LEFT JOIN topics t
+        ON m.topic_id = t.topic_id
+      WHERE t.unique_key = ?
+         OR t.unique_key = ?
+    `).get(topicKey, systemKey);
+
+    return Number(row?.count || 0);
+  }
+
   if (pgPool) {
     movieCount = Number((await pgPool.query(`
       SELECT COUNT(*) AS count
@@ -11906,15 +11943,22 @@ async function movieCommandCenterCaption() {
     `).get()?.count || 0;
 
     try {
-  totalBytes = Number(db.prepare(`
-    SELECT COALESCE(SUM(file_size_bytes), 0) AS total
-    FROM movies
-  `).get()?.total || 0);
-} catch (err) {
-  console.error("⚠️ SQLite file_size_bytes fehlt:", err.message);
-  totalBytes = 0;
-}
-}
+      totalBytes = Number(db.prepare(`
+        SELECT COALESCE(SUM(file_size_bytes), 0) AS total
+        FROM movies
+      `).get()?.total || 0);
+    } catch (err) {
+      console.error("⚠️ SQLite file_size_bytes fehlt:", err.message);
+      totalBytes = 0;
+    }
+  }
+
+  for (const topicName of ALLOWED_MOVIE_TOPICS) {
+    const count = await getTopicCount(topicName);
+
+    topicLines +=
+      `${topicName}: ${count}\n`;
+  }
 
   const totalGB =
     (totalBytes / 1024 / 1024 / 1024).toFixed(2);
@@ -11938,6 +11982,11 @@ async function movieCommandCenterCaption() {
     `🏆 Hall of Fame: ${hallOfFameCount}\n` +
     `📚 Knowledge Files: ${knowledgeCount}\n` +
     `🔥 Neuerscheinungen: ${newReleaseCount}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📂 THEMEN-STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    topicLines + "\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "🧭 NAVIGATION\n" +
