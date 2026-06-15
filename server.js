@@ -12962,8 +12962,14 @@ async function createOrUpdateCommandCenter({
   }
 
   if (!topic?.topic_id) {
-    return null;
-  }
+  console.error("❌ Command Center Topic nicht gefunden:", {
+    chatId,
+    topicName,
+    uniqueKey
+  });
+
+  return null;
+}
 
   if (topic.hub_message_id) {
     return await tg("editMessageText", {
@@ -12978,6 +12984,8 @@ async function createOrUpdateCommandCenter({
     message_thread_id: topic.topic_id,
     text: caption
   });
+  
+  console.log("🎛 Command Center Send Result:", JSON.stringify(msg, null, 2));
 
   if (msg?.message_id) {
     if (pgPool) {
