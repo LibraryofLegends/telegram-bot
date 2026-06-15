@@ -17372,6 +17372,19 @@ if (text === "/rebuildmovieindex") {
   return;
 }
 
+if (command === "/rebuildhalloffame") {
+  await createOrUpdateHallOfFameHub();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Hall of Fame Hub aktualisiert\n\n" +
+      "🏆 Mindestwertung • 8.0/10"
+  });
+
+  return;
+}
+
 // =============================
 // UNKNOWN COMMAND
 // =============================
