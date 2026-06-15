@@ -9165,6 +9165,11 @@ function movieCaption(tmdb, extras = {}) {
     .map((g) => `#${g.replace(/\s+/g, "")}`)
     .join(" ");
 
+  const libraryTag =
+    extras.libraryId
+      ? ` #${String(extras.libraryId).replace(/-/g, "")}`
+      : "";
+
   const castText = String(tmdb.cast || "Unbekannt")
     .split("•")
     .map((p) => p.trim())
@@ -9183,19 +9188,19 @@ function movieCaption(tmdb, extras = {}) {
       : "H.264";
 
   const ratingText = tmdb.rating || "Unbekannt";
-  const { legend, rank } = getLegendStatusAndRank(ratingText);
+  const { legend } = getLegendStatusAndRank(ratingText);
 
   const title = escapeHtml(tmdb.title || "Unbekannt");
   const titleUpper = title.toUpperCase();
   const year = tmdb.year ? ` (${escapeHtml(tmdb.year)})` : "";
   const libraryId = escapeHtml(extras.libraryId || "Unbekannt");
-  
+
   const collectionLine =
-  tmdb.collection
-    ? `🌌 ${escapeHtml(tmdb.collection)}\n`
-    : extras.universe
-      ? `🌌 ${escapeHtml(extras.universe)}\n`
-      : "";
+    tmdb.collection
+      ? `🌌 ${escapeHtml(tmdb.collection)}\n`
+      : extras.universe
+        ? `🌌 ${escapeHtml(extras.universe)}\n`
+        : "";
 
   const runtime = tmdb.runtime || "Unbekannt";
   const runtimeText =
@@ -9203,36 +9208,40 @@ function movieCaption(tmdb, extras = {}) {
       ? runtime
       : `${runtime} Min.`;
 
+  const resolution =
+    extras.resolution &&
+    !["320x180", "480x270", "640x360"].includes(String(extras.resolution))
+      ? ` • ${escapeHtml(extras.resolution)}`
+      : "";
+
   return (
     `${getMovieDossierHeader(tmdb, extras)}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     `<b>🎬 ${titleUpper}${year}</b>\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-
-    `🏷 ${libraryId}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
     `🎭 ${escapeHtml(genreText)}\n` +
     collectionLine +
-    `⭐ IMDb • ${escapeHtml(ratingText)}${ratingText !== "Unbekannt" ? "/10" : ""}\n\n` +
+    `🏷 ${libraryId}\n\n` +
 
-    `📀 ${escapeHtml(extras.quality || "HD")} • ${escapeHtml(extras.resolution || "1920x1080")}\n` +
+    `⭐ IMDb • ${escapeHtml(legend.replace("Hall of Fame", "").replace("Masterpiece", "").replace("Legendary", "").replace("Essential", "").replace("Standard", "").trim())} • (${escapeHtml(ratingText)}/10)\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `📀 ${escapeHtml(extras.quality || "HD")}${resolution}\n` +
     `💾 ${escapeHtml(extras.fileSize || "Unbekannt")} • ⏱ ${escapeHtml(runtimeText)}\n` +
-    `🎞 ${escapeHtml(cleanVideoCodec)} • 🔞 ${escapeHtml(tmdb.fsk || "FSK Unbekannt")}\n\n` +
-
-    `<b>👑 ${escapeHtml(legend)} • 🏆 ${escapeHtml(rank)}</b>\n\n` +
+    `🎞 ${escapeHtml(cleanVideoCodec)} • 🔞 ${escapeHtml(tmdb.fsk || "FSK Unbekannt")}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `<b>🏆 Elite Archive • ${escapeHtml(legend.replace(/^⭐+\s*/, ""))}</b>\n\n` +
 
     `🎬 ${escapeHtml(tmdb.director || "Unbekannt")}\n` +
-    `👥 ${escapeHtml(castText || "Unbekannt")}\n\n` +
-
+    `👥 ${escapeHtml(castText || "Unbekannt")}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
     "<b>📖 STORY DOSSIER</b>\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-
-    `${escapeHtml(safeOverview)}\n\n` +
-
-    "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
-
-    `${genreTags}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${escapeHtml(safeOverview)}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "<b>🛰 ARCHIV VERIFIZIERT ✅</b>\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${genreTags}${libraryTag}\n\n` +
     "@LibraryOfLegends"
   ).slice(0, 1024);
 }
