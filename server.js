@@ -9096,35 +9096,35 @@ function getLegendStatusAndRank(rating = "") {
 
   if (value >= 8.8) {
     return {
-      legend: "⭐⭐⭐⭐⭐ Masterpiece",
+      legend: "Masterpiece",
       rank: "Hall of Fame"
     };
   }
 
   if (value >= 8.0) {
     return {
-      legend: "⭐⭐⭐⭐ Hall of Fame",
+      legend: "Legendary",
       rank: "Hall of Fame"
     };
   }
 
   if (value >= 7.2) {
     return {
-      legend: "⭐⭐⭐ Legendary",
-      rank: "Elite Entry"
+      legend: "Legendary",
+      rank: "Elite Archive"
     };
   }
 
   if (value >= 6.0) {
     return {
-      legend: "⭐⭐ Essential",
-      rank: "Recommended"
+      legend: "Recommended",
+      rank: "Elite Archive"
     };
   }
 
   return {
-    legend: "⭐ Standard",
-    rank: "Standard Entry"
+    legend: "Standard",
+    rank: "Archive Entry"
   };
 }
 
@@ -9252,7 +9252,7 @@ const { legend } = getLegendStatusAndRank(ratingText);
     `💾 ${escapeHtml(extras.fileSize || "Unbekannt")} • ⏱ ${escapeHtml(runtimeText)}\n` +
     `🎞 ${escapeHtml(cleanVideoCodec)} • 🔞 ${escapeHtml(tmdb.fsk || "FSK Unbekannt")}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
-    `<b>🏆 Elite Archive • ${escapeHtml(legend.replace(/^⭐+\s*/, ""))}</b>\n\n` +
+    `<b>🏆 ${escapeHtml(rank)} • ${escapeHtml(legend)}</b>\n\n` +
 
     `🎬 ${escapeHtml(tmdb.director || "Unbekannt")}\n` +
     `👥 ${escapeHtml(castText || "Unbekannt")}\n` +
