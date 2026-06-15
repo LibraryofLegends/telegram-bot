@@ -8016,6 +8016,35 @@ function detectAudio(fileName = "") {
   return [...new Set(langs)].join(" • ") || "Unbekannt";
 }
 
+// =============================
+// ALLOWED MOVIE TOPICS
+// =============================
+const ALLOWED_MOVIE_TOPICS = [
+  "🔥 Neuerscheinungen",
+  "🌌 Star Wars Universe",
+  "🏰 Disney Universe",
+  "🧬 Marvel Universe",
+  "🦇 DC Universe",
+  "🎞 Filmreihen",
+  "🎬 Klassische Filme",
+  "📼 Filme der 80er",
+  "📀 Filme der 90er",
+  "🎥 Filme der 2000er",
+  "🚀 Neuere Filme",
+  "🌍 Internationale Filme",
+  "📚 Dokumentationen",
+  "🎨 Animation",
+  "🍿 Familienfilme",
+  "🧸 Kinderfilme",
+  "⛩ Anime"
+];
+
+function normalizeAllowedMovieTopic(topicName = "") {
+  return ALLOWED_MOVIE_TOPICS.includes(topicName)
+    ? topicName
+    : "🚀 Neuere Filme";
+}
+
 function getSmartMovieTopic(tmdb = {}) {
 
   const title =
@@ -8088,12 +8117,16 @@ function getSmartMovieTopic(tmdb = {}) {
   // ANIME
   // =============================
 
-  if (
-    genre.includes("anime") ||
-    genre.includes("animation")
-  ) {
-    return "⛩ Anime";
-  }
+  if (genre.includes("anime")) {
+  return "⛩ Anime";
+}
+
+if (
+  genre.includes("animation") ||
+  genre.includes("animationsfilm")
+) {
+  return "🎨 Animation";
+}
 
   // =============================
   // DOKUMENTATION
