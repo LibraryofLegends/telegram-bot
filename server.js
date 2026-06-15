@@ -13012,7 +13012,7 @@ async function refreshMainCommandCentersOnly() {
   try {
     await createOrUpdateCommandCenter({
       chatId: MOVIE_GROUP_ID,
-      topicName: "🎛 MOVIE COMMAND CENTER",
+      topicName: "🎛 Movie Command Center",
       caption: await movieCommandCenterCaption()
     });
   } catch (err) {
