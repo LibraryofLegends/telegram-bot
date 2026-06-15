@@ -12962,13 +12962,26 @@ async function createOrUpdateCommandCenter({
   }
 
   if (!topic?.topic_id) {
-  console.error("❌ Command Center Topic nicht gefunden:", {
+  const topicId = await createOrGetTopic({
     chatId,
-    topicName,
-    uniqueKey
+    name: topicName,
+    type: "system_hub"
   });
 
-  return null;
+  if (!topicId) {
+    console.error("❌ Command Center Topic konnte nicht erstellt werden:", {
+      chatId,
+      topicName,
+      uniqueKey
+    });
+
+    return null;
+  }
+
+  topic = {
+    topic_id: topicId,
+    hub_message_id: null
+  };
 }
 
   if (topic.hub_message_id) {
