@@ -11914,6 +11914,7 @@ async function movieCommandCenterCaption() {
   console.error("⚠️ SQLite file_size_bytes fehlt:", err.message);
   totalBytes = 0;
 }
+}
 
   const totalGB =
     (totalBytes / 1024 / 1024 / 1024).toFixed(2);
