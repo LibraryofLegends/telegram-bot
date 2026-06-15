@@ -9131,10 +9131,11 @@ function getLegendStatusAndRank(rating = "") {
 function getRatingStars(value = 0) {
   const rating = Number(value || 0);
 
-  if (rating >= 8) return "★★★★☆";
-  if (rating >= 6) return "★★★☆☆";
-  if (rating >= 4) return "★★☆☆☆";
-  if (rating >= 2) return "★☆☆☆☆";
+  if (rating >= 8.0) return "★★★★☆";
+  if (rating >= 7.0) return "★★★★☆";
+  if (rating >= 6.0) return "★★★☆☆";
+  if (rating >= 4.0) return "★★☆☆☆";
+  if (rating >= 2.0) return "★☆☆☆☆";
 
   return "☆☆☆☆☆";
 }
