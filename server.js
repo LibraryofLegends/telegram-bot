@@ -17557,15 +17557,22 @@ if (!universeData?.universeName) {
 */
 
 // =============================
-// COLLECTION DB ENTRY
+// COLLECTION DB ENTRY — LIBRARY V3
 // =============================
-if (useCollectionTopic && !universeData?.universeName) {
-  const existingCollection =
-    await getCollection(tmdb.collectionId);
+const detectedCollection =
+  tmdb.collection ||
+  detectCollection(tmdb.title) ||
+  null;
 
-  if (!existingCollection) {
+if (detectedCollection && !universeData?.universeName) {
+  const existingCollection =
+    tmdb.collectionId
+      ? await getCollection(tmdb.collectionId)
+      : null;
+
+  if (!existingCollection && tmdb.collectionId) {
     await saveCollection({
-      collectionName: tmdb.collection,
+      collectionName: detectedCollection,
       tmdbCollectionId: tmdb.collectionId,
       topicId,
       posterUrl: tmdb.collectionPoster || tmdb.posterUrl
