@@ -14110,233 +14110,25 @@ if (text === "/repairserieslibrary") {
 }
 
 // =============================
-// REBUILD MARVEL COMMAND CENTER
+// LEGACY V2 UNIVERSE COMMANDS — DISABLED IN LIBRARY V3
 // =============================
-if (command === "/rebuildmarvelcenter") {
-  try {
-    await createOrUpdateMarvelCommandCenter();
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "🧬 MARVEL COMMAND CENTER\n" +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        "✅ Command Center wurde aktualisiert.\n\n" +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "@LibraryOfLegends"
-    });
-  } catch (err) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "❌ Marvel Command Center Fehler:\n\n" +
-        err.message
-    });
-  }
-
-  return;
-}
-
-// =============================
-// REBUILD DISNEY COMMAND CENTER
-// =============================
-if (command === "/rebuilddisneycenter") {
-  try {
-    await createOrUpdateDisneyCommandCenter();
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "🏰 DISNEY COMMAND CENTER\n" +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        "✅ Command Center wurde aktualisiert.\n\n" +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "@LibraryOfLegends"
-    });
-  } catch (err) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "❌ Disney Command Center Fehler:\n\n" +
-        err.message
-    });
-  }
-
-  return;
-}
-
-// =============================
-// REBUILD DC COMMAND CENTER
-// =============================
-if (command === "/rebuilddccenter") {
-  try {
-    await createOrUpdateDcCommandCenter();
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "🦇 DC COMMAND CENTER\n" +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        "✅ Command Center wurde aktualisiert.\n\n" +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "@LibraryOfLegends"
-    });
-  } catch (err) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "❌ DC Command Center Fehler:\n\n" +
-        err.message
-    });
-  }
-
-  return;
-}
-
-// =============================
-// REBUILD UNIVERSE HUBS
-// =============================
-if (command === "/rebuilduniversehubs") {
-  let updated = 0;
-  let failed = 0;
-
-  for (const config of Object.values(universeConfigs)) {
-    try {
-      if (!config.topicName) continue;
-
-      await createOrUpdateUniverseHub(config.topicName);
-
-      updated++;
-
-      await sleep(1500);
-    } catch (err) {
-      failed++;
-
-      console.error("⚠️ Universe Hub Rebuild Fehler:", {
-        universe: config.topicName,
-        error: err.message
-      });
-    }
-  }
-
-  try {
-    await createOrUpdateMultiverseCommandCenter();
-  } catch (err) {
-    console.error(
-      "⚠️ Multiverse Command Center Rebuild Fehler:",
-      err.message
-    );
-  }
-
+if (
+  command === "/rebuildmarvelcenter" ||
+  command === "/rebuilddisneycenter" ||
+  command === "/rebuilddccenter" ||
+  command === "/rebuilduniversehubs" ||
+  command === "/repairuniverses"
+) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🌌 UNIVERSE HUBS REBUILT\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `✅ Aktualisiert: ${updated}\n` +
-      `⚠️ Fehler: ${failed}\n` +
-      "🌌 Multiverse Command Center aktualisiert\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
-  });
-
-  return;
-}
-
-// =============================
-// REPAIR UNIVERSE SYSTEM
-// =============================
-if (command === "/repairuniverses") {
-  let updated = 0;
-  let failed = 0;
-
-  try {
-    await createOrUpdateUniversesIndexHub();
-    updated++;
-  } catch (err) {
-    failed++;
-    console.error("⚠️ Universes Index Fehler:", err.message);
-  }
-
-  for (const config of Object.values(universeConfigs)) {
-    try {
-      if (!config.topicName) continue;
-
-      await createOrUpdateUniverseHub(config.topicName);
-      updated++;
-
-      await sleep(1500);
-    } catch (err) {
-      failed++;
-      console.error("⚠️ Universe Repair Fehler:", {
-        universe: config.topicName,
-        error: err.message
-      });
-    }
-  }
-
-    try {
-    await createOrUpdateMultiverseCommandCenter();
-    updated++;
-  } catch (err) {
-    failed++;
-    console.error("⚠️ Multiverse Repair Fehler:", err.message);
-  }
-
-  try {
-    await createOrUpdateDcCommandCenter();
-    updated++;
-  } catch (err) {
-    failed++;
-    console.error("⚠️ DC Command Center Repair Fehler:", err.message);
-  }
-
-  try {
-    await createOrUpdateMarvelCommandCenter();
-    updated++;
-  } catch (err) {
-    failed++;
-    console.error("⚠️ Marvel Command Center Repair Fehler:", err.message);
-  }
-
-  try {
-    await createOrUpdateDisneyCommandCenter();
-    updated++;
-  } catch (err) {
-    failed++;
-    console.error("⚠️ Disney Command Center Repair Fehler:", err.message);
-  }
-
-  try {
-    await createOrUpdateStarWarsEraHubs();
-    updated++;
-  } catch (err) {
-    failed++;
-    console.error("⚠️ Star Wars Era Repair Fehler:", err.message);
-  }
-
-  try {
-    await createOrUpdateStarWarsCommandCenter();
-    updated++;
-  } catch (err) {
-    failed++;
-    console.error("⚠️ Star Wars Command Center Repair Fehler:", err.message);
-  }
-
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🌌 UNIVERSE SYSTEM REPAIR\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `✅ Aktualisiert: ${updated}\n` +
-      `⚠️ Fehler: ${failed}\n\n` +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
+      "⚠️ Dieser V2-Befehl ist in Library of Legends V3 deaktiviert.\n\n" +
+      "Die neue Struktur nutzt feste Topics:\n\n" +
+      "🌌 Star Wars Universe\n" +
+      "🏰 Disney Universe\n" +
+      "🧬 Marvel Universe\n" +
+      "🦇 DC Universe\n\n" +
+      "Es werden keine separaten Command-Center oder Universe-Hubs mehr automatisch erstellt."
   });
 
   return;
@@ -14393,35 +14185,6 @@ if (text === "/resetelitetopic") {
       "Jetzt bitte ausführen:\n" +
       "/rebuildcommandcenters"
   });
-
-  return;
-}
-
-// =============================
-// REBUILD MULTIVERSE COMMAND CENTER
-// =============================
-if (command === "/rebuildmultiverse") {
-  try {
-    await createOrUpdateMultiverseCommandCenter();
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "🌌 MULTIVERSE COMMAND CENTER\n" +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        "✅ Command Center wurde aktualisiert.\n\n" +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "@LibraryOfLegends"
-    });
-  } catch (err) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "❌ Multiverse Command Center Fehler:\n\n" +
-        err.message
-    });
-  }
 
   return;
 }
@@ -14484,22 +14247,18 @@ if (text === "/resetmovielibrarytopic") {
   return;
 }
 
-// =============================
-// REBUILD STAR WARS HUB
-// =============================
-if (text === "/rebuildstarwars") {
-
-  await createOrUpdateUniverseHub("🌌 Star Wars Universe");
-
+if (
+  text === "/rebuildmultiverse" ||
+  text === "/rebuildstarwars" ||
+  text === "/rebuildstarwarseras" ||
+  text === "/rebuildstarwarscenter" ||
+  text === "/rebuildhalloffame"
+) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🌌 STAR WARS HUB REBUILT\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      "✅ Star-Wars-Hub wurde neu erstellt/aktualisiert\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
+      "⚠️ Dieser V2-Hub-Befehl ist in Library of Legends V3 deaktiviert.\n\n" +
+      "Die neue Struktur nutzt feste Movie-Topics und das Movie Command Center."
   });
 
   return;
@@ -14909,69 +14668,6 @@ if (text === "/rebuildcommandcenters") {
     console.error("❌ Rebuild Fehler:", err.message);
   } finally {
     REBUILD_COMMAND_CENTERS_RUNNING = false;
-  }
-
-  return;
-}
-
-if (text === "/rebuildhalloffame") {
-  await createOrUpdateHallOfFameHub();
-
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "✅ Hall of Fame Hub aktualisiert\n\n" +
-      "🏆 Mindestwertung • 8.0/10"
-  });
-
-  return;
-}
-
-// =============================
-// REBUILD STAR WARS ERAS
-// =============================
-if (text === "/rebuildstarwarseras") {
-
-  await createOrUpdateStarWarsEraHubs();
-
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🌌 STAR WARS ERAS REBUILT\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      "✅ Star-Wars-Ära-Hubs wurden neu erstellt\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
-  });
-
-  return;
-}
-
-// =============================
-// REBUILD STAR WARS COMMAND CENTER
-// =============================
-if (command === "/rebuildstarwarscenter") {
-  try {
-    await createOrUpdateStarWarsCommandCenter();
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "🌌 STAR WARS COMMAND CENTER\n" +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        "✅ Command Center wurde aktualisiert.\n\n" +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "@LibraryOfLegends"
-    });
-  } catch (err) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "❌ Star Wars Command Center Fehler:\n\n" +
-        err.message
-    });
   }
 
   return;
@@ -18021,8 +17717,12 @@ if (isHallOfFameMovie(tmdb.rating)) {
 }
 
 // =============================
-// UPDATE MOVIE INDEX HUB
+// UPDATE MOVIE INDEX HUB — DISABLED IN LIBRARY V3
 // =============================
+// Alte technische Movie-Hubs deaktiviert.
+// Keine automatischen Extra-Topics mehr pro Upload.
+
+/*
 try {
   await createOrUpdateMovieIndexHub();
   await createOrUpdateCollectionsIndexHub();
@@ -18037,6 +17737,7 @@ try {
     err.message
   );
 }
+*/
 
 // =============================
 // UPDATE HUBS — DISABLED IN MOVIE V3
@@ -18095,6 +17796,7 @@ if (universeData?.universeName) {
 // =============================
 // UPDATE STAR WARS ERA HUBS
 // =============================
+/*
 if (starWarsEra) {
   try {
     await createOrUpdateStarWarsEraHubs();
@@ -18106,6 +17808,7 @@ if (starWarsEra) {
     );
   }
 }
+*/
 
 // =============================
 // ADMIN CONFIRMATION
