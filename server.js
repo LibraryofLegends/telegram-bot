@@ -11833,7 +11833,7 @@ async function movieCommandCenterCaption() {
         SELECT COUNT(m.id) AS count
         FROM movies m
         LEFT JOIN topics t
-          ON Number(m.topic_id) = Number(t.topic_id)
+  ON m.topic_id = t.topic_id
         WHERE t.unique_key = $1
            OR t.unique_key = $2
         `,
