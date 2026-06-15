@@ -782,6 +782,7 @@ async function saveMovie(data) {
 
         resolution,
         file_size,
+        file_size_bytes,
 
         video_codec,
         audio_codec,
@@ -839,6 +840,7 @@ async function saveMovie(data) {
 
         data.resolution,
         data.fileSize,
+        data.fileSizeBytes,
 
         data.videoCodec,
         data.audioCodec,
@@ -860,7 +862,7 @@ async function saveMovie(data) {
       poster_url, file_name, file_id, unique_key,
       telegram_message_id, topic_id,
       collection, quality, audio, source, fsk, director, cast, library_id,
-      resolution, file_size, video_codec, audio_codec, audio_channels, hdr,
+      resolution, file_size, file_size_bytes, video_codec, audio_codec, audio_channels, hdr,
       universe, universe_phase, starwars_era
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -889,6 +891,7 @@ async function saveMovie(data) {
 
     data.resolution,
     data.fileSize,
+    data.fileSizeBytes,
     data.videoCodec,
     data.audioCodec,
     data.audioChannels,
