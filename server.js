@@ -8016,6 +8016,137 @@ function detectAudio(fileName = "") {
   return [...new Set(langs)].join(" • ") || "Unbekannt";
 }
 
+function getSmartMovieTopic(tmdb = {}) {
+
+  const title =
+    String(tmdb.title || "").toLowerCase();
+
+  const genre =
+    String(tmdb.genre || "").toLowerCase();
+
+  const collection =
+    String(tmdb.collection || "").toLowerCase();
+
+  const year =
+    Number(tmdb.year || 0);
+
+  // =============================
+  // STAR WARS
+  // =============================
+
+  if (
+    title.includes("star wars") ||
+    collection.includes("star wars")
+  ) {
+    return "🌌 Star Wars Universe";
+  }
+
+  // =============================
+  // MARVEL
+  // =============================
+
+  if (
+    collection.includes("marvel") ||
+    title.includes("avengers") ||
+    title.includes("iron man") ||
+    title.includes("thor") ||
+    title.includes("captain america")
+  ) {
+    return "🧬 Marvel Universe";
+  }
+
+  // =============================
+  // DC
+  // =============================
+
+  if (
+    title.includes("batman") ||
+    title.includes("joker") ||
+    title.includes("superman") ||
+    title.includes("wonder woman") ||
+    title.includes("aquaman") ||
+    title.includes("flash")
+  ) {
+    return "🦇 DC Universe";
+  }
+
+  // =============================
+  // DISNEY
+  // =============================
+
+  if (
+    title.includes("frozen") ||
+    title.includes("vaiana") ||
+    title.includes("encanto") ||
+    title.includes("aladdin") ||
+    title.includes("lion king")
+  ) {
+    return "🏰 Disney Universe";
+  }
+
+  // =============================
+  // ANIME
+  // =============================
+
+  if (
+    genre.includes("anime") ||
+    genre.includes("animation")
+  ) {
+    return "⛩ Anime";
+  }
+
+  // =============================
+  // DOKUMENTATION
+  // =============================
+
+  if (
+    genre.includes("dokumentation")
+  ) {
+    return "📚 Dokumentationen";
+  }
+
+  // =============================
+  // KINDER
+  // =============================
+
+  if (
+    genre.includes("familie") ||
+    genre.includes("kinder")
+  ) {
+    return "🧸 Kinderfilme";
+  }
+
+  // =============================
+  // FILMREIHE
+  // =============================
+
+  if (tmdb.collection) {
+    return "🎞 Filmreihen";
+  }
+
+  // =============================
+  // JAHRGANG
+  // =============================
+
+  if (year > 0 && year < 1980) {
+    return "🎬 Klassische Filme";
+  }
+
+  if (year >= 1980 && year <= 1989) {
+    return "📼 Filme der 80er";
+  }
+
+  if (year >= 1990 && year <= 1999) {
+    return "📀 Filme der 90er";
+  }
+
+  if (year >= 2000 && year <= 2009) {
+    return "🎥 Filme der 2000er";
+  }
+
+  return "🚀 Neuere Filme";
+}
+
 function formatFileSize(bytes = 0) {
   const size = Number(bytes || 0);
   if (!size) return "Unbekannt";
@@ -11443,16 +11574,30 @@ async function createOrGetTopic({ chatId, name, type }) {
 async function ensureCommandCenters() {
 
   const movieCenters = [
-    "📚 Movie Index",
-    "🎬 Movie Library",
-    "🧩 Collections",
-    "🌌 Universes",
-    "💎 Premium Quality",
-    "🔥 New Releases",
-    "🏆 Elite Archive",
+  "🎛 Movie Command Center",
 
-    "🎛 MOVIE COMMAND CENTER"
-  ];
+  "🔥 Neuerscheinungen",
+
+  "🌌 Star Wars Universe",
+  "🏰 Disney Universe",
+  "🧬 Marvel Universe",
+  "🦇 DC Universe",
+
+  "🎞 Filmreihen",
+
+  "🎬 Klassische Filme",
+  "📼 Filme der 80er",
+  "📀 Filme der 90er",
+  "🎥 Filme der 2000er",
+  "🚀 Neuere Filme",
+
+  "🌍 Internationale Filme",
+  "📚 Dokumentationen",
+  "🎨 Animation",
+  "🍿 Familienfilme",
+  "🧸 Kinderfilme",
+  "⛩ Anime"
+];
 
   const seriesCenters = [
   "🎛 SERIES COMMAND CENTER",
@@ -11491,7 +11636,7 @@ async function ensureCommandCenters() {
     await sleep(300);
   }
 
-  await ensureStarWarsEraTopics();
+  // await ensureStarWarsEraTopics();
 
   /*
   for (const bucket of movieTopicBuckets) {
@@ -11519,18 +11664,19 @@ async function ensureCommandCenters() {
 
   await createOrUpdateCommandCenter({
   chatId: MOVIE_GROUP_ID,
-  topicName: "🎛 MOVIE COMMAND CENTER",
+  topicName: "🎛 Movie Command Center",
   caption: await movieCommandCenterCaption()
 });
 
-await createOrUpdateMovieIndexHub();
-await createOrUpdateCollectionsIndexHub();
-await createOrUpdateUniversesIndexHub();
-await createOrUpdatePremiumQualityHub();
-await createOrUpdateEliteArchiveHub();
-await createOrUpdateHallOfFameHub();
-await createOrUpdateNewReleasesHub();
-await createOrUpdateMovieLibraryHub();
+// Alte technische Hubs deaktiviert, damit keine Extra-Topics entstehen
+// await createOrUpdateMovieIndexHub();
+// await createOrUpdateCollectionsIndexHub();
+// await createOrUpdateUniversesIndexHub();
+// await createOrUpdatePremiumQualityHub();
+// await createOrUpdateEliteArchiveHub();
+// await createOrUpdateHallOfFameHub();
+// await createOrUpdateNewReleasesHub();
+// await createOrUpdateMovieLibraryHub();
 
 await createOrUpdateCommandCenter({
   chatId: SERIES_GROUP_ID,
