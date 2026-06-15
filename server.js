@@ -795,18 +795,18 @@ async function saveMovie(data) {
         starwars_era
       )
       VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7,
-        $8, $9, $10,
-        $11, $12,
-        $13, $14, $15, $16,
-        $17, $18, $19,
-        $20,
-        $21, $22,
-        $23, $24, $25,
-        $26,
-        $27, $28, $29
-      )
+  $1, $2, $3, $4, $5, $6,
+  $7,
+  $8, $9, $10,
+  $11, $12,
+  $13, $14, $15, $16,
+  $17, $18, $19,
+  $20,
+  $21, $22, $23,
+  $24, $25, $26,
+  $27,
+  $28, $29, $30
+)
       ON CONFLICT (unique_key)
       DO NOTHING
       `,
@@ -839,18 +839,18 @@ async function saveMovie(data) {
         data.libraryId,
 
         data.resolution,
-        data.fileSize,
-        data.fileSizeBytes,
+data.fileSize,
+data.fileSizeBytes,
 
-        data.videoCodec,
-        data.audioCodec,
-        data.audioChannels,
+data.videoCodec,
+data.audioCodec,
+data.audioChannels,
 
-        data.hdr,
+data.hdr,
 
-        data.universe,
-        data.universePhase,
-        data.starWarsEra
+data.universe,
+data.universePhase,
+data.starWarsEra
       ]
     );
   }
@@ -865,7 +865,7 @@ async function saveMovie(data) {
       resolution, file_size, file_size_bytes, video_codec, audio_codec, audio_channels, hdr,
       universe, universe_phase, starwars_era
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.title,
     data.year,
