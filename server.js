@@ -11794,9 +11794,9 @@ async function movieCommandCenterCaption() {
   let movieCount = 0;
   let universeCount = 0;
   let collectionCount = 0;
-  let eliteCount = 0;
-  let uhdCount = 0;
-  let standaloneCount = 0;
+  let hallOfFameCount = 0;
+  let knowledgeCount = 0;
+  let newReleaseCount = 0;
 
   if (pgPool) {
     movieCount = Number((await pgPool.query(`
@@ -11818,28 +11818,25 @@ async function movieCommandCenterCaption() {
         AND TRIM(collection) <> ''
     `)).rows[0]?.count || 0);
 
-    standaloneCount = Number((await pgPool.query(`
-      SELECT COUNT(*) AS count
-      FROM movies
-      WHERE (collection IS NULL OR TRIM(collection) = '')
-        AND (universe IS NULL OR TRIM(universe) = '')
-    `)).rows[0]?.count || 0);
-
-    uhdCount = Number((await pgPool.query(`
-      SELECT COUNT(*) AS count
-      FROM movies
-      WHERE UPPER(COALESCE(quality, '')) LIKE '%UHD%'
-        OR COALESCE(resolution, '') LIKE '%2160%'
-        OR COALESCE(resolution, '') LIKE '%3840%'
-    `)).rows[0]?.count || 0);
-
     const ratingRows = (await pgPool.query(`
       SELECT rating
       FROM movies
       WHERE rating IS NOT NULL
     `)).rows;
 
-    eliteCount = ratingRows.filter((m) => getRatingValue(m.rating) >= 7).length;
+    hallOfFameCount =
+      ratingRows.filter((m) => getRatingValue(m.rating) >= 8).length;
+
+    knowledgeCount = Number((await pgPool.query(`
+      SELECT COUNT(*) AS count
+      FROM knowledge
+    `)).rows[0]?.count || 0);
+
+    newReleaseCount = Number((await pgPool.query(`
+      SELECT COUNT(*) AS count
+      FROM movies
+      WHERE year >= 2024
+    `)).rows[0]?.count || 0);
   } else {
     movieCount = db.prepare(`
       SELECT COUNT(*) AS count
@@ -11860,55 +11857,68 @@ async function movieCommandCenterCaption() {
         AND TRIM(collection) <> ''
     `).get()?.count || 0;
 
-    standaloneCount = db.prepare(`
-      SELECT COUNT(*) AS count
-      FROM movies
-      WHERE (collection IS NULL OR TRIM(collection) = '')
-        AND (universe IS NULL OR TRIM(universe) = '')
-    `).get()?.count || 0;
-
-    uhdCount = db.prepare(`
-      SELECT COUNT(*) AS count
-      FROM movies
-      WHERE UPPER(COALESCE(quality, '')) LIKE '%UHD%'
-        OR COALESCE(resolution, '') LIKE '%2160%'
-        OR COALESCE(resolution, '') LIKE '%3840%'
-    `).get()?.count || 0;
-
     const ratingRows = db.prepare(`
       SELECT rating
       FROM movies
       WHERE rating IS NOT NULL
     `).all();
 
-    eliteCount = ratingRows.filter((m) => getRatingValue(m.rating) >= 7).length;
+    hallOfFameCount =
+      ratingRows.filter((m) => getRatingValue(m.rating) >= 8).length;
+
+    knowledgeCount = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM knowledge
+    `).get()?.count || 0;
+
+    newReleaseCount = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM movies
+      WHERE year >= 2024
+    `).get()?.count || 0;
   }
 
   return (
     "███ MOVIE COMMAND CENTER ███\n\n" +
+
     "🎛 LIBRARY OF LEGENDS OS\n" +
     "CINEMATIC DATABASE CORE • ONLINE\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "📊 ARCHIVE STATUS\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 Movies • ${movieCount}\n` +
-    `🎞 Standalone • ${standaloneCount}\n` +
-    `🧩 Collections • ${collectionCount}\n` +
-    `🌌 Universes • ${universeCount}\n` +
-    `💎 UHD Movies • ${uhdCount}\n` +
-    `🏆 Elite Titles • ${eliteCount}\n\n` +
+
+    `🎬 Filme • ${movieCount}\n` +
+    `🎞 Filmreihen • ${collectionCount}\n` +
+    `🌌 Universen • ${universeCount}\n` +
+    `🏆 Hall of Fame • ${hallOfFameCount}\n` +
+    `📚 Knowledge Files • ${knowledgeCount}\n` +
+    `🔥 Neuerscheinungen • ${newReleaseCount}\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "🧭 NAVIGATION CORE\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
-    "📚 Movie Index\n" +
-    "🎬 Movie Library\n" +
-    "🧩 Collections\n" +
-    "🌌 Universes\n" +
-    "💎 Premium Quality\n" +
-    "🏆 Elite Archive\n" +
-    "🔥 New Releases\n\n" +
+
+    "🔥 Neuerscheinungen\n" +
+    "🌌 Star Wars Universe\n" +
+    "🏰 Disney Universe\n" +
+    "🧬 Marvel Universe\n" +
+    "🦇 DC Universe\n\n" +
+
+    "🎞 Filmreihen\n\n" +
+
+    "🎬 Klassische Filme\n" +
+    "📼 Filme der 80er\n" +
+    "📀 Filme der 90er\n" +
+    "🎥 Filme der 2000er\n" +
+    "🚀 Neuere Filme\n\n" +
+
+    "🌍 Internationale Filme\n" +
+    "📚 Dokumentationen\n" +
+    "🎨 Animation\n" +
+    "🍿 Familienfilme\n" +
+    "🧸 Kinderfilme\n" +
+    "⛩ Anime\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends"
@@ -17847,40 +17857,21 @@ console.log("🌌 STAR WARS ERA DETECT:", {
 });
 
   // =============================
-// MOVIE TOPIC ROUTING — CLEAN STRUCTURE
+// MOVIE TOPIC ROUTING — LIBRARY V3
 // =============================
-const useCollectionTopic =
-  Boolean(tmdb.collection);
+const finalTopicName =
+  getSmartMovieTopic({
+    ...tmdb,
+    collection:
+      tmdb.collection ||
+      detectCollection(tmdb.title) ||
+      null,
+    universe:
+      universeData?.universeName || null
+  });
 
-let finalTopicName = "🎬 Movie Library";
-let finalTopicType = "movie_library";
-
-// Universe-Filme bekommen eigene Universe-Topics
-if (universeData?.universeName) {
-  finalTopicName = universeData.universeName;
-  finalTopicType = "universe";
-}
-
-// Collections gehen gesammelt in Collections
-else if (useCollectionTopic) {
-  finalTopicName = "🧩 Collections";
-  finalTopicType = "movie_collections";
-}
-
-// Premium Qualität geht optional in Premium Quality
-else if (
-  String(extras.quality || "").toUpperCase().includes("UHD") ||
-  String(extras.quality || "").includes("2160")
-) {
-  finalTopicName = "💎 Premium Quality";
-  finalTopicType = "movie_quality";
-}
-
-// Alle normalen Filme gehen in Movie Library
-else {
-  finalTopicName = "🎬 Movie Library";
-  finalTopicType = "movie_library";
-}
+const finalTopicType =
+  "movie_category";
 
 const topicId = await createOrGetTopic({
   chatId: MOVIE_GROUP_ID,
@@ -17900,8 +17891,10 @@ if (!topicId) {
 }
 
 // =============================
-// MOVIE HUB SETUP
+// MOVIE HUB SETUP DEAKTIVIERT
+// Keine automatischen Hub-Posts mehr pro Topic
 // =============================
+/*
 if (!universeData?.universeName) {
   await createMovieHubIfMissing({
     topicId,
@@ -17913,6 +17906,7 @@ if (!universeData?.universeName) {
       null
   });
 }
+*/
 
 // =============================
 // COLLECTION DB ENTRY
