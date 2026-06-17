@@ -17007,20 +17007,28 @@ if (command === "/newseries") {
 }
 
 // =============================
-// SERIES REGISTRY TEST / HUB
+// SERIES REGISTRY / REBUILD SERIES HUB
 // =============================
-if (command === "/seriesregistry" || command.startsWith("/seriesregistry@")) {
+if (
+  command === "/seriesregistry" ||
+  command.startsWith("/seriesregistry@") ||
+  command === "/rebuildserieshub" ||
+  command.startsWith("/rebuildserieshub@")
+) {
   const query =
-    text.replace("/seriesregistry", "").trim();
+    text
+      .replace(/^\/(?:seriesregistry|rebuildserieshub)(?:@\w+)?/i, "")
+      .trim();
 
   if (!query) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
         "⚠️ Nutzung:\n\n" +
-        "/seriesregistry Serienname\n\n" +
+        "/seriesregistry Serienname\n" +
+        "/rebuildserieshub Serienname\n\n" +
         "Beispiel:\n" +
-        "/seriesregistry Tulsa King"
+        "/rebuildserieshub Tulsa King"
     });
 
     return;
@@ -17080,66 +17088,74 @@ if (command === "/seriesregistry" || command.startsWith("/seriesregistry@")) {
     const season =
       Number(row.season || 1);
 
+    const episode =
+      Number(row.episode || 0);
+
     if (!seasonMap.has(season)) {
-  seasonMap.set(season, {
-    season,
-    savedEpisodes: 0,
-    highestEpisode: 0,
-    totalEpisodes: 0
-  });
-}
+      seasonMap.set(season, {
+        season,
+        episodes: new Set(),
+        highestEpisode: 0
+      });
+    }
 
-const item =
-  seasonMap.get(season);
+    const item =
+      seasonMap.get(season);
 
-item.savedEpisodes += 1;
+    if (episode > 0) {
+      item.episodes.add(episode);
 
-if (row.episode) {
-  item.highestEpisode =
-    Math.max(
-      item.highestEpisode,
-      Number(row.episode)
-    );
-}
+      item.highestEpisode =
+        Math.max(
+          item.highestEpisode,
+          episode
+        );
+    }
   }
 
   const seasons =
-  [...seasonMap.values()]
-    .sort((a, b) => a.season - b.season)
-    .map((season) => {
-      const knownTotal =
-        getKnownSeasonEpisodeCount(
-          seriesTitle,
-          season.season
-        );
+    [...seasonMap.values()]
+      .sort((a, b) => a.season - b.season)
+      .map((season) => {
+        const knownTotal =
+          typeof getKnownSeasonEpisodeCount === "function"
+            ? getKnownSeasonEpisodeCount(
+                seriesTitle,
+                season.season
+              )
+            : 0;
 
-      return {
-        season:
-          season.season,
+        return {
+          season:
+            season.season,
 
-        savedEpisodes:
-          season.savedEpisodes,
+          savedEpisodes:
+            season.episodes.size,
 
-        totalEpisodes:
-          knownTotal || 0,
+          totalEpisodes:
+            knownTotal || 0,
 
-        highestEpisode:
-          season.highestEpisode || 0
-      };
-    });
+          highestEpisode:
+            season.highestEpisode || 0
+        };
+      });
 
   const savedEpisodes =
-    rows.length;
+    seasons.reduce(
+      (sum, season) =>
+        sum + Number(season.savedEpisodes || 0),
+      0
+    );
 
   const officialTotalEpisodes =
-  seasons.reduce(
-    (sum, season) =>
-      sum + Number(season.totalEpisodes || 0),
-    0
-  );
+    seasons.reduce(
+      (sum, season) =>
+        sum + Number(season.totalEpisodes || 0),
+      0
+    );
 
-const totalEpisodes =
-  officialTotalEpisodes || 0;
+  const totalEpisodes =
+    officialTotalEpisodes || 0;
 
   const seriesData = {
     title:
