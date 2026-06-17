@@ -10275,9 +10275,9 @@ async function seriesCaption(tmdb, media, extras = {}) {
       : "#Archive";
 
   const caption =
-    "╔══════════════════╗\n" +
-    "👑 LEGENDS PREMIUM DOSSIER\n" +
-    "╚══════════════════╝\n\n" +
+    "╔══════════════╗\n" +
+      "👑 PREMIUM DOSSIER\n" +
+    "╚══════════════╝\n\n" +
 
     `📺 ${escapeHtml(String(seriesTitle).toUpperCase())} ∙ 🌐 ${escapeHtml(episodeDisplay)}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
