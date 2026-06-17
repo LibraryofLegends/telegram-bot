@@ -17310,6 +17310,510 @@ if (command === "/checkseries") {
   return;
 }
 
+// =============================
+// EDIT MOVIE — SUPABASE / SQLITE
+// =============================
+if (text.startsWith("/editmovie")) {
+  const query =
+    text.replace("/editmovie", "").trim();
+
+  if (!query || !query.includes("|")) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/editmovie Suchname | feld=wert | feld=wert\n\n" +
+        "Beispiele:\n" +
+        "/editmovie Vaiana | rating=7.6 | genre=Animation/Abenteuer\n" +
+        "/editmovie Hannibal | collection=Hannibal Lecter Filmreihe\n" +
+        "/editmovie Vaiana | collection=-"
+    });
+
+    return;
+  }
+
+  const parts =
+    query
+      .split("|")
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+  const searchText =
+    parts.shift();
+
+  if (!searchText) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "❌ Kein Suchname angegeben."
+    });
+
+    return;
+  }
+
+  function normalizeEditValue(value = "") {
+    const clean =
+      String(value || "").trim();
+
+    const lower =
+      clean.toLowerCase();
+
+    if (
+      lower === "-" ||
+      lower === "null" ||
+      lower === "leer" ||
+      lower === "none"
+    ) {
+      return null;
+    }
+
+    return clean;
+  }
+
+  const fieldMap = {
+    title: "title",
+    titel: "title",
+    name: "title",
+
+    year: "year",
+    jahr: "year",
+
+    genre: "genre",
+    genres: "genre",
+
+    rating: "rating",
+    imdb: "rating",
+    bewertung: "rating",
+
+    runtime: "runtime",
+    laufzeit: "runtime",
+
+    overview: "overview",
+    story: "overview",
+    beschreibung: "overview",
+
+    collection: "collection",
+    reihe: "collection",
+    filmreihe: "collection",
+
+    quality: "quality",
+    qualität: "quality",
+
+    audio: "audio",
+    sprache: "audio",
+
+    source: "source",
+    quelle: "source",
+
+    fsk: "fsk",
+
+    director: "director",
+    regie: "director",
+
+    cast: pgPool ? "cast_list" : "cast",
+    darsteller: pgPool ? "cast_list" : "cast",
+
+    libraryid: "library_id",
+    library_id: "library_id",
+    ref: "library_id",
+
+    resolution: "resolution",
+    auflösung: "resolution",
+
+    filesize: "file_size",
+    file_size: "file_size",
+    größe: "file_size",
+    speicher: "file_size",
+
+    videocodec: "video_codec",
+    video_codec: "video_codec",
+    codec: "video_codec",
+
+    audiocodec: "audio_codec",
+    audio_codec: "audio_codec",
+
+    audiochannels: "audio_channels",
+    audio_channels: "audio_channels",
+    kanäle: "audio_channels",
+
+    hdr: "hdr",
+
+    universe: "universe",
+    universum: "universe",
+
+    universephase: "universe_phase",
+    universe_phase: "universe_phase",
+    phase: "universe_phase",
+
+    starwarsera: "starwars_era",
+    starwars_era: "starwars_era",
+    era: "starwars_era"
+  };
+
+  const updateValues = {};
+
+  for (const part of parts) {
+    const equalIndex =
+      part.indexOf("=");
+
+    if (equalIndex === -1) {
+      continue;
+    }
+
+    const rawKey =
+      part
+        .slice(0, equalIndex)
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "")
+        .replace(/-/g, "_");
+
+    const rawValue =
+      part.slice(equalIndex + 1);
+
+    const dbField =
+      fieldMap[rawKey];
+
+    if (!dbField) {
+      continue;
+    }
+
+    updateValues[dbField] =
+      normalizeEditValue(rawValue);
+  }
+
+  if (!Object.keys(updateValues).length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Keine gültigen Felder erkannt.\n\n" +
+        "Erlaubt sind z.B.:\n" +
+        "title, year, genre, rating, runtime, overview,\n" +
+        "collection, quality, source, fsk, director, cast"
+    });
+
+    return;
+  }
+
+  let movie = null;
+
+  const search =
+    `%${searchText.toLowerCase()}%`;
+
+  if (pgPool) {
+    const result =
+      await pgPool.query(
+        `
+        SELECT *
+        FROM movies
+        WHERE LOWER(title) LIKE $1
+           OR LOWER(file_name) LIKE $1
+           OR LOWER(unique_key) LIKE $1
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
+        [search]
+      );
+
+    movie =
+      result.rows[0] || null;
+  } else {
+    movie =
+      db.prepare(`
+        SELECT *
+        FROM movies
+        WHERE LOWER(title) LIKE ?
+           OR LOWER(file_name) LIKE ?
+           OR LOWER(unique_key) LIKE ?
+        ORDER BY created_at DESC
+        LIMIT 1
+      `).get(search, search, search);
+  }
+
+  if (!movie) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Film nicht gefunden:\n\n" +
+        searchText
+    });
+
+    return;
+  }
+
+  const nextTitle =
+    updateValues.title ??
+    movie.title;
+
+  const nextYear =
+    updateValues.year ??
+    movie.year;
+
+  if (
+    Object.prototype.hasOwnProperty.call(updateValues, "title") ||
+    Object.prototype.hasOwnProperty.call(updateValues, "year")
+  ) {
+    updateValues.unique_key =
+      makeKey(`${nextTitle}-${nextYear || "unknown"}`);
+  }
+
+  const entries =
+    Object.entries(updateValues);
+
+  try {
+    if (pgPool) {
+      const setSql =
+        entries
+          .map(([field], index) =>
+            `${field} = $${index + 1}`
+          )
+          .join(", ");
+
+      await pgPool.query(
+        `
+        UPDATE movies
+        SET ${setSql}
+        WHERE id = $${entries.length + 1}
+        `,
+        [
+          ...entries.map(([, value]) => value),
+          movie.id
+        ]
+      );
+    } else {
+      const setSql =
+        entries
+          .map(([field]) =>
+            `${field} = ?`
+          )
+          .join(", ");
+
+      db.prepare(`
+        UPDATE movies
+        SET ${setSql}
+        WHERE id = ?
+      `).run(
+        ...entries.map(([, value]) => value),
+        movie.id
+      );
+    }
+  } catch (err) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Film konnte nicht aktualisiert werden:\n\n" +
+        err.message
+    });
+
+    return;
+  }
+
+  let updatedMovie = null;
+
+  if (pgPool) {
+    const result =
+      await pgPool.query(
+        `
+        SELECT *
+        FROM movies
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [movie.id]
+      );
+
+    updatedMovie =
+      result.rows[0] || movie;
+  } else {
+    updatedMovie =
+      db.prepare(`
+        SELECT *
+        FROM movies
+        WHERE id = ?
+        LIMIT 1
+      `).get(movie.id) || movie;
+  }
+
+  const finalTmdb = {
+    title:
+      updatedMovie.title,
+
+    year:
+      updatedMovie.year,
+
+    genre:
+      updatedMovie.genre,
+
+    rating:
+      updatedMovie.rating,
+
+    runtime:
+      updatedMovie.runtime,
+
+    overview:
+      updatedMovie.overview,
+
+    posterUrl:
+      updatedMovie.poster_url,
+
+    fsk:
+      updatedMovie.fsk,
+
+    director:
+      updatedMovie.director,
+
+    cast:
+      updatedMovie.cast_list ||
+      updatedMovie.cast,
+
+    collection:
+      updatedMovie.collection
+  };
+
+  const finalExtras = {
+    quality:
+      updatedMovie.quality || "HD",
+
+    audio:
+      updatedMovie.audio || "Deutsch",
+
+    source:
+      updatedMovie.source || "Unbekannt",
+
+    libraryId:
+      updatedMovie.library_id || "",
+
+    resolution:
+      updatedMovie.resolution || "Unbekannt",
+
+    fileSize:
+      updatedMovie.file_size || "Unbekannt",
+
+    fileSizeBytes:
+      updatedMovie.file_size_bytes || null,
+
+    videoCodec:
+      updatedMovie.video_codec || "Unbekannt",
+
+    audioCodec:
+      updatedMovie.audio_codec || "Unbekannt",
+
+    audioChannels:
+      updatedMovie.audio_channels || "Unbekannt",
+
+    hdr:
+      updatedMovie.hdr || null,
+
+    universe:
+      updatedMovie.universe || null,
+
+    universePhase:
+      updatedMovie.universe_phase || null,
+
+    collection:
+      updatedMovie.collection || null
+  };
+
+  if (updatedMovie.collection) {
+    let collectionRows = [];
+
+    if (pgPool) {
+      const result =
+        await pgPool.query(
+          `
+          SELECT title, year
+          FROM movies
+          WHERE LOWER(collection) = LOWER($1)
+          ORDER BY year ASC, title ASC
+          `,
+          [updatedMovie.collection]
+        );
+
+      collectionRows =
+        result.rows;
+    } else {
+      collectionRows =
+        db.prepare(`
+          SELECT title, year
+          FROM movies
+          WHERE LOWER(collection) = LOWER(?)
+          ORDER BY year ASC, title ASC
+        `).all(updatedMovie.collection);
+    }
+
+    finalExtras.collectionMovies =
+      collectionRows.length || 1;
+
+    finalExtras.collectionOrder =
+      collectionRows.map((row) => ({
+        title: row.title,
+        year: row.year
+      }));
+  }
+
+  const newCaption =
+    updatedMovie.collection
+      ? collectionSagaCaption(finalTmdb, finalExtras)
+      : movieCaption(finalTmdb, finalExtras);
+
+  let captionStatus =
+    "ℹ️ Telegram-Caption nicht aktualisiert.";
+
+  if (updatedMovie.telegram_message_id) {
+    try {
+      const edited =
+        await tg("editMessageCaption", {
+          chat_id: MOVIE_GROUP_ID,
+          message_id: Number(updatedMovie.telegram_message_id),
+          caption: newCaption,
+          parse_mode: "HTML"
+        });
+
+      if (!edited?.__error) {
+        captionStatus =
+          "✅ Telegram-Caption aktualisiert.";
+      } else {
+        captionStatus =
+          "⚠️ Telegram-Caption konnte nicht aktualisiert werden.";
+      }
+    } catch (err) {
+      captionStatus =
+        "⚠️ Telegram-Caption Fehler: " + err.message;
+    }
+  }
+
+  try {
+    await refreshMainCommandCentersOnly();
+  } catch (err) {
+    console.error(
+      "⚠️ Command Center Refresh nach /editmovie fehlgeschlagen:",
+      err.message
+    );
+  }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "✅ FILM AKTUALISIERT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `🎬 ${updatedMovie.title} ${updatedMovie.year || ""}\n` +
+      `🆔 DB-ID: ${updatedMovie.id}\n\n` +
+      "Geändert:\n" +
+      entries
+        .map(([field, value]) =>
+          `• ${field}: ${value === null ? "leer" : value}`
+        )
+        .join("\n") +
+      "\n\n" +
+      captionStatus +
+      "\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
 if (text.startsWith("/fixseries")) {
   const query = text.replace("/fixseries", "").trim();
 
