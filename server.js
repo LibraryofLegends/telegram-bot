@@ -9373,110 +9373,142 @@ const videoCodec =
 }
 
 function movieCaption(tmdb, extras = {}) {
-  const genreText = String(tmdb.genre || "Sonstige")
-    .split("/")
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-    .join(" • ");
+  const genreParts =
+    String(tmdb.genre || "Sonstige")
+      .split(/[\/•,]/)
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .slice(0, 3);
 
-  const genreTags = String(tmdb.genre || "")
-    .split("/")
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-    .map((g) => `#${g.replace(/\s+/g, "")}`)
-    .join(" ");
+  const genreText =
+    genreParts.length
+      ? genreParts.join(" ∙ ")
+      : "Sonstige";
 
-  const libraryTag =
-    extras.libraryId
-      ? ` #${String(extras.libraryId).replace(/-/g, "")}`
-      : "";
+  const genreTags =
+    genreParts
+      .map((g) =>
+        `#${g.replace(/\s+/g, "")}`
+      )
+      .join(" ");
 
-  const castText = String(tmdb.cast || "Unbekannt")
-    .split("•")
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .slice(0, 2)
-    .join(" • ");
+  const ratingNumber =
+    getRatingValue(tmdb.rating);
 
-  const safeOverview = trimTextAtSentence(
-    tmdb.overview || "Keine Beschreibung verfügbar.",
-    230
-  );
+  const stars =
+    getRatingStars(ratingNumber);
 
-  const cleanVideoCodec =
+  const ratingText =
+    ratingNumber > 0
+      ? ratingNumber.toFixed(1)
+      : "Unbekannt";
+
+  const quality =
+    extras.quality || "HD";
+
+  const source =
+    extras.source && extras.source !== "Unbekannt"
+      ? extras.source
+      : quality === "UHD"
+        ? "4K Release"
+        : quality === "FHD"
+          ? "HD Release"
+          : "Release";
+
+  const fileSize =
+    extras.fileSize || "Unbekannt";
+
+  const videoCodec =
     extras.videoCodec && extras.videoCodec !== "Unbekannt"
       ? extras.videoCodec
-      : "H.264";
+          .replace("AVC / ", "")
+          .replace("HEVC / ", "")
+      : quality === "UHD"
+        ? "H.265"
+        : "x264";
 
-  const rawRating = String(tmdb.rating || "");
+  const runtime =
+    tmdb.runtime || "Unbekannt";
 
-const ratingText =
-  rawRating.match(/\d+(\.\d+)?/)?.[0] ||
-  "Unbekannt";
-
-const { legend, rank } = getLegendStatusAndRank(ratingText);
-
-  const title = escapeHtml(tmdb.title || "Unbekannt");
-  const titleUpper = title.toUpperCase();
-  const year = tmdb.year ? ` (${escapeHtml(tmdb.year)})` : "";
-  const libraryId = escapeHtml(extras.libraryId || "Unbekannt");
-
-  const collectionLine =
-    tmdb.collection
-      ? `🌌 ${escapeHtml(tmdb.collection)}\n`
-      : extras.universe
-        ? `🌌 ${escapeHtml(extras.universe)}\n`
-        : "";
-
-  const runtime = tmdb.runtime || "Unbekannt";
   const runtimeText =
     String(runtime).toLowerCase().includes("min")
       ? runtime
       : `${runtime} Min.`;
 
-  const resolution =
-    extras.resolution &&
-    !["320x180", "480x270", "640x360"].includes(String(extras.resolution))
-      ? ` • ${escapeHtml(extras.resolution)}`
-      : "";
-      
-      const stars =
-  getRatingStars(
-    getRatingValue(ratingText)
-  );
+  const fsk =
+    tmdb.fsk || "FSK Unbekannt";
 
-  return (
-    `${getMovieDossierHeader(tmdb, extras)}\n\n` +
+  const director =
+    tmdb.director || "Unbekannt";
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `<b>🎬 ${titleUpper}${year}</b>\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🎭 ${escapeHtml(genreText)}\n` +
-    collectionLine +
-    `🏷 ${libraryId}\n\n` +
+  const cast =
+    String(tmdb.cast || "Unbekannt")
+      .split("•")
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(" ∙ ");
 
-    `⭐ IMDb • ${stars} • (${escapeHtml(ratingText)}/10)\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `📀 ${escapeHtml(extras.quality || "HD")}${resolution}\n` +
-    `💾 ${escapeHtml(extras.fileSize || "Unbekannt")} • ⏱ ${escapeHtml(runtimeText)}\n` +
-    `🎞 ${escapeHtml(cleanVideoCodec)} • 🔞 ${escapeHtml(tmdb.fsk || "FSK Unbekannt")}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `<b>🏆 ${escapeHtml(rank)} • ${escapeHtml(legend)}</b>\n\n` +
+  const story =
+    trimTextAtSentence(
+      tmdb.overview || "Keine Beschreibung verfügbar.",
+      230
+    );
 
-    `🎬 ${escapeHtml(tmdb.director || "Unbekannt")}\n` +
-    `👥 ${escapeHtml(castText || "Unbekannt")}\n` +
+  const title =
+    String(tmdb.title || "Unbekannt").toUpperCase();
+
+  const year =
+    tmdb.year ? ` (${tmdb.year})` : "";
+
+  const rawArchiveId =
+    extras.archiveId ||
+    extras.libraryId ||
+    (
+      tmdb.year
+        ? `LL-${tmdb.year}`
+        : "LL-MOVIE"
+    );
+
+  const archiveId =
+    String(rawArchiveId)
+      .replace(/^#/, "")
+      .toUpperCase();
+
+  const archiveTag =
+    `#${archiveId.replace(/[^A-Z0-9]/g, "")}`;
+
+  const caption =
+    "╔═════════════════════╗\n" +
+    "║ 🎬 LEGENDS ARCHIVE // MOVIE ENTRY   ║\n" +
+    "╚═════════════════════╝\n\n" +
+
+    `🎬 ${escapeHtml(title)}${escapeHtml(year)}\n` +
+    "──────────────────\n" +
+    `🎭 Genre     • ${escapeHtml(genreText)}\n` +
+    `🏷 Archiv-ID • #${escapeHtml(archiveId)}\n\n` +
+
+    `⭐ Rating    • ${stars} ∙ ${escapeHtml(ratingText)}/10\n` +
+    "──────────────────\n" +
+    "📊 FILMINFO\n" +
+    `├─ 💿 Format  : ${escapeHtml(quality)} ∙ ${escapeHtml(source)}\n` +
+    `├─ 💾 Größe   : ${escapeHtml(fileSize)} ∙ ${escapeHtml(videoCodec)}\n` +
+    `├─ ⏱ Laufzeit: ${escapeHtml(runtimeText)}\n` +
+    `└─ 🔞 FSK     : ${escapeHtml(fsk)}\n` +
+    "──────────────────\n" +
+    "👥 TEAM & CAST\n" +
+    `🎬 Regie     : ${escapeHtml(director)}\n` +
+    `👥 Stars     : ${escapeHtml(cast)}\n` +
+    "──────────────────\n" +
+    "📖 INHALT\n" +
+    `${escapeHtml(story)}\n` +
+    "──────────────────\n" +
+    "📡 STATUS • LEGENDS ARCHIVE VERIFIED ✅\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
-    "<b>📖 STORY DOSSIER</b>\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `${escapeHtml(safeOverview)}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "<b>🛰 ARCHIV VERIFIZIERT ✅</b>\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `${genreTags}${libraryTag}\n\n` +
-    "@LibraryOfLegends"
-  ).slice(0, 1024);
+    `${genreTags} ${archiveTag}\n\n` +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(caption).slice(0, 1024);
 }
 
 function movieLiteCaption(tmdb, extras = {}) {
