@@ -10115,7 +10115,7 @@ function getSeriesNexusMeta(tmdb, media, extras = {}) {
 }
 
 // =============================
-// SERIES CAPTION — EPISODE NEXUS
+// SERIES CAPTION — LEGENDS PREMIUM DOSSIER
 // =============================
 async function seriesCaption(tmdb, media, extras = {}) {
   const finalEpisodeTitle =
@@ -10134,123 +10134,169 @@ async function seriesCaption(tmdb, media, extras = {}) {
   const episodeText =
     String(media.episode).padStart(2, "0");
 
-  const genreText = String(tmdb.genre || "Sonstige")
-    .split("/")
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-    .join(" • ");
+  const episodeDisplay =
+    media.isDoubleEpisode && media.episodeEnd
+      ? `S${seasonText}E${String(media.episode).padStart(2, "0")}+E${String(media.episodeEnd).padStart(2, "0")}`
+      : `S${seasonText}E${episodeText}`;
 
-  const genreTags = String(tmdb.genre || "")
-    .split("/")
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .slice(0, 3)
-    .map((g) => `#${g.replace(/\s+/g, "")}`)
-    .join(" ");
+  const genreParts =
+    String(tmdb.genre || "Sonstige")
+      .split(/[\/•,]/)
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+
+  const genreText =
+    genreParts.length
+      ? genreParts.join(" ∙ ")
+      : "Sonstige";
+
+  const genreTags =
+    genreParts
+      .map((g) =>
+        `#${g.replace(/\s+/g, "")}`
+      )
+      .join(" ");
 
   const seriesTag =
-  "#" + String(seriesTitle)
-    .split(/\s+/)
-    .filter(Boolean)
-    .map(word =>
-      word.charAt(0).toUpperCase() +
-      word.slice(1).toLowerCase()
-    )
-    .join("")
-    .replace(/[^a-zA-Z0-9ÄÖÜäöüß]/g, "");
+    "#" + String(seriesTitle)
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) =>
+        word.charAt(0).toUpperCase() +
+        word.slice(1).toLowerCase()
+      )
+      .join("")
+      .replace(/[^a-zA-Z0-9ÄÖÜäöüß]/g, "");
 
-  const overviewRaw = String(
-    tmdb.overview || "Keine Beschreibung verfügbar."
-  )
-    .replace(/\s+/g, " ")
-    .trim();
+  const story =
+    trimTextAtSentence(
+      tmdb.overview || "Keine Beschreibung verfügbar.",
+      230
+    );
 
-  let safeOverview = overviewRaw;
+  const ratingNumber =
+    getRatingValue(tmdb.rating);
 
-  if (safeOverview.length > 350) {
-  safeOverview = safeOverview.slice(0, 260);
+  const stars =
+    ratingNumber >= 9
+      ? "★★★★★"
+      : getRatingStars(ratingNumber);
 
-  const lastSentenceEnd = Math.max(
-    safeOverview.lastIndexOf("."),
-    safeOverview.lastIndexOf("!"),
-    safeOverview.lastIndexOf("?")
-  );
+  const ratingText =
+    ratingNumber > 0
+      ? ratingNumber.toFixed(1)
+      : "Unbekannt";
 
-  if (lastSentenceEnd > 150) {
-    safeOverview =
-      safeOverview.slice(0, lastSentenceEnd + 1);
-  } else {
-    const lastSpace =
-      safeOverview.lastIndexOf(" ");
-
-    if (lastSpace > 150) {
-      safeOverview =
-        safeOverview.slice(0, lastSpace);
-    }
-
-    safeOverview += " …";
-  }
-}
+  const { rank } =
+    getLegendStatusAndRank(ratingText);
 
   const quality =
-    extras.quality ||
-    "Unbekannt";
+    extras.quality || "HD";
 
   const resolution =
-    extras.resolution ||
-    extras.videoResolution ||
-    "Unbekannt";
+    extras.resolution &&
+    extras.resolution !== "Unbekannt"
+      ? extras.resolution
+      : extras.videoResolution &&
+        extras.videoResolution !== "Unbekannt"
+        ? extras.videoResolution
+        : "";
+
+  const sourceLabel =
+    quality === "UHD"
+      ? "UHD 4K"
+      : quality === "FHD"
+        ? "FHD"
+        : quality === "HD"
+          ? "HD"
+          : quality || "Unbekannt";
+
+  const sourceText =
+    resolution
+      ? `${sourceLabel} ∙ ${resolution}`
+      : sourceLabel;
 
   const fileSize =
-    extras.fileSize ||
-    "Unbekannt";
+    extras.fileSize || "Unbekannt";
 
-  const archiveEpisodeCode =
-  media.isDoubleEpisode && media.episodeEnd
-    ? `S${seasonText}E${String(media.episode).padStart(2, "0")}-E${String(media.episodeEnd).padStart(2, "0")}`
-    : `S${seasonText}E${episodeText}`;
+  function normalizeEpisodeVideoCodec(codec = "") {
+    const value =
+      String(codec || "").toLowerCase();
 
-const archiveCode =
-  `SER-${String(seriesTitle)
-    .replace(/[^a-z0-9]/gi, "")
-    .toUpperCase()
-    .slice(0, 5)}-${archiveEpisodeCode}`;
+    if (
+      value.includes("hevc") ||
+      value.includes("h.265") ||
+      value.includes("x265")
+    ) {
+      return "HEVC x265";
+    }
 
-const episodeDisplay =
-  media.isDoubleEpisode && media.episodeEnd
-    ? `S${seasonText}E${String(media.episode).padStart(2, "0")}+E${String(media.episodeEnd).padStart(2, "0")}`
-    : `S${seasonText}E${episodeText}`;
+    if (
+      value.includes("avc") ||
+      value.includes("h.264") ||
+      value.includes("x264")
+    ) {
+      return "x264";
+    }
 
-  const { legend, rank } =
-  getLegendStatusAndRank(tmdb.rating || "");
+    if (codec && codec !== "Unbekannt") {
+      return String(codec)
+        .replace("HEVC / ", "")
+        .replace("AVC / ", "");
+    }
 
-const caption =
-  "███ LEGENDS SERIES DOSSIER ███\n\n" +
+    return quality === "UHD"
+      ? "HEVC x265"
+      : "x264";
+  }
 
-  "━━━━━━━━━━━━━━━━━━\n" +
-  `<b>📺 ${escapeHtml(String(seriesTitle).toUpperCase())} • ${escapeHtml(episodeDisplay)}</b>\n` +
-  "━━━━━━━━━━━━━━━━━━\n\n" +
+  const videoCodec =
+    normalizeEpisodeVideoCodec(extras.videoCodec);
 
-  `🎬 ${escapeHtml(finalEpisodeTitle || "Unbekannter Episodentitel")}\n` +
-`🎭 ${escapeHtml(genreText || "Sonstige")}\n` +
-`⭐ IMDb • ${escapeHtml(tmdb.rating || "Unbekannt")}${String(tmdb.rating || "").includes("/10") ? "" : "/10"}\n\n` +
+  const audioCodec =
+    extras.audioCodec && extras.audioCodec !== "Unbekannt"
+      ? extras.audioCodec
+      : "DD+";
 
-  `📀 ${quality} • ${resolution}\n` +
-  `💾 ${fileSize}\n\n` +
+  const audioChannels =
+    extras.audioChannels && extras.audioChannels !== "Unbekannt"
+      ? extras.audioChannels
+      : "5.1";
 
-  `<b>👑 ${legend} • 🏆 ${rank}</b>\n\n` +
+  const audioText =
+    extras.audio && extras.audio !== "Unbekannt"
+      ? extras.audio
+      : `🇩🇪 ${audioCodec} ${audioChannels}`;
 
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "<b>📖 EPISODE DOSSIER</b>\n" +
-  "━━━━━━━━━━━━━━━━━━\n\n" +
+  const eliteTag =
+    ratingNumber >= 8 || quality === "UHD"
+      ? "#Elite"
+      : "#Archive";
 
-  `${escapeHtml(safeOverview)}\n\n` +
+  const caption =
+    "╔══════════════════╗\n" +
+    "👑 LEGENDS PREMIUM DOSSIER\n" +
+    "╚══════════════════╝\n\n" +
 
-  "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
-
-  `${seriesTag} #S${seasonText} ${genreTags}\n` +
-  "@LibraryOfLegends";
+    `📺 ${escapeHtml(String(seriesTitle).toUpperCase())} ∙ 🌐 ${escapeHtml(episodeDisplay)}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `🎬 Episode: ${escapeHtml(finalEpisodeTitle)}\n` +
+    `🎭 Genre: ${escapeHtml(genreText)}\n` +
+    `⭐ Rank: 🏆 ${escapeHtml(rank)} ∙ ${stars}\n` +
+    "──────────────────\n" +
+    "💎 EPISODE DATA\n" +
+    `├ 💿 Source: ${escapeHtml(sourceText)}\n` +
+    `├ 💾 Größe: ${escapeHtml(fileSize)} ∙ ${escapeHtml(videoCodec)}\n` +
+    `└ 🔊 Audio: ${escapeHtml(audioText)}\n` +
+    "──────────────────\n" +
+    "📖 EPISODE DOSSIER\n" +
+    `${escapeHtml(story)}\n` +
+    "──────────────────\n" +
+    "📡 INDEXED & VERIFIED ✅\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${seriesTag} #${episodeDisplay.replace(/[^A-Z0-9]/g, "")} ${eliteTag} ${genreTags}\n\n` +
+    "@LibraryOfLegends";
 
   return cleanTelegramText(caption).slice(0, 1024);
 }
