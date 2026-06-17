@@ -9273,17 +9273,20 @@ function collectionSagaCaption(tmdb = {}, extras = {}) {
     extras.quality || "HD";
 
   const source =
-    extras.source && extras.source !== "Unbekannt"
-      ? extras.source
-      : "Quelle unbekannt";
+  extras.source && extras.source !== "Unbekannt"
+    ? extras.source
+    : extras.quality === "UHD"
+      ? "4K Release"
+      : extras.quality === "FHD"
+        ? "HD Release"
+        : "Release";
 
-  const fileSize =
-    extras.fileSize || "Unbekannt";
-
-  const videoCodec =
-    extras.videoCodec && extras.videoCodec !== "Unbekannt"
-      ? extras.videoCodec.replace("AVC / ", "").replace("HEVC / ", "")
-      : "Codec unbekannt";
+const videoCodec =
+  extras.videoCodec && extras.videoCodec !== "Unbekannt"
+    ? extras.videoCodec.replace("AVC / ", "").replace("HEVC / ", "")
+    : extras.quality === "UHD"
+      ? "H.265"
+      : "x264";
 
   const runtime =
     tmdb.runtime || "Unbekannt";
