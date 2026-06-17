@@ -10302,6 +10302,313 @@ async function seriesCaption(tmdb, media, extras = {}) {
 }
 
 // =============================
+// SERIES REGISTRY CAPTION — SERIES HUB
+// =============================
+function buildSeriesRegistryBar(current = 0, total = 0) {
+  const safeTotal =
+    Math.max(Number(total || 0), 1);
+
+  const safeCurrent =
+    Math.max(Number(current || 0), 0);
+
+  const percent =
+    Math.max(
+      0,
+      Math.min(1, safeCurrent / safeTotal)
+    );
+
+  const slots = 10;
+
+  const filled =
+    Math.round(percent * slots);
+
+  return (
+    "▓".repeat(filled) +
+    "░".repeat(slots - filled)
+  );
+}
+
+function getSeriesRegistryLevel(current = 0, total = 0) {
+  const safeTotal =
+    Number(total || 0);
+
+  const safeCurrent =
+    Number(current || 0);
+
+  if (!safeTotal || safeCurrent <= 0) {
+    return "🆕 NEW SERIES ENTRY";
+  }
+
+  const percent =
+    Math.round((safeCurrent / safeTotal) * 100);
+
+  if (percent >= 100) {
+    return "👑 MASTERED ELITE ARCHIVE";
+  }
+
+  if (percent >= 75) {
+    return "🔥 ACTIVE PREMIUM ARCHIVE";
+  }
+
+  if (percent >= 35) {
+    return "⚙️ ACTIVE SERIES ARCHIVE";
+  }
+
+  return "🧩 BUILDING SERIES ARCHIVE";
+}
+
+function getSeriesRegistryStatus(rating = "", current = 0, total = 0) {
+  const ratingNumber =
+    getRatingValue(rating);
+
+  const safeTotal =
+    Number(total || 0);
+
+  const safeCurrent =
+    Number(current || 0);
+
+  const complete =
+    safeTotal > 0 &&
+    safeCurrent >= safeTotal;
+
+  if (ratingNumber >= 8 && complete) {
+    return "🏆 MASTERPIECE SELECTION";
+  }
+
+  if (complete) {
+    return "✅ COMPLETE SERIES ARCHIVE";
+  }
+
+  if (safeCurrent > 0) {
+    return "📡 ACTIVE BROADCAST ARCHIVE";
+  }
+
+  return "🆕 NEW SERIES REGISTRY";
+}
+
+function buildSeriesSeasonTimeline(seasons = []) {
+  if (!Array.isArray(seasons) || !seasons.length) {
+    return "└─ 📀 S01 │ ░░░░░░░░░░ 0/0 [PENDING]";
+  }
+
+  return seasons
+    .slice(0, 8)
+    .map((season, index) => {
+      const seasonNumber =
+        String(season.season || season.season_number || index + 1)
+          .padStart(2, "0");
+
+      const saved =
+        Number(
+          season.savedEpisodes ??
+          season.saved ??
+          season.current ??
+          season.episodesSaved ??
+          0
+        );
+
+      const total =
+        Number(
+          season.totalEpisodes ??
+          season.total ??
+          season.official ??
+          season.episode_count ??
+          saved ||
+          0
+        );
+
+      const complete =
+        total > 0 &&
+        saved >= total;
+
+      const bar =
+        buildSeriesRegistryBar(saved, total);
+
+      const connector =
+        index === seasons.length - 1
+          ? "└─"
+          : "├─";
+
+      const status =
+        complete
+          ? "[ONLINE]"
+          : saved > 0
+            ? "[ACTIVE]"
+            : "[PENDING]";
+
+      return (
+        `${connector} 📀 S${seasonNumber} │ ${bar} ${saved}/${total} ${status}`
+      );
+    })
+    .join("\n");
+}
+
+function makeSeriesRegistryTags(seriesTitle = "", genre = "", level = "") {
+  const seriesTag =
+    "#" + String(seriesTitle || "Serie")
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) =>
+        word.charAt(0).toUpperCase() +
+        word.slice(1).toLowerCase()
+      )
+      .join("")
+      .replace(/[^a-zA-Z0-9ÄÖÜäöüß]/g, "");
+
+  const genreTags =
+    String(genre || "")
+      .split(/[\/•,]/)
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((g) => `#${g.replace(/\s+/g, "")}`)
+      .join(" ");
+
+  const eliteTag =
+    String(level || "").includes("MASTERED")
+      ? "#ELITE"
+      : "#SERIES";
+
+  return [genreTags, seriesTag, eliteTag]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function seriesRegistryCaption(series = {}, stats = {}) {
+  const title =
+    series.title ||
+    series.seriesTitle ||
+    series.name ||
+    "Unbekannte Serie";
+
+  const year =
+    series.year ||
+    String(series.first_air_date || series.firstAirDate || "")
+      .slice(0, 4) ||
+    "";
+
+  const genre =
+    series.genre ||
+    series.genres ||
+    "Sonstige";
+
+  const genreText =
+    String(genre || "Sonstige")
+      .split(/[\/•,]/)
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(" ∙ ") ||
+    "Sonstige";
+
+  const ratingNumber =
+    getRatingValue(series.rating || stats.rating);
+
+  const ratingText =
+    ratingNumber > 0
+      ? ratingNumber.toFixed(1)
+      : "Unbekannt";
+
+  const stars =
+    ratingNumber >= 9
+      ? "★★★★★"
+      : getRatingStars(ratingNumber);
+
+  const savedEpisodes =
+    Number(
+      stats.savedEpisodes ??
+      stats.currentEpisodes ??
+      series.savedEpisodes ??
+      0
+    );
+
+  const totalEpisodes =
+    Number(
+      stats.totalEpisodes ??
+      stats.officialTotalEpisodes ??
+      series.total_episodes ??
+      series.totalEpisodes ??
+      savedEpisodes ||
+      0
+    );
+
+  const percent =
+    totalEpisodes > 0
+      ? Math.min(
+          100,
+          Math.round((savedEpisodes / totalEpisodes) * 100)
+        )
+      : 0;
+
+  const progressBar =
+    buildSeriesRegistryBar(savedEpisodes, totalEpisodes);
+
+  const progressStatus =
+    totalEpisodes > 0 && savedEpisodes >= totalEpisodes
+      ? "[COMPLETE]"
+      : savedEpisodes > 0
+        ? "[ACTIVE]"
+        : "[PENDING]";
+
+  const level =
+    getSeriesRegistryLevel(savedEpisodes, totalEpisodes);
+
+  const status =
+    getSeriesRegistryStatus(
+      ratingText,
+      savedEpisodes,
+      totalEpisodes
+    );
+
+  const story =
+    trimTextAtSentence(
+      series.overview ||
+      series.description ||
+      "Keine Serienbeschreibung verfügbar.",
+      230
+    );
+
+  const seasons =
+    stats.seasons ||
+    series.seasons ||
+    [];
+
+  const timeline =
+    buildSeriesSeasonTimeline(seasons);
+
+  const coreStatus =
+    totalEpisodes > 0 && savedEpisodes >= totalEpisodes
+      ? "SIGNED & SECURED"
+      : "ARCHIVE IN PROGRESS";
+
+  const tags =
+    makeSeriesRegistryTags(title, genre, level);
+
+  const caption =
+    "██▓▒░ SERIES REGISTRY ░▒▓██\n" +
+    "──────────────────\n" +
+    `📺 ${escapeHtml(String(title).toUpperCase())}${year ? ` (${escapeHtml(year)})` : ""}\n` +
+    `⚡ LEVEL • ${escapeHtml(level)}\n` +
+    "──────────────────\n" +
+    `🎭 Genre: ${escapeHtml(genreText)}\n` +
+    `⭐ Rating: ${escapeHtml(ratingText)}/10 ∙ ${stars} IMDb\n` +
+    `📊 Progress: ${progressBar} ${percent}% ${progressStatus}\n` +
+    `💎 Status: ${escapeHtml(status)}\n` +
+    "──────────────────\n" +
+    "📖 SERIES DOSSIER & BRIEFING\n" +
+    `${escapeHtml(story)}\n` +
+    "──────────────────\n" +
+    "🛰️ CONTROL TIMELINE (SEASONS)\n" +
+    `${escapeHtml(timeline)}\n` +
+    `└─ 🔒 CORE STATUS: ${escapeHtml(coreStatus)}\n` +
+    "──────────────────\n" +
+    `${tags}\n\n` +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(caption).slice(0, 1800);
+}
+
+// =============================
 // SERIES RANK
 // =============================
 function getSeriesRank(totalEpisodes, officialTotalEpisodes) {
