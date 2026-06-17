@@ -9,6 +9,9 @@ const Parser = require("rss-parser");
 const rssParser = new Parser();
 
 const app = express();
+
+const { registerUserbotSessionSetup } = require("./userbot-session-web");
+registerUserbotSessionSetup(app);
 app.use(express.json({ limit: "50mb" }));
 
 // =============================
