@@ -18890,6 +18890,9 @@ if (text === "/rebuildmovieindex") {
   return;
 }
 
+// =============================
+// REBUILD HALL OF FAME
+// =============================
 if (command === "/rebuildhalloffame") {
   await createOrUpdateHallOfFameHub();
 
@@ -18904,12 +18907,190 @@ if (command === "/rebuildhalloffame") {
 }
 
 // =============================
+// SERIES REGISTRY TEST / HUB
+// =============================
+if (command === "/seriesregistry" || command.startsWith("/seriesregistry@")) {
+  const query =
+    text
+      .replace(/^\/seriesregistry(?:@\w+)?/i, "")
+      .trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/seriesregistry Serienname\n\n" +
+        "Beispiel:\n" +
+        "/seriesregistry Tulsa King"
+    });
+
+    return;
+  }
+
+  const search =
+    `%${query.toLowerCase()}%`;
+
+  let rows = [];
+
+  if (pgPool) {
+    const result =
+      await pgPool.query(
+        `
+        SELECT *
+        FROM series
+        WHERE LOWER(series_title) LIKE $1
+        ORDER BY season ASC, episode ASC
+        `,
+        [search]
+      );
+
+    rows =
+      result.rows;
+  } else {
+    rows =
+      db.prepare(`
+        SELECT *
+        FROM series
+        WHERE LOWER(series_title) LIKE ?
+        ORDER BY season ASC, episode ASC
+      `).all(search);
+  }
+
+  if (!rows.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Keine Serie gefunden:\n\n" +
+        query
+    });
+
+    return;
+  }
+
+  const first =
+    rows[0];
+
+  const seriesTitle =
+    first.series_title ||
+    query;
+
+  const seasonMap =
+    new Map();
+
+  for (const row of rows) {
+    const season =
+      Number(row.season || 1);
+
+    if (!seasonMap.has(season)) {
+      seasonMap.set(season, {
+        season,
+        savedEpisodes: 0,
+        highestEpisode: 0
+      });
+    }
+
+    const item =
+      seasonMap.get(season);
+
+    item.savedEpisodes += 1;
+
+    if (row.episode) {
+      item.highestEpisode =
+        Math.max(
+          item.highestEpisode,
+          Number(row.episode)
+        );
+    }
+  }
+
+  const seasons =
+    [...seasonMap.values()]
+      .sort((a, b) => a.season - b.season)
+      .map((season) => {
+        const knownTotal =
+          getKnownSeasonEpisodeCount(
+            seriesTitle,
+            season.season
+          );
+
+        return {
+          season:
+            season.season,
+
+          savedEpisodes:
+            season.savedEpisodes,
+
+          totalEpisodes:
+            knownTotal || 0,
+
+          highestEpisode:
+            season.highestEpisode || 0
+        };
+      });
+
+  const savedEpisodes =
+    rows.length;
+
+  const officialTotalEpisodes =
+    seasons.reduce(
+      (sum, season) =>
+        sum + Number(season.totalEpisodes || 0),
+      0
+    );
+
+  const totalEpisodes =
+    officialTotalEpisodes || 0;
+
+  const seriesData = {
+    title:
+      seriesTitle,
+
+    year:
+      first.first_air_date
+        ? String(first.first_air_date).slice(0, 4)
+        : "",
+
+    genre:
+      first.genre || "Sonstige",
+
+    rating:
+      first.rating || "Unbekannt",
+
+    overview:
+      first.overview ||
+      "Keine Serienbeschreibung verfügbar."
+  };
+
+  const stats = {
+    savedEpisodes,
+    totalEpisodes,
+    seasons
+  };
+
+  const caption =
+    seriesRegistryCaption(seriesData, stats);
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    message_thread_id:
+      msg.message_thread_id || undefined,
+    text: caption,
+    parse_mode: "HTML"
+  });
+
+  return;
+}
+
+// =============================
 // UNKNOWN COMMAND
 // =============================
 await tg("sendMessage", {
   chat_id: msg.chat.id,
   text: "⚠️ Unbekannter Befehl. Nutze /admin"
 });
+
+return;
 }
 
 function formatEpisodeRanges(episodes = []) {
