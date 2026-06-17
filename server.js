@@ -517,6 +517,7 @@ addColumnIfMissing("movies", "cast", "TEXT");
 addColumnIfMissing("movies", "library_id", "TEXT");
 addColumnIfMissing("movies", "resolution", "TEXT");
 addColumnIfMissing("movies", "file_size", "TEXT");
+addColumnIfMissing("movies", "file_size_bytes", "INTEGER");
 addColumnIfMissing("movies", "video_codec", "TEXT");
 addColumnIfMissing("movies", "audio_codec", "TEXT");
 addColumnIfMissing("movies", "audio_channels", "TEXT");
@@ -7247,7 +7248,7 @@ async function createOrUpdateMovieIndexHub() {
 async function createOrUpdateCollectionHub(tmdb, topicId) {
   if (!tmdb.collection || !tmdb.collectionId) return null;
 
-  const collection = getCollectionById(tmdb.collectionId);
+  const collection = await getCollectionById(tmdb.collectionId);
   if (!collection) return null;
 
   const hubText = await collectionHubCaption(tmdb.collection);
@@ -9957,12 +9958,12 @@ const caption =
   "███ LEGENDS SERIES DOSSIER ███\n\n" +
 
   "━━━━━━━━━━━━━━━━━━\n" +
-  `<b>📺 ${String(seriesTitle).toUpperCase()} • ${episodeDisplay}</b>\n` +
+  `<b>📺 ${escapeHtml(String(seriesTitle).toUpperCase())} • ${escapeHtml(episodeDisplay)}</b>\n` +
   "━━━━━━━━━━━━━━━━━━\n\n" +
 
-  `🎬 ${finalEpisodeTitle || "Unbekannter Episodentitel"}\n` +
-  `🎭 ${genreText || "Sonstige"}\n` +
-  `⭐ IMDb • ${tmdb.rating || "Unbekannt"}${String(tmdb.rating || "").includes("/10") ? "" : "/10"}\n\n` +
+  `🎬 ${escapeHtml(finalEpisodeTitle || "Unbekannter Episodentitel")}\n` +
+`🎭 ${escapeHtml(genreText || "Sonstige")}\n` +
+`⭐ IMDb • ${escapeHtml(tmdb.rating || "Unbekannt")}${String(tmdb.rating || "").includes("/10") ? "" : "/10"}\n\n` +
 
   `📀 ${quality} • ${resolution}\n` +
   `💾 ${fileSize}\n\n` +
@@ -9973,7 +9974,7 @@ const caption =
   "<b>📖 EPISODE DOSSIER</b>\n" +
   "━━━━━━━━━━━━━━━━━━\n\n" +
 
-  `${safeOverview}\n\n` +
+  `${escapeHtml(safeOverview)}\n\n` +
 
   "🛰 ARCHIV VERIFIZIERT ✅\n\n" +
 
@@ -11898,10 +11899,11 @@ async function movieCommandCenterCaption() {
     `)).rows[0]?.count || 0);
 
     newReleaseCount = Number((await pgPool.query(`
-      SELECT COUNT(*) AS count
-      FROM movies
-      WHERE NULLIF(year, '')::int >= 2024
-    `)).rows[0]?.count || 0);
+  SELECT COUNT(*) AS count
+  FROM movies
+  WHERE year ~ '^\\d{4}$'
+    AND year::int >= 2024
+`)).rows[0]?.count || 0);
 
     totalBytes = Number((await pgPool.query(`
       SELECT COALESCE(SUM(file_size_bytes), 0) AS total
@@ -13428,9 +13430,9 @@ async function handleCallback(callback) {
   }
   
   if (data === "panel_movie_index") {
-  await tg("answerCallbackQuery", {
-    callback_query_id: query.id,
-    text: "Movie Index ist in Library V3 deaktiviert"
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text: "ℹ️ Movie Index ist in Library V3 deaktiviert."
   });
 
   return;
@@ -15573,15 +15575,15 @@ if (pgPool) {
     ...new Set(rows.map((r) => Number(r.season)).filter(Boolean))
   ].sort((a, b) => a - b);
 
-  const separators = getSeasonSeparators(topic.topic_id);
+  const separators = await getSeasonSeparators(topic.topic_id);
 
-  for (const season of seasons) {
-    const seasonKey = String(season).padStart(2, "0");
+for (const season of seasons) {
+  const seasonKey = String(season).padStart(2, "0");
 
-    delete separators[`card_${seasonKey}`];
-  }
+  delete separators[`card_${seasonKey}`];
+}
 
-  saveSeasonSeparators(topic.topic_id, separators);
+await saveSeasonSeparators(topic.topic_id, separators);
 
   let createdCount = 0;
 let failedSeasons = [];
@@ -18422,8 +18424,13 @@ app.listen(PORT, async () => {
   await notifyStartup();
 });
 
-if (process.env.CREATE_COMMAND_CENTERS === "true") {
-  (async () => {
+app.listen(PORT, async () => {
+  console.log(`✅ Server läuft auf Port ${PORT}`);
+
+  await testPostgresConnection();
+  await ensurePostgresTables();
+
+  if (process.env.CREATE_COMMAND_CENTERS === "true") {
     try {
       console.log("🎛 Erstelle Command Centers...");
       await ensureCommandCenters();
@@ -18431,8 +18438,10 @@ if (process.env.CREATE_COMMAND_CENTERS === "true") {
     } catch (err) {
       console.error("❌ Command Center Fehler:", err.message);
     }
-  })();
-}
+  }
+
+  await notifyStartup();
+});
 
 // =============================
 // AUTO ERROR RECOVERY
