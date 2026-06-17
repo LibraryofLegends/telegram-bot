@@ -10417,12 +10417,18 @@ function buildSeriesSeasonTimeline(seasons = []) {
 const total =
   Number(totalRaw || 0);
 
-      const complete =
-        total > 0 &&
-        saved >= total;
+      const hasOfficialTotal =
+  total > 0;
 
-      const bar =
-        buildSeriesRegistryBar(saved, total);
+const complete =
+  hasOfficialTotal &&
+  saved >= total;
+
+const bar =
+  hasOfficialTotal
+    ? buildSeriesRegistryBar(saved, total)
+    : "▓".repeat(Math.min(saved, 10)) +
+      "░".repeat(Math.max(10 - Math.min(saved, 10), 0));
 
       const connector =
         index === seasons.length - 1
@@ -10430,15 +10436,20 @@ const total =
           : "├─";
 
       const status =
-        complete
-          ? "[ONLINE]"
-          : saved > 0
-            ? "[ACTIVE]"
-            : "[PENDING]";
+  complete
+    ? "[ONLINE]"
+    : saved > 0
+      ? "[ACTIVE]"
+      : "[PENDING]";
 
-      return (
-        `${connector} 📀 S${seasonNumber} │ ${bar} ${saved}/${total} ${status}`
-      );
+const totalText =
+  hasOfficialTotal
+    ? total
+    : "?";
+
+return (
+  `${connector} 📀 S${seasonNumber} │ ${bar} ${saved}/${totalText} ${status}`
+);
     })
     .join("\n");
 }
@@ -17072,31 +17083,39 @@ if (command === "/seriesregistry") {
       Number(row.season || 1);
 
     if (!seasonMap.has(season)) {
-      seasonMap.set(season, {
-        season,
-        savedEpisodes: 0,
-        totalEpisodes: 0
-      });
-    }
+  seasonMap.set(season, {
+    season,
+    savedEpisodes: 0,
+    highestEpisode: 0,
+    totalEpisodes: 0
+  });
+}
 
-    const item =
-      seasonMap.get(season);
+const item =
+  seasonMap.get(season);
 
-    item.savedEpisodes += 1;
+item.savedEpisodes += 1;
 
-    if (row.episode) {
-      item.totalEpisodes =
-        Math.max(
-          item.totalEpisodes,
-          Number(row.episode)
-        );
-    }
+if (row.episode) {
+  item.highestEpisode =
+    Math.max(
+      item.highestEpisode,
+      Number(row.episode)
+    );
+}
   }
 
   const seasons =
-    [...seasonMap.values()]
-      .sort((a, b) => a.season - b.season)
-      .map((season) => ({
+  [...seasonMap.values()]
+    .sort((a, b) => a.season - b.season)
+    .map((season) => {
+      const knownTotal =
+        getKnownSeasonEpisodeCount(
+          seriesTitle,
+          season.season
+        );
+
+      return {
         season:
           season.season,
 
@@ -17104,19 +17123,25 @@ if (command === "/seriesregistry") {
           season.savedEpisodes,
 
         totalEpisodes:
-          season.totalEpisodes ||
-          season.savedEpisodes
-      }));
+          knownTotal || 0,
+
+        highestEpisode:
+          season.highestEpisode || 0
+      };
+    });
 
   const savedEpisodes =
     rows.length;
 
-  const totalEpisodes =
-    seasons.reduce(
-      (sum, season) =>
-        sum + Number(season.totalEpisodes || 0),
-      0
-    ) || savedEpisodes;
+  const officialTotalEpisodes =
+  seasons.reduce(
+    (sum, season) =>
+      sum + Number(season.totalEpisodes || 0),
+    0
+  );
+
+const totalEpisodes =
+  officialTotalEpisodes || 0;
 
   const seriesData = {
     title:
