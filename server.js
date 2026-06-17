@@ -17857,12 +17857,35 @@ if (idMatch) {
         });
 
       if (!edited?.__error) {
-        captionStatus =
-          "✅ Telegram-Caption aktualisiert.";
-      } else {
-        captionStatus =
-          "⚠️ Telegram-Caption konnte nicht aktualisiert werden.";
-      }
+  captionStatus =
+    "✅ Telegram-Caption aktualisiert.";
+} else {
+  const editError =
+    edited?.error?.description ||
+    edited?.description ||
+    edited?.message ||
+    JSON.stringify(edited).slice(0, 500);
+
+  console.error(
+    "⚠️ /editmovie Caption Edit Fehler:",
+    editError
+  );
+
+  if (String(editError).includes("message is not modified")) {
+    captionStatus =
+      "✅ Telegram-Caption war bereits aktuell.";
+  } else if (String(editError).includes("message to edit not found")) {
+    captionStatus =
+      "⚠️ Telegram-Caption konnte nicht aktualisiert werden: Nachricht nicht gefunden.";
+  } else if (String(editError).includes("there is no caption")) {
+    captionStatus =
+      "⚠️ Telegram-Caption konnte nicht aktualisiert werden: Beitrag hat keine Caption.";
+  } else {
+    captionStatus =
+      "⚠️ Telegram-Caption Fehler:\n" +
+      String(editError).slice(0, 1000);
+  }
+}
     } catch (err) {
       captionStatus =
         "⚠️ Telegram-Caption Fehler: " + err.message;
