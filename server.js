@@ -3979,45 +3979,6 @@ function detectCollection(title = "") {
   return "";
 }
 
-function detectUniverse(title = "") {
-  const t = String(title || "").toLowerCase();
-
-  if (
-    t.includes("avengers") ||
-    t.includes("iron man") ||
-    t.includes("captain america") ||
-    t.includes("thor") ||
-    t.includes("guardians")
-  ) {
-    return "Marvel Cinematic Universe";
-  }
-
-  if (
-    t.includes("star wars")
-  ) {
-    return "Star Wars Universe";
-  }
-
-  if (
-    t.includes("toy story") ||
-    t.includes("frozen") ||
-    t.includes("vaiana") ||
-    t.includes("encanto")
-  ) {
-    return "Disney Universe";
-  }
-
-  if (
-    t.includes("batman") ||
-    t.includes("superman") ||
-    t.includes("justice league")
-  ) {
-    return "DC Universe";
-  }
-
-  return null;
-}
-
 // =============================
 // UNIVERSE DETECTION
 // =============================
@@ -9131,6 +9092,278 @@ function getMovieDossierHeader(tmdb = {}, extras = {}) {
   if (text.includes("mission impossible")) return "███ IMF DOSSIER ███";
 
   return "███ LEGENDS DOSSIER ███";
+}
+
+// =============================
+// COLLECTION SAGA CAPTION
+// =============================
+function getCollectionCode(collection = "") {
+  const key = makeKey(collection);
+
+  if (key.includes("fast")) return "FAST";
+  if (key.includes("john-wick")) return "WICK";
+  if (key.includes("hangover")) return "HANG";
+  if (key.includes("mission")) return "IMF";
+  if (key.includes("bourne")) return "BOUR";
+  if (key.includes("final-destination")) return "FD";
+  if (key.includes("jurassic")) return "JURA";
+  if (key.includes("harry-potter")) return "HP";
+  if (key.includes("terminator")) return "TERM";
+  if (key.includes("matrix")) return "MTRX";
+
+  const short =
+    String(collection || "SAGA")
+      .replace(/filmreihe/gi, "")
+      .replace(/collection/gi, "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 5);
+
+  return short || "SAGA";
+}
+
+function getCollectionEntryInfo(tmdb = {}, extras = {}) {
+  const order =
+    Array.isArray(extras.collectionOrder)
+      ? extras.collectionOrder
+      : [];
+
+  let index = 1;
+
+  const foundIndex = order.findIndex((item) => {
+    const entry =
+      typeof item === "string"
+        ? { title: item }
+        : item || {};
+
+    const sameId =
+      entry.id &&
+      tmdb.tmdbId &&
+      Number(entry.id) === Number(tmdb.tmdbId);
+
+    if (sameId) return true;
+
+    const entryTitleKey = makeKey(entry.title || "");
+    const movieTitleKey = makeKey(tmdb.title || "");
+
+    const sameTitle =
+      entryTitleKey &&
+      movieTitleKey &&
+      (
+        entryTitleKey.includes(movieTitleKey) ||
+        movieTitleKey.includes(entryTitleKey)
+      );
+
+    const sameYear =
+      entry.year &&
+      tmdb.year &&
+      String(entry.year) === String(tmdb.year);
+
+    return sameTitle && sameYear;
+  });
+
+  if (foundIndex >= 0) {
+    index = foundIndex + 1;
+  }
+
+  const total =
+    Number(extras.collectionMovies || order.length || index || 1);
+
+  return {
+    index,
+    total: Math.max(total, index),
+    indexText: String(index).padStart(2, "0")
+  };
+}
+
+function buildSagaStatusBar(index = 1, total = 1) {
+  const maxSlots =
+    Math.min(Math.max(Number(total || 1), Number(index || 1)), 10);
+
+  let result = "";
+
+  for (let i = 1; i <= maxSlots; i++) {
+    if (i < index) {
+      result += "🟩";
+    } else if (i === index) {
+      result += "▶️";
+    } else {
+      result += "🟥";
+    }
+  }
+
+  return result;
+}
+
+function buildSagaIndex(index = 1, total = 1, collection = "") {
+  const maxSlots =
+    Math.min(Math.max(Number(total || 1), Number(index || 1)), 10);
+
+  const key = makeKey(collection);
+
+  const currentIcon =
+    key.includes("fast")
+      ? "🚗"
+      : key.includes("john-wick")
+        ? "🩸"
+        : key.includes("jurassic")
+          ? "🦖"
+          : key.includes("harry-potter")
+            ? "⚡"
+            : "🎬";
+
+  const doneIcon =
+    key.includes("fast")
+      ? "👥"
+      : "✅";
+
+  const futureIcon =
+    key.includes("fast")
+      ? "🏁"
+      : "⬜";
+
+  const parts = [];
+
+  for (let i = 1; i <= maxSlots; i++) {
+    const number = String(i).padStart(2, "0");
+
+    if (i === index) {
+      parts.push(`${currentIcon}[${number}]`);
+    } else if (i < index) {
+      parts.push(`${doneIcon}[${number}]`);
+    } else {
+      parts.push(`${futureIcon}[${number}]`);
+    }
+  }
+
+  return parts.join(" ");
+}
+
+function collectionSagaCaption(tmdb = {}, extras = {}) {
+  const collection =
+    tmdb.collection ||
+    extras.collection ||
+    detectCollection(tmdb.title) ||
+    "Saga Collection";
+
+  const info =
+    getCollectionEntryInfo(tmdb, extras);
+
+  const code =
+    getCollectionCode(collection);
+
+  const ref =
+    `#${code}-${info.indexText}`;
+
+  const ratingNumber =
+    getRatingValue(tmdb.rating);
+
+  const stars =
+    getRatingStars(ratingNumber);
+
+  const ratingText =
+    ratingNumber > 0
+      ? ratingNumber.toFixed(1)
+      : "Unbekannt";
+
+  const quality =
+    extras.quality || "HD";
+
+  const source =
+    extras.source && extras.source !== "Unbekannt"
+      ? extras.source
+      : "Quelle unbekannt";
+
+  const fileSize =
+    extras.fileSize || "Unbekannt";
+
+  const videoCodec =
+    extras.videoCodec && extras.videoCodec !== "Unbekannt"
+      ? extras.videoCodec.replace("AVC / ", "").replace("HEVC / ", "")
+      : "Codec unbekannt";
+
+  const runtime =
+    tmdb.runtime || "Unbekannt";
+
+  const runtimeText =
+    String(runtime).toLowerCase().includes("min")
+      ? runtime
+      : `${runtime} Min.`;
+
+  const fsk =
+    tmdb.fsk || "FSK Unbekannt";
+
+  const director =
+    tmdb.director || "Unbekannt";
+
+  const cast =
+    String(tmdb.cast || "Unbekannt")
+      .split("•")
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(" ∙ ");
+
+  const story =
+    trimTextAtSentence(
+      tmdb.overview || "Keine Beschreibung verfügbar.",
+      210
+    );
+
+  const genreTags =
+    String(tmdb.genre || "")
+      .split("/")
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((g) => `#${g.replace(/\s+/g, "")}`)
+      .join(" ");
+
+  const title =
+    String(tmdb.title || "Unbekannt").toUpperCase();
+
+  const year =
+    tmdb.year ? ` (${tmdb.year})` : "";
+
+  const totalText =
+    info.total >= 10
+      ? `${info.total}+`
+      : String(info.total);
+
+  const caption =
+    "█████████ SAGA COLLECTION █████████\n\n" +
+
+    `🎬 ${escapeHtml(title)}${escapeHtml(year)}\n` +
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+    `🌀 Reihe   • ${escapeHtml(collection)}\n` +
+    `🔢 Chronik • Teil ${info.index} von ${totalText}\n` +
+    `📊 Status  • ${buildSagaStatusBar(info.index, info.total)}\n` +
+    "──────────────────────────────\n" +
+    `⭐ IMDb    • ${stars} ∙ (${escapeHtml(ratingText)}/10)\n` +
+    `📌 Ref     • ${escapeHtml(ref)}\n` +
+    "──────────────────────────────\n" +
+    "⚙️ SPECS\n" +
+    `💿 Format  : ${escapeHtml(quality)} ∙ ${escapeHtml(source)}\n` +
+    `💾 Speicher: ${escapeHtml(fileSize)} ∙ ${escapeHtml(videoCodec)}\n` +
+    `⏱ Laufzeit: ${escapeHtml(runtimeText)} ∙ ${escapeHtml(fsk)}\n` +
+    "──────────────────────────────\n" +
+    `🎬 Regie   : ${escapeHtml(director)}\n` +
+    `👥 Cast    : ${escapeHtml(cast)}\n` +
+    "──────────────────────────────\n" +
+    "📖 CHRONIK & STORY\n" +
+    `${escapeHtml(story)}\n` +
+    "──────────────────────────────\n" +
+    "🗂️ SAGA INDEX\n" +
+    `${buildSagaIndex(info.index, info.total, collection)}\n\n` +
+    `(▶️ Aktuell: Teil ${info.indexText})\n` +
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+    `${genreTags} #${code}${info.indexText}\n\n` +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(caption).slice(0, 1024);
 }
 
 function movieCaption(tmdb, extras = {}) {
@@ -17720,7 +17953,7 @@ await tg("sendPhoto", {
 // =============================
 // COPY ORIGINAL MEDIA WITH FULL DOSSIER
 // =============================
-const movieDossierCaption = movieCaption(tmdb, {
+const captionExtras = {
   ...extras,
 
   topicName: finalTopicName,
@@ -17731,12 +17964,29 @@ const movieDossierCaption = movieCaption(tmdb, {
   universePhase:
     universeData?.phase || null,
 
+  collection:
+    detectedCollection,
+
   collectionMovies:
     tmdb.collectionMovies?.length || 1,
 
   collectionOrder:
     tmdb.collectionMovies || []
-});
+};
+
+const movieDossierCaption =
+  detectedCollection
+    ? collectionSagaCaption(
+        {
+          ...tmdb,
+          collection: detectedCollection
+        },
+        captionExtras
+      )
+    : movieCaption(
+        tmdb,
+        captionExtras
+      );
 
 const copied = await copyOriginalMedia({
   fromChatId: msg.chat.id,
@@ -18261,10 +18511,13 @@ try {
 
 try {
 
+  // Library V3: Serien-Universe-Hubs in Movie-Gruppe deaktiviert
+  /*
   if (seriesUniverseData?.universeName) {
-  await createOrUpdateUniverseHub(
-    seriesUniverseData.universeName
-  );
+    await createOrUpdateUniverseHub(
+      seriesUniverseData.universeName
+    );
+  */
 
   /*
 await createOrUpdateMultiverseCommandCenter();
