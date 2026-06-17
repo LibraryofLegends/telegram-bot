@@ -17837,68 +17837,101 @@ async function processMovieUpload({ msg, media, tmdb }) {
         "⚠️ Film ist bereits gespeichert:\n\n" +
         `🎬 ${media.title} ${media.year || ""}`
     });
+
     return;
-}
+  }
+
+  const mediaExtras =
+    await Promise.resolve(
+      getMediaExtras(fileName, msg)
+    );
 
   const extras = {
-    ...getMediaExtras(fileName, msg),
+    ...mediaExtras,
     libraryId: await makeLibraryCode(tmdb.genre)
   };
 
+  const fileSize =
+    extras.fileSize || "Unbekannt";
+
+  const fileSizeBytes =
+    extras.fileSizeBytes || null;
+
+  const quality =
+    extras.quality || "HD";
+
+  const source =
+    extras.source || "Unbekannt";
+
+  const videoCodec =
+    extras.videoCodec || "Unbekannt";
+
+  const audioCodec =
+    extras.audioCodec || "Unbekannt";
+
+  const audioChannels =
+    extras.audioChannels || "Unbekannt";
+
+  const resolution =
+    extras.resolution || "Unbekannt";
+
+  const hdr =
+    extras.hdr || null;
+
   const universeData = detectUniverse(
-  tmdb.title,
-  tmdb.collection
-);
+    tmdb.title,
+    tmdb.collection
+  );
 
-const starWarsEra =
-  universeData?.universeKey === "StarWars"
-    ? detectStarWarsEra(tmdb.title)
-    : null;
+  const starWarsEra =
+    universeData?.universeKey === "StarWars"
+      ? detectStarWarsEra(tmdb.title)
+      : null;
 
-console.log("🌌 UNIVERSE DETECT DEBUG:", {
-  title: tmdb.title,
-  collection: tmdb.collection,
-  universeData
-});
+  console.log("🌌 UNIVERSE DETECT DEBUG:", {
+    title: tmdb.title,
+    collection: tmdb.collection,
+    universeData
+  });
 
-console.log("🌌 STAR WARS ERA DETECT:", {
-  title: tmdb.title,
-  starWarsEra
-});
+  console.log("🌌 STAR WARS ERA DETECT:", {
+    title: tmdb.title,
+    starWarsEra
+  });
 
   // =============================
-// MOVIE TOPIC ROUTING — LIBRARY V3
-// =============================
-const finalTopicName =
-  getSmartMovieTopic({
-    ...tmdb,
-    collection:
-      tmdb.collection ||
-      detectCollection(tmdb.title) ||
-      null,
-    universe:
-      universeData?.universeName || null
+  // MOVIE TOPIC ROUTING — LIBRARY V3
+  // =============================
+  const finalTopicName =
+    getSmartMovieTopic({
+      ...tmdb,
+      collection:
+        tmdb.collection ||
+        detectCollection(tmdb.title) ||
+        null,
+      universe:
+        universeData?.universeName || null
+    });
+
+  const finalTopicType =
+    "movie_category";
+
+  const topicId = await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: finalTopicName,
+    type: finalTopicType
   });
 
-const finalTopicType =
-  "movie_category";
+  if (!topicId) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Film-Thema konnte nicht erstellt werden.\n\n" +
+        "Prüfe MOVIE_GROUP_ID, Bot-Adminrechte und Forum-Themen."
+    });
 
-const topicId = await createOrGetTopic({
-  chatId: MOVIE_GROUP_ID,
-  name: finalTopicName,
-  type: finalTopicType
-});
-
-if (!topicId) {
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "❌ Film-Thema konnte nicht erstellt werden.\n\n" +
-      "Prüfe MOVIE_GROUP_ID, Bot-Adminrechte und Forum-Themen."
-  });
-
-  return;
-}
+    return;
+  }
 
 // =============================
 // MOVIE HUB SETUP DEAKTIVIERT
