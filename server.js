@@ -17496,6 +17496,93 @@ if (text.startsWith("/editmovie")) {
 
   let movie = null;
 
+const idMatch =
+  String(searchText)
+    .trim()
+    .match(/^(?:id:|#)?(\d+)$/i);
+
+const yearMatch =
+  String(searchText)
+    .trim()
+    .match(/^(.+?)\s+((?:19|20)\d{2})$/);
+
+if (idMatch) {
+  const movieId =
+    Number(idMatch[1]);
+
+  if (pgPool) {
+    const result =
+      await pgPool.query(
+        `
+        SELECT *
+        FROM movies
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [movieId]
+      );
+
+    movie =
+      result.rows[0] || null;
+  } else {
+    movie =
+      db.prepare(`
+        SELECT *
+        FROM movies
+        WHERE id = ?
+        LIMIT 1
+      `).get(movieId);
+  }
+
+} else if (yearMatch) {
+  const titlePart =
+    yearMatch[1].trim().toLowerCase();
+
+  const yearPart =
+    yearMatch[2];
+
+  if (pgPool) {
+    const result =
+      await pgPool.query(
+        `
+        SELECT *
+        FROM movies
+        WHERE (
+          LOWER(title) LIKE $1
+          OR LOWER(file_name) LIKE $1
+          OR LOWER(unique_key) LIKE $1
+        )
+        AND year = $2
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
+        [`%${titlePart}%`, yearPart]
+      );
+
+    movie =
+      result.rows[0] || null;
+  } else {
+    movie =
+      db.prepare(`
+        SELECT *
+        FROM movies
+        WHERE (
+          LOWER(title) LIKE ?
+          OR LOWER(file_name) LIKE ?
+          OR LOWER(unique_key) LIKE ?
+        )
+        AND year = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+      `).get(
+        `%${titlePart}%`,
+        `%${titlePart}%`,
+        `%${titlePart}%`,
+        yearPart
+      );
+  }
+
+} else {
   const search =
     `%${searchText.toLowerCase()}%`;
 
@@ -17528,6 +17615,7 @@ if (text.startsWith("/editmovie")) {
         LIMIT 1
       `).get(search, search, search);
   }
+}
 
   if (!movie) {
     await tg("sendMessage", {
