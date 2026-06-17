@@ -18509,41 +18509,10 @@ try {
   console.error("⚠️ Episodenliste Update Fehler:", err.message);
 }
 
-try {
-
-  // Library V3: Serien-Universe-Hubs in Movie-Gruppe deaktiviert
-  /*
-  if (seriesUniverseData?.universeName) {
-    await createOrUpdateUniverseHub(
-      seriesUniverseData.universeName
-    );
-  */
-
-  /*
-await createOrUpdateMultiverseCommandCenter();
-
-if (isDcUniverse(seriesUniverseData?.universeKey)) {
-  await createOrUpdateDcCommandCenter();
-}
-
-if (isMarvelUniverse(seriesUniverseData?.universeKey)) {
-  await createOrUpdateMarvelCommandCenter();
-}
-
-if (isDisneyUniverse(seriesUniverseData?.universeKey)) {
-  await createOrUpdateDisneyCommandCenter();
-}
-*/
-}
-
-} catch (err) {
-
-  console.error(
-    "⚠️ Serien Universe/Multiverse Hub Fehler:",
-    err.message
-  );
-
-}
+// Library V3:
+// Serien-Universe-Hubs sind deaktiviert,
+// damit Serien nicht versehentlich in der Movie-Gruppe landen.
+console.log("ℹ️ Serien Universe/Multiverse Hub übersprungen");
 
 /*
 if (starWarsEra) {
