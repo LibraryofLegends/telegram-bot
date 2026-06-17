@@ -18643,14 +18643,6 @@ app.listen(PORT, async () => {
 
   await testPostgresConnection();
   await ensurePostgresTables();
-  await notifyStartup();
-});
-
-app.listen(PORT, async () => {
-  console.log(`✅ Server läuft auf Port ${PORT}`);
-
-  await testPostgresConnection();
-  await ensurePostgresTables();
 
   if (process.env.CREATE_COMMAND_CENTERS === "true") {
     try {
