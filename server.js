@@ -9479,34 +9479,34 @@ function movieCaption(tmdb, extras = {}) {
     `#${archiveId.replace(/[^A-Z0-9]/g, "")}`;
 
   const caption =
-    "╔═════════════════════╗\n" +
-    "║ 🎬 LEGENDS ARCHIVE // MOVIE ENTRY   ║\n" +
-    "╚═════════════════════╝\n\n" +
+  "╔══════════════════╗\n" +
+  "🎬 LEGENDS ARCHIVE // MOVIE ENTRY\n" +
+  "╚══════════════════╝\n\n" +
 
-    `🎬 ${escapeHtml(title)}${escapeHtml(year)}\n` +
-    "──────────────────\n" +
-    `🎭 Genre     • ${escapeHtml(genreText)}\n` +
-    `🏷 Archiv-ID • #${escapeHtml(archiveId)}\n\n` +
+  `🎬 ${escapeHtml(title)}${escapeHtml(year)}\n` +
+  "──────────────────\n" +
+  `🎭 Genre • ${escapeHtml(genreText)}\n` +
+  `🏷 Archiv-ID • #${escapeHtml(archiveId)}\n\n` +
 
-    `⭐ Rating    • ${stars} ∙ ${escapeHtml(ratingText)}/10\n` +
-    "──────────────────\n" +
-    "📊 FILMINFO\n" +
-    `├─ 💿 Format  : ${escapeHtml(quality)} ∙ ${escapeHtml(source)}\n` +
-    `├─ 💾 Größe   : ${escapeHtml(fileSize)} ∙ ${escapeHtml(videoCodec)}\n` +
-    `├─ ⏱ Laufzeit: ${escapeHtml(runtimeText)}\n` +
-    `└─ 🔞 FSK     : ${escapeHtml(fsk)}\n` +
-    "──────────────────\n" +
-    "👥 TEAM & CAST\n" +
-    `🎬 Regie     : ${escapeHtml(director)}\n` +
-    `👥 Stars     : ${escapeHtml(cast)}\n` +
-    "──────────────────\n" +
-    "📖 INHALT\n" +
-    `${escapeHtml(story)}\n` +
-    "──────────────────\n" +
-    "📡 STATUS • LEGENDS ARCHIVE VERIFIED ✅\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `${genreTags} ${archiveTag}\n\n` +
-    "@LibraryOfLegends";
+  `⭐ Rating • ${stars} ∙ ${escapeHtml(ratingText)}/10\n` +
+  "──────────────────\n" +
+  "📊 FILMINFO\n" +
+  `├ 💿 Format: ${escapeHtml(quality)} ∙ ${escapeHtml(source)}\n` +
+  `├ 💾 Größe: ${escapeHtml(fileSize)} ∙ ${escapeHtml(videoCodec)}\n` +
+  `├ ⏱ Laufzeit: ${escapeHtml(runtimeText)}\n` +
+  `└ 🔞 FSK: ${escapeHtml(fsk)}\n` +
+  "──────────────────\n" +
+  "👥 TEAM & CAST\n" +
+  `🎬 Regie: ${escapeHtml(director)}\n` +
+  `👥 Stars: ${escapeHtml(cast)}\n` +
+  "──────────────────\n" +
+  "📖 INHALT\n" +
+  `${escapeHtml(story)}\n` +
+  "──────────────────\n" +
+  "📡 STATUS • LEGENDS ARCHIVE VERIFIED ✅\n" +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `${genreTags} ${archiveTag}\n\n` +
+  "@LibraryOfLegends";
 
   return cleanTelegramText(caption).slice(0, 1024);
 }
