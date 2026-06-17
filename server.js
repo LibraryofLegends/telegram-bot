@@ -17009,7 +17009,7 @@ if (command === "/newseries") {
 // =============================
 // SERIES REGISTRY TEST / HUB
 // =============================
-if (command === "/seriesregistry") {
+if (command === "/seriesregistry" || command.startsWith("/seriesregistry@")) {
   const query =
     text.replace("/seriesregistry", "").trim();
 
