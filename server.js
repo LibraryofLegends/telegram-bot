@@ -19099,6 +19099,41 @@ if (command === "/seriesregistry" || command.startsWith("/seriesregistry@")) {
 }
 
 // =============================
+// CLEAR ALL MEDIA DATABASE
+// =============================
+if (text === "/clearalldb") {
+
+  if (pgPool) {
+    await pgPool.query(`DELETE FROM movies;`);
+    await pgPool.query(`DELETE FROM series;`);
+    await pgPool.query(`DELETE FROM series_library;`);
+  }
+
+  db.prepare(`DELETE FROM movies;`).run();
+  db.prepare(`DELETE FROM series;`).run();
+  db.prepare(`DELETE FROM series_library;`).run();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🧹 KOMPLETTE MEDIEN-DATENBANK GELEERT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      "✅ Alle Filme wurden gelöscht\n" +
+      "✅ Alle Serienfolgen wurden gelöscht\n" +
+      "✅ Serien-Metadaten wurden gelöscht\n\n" +
+      "📌 Topics bleiben erhalten\n" +
+      "📌 Gruppen bleiben erhalten\n" +
+      "📌 Bot-Struktur bleibt erhalten\n\n" +
+      "Du kannst Filme und Serien jetzt sauber neu hochladen.\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
+// =============================
 // UNKNOWN COMMAND
 // =============================
 await tg("sendMessage", {
