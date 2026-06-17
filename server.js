@@ -10407,15 +10407,15 @@ function buildSeriesSeasonTimeline(seasons = []) {
           0
         );
 
-      const total =
-        Number(
-          season.totalEpisodes ??
-          season.total ??
-          season.official ??
-          season.episode_count ??
-          saved ||
-          0
-        );
+      const totalRaw =
+  season.totalEpisodes ??
+  season.total ??
+  season.official ??
+  season.episode_count ??
+  saved;
+
+const total =
+  Number(totalRaw || 0););
 
       const complete =
         total > 0 &&
@@ -10522,15 +10522,15 @@ function seriesRegistryCaption(series = {}, stats = {}) {
       0
     );
 
-  const totalEpisodes =
-    Number(
-      stats.totalEpisodes ??
-      stats.officialTotalEpisodes ??
-      series.total_episodes ??
-      series.totalEpisodes ??
-      savedEpisodes ||
-      0
-    );
+ const totalEpisodesRaw =
+  stats.totalEpisodes ??
+  stats.officialTotalEpisodes ??
+  series.total_episodes ??
+  series.totalEpisodes ??
+  savedEpisodes;
+
+const totalEpisodes =
+  Number(totalEpisodesRaw || 0);
 
   const percent =
     totalEpisodes > 0
