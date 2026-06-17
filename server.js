@@ -16998,6 +16998,167 @@ if (command === "/newseries") {
 }
 
 // =============================
+// SERIES REGISTRY TEST / HUB
+// =============================
+if (command === "/seriesregistry") {
+  const query =
+    text.replace("/seriesregistry", "").trim();
+
+  if (!query) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/seriesregistry Serienname\n\n" +
+        "Beispiel:\n" +
+        "/seriesregistry Tulsa King"
+    });
+
+    return;
+  }
+
+  const search =
+    `%${query.toLowerCase()}%`;
+
+  let rows = [];
+
+  if (pgPool) {
+    const result =
+      await pgPool.query(
+        `
+        SELECT *
+        FROM series
+        WHERE LOWER(series_title) LIKE $1
+        ORDER BY season ASC, episode ASC
+        `,
+        [search]
+      );
+
+    rows =
+      result.rows;
+  } else {
+    rows =
+      db.prepare(`
+        SELECT *
+        FROM series
+        WHERE LOWER(series_title) LIKE ?
+        ORDER BY season ASC, episode ASC
+      `).all(search);
+  }
+
+  if (!rows.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Keine Serie gefunden:\n\n" +
+        query
+    });
+
+    return;
+  }
+
+  const first =
+    rows[0];
+
+  const seriesTitle =
+    first.series_title ||
+    query;
+
+  const seasonMap =
+    new Map();
+
+  for (const row of rows) {
+    const season =
+      Number(row.season || 1);
+
+    if (!seasonMap.has(season)) {
+      seasonMap.set(season, {
+        season,
+        savedEpisodes: 0,
+        totalEpisodes: 0
+      });
+    }
+
+    const item =
+      seasonMap.get(season);
+
+    item.savedEpisodes += 1;
+
+    if (row.episode) {
+      item.totalEpisodes =
+        Math.max(
+          item.totalEpisodes,
+          Number(row.episode)
+        );
+    }
+  }
+
+  const seasons =
+    [...seasonMap.values()]
+      .sort((a, b) => a.season - b.season)
+      .map((season) => ({
+        season:
+          season.season,
+
+        savedEpisodes:
+          season.savedEpisodes,
+
+        totalEpisodes:
+          season.totalEpisodes ||
+          season.savedEpisodes
+      }));
+
+  const savedEpisodes =
+    rows.length;
+
+  const totalEpisodes =
+    seasons.reduce(
+      (sum, season) =>
+        sum + Number(season.totalEpisodes || 0),
+      0
+    ) || savedEpisodes;
+
+  const seriesData = {
+    title:
+      seriesTitle,
+
+    year:
+      first.first_air_date
+        ? String(first.first_air_date).slice(0, 4)
+        : "",
+
+    genre:
+      first.genre || "Sonstige",
+
+    rating:
+      first.rating || "Unbekannt",
+
+    overview:
+      first.overview ||
+      "Keine Serienbeschreibung verfügbar."
+  };
+
+  const stats = {
+    savedEpisodes,
+    totalEpisodes,
+    seasons
+  };
+
+  const caption =
+    seriesRegistryCaption(seriesData, stats);
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    message_thread_id:
+      msg.message_thread_id || undefined,
+    text: caption,
+    parse_mode: "HTML"
+  });
+
+  return;
+}
+
+// =============================
 // TRENDING SERIES
 // =============================
 if (command === "/trendingseries") {
