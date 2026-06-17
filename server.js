@@ -10415,7 +10415,7 @@ function buildSeriesSeasonTimeline(seasons = []) {
   saved;
 
 const total =
-  Number(totalRaw || 0););
+  Number(totalRaw || 0);
 
       const complete =
         total > 0 &&
