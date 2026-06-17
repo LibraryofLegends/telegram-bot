@@ -10431,9 +10431,7 @@ const bar =
       "░".repeat(Math.max(10 - Math.min(saved, 10), 0));
 
       const connector =
-        index === seasons.length - 1
-          ? "└─"
-          : "├─";
+  "├─";
 
       const status =
   complete
