@@ -73,6 +73,27 @@ function detectCodec(text = "") {
   return null;
 }
 
+function detectAudioLanguage(text = "") {
+  const source = String(text);
+
+  const hasGerman =
+    /\b(german|deutsch|ger|de)\b/i.test(source);
+
+  const hasEnglish =
+    /\b(english|englisch|eng|en)\b/i.test(source);
+
+  const hasDL =
+    /\b(dl|dual|dual[-_. ]?language|multi)\b/i.test(source);
+
+  if (hasDL && hasGerman) return "Deutsch / Dual Language";
+  if (hasDL) return "Dual Language";
+  if (hasGerman && hasEnglish) return "Deutsch / Englisch";
+  if (hasGerman) return "Deutsch";
+  if (hasEnglish) return "Englisch";
+
+  return null;
+}
+
 function cleanEpisodeTitle(text = "") {
   return String(text || "")
     .replace(/\.[a-z0-9]{2,5}$/i, "")
@@ -166,6 +187,7 @@ function parseMediaFileName(fileName = "") {
       quality: detectQuality(original),
       source: detectSource(original),
       codec: detectCodec(original),
+      audio: detectAudioLanguage(original),
     };
   }
 
@@ -185,6 +207,7 @@ function parseMediaFileName(fileName = "") {
     quality: detectQuality(original),
     source: detectSource(original),
     codec: detectCodec(original),
+    audio: detectAudioLanguage(original),
   };
 }
 
@@ -271,7 +294,8 @@ function buildImportReport({ fileName, parsed, fileSize, mimeType, videoMeta }) 
   if (parsed.quality) lines.push(`🔥 Qualität: ${parsed.quality}`);
   if (parsed.source) lines.push(`📡 Quelle: ${parsed.source}`);
   if (parsed.codec) lines.push(`🎥 Codec: ${parsed.codec}`);
-  if (fileSize) lines.push(`💾 Größe: ${fileSize}`);
+if (parsed.audio) lines.push(`🔊 Audio: ${parsed.audio}`);
+if (fileSize) lines.push(`💾 Größe: ${fileSize}`);
   if (mimeType) lines.push(`🧾 MIME: ${mimeType}`);
 
   if (videoMeta.width && videoMeta.height) {
