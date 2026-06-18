@@ -14221,6 +14221,7 @@ if (text === "/start" || text === "/admin") {
       "• /fiximport ID | TITEL | JAHR — Import-Titel korrigieren\n" +
       "• /processimport ID — Import-Vorschau erstellen\n\n" +
       "• /approveimport ID — Import final ins Archiv kopieren\n" +
+      "• /chatid — aktuelle Chat-ID anzeigen\n" +
 
       "🧠 𝐑𝐄𝐏𝐀𝐈𝐑 & 𝐑𝐄𝐂𝐎𝐕𝐄𝐑𝐘\n\n" +
       "• /rebuildcommandcenters\n" +
@@ -14306,6 +14307,25 @@ if (command.startsWith("/testuniverse")) {
     });
     return;
   }
+  
+  // =============================
+// CHAT ID DEBUG
+// =============================
+if (command === "/chatid") {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🧭 CHAT ID DEBUG\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `💬 Chat Titel: ${msg.chat.title || msg.chat.first_name || "Privat"}\n` +
+      `🆔 Chat ID: ${msg.chat.id}\n` +
+      `👤 Von: ${msg.from?.id || "unbekannt"}\n\n` +
+      "Diese Chat ID kannst du in Render ENV verwenden."
+  });
+
+  return;
+}
 
   const results =
     await scanSeriesNews(seriesTitle);
