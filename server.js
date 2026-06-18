@@ -15351,6 +15351,15 @@ if (command === "/importinfo") {
       `📨 Staging Message ID: ${item.staging_message_id || "leer"}\n\n` +
 
       "━━━━━━━━━━━━━━━━━━\n" +
+      "📤 FINAL ARCHIVE\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+
+      `🎯 Target Chat ID: ${item.target_chat_id || "leer"}\n` +
+      `🧵 Target Topic ID: ${item.target_topic_id || "leer"}\n` +
+      `💬 Final Message ID: ${item.final_message_id || "leer"}\n` +
+      `✅ Processed At: ${item.processed_at || "leer"}\n\n` +
+
+      "━━━━━━━━━━━━━━━━━━\n" +
       "Nächster Schritt später:\n" +
       `/processimport ${item.id}\n\n` +
       "@LibraryOfLegends";
@@ -15921,45 +15930,96 @@ function buildApprovedImportCaption(item) {
     : "";
 
   const technicalMeta = [
-    item.quality,
     item.media_source,
     item.codec,
     item.audio
   ].filter(Boolean).join(" | ");
 
+  const title = String(item.title || "Unbekannt").trim();
+  const year = item.year ? ` (${item.year})` : "";
+
   const lines = [];
 
+  lines.push("━━━━━━━━━━━━━━━━━━");
+
   if (isSeries) {
-    lines.push(`📺 ${String(item.title || "UNBEKANNTE SERIE").toUpperCase()}`);
-    lines.push(`🎞 ${episodeCode}${item.episode_title ? ` • ${item.episode_title}` : ""}`);
+    lines.push(`📺 𝐒𝐄𝐑𝐈𝐄: ${title.toUpperCase()}`);
+    lines.push(`🎞 𝐄𝐏𝐈𝐒𝐎𝐃𝐄: ${episodeCode}${item.episode_title ? ` • ${item.episode_title}` : ""}`);
   } else {
-    lines.push(`🎬 ${String(item.title || "UNBEKANNTER FILM").toUpperCase()}${item.year ? ` (${item.year})` : ""}`);
+    lines.push(`🎬 𝐅𝐈𝐋𝐌: ${title.toUpperCase()}${year}`);
   }
 
+  lines.push("━━━━━━━━━━━━━━━━━━");
+
   lines.push("");
-  lines.push(`🔥 ${item.quality || "Qualität unbekannt"} | 🇩🇪 ${item.audio || "Audio unbekannt"}`);
+  lines.push(`🔥 Qualität: ${item.quality || "Unbekannt"}`);
+  lines.push(`🔊 Audio: ${item.audio || "Unbekannt"}`);
 
   if (technicalMeta) {
-    lines.push(`⚙️ ${technicalMeta}`);
+    lines.push(`⚙️ Technik: ${technicalMeta}`);
   }
 
   if (item.width && item.height) {
-    lines.push(`📺 ${item.width}x${item.height}`);
+    lines.push(`📺 Auflösung: ${item.width}x${item.height}`);
   }
 
   if (item.duration_minutes) {
-    lines.push(`⏱ ${item.duration_minutes} Min.`);
+    lines.push(`⏱ Laufzeit: ${item.duration_minutes} Min.`);
   }
 
   if (item.file_size) {
-    lines.push(`💾 ${item.file_size}`);
+    lines.push(`💾 Größe: ${item.file_size}`);
   }
 
   lines.push("");
+  lines.push("━━━━━━━━━━━━━━━━━━");
+  lines.push("📂 𝐀𝐑𝐂𝐇𝐈𝐕");
+  lines.push("━━━━━━━━━━━━━━━━━━");
   lines.push(`🆔 Import #${item.id}`);
+  lines.push(`📁 ${item.file_name || "Dateiname unbekannt"}`);
+
+  lines.push("");
   lines.push("👉 @LibraryOfLegends");
 
   return lines.join("\n");
+}
+
+// =============================
+// USERBOT IMPORT APPROVE HELPERS
+// =============================
+function extractTelegramMessageId(response) {
+  if (!response) return null;
+
+  if (response.message_id) return response.message_id;
+  if (response.result?.message_id) return response.result.message_id;
+  if (response.data?.result?.message_id) return response.data.result.message_id;
+  if (response.data?.message_id) return response.data.message_id;
+
+  return null;
+}
+
+async function ensureUserbotImportProcessingColumns() {
+  if (!pgPool) return;
+
+  await pgPool.query(`
+    ALTER TABLE userbot_imports
+    ADD COLUMN IF NOT EXISTS target_chat_id TEXT;
+  `);
+
+  await pgPool.query(`
+    ALTER TABLE userbot_imports
+    ADD COLUMN IF NOT EXISTS target_topic_id TEXT;
+  `);
+
+  await pgPool.query(`
+    ALTER TABLE userbot_imports
+    ADD COLUMN IF NOT EXISTS final_message_id TEXT;
+  `);
+
+  await pgPool.query(`
+    ALTER TABLE userbot_imports
+    ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ;
+  `);
 }
 
 // =============================
@@ -15989,7 +16049,9 @@ if (command === "/approveimport") {
   }
 
   try {
-    const result = await pgPool.query(
+  await ensureUserbotImportProcessingColumns();
+
+  const result = await pgPool.query(
       `
       SELECT *
       FROM userbot_imports
@@ -16106,20 +16168,29 @@ if (command === "/approveimport") {
 
     const copied = await tg("copyMessage", copyPayload);
 
-    const finalMessageId =
-      copied?.message_id ||
-      copied?.result?.message_id ||
-      null;
+    const finalMessageId = extractTelegramMessageId(copied);
+    
+    console.log("📨 copyMessage Response:", JSON.stringify(copied, null, 2));
+console.log("💬 Final Message ID:", finalMessageId || "unbekannt");
 
     await pgPool.query(
-      `
-      UPDATE userbot_imports
-      SET status = 'processed',
-          updated_at = NOW()
-      WHERE id = $1
-      `,
-      [item.id]
-    );
+  `
+  UPDATE userbot_imports
+  SET status = 'processed',
+      target_chat_id = $2,
+      target_topic_id = $3,
+      final_message_id = $4,
+      processed_at = NOW(),
+      updated_at = NOW()
+  WHERE id = $1
+  `,
+  [
+    item.id,
+    String(targetChatId),
+    topicId ? String(topicId) : null,
+    finalMessageId ? String(finalMessageId) : null
+  ]
+);
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
