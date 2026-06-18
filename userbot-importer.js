@@ -347,8 +347,8 @@ async function startUserbotImporter() {
       } finally {
         setTimeout(() => ACTIVE_IMPORTS.delete(importKey), 60_000);
       }
-    },
-    new NewMessage({ chats: [importEntity] })
+        },
+    new NewMessage({ chats: [String(IMPORT_CHAT)] })
   );
 
   return client;
