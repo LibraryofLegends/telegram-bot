@@ -15460,6 +15460,88 @@ if (command === "/ignoreimport") {
 }
 
 // =============================
+// RESTORE USERBOT IMPORT
+// =============================
+if (command === "/restoreimport") {
+  if (!pgPool) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Supabase/pgPool ist nicht aktiv.\n\n" +
+        "Userbot-Importe laufen aktuell nur mit Supabase."
+    });
+    return;
+  }
+
+  const importId = Number(text.replace(command, "").trim());
+
+  if (!importId || !Number.isFinite(importId)) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/restoreimport 2"
+    });
+    return;
+  }
+
+  try {
+    const result = await pgPool.query(
+      `
+      UPDATE userbot_imports
+      SET status = 'staged',
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, media_type, title, year, file_name, status
+      `,
+      [importId]
+    );
+
+    const item = result.rows[0];
+
+    if (!item) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Import nicht gefunden:\n\n" +
+          `Import-ID: ${importId}`
+      });
+      return;
+    }
+
+    const icon = item.media_type === "series" ? "📺" : "🎬";
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "♻️ USERBOT IMPORT WIEDERHERGESTELLT\n" +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        `🆔 Import-ID: ${item.id}\n` +
+        `${icon} ${item.title || "Unbekannt"} ${item.year || ""}\n` +
+        `📁 ${item.file_name || "leer"}\n` +
+        `📌 Status: ${item.status || "staged"}\n\n` +
+        "Jetzt möglich:\n" +
+        `/processimport ${item.id}\n` +
+        `/approveimport ${item.id}\n\n` +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "@LibraryOfLegends"
+    });
+  } catch (err) {
+    console.error("❌ /restoreimport Fehler:", err.message);
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Fehler beim Wiederherstellen des Imports:\n\n" +
+        String(err.message).slice(0, 1000)
+    });
+  }
+
+  return;
+}
+
+// =============================
 // FIX USERBOT IMPORT TITLE / YEAR
 // =============================
 if (command === "/fiximport") {
