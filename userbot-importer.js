@@ -3,9 +3,14 @@ require("dotenv").config();
 const { TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
-
 const { Pool } = require("pg");
 
+const apiId = Number(process.env.TELEGRAM_API_ID);
+const apiHash = process.env.TELEGRAM_API_HASH;
+const session = process.env.USERBOT_SESSION;
+
+const IMPORT_CHAT = process.env.IMPORT_CHAT || process.env.IMPORT_CHAT_ID;
+const STAGING_CHAT = process.env.STAGING_CHAT || process.env.STAGING_CHAT_ID;
 const DATABASE_URL = process.env.DATABASE_URL || "";
 
 const pgPool = DATABASE_URL
@@ -17,21 +22,21 @@ const pgPool = DATABASE_URL
     })
   : null;
 
-const apiId = Number(process.env.TELEGRAM_API_ID);
-const apiHash = process.env.TELEGRAM_API_HASH;
-const session = process.env.USERBOT_SESSION;
-
-const IMPORT_CHAT = process.env.IMPORT_CHAT || process.env.IMPORT_CHAT_ID;
-const STAGING_CHAT = process.env.STAGING_CHAT || process.env.STAGING_CHAT_ID;
-
 const ACTIVE_IMPORTS = new Set();
 
 function isUserbotEnabled() {
   return String(process.env.USERBOT_ENABLED || "").toLowerCase() === "true";
 }
 
+function normalizeReleaseText(text = "") {
+  return String(text || "")
+    .replace(/[_\-.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function titleCase(text = "") {
-  return text
+  return String(text || "")
     .split(" ")
     .filter(Boolean)
     .map((word) => {
@@ -46,15 +51,9 @@ function cleanReleaseText(text = "") {
     .replace(/\.[a-z0-9]{2,5}$/i, "")
     .replace(/@\w+/g, " ")
     .replace(/\b(2160p|1080p|720p|480p|uhd|fhd|hd|4k)\b/gi, " ")
-    .replace(/\b(web-dl|webrip|bluray|brrip|hdrip|dvdrip|x264|x265|h264|h265|hevc|aac|dts|ddp|truehd)\b/gi, " ")
+    .replace(/\b(web-dl|webrip|web|bluray|brrip|hdrip|dvdrip|x264|x265|h264|h265|hevc|aac|dts|ddp|truehd)\b/gi, " ")
+    .replace(/\b(german|deutsch|english|englisch|ger|eng|dl|dual|multi)\b/gi, " ")
     .replace(/[._-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizeReleaseText(text = "") {
-  return String(text || "")
-    .replace(/[_\-.]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -131,10 +130,15 @@ function parseMediaFileName(fileName = "") {
     .trim();
 
   const cleaned = cleanReleaseText(original);
-
   const yearMatch = readable.match(/\b(19\d{2}|20\d{2})\b/);
 
-  // Standard-Serienformat: S01E02
+  const commonMeta = {
+    quality: detectQuality(original),
+    source: detectSource(original),
+    codec: detectCodec(original),
+    audio: detectAudioLanguage(original),
+  };
+
   const seriesMatch = readable.match(/(.+?)\s+s(\d{1,2})\s*e(\d{1,3})(?:\s*[-:=]\s*(.+))?/i);
 
   if (seriesMatch) {
@@ -150,13 +154,10 @@ function parseMediaFileName(fileName = "") {
       season: Number(seriesMatch[2]),
       episode: Number(seriesMatch[3]),
       episodeTitle: cleanEpisodeTitle(seriesMatch[4] || ""),
-      quality: detectQuality(original),
-      source: detectSource(original),
-      codec: detectCodec(original),
+      ...commonMeta,
     };
   }
 
-  // Alternative Schreibweise: 1x02
   const xMatch = readable.match(/(.+?)\s+(\d{1,2})x(\d{1,3})(?:\s*[-:=]\s*(.+))?/i);
 
   if (xMatch) {
@@ -172,13 +173,10 @@ function parseMediaFileName(fileName = "") {
       season: Number(xMatch[2]),
       episode: Number(xMatch[3]),
       episodeTitle: cleanEpisodeTitle(xMatch[4] || ""),
-      quality: detectQuality(original),
-      source: detectSource(original),
-      codec: detectCodec(original),
+      ...commonMeta,
     };
   }
 
-  // Deutsche/englische Schreibweise: Episode 2 / Folge 2 / Ep 2
   const episodeWordMatch = readable.match(
     /(.+?)\s*[- ]\s*(?:episode|folge|ep)\s*(\d{1,3})(?:\s*[-:=]?\s*(.+))?/i
   );
@@ -193,17 +191,10 @@ function parseMediaFileName(fileName = "") {
           .trim()
       ),
       year: yearMatch ? Number(yearMatch[1]) : null,
-
-      // Wenn kein Sxx im Dateinamen steht, nehmen wir sicherheitshalber Staffel 1.
-      // Später können wir das über Serien-Datenbank/TMDB genauer machen.
       season: 1,
-
       episode: Number(episodeWordMatch[2]),
       episodeTitle: cleanEpisodeTitle(episodeWordMatch[3] || ""),
-      quality: detectQuality(original),
-      source: detectSource(original),
-      codec: detectCodec(original),
-      audio: detectAudioLanguage(original),
+      ...commonMeta,
     };
   }
 
@@ -220,10 +211,7 @@ function parseMediaFileName(fileName = "") {
     season: null,
     episode: null,
     episodeTitle: null,
-    quality: detectQuality(original),
-    source: detectSource(original),
-    codec: detectCodec(original),
-    audio: detectAudioLanguage(original),
+    ...commonMeta,
   };
 }
 
@@ -299,73 +287,33 @@ function buildImportReport({ fileName, parsed, fileSize, mimeType, videoMeta }) 
   if (parsed.year) lines.push(`📅 Jahr: ${parsed.year}`);
 
   if (parsed.type === "series") {
-  lines.push(`📀 Staffel: ${String(parsed.season).padStart(2, "0")}`);
-  lines.push(`🎞 Episode: ${String(parsed.episode).padStart(2, "0")}`);
+    lines.push(`📀 Staffel: ${String(parsed.season).padStart(2, "0")}`);
+    lines.push(`🎞 Episode: ${String(parsed.episode).padStart(2, "0")}`);
 
-  if (parsed.episodeTitle) {
-    lines.push(`📝 Episodentitel: ${parsed.episodeTitle}`);
+    if (parsed.episodeTitle) {
+      lines.push(`📝 Episodentitel: ${parsed.episodeTitle}`);
+    }
   }
-}
 
   if (parsed.quality) lines.push(`🔥 Qualität: ${parsed.quality}`);
-if (parsed.source) lines.push(`📡 Quelle: ${parsed.source}`);
-if (parsed.codec) lines.push(`🎥 Codec: ${parsed.codec}`);
-if (parsed.audio) lines.push(`🔊 Audio: ${parsed.audio}`);
-if (fileSize) lines.push(`💾 Größe: ${fileSize}`);
-if (mimeType) lines.push(`🧾 MIME: ${mimeType}`);
+  if (parsed.source) lines.push(`📡 Quelle: ${parsed.source}`);
+  if (parsed.codec) lines.push(`🎥 Codec: ${parsed.codec}`);
+  if (parsed.audio) lines.push(`🔊 Audio: ${parsed.audio}`);
+  if (fileSize) lines.push(`💾 Größe: ${fileSize}`);
+  if (mimeType) lines.push(`🧾 MIME: ${mimeType}`);
 
-if (videoMeta.width && videoMeta.height) {
-  lines.push(`📺 Auflösung: ${videoMeta.width}x${videoMeta.height}`);
-}
-
-if (videoMeta.duration) {
-  lines.push(`⏱ Dauer: ${Math.round(Number(videoMeta.duration) / 60)} Min.`);
-}
-
-lines.push("");
-lines.push("✅ Datei wurde in die Staging-Gruppe weitergeleitet.");
-
-return lines.join("\n");
-
-async function resolveChat(client, reference, label) {
-  const ref = String(reference || "").trim();
-
-  if (!ref) {
-    throw new Error(`${label} fehlt in Render ENV.`);
+  if (videoMeta.width && videoMeta.height) {
+    lines.push(`📺 Auflösung: ${videoMeta.width}x${videoMeta.height}`);
   }
 
-  try {
-    return await client.getEntity(ref);
-  } catch (_) {
-    // Wenn direkte Suche nicht klappt, suchen wir in den sichtbaren Dialogen.
+  if (videoMeta.duration) {
+    lines.push(`⏱ Dauer: ${Math.round(Number(videoMeta.duration) / 60)} Min.`);
   }
 
-  const dialogs = await client.getDialogs({ limit: 100 });
-  const normalizedRef = ref.toLowerCase();
+  lines.push("");
+  lines.push("✅ Datei wurde in die Staging-Gruppe weitergeleitet.");
 
-  const match = dialogs.find((dialog) => {
-    const name = String(dialog.name || dialog.title || dialog.entity?.title || "").trim();
-    const id = String(dialog.id || dialog.entity?.id || "").trim();
-
-    return (
-      id === ref ||
-      name === ref ||
-      name.toLowerCase() === normalizedRef ||
-      name.toLowerCase().includes(normalizedRef)
-    );
-  });
-
-  if (match?.entity) return match.entity;
-
-  const available = dialogs
-    .map((dialog) => dialog.name || dialog.title || dialog.entity?.title)
-    .filter(Boolean)
-    .slice(0, 25)
-    .join(", ");
-
-  throw new Error(
-    `${label} konnte nicht gefunden werden: "${ref}". Sichtbare Chats: ${available}`
-  );
+  return lines.join("\n");
 }
 
 async function ensureUserbotImportTables() {
@@ -378,35 +326,28 @@ async function ensureUserbotImportTables() {
     CREATE TABLE IF NOT EXISTS userbot_imports (
       id SERIAL PRIMARY KEY,
       unique_key TEXT UNIQUE,
-
       source_chat TEXT,
       staging_chat TEXT,
-
       source_message_id TEXT,
       staging_message_id TEXT,
-
       media_type TEXT,
       title TEXT,
       year INTEGER,
       season INTEGER,
       episode INTEGER,
       episode_title TEXT,
-
       file_name TEXT,
       file_size TEXT,
       mime_type TEXT,
       width INTEGER,
       height INTEGER,
       duration_minutes INTEGER,
-
       quality TEXT,
       media_source TEXT,
       codec TEXT,
       audio TEXT,
-
       status TEXT DEFAULT 'staged',
       raw_json JSONB,
-
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -426,16 +367,10 @@ function extractForwardedMessageId(result) {
   }
 
   if (result.id) return String(result.id);
-
   if (result.message?.id) return String(result.message.id);
 
   if (Array.isArray(result.updates)) {
     for (const update of result.updates) {
-      if (update.message?.id) return String(update.message.id);
-      if (update.id && update.className?.includes("Message")) {
-        return String(update.id);
-      }
-
       const nested = extractForwardedMessageId(update);
       if (nested) return nested;
     }
@@ -459,32 +394,26 @@ async function saveUserbotImport(data) {
       `
       INSERT INTO userbot_imports (
         unique_key,
-
         source_chat,
         staging_chat,
-
         source_message_id,
         staging_message_id,
-
         media_type,
         title,
         year,
         season,
         episode,
         episode_title,
-
         file_name,
         file_size,
         mime_type,
         width,
         height,
         duration_minutes,
-
         quality,
         media_source,
         codec,
         audio,
-
         status,
         raw_json
       )
@@ -520,32 +449,26 @@ async function saveUserbotImport(data) {
       `,
       [
         data.uniqueKey,
-
         data.sourceChat,
         data.stagingChat,
-
         data.sourceMessageId,
         data.stagingMessageId,
-
         data.mediaType,
         data.title,
         data.year,
         data.season,
         data.episode,
         data.episodeTitle,
-
         data.fileName,
         data.fileSize,
         data.mimeType,
         data.width,
         data.height,
         data.durationMinutes,
-
         data.quality,
         data.mediaSource,
         data.codec,
         data.audio,
-
         data.status || "staged",
         data.rawJson,
       ]
@@ -556,6 +479,45 @@ async function saveUserbotImport(data) {
     console.error("❌ Supabase Userbot Import Speicherfehler:", error.message);
     return null;
   }
+}
+
+async function resolveChat(client, reference, label) {
+  const ref = String(reference || "").trim();
+
+  if (!ref) {
+    throw new Error(`${label} fehlt in Render ENV.`);
+  }
+
+  try {
+    return await client.getEntity(ref);
+  } catch (_) {
+    // Falls direkte Suche nicht klappt, suchen wir in den sichtbaren Dialogen.
+  }
+
+  const dialogs = await client.getDialogs({ limit: 100 });
+  const normalizedRef = ref.toLowerCase();
+
+  const match = dialogs.find((dialog) => {
+    const name = String(dialog.name || dialog.title || dialog.entity?.title || "").trim();
+    const id = String(dialog.id || dialog.entity?.id || "").trim();
+
+    return (
+      id === ref ||
+      name === ref ||
+      name.toLowerCase() === normalizedRef ||
+      name.toLowerCase().includes(normalizedRef)
+    );
+  });
+
+  if (match?.entity) return match.entity;
+
+  const available = dialogs
+    .map((dialog) => dialog.name || dialog.title || dialog.entity?.title)
+    .filter(Boolean)
+    .slice(0, 25)
+    .join(", ");
+
+  throw new Error(`${label} konnte nicht gefunden werden: "${ref}". Sichtbare Chats: ${available}`);
 }
 
 async function startUserbotImporter() {
@@ -580,14 +542,9 @@ async function startUserbotImporter() {
   console.log("🚀 Starte Library of Legends Userbot Importer");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-  const client = new TelegramClient(
-    new StringSession(session),
-    apiId,
-    apiHash,
-    {
-      connectionRetries: 5,
-    }
-  );
+  const client = new TelegramClient(new StringSession(session), apiId, apiHash, {
+    connectionRetries: 5,
+  });
 
   await client.connect();
 
@@ -599,11 +556,11 @@ async function startUserbotImporter() {
 
   const me = await client.getMe();
 
-console.log("✅ Userbot verbunden als:", me.username || me.firstName || me.id);
+  console.log("✅ Userbot verbunden als:", me.username || me.firstName || me.id);
 
-await ensureUserbotImportTables();
+  await ensureUserbotImportTables();
 
-const importEntity = await resolveChat(client, IMPORT_CHAT, "IMPORT_CHAT");
+  const importEntity = await resolveChat(client, IMPORT_CHAT, "IMPORT_CHAT");
   const stagingEntity = await resolveChat(client, STAGING_CHAT, "STAGING_CHAT");
 
   console.log("📥 Import-Chat gefunden:", IMPORT_CHAT);
@@ -639,78 +596,73 @@ const importEntity = await resolveChat(client, IMPORT_CHAT, "IMPORT_CHAT");
         console.log("🧠 Parsed:", parsed);
 
         const forwardedResult = await client.forwardMessages(stagingEntity, {
-  messages: [message.id],
-  fromPeer: importEntity,
-});
+          messages: [message.id],
+          fromPeer: importEntity,
+        });
 
-const stagingMessageId = extractForwardedMessageId(forwardedResult);
+        const stagingMessageId = extractForwardedMessageId(forwardedResult);
 
-const importDbId = await saveUserbotImport({
-  uniqueKey: `${String(message.chatId || IMPORT_CHAT)}:${String(message.id)}`,
+        const importDbId = await saveUserbotImport({
+          uniqueKey: `${String(message.chatId || IMPORT_CHAT)}:${String(message.id)}`,
+          sourceChat: String(IMPORT_CHAT),
+          stagingChat: String(STAGING_CHAT),
+          sourceMessageId: String(message.id),
+          stagingMessageId,
+          mediaType: parsed.type,
+          title: parsed.title || null,
+          year: parsed.year || null,
+          season: parsed.season || null,
+          episode: parsed.episode || null,
+          episodeTitle: parsed.episodeTitle || null,
+          fileName,
+          fileSize,
+          mimeType,
+          width: videoMeta.width || null,
+          height: videoMeta.height || null,
+          durationMinutes: videoMeta.duration
+            ? Math.round(Number(videoMeta.duration) / 60)
+            : null,
+          quality: parsed.quality || null,
+          mediaSource: parsed.source || null,
+          codec: parsed.codec || null,
+          audio: parsed.audio || null,
+          status: "staged",
+          rawJson: {
+            parsed,
+            fileName,
+            fileSize,
+            mimeType,
+            videoMeta,
+          },
+        });
 
-  sourceChat: String(IMPORT_CHAT),
-  stagingChat: String(STAGING_CHAT),
+        let report = buildImportReport({
+          fileName,
+          parsed,
+          fileSize,
+          mimeType,
+          videoMeta,
+        });
 
-  sourceMessageId: String(message.id),
-  stagingMessageId: stagingMessageId,
+        if (importDbId) {
+          report += `\n🆔 Import-ID: ${importDbId}`;
+        }
 
-  mediaType: parsed.type,
-  title: parsed.title || null,
-  year: parsed.year || null,
-  season: parsed.season || null,
-  episode: parsed.episode || null,
-  episodeTitle: parsed.episodeTitle || null,
+        await client.sendMessage(stagingEntity, {
+          message: report,
+        });
 
-  fileName,
-  fileSize,
-  mimeType,
-  width: videoMeta.width || null,
-  height: videoMeta.height || null,
-  durationMinutes: videoMeta.duration
-    ? Math.round(Number(videoMeta.duration) / 60)
-    : null,
+        console.log("✅ Datei wurde in Staging weitergeleitet.");
 
-  quality: parsed.quality || null,
-  mediaSource: parsed.source || null,
-  codec: parsed.codec || null,
-  audio: parsed.audio || null,
-
-  status: "staged",
-  rawJson: {
-    parsed,
-    fileName,
-    fileSize,
-    mimeType,
-    videoMeta,
-  },
-});
-
-let report = buildImportReport({
-  fileName,
-  parsed,
-  fileSize,
-  mimeType,
-  videoMeta,
-});
-
-if (importDbId) {
-  report += `\n🆔 Import-ID: ${importDbId}`;
-}
-
-await client.sendMessage(stagingEntity, {
-  message: report,
-});
-
-console.log("✅ Datei wurde in Staging weitergeleitet.");
-if (importDbId) {
-  console.log("✅ Import in Supabase gespeichert. ID:", importDbId);
-}
+        if (importDbId) {
+          console.log("✅ Import in Supabase gespeichert. ID:", importDbId);
+        }
       } catch (error) {
         console.error("❌ Fehler beim Userbot-Import:", error);
       } finally {
         setTimeout(() => ACTIVE_IMPORTS.delete(importKey), 60_000);
       }
-        },
+    },
     new NewMessage({ chats: [String(IMPORT_CHAT)] })
   );
 
