@@ -16250,12 +16250,54 @@ if (command === "/approveimport") {
 
     const copied = await tg("copyMessage", copyPayload);
 
-    const finalMessageId = extractTelegramMessageId(copied);
-    
-    console.log("📨 copyMessage Response:", JSON.stringify(copied, null, 2));
+console.log("📨 copyMessage Response:", JSON.stringify(copied, null, 2));
+
+const finalMessageId = extractTelegramMessageId(copied);
+
 console.log("💬 Final Message ID:", finalMessageId || "unbekannt");
 
-    await pgPool.query(
+if (copied?.__error || !finalMessageId) {
+  await pgPool.query(
+    `
+    UPDATE userbot_imports
+    SET status = 'error',
+        target_chat_id = $2,
+        target_topic_id = $3,
+        final_message_id = NULL,
+        updated_at = NOW()
+    WHERE id = $1
+    `,
+    [
+      item.id,
+      String(targetChatId),
+      topicId ? String(topicId) : null
+    ]
+  );
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "❌ IMPORT NICHT KOPIERT\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `🆔 Import-ID: ${item.id}\n` +
+      `🎬 ${item.title || "Unbekannt"} ${item.year || ""}\n\n` +
+      "Telegram konnte die Staging-Nachricht nicht kopieren:\n\n" +
+      `${copied?.description || copied?.error?.description || "Keine Message-ID erhalten"}\n\n` +
+      "Der Import wurde auf status = error gesetzt,\n" +
+      "nicht auf processed.\n\n" +
+      "Prüfe jetzt:\n" +
+      "1. BOT_STAGING_CHAT_ID ist wirklich die Chat-ID von 📤 LOL Staging\n" +
+      "2. Der normale Bot ist Mitglied/Admin in 📤 LOL Staging\n" +
+      "3. Die Staging Message ID existiert dort wirklich\n\n" +
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
+
+await pgPool.query(
   `
   UPDATE userbot_imports
   SET status = 'processed',
@@ -16270,7 +16312,7 @@ console.log("💬 Final Message ID:", finalMessageId || "unbekannt");
     item.id,
     String(targetChatId),
     topicId ? String(topicId) : null,
-    finalMessageId ? String(finalMessageId) : null
+    String(finalMessageId)
   ]
 );
 
