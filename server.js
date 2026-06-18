@@ -15844,16 +15844,13 @@ if (command === "/processimport") {
 const dossier = dossierResult.dossier;
 
 if (!dossier) {
+  const fallbackPreview = buildFallbackImportPreview(item, dossierResult);
+
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text:
-      "⚠️ Keine TMDB-/Dossier-Daten gefunden.\n\n" +
-      "Versuchte Suchbegriffe:\n\n" +
-      dossierResult.candidates.map((c) => `• ${c}`).join("\n").slice(0, 2500) +
-      "\n\nDer Import bleibt unverändert auf staged.\n\n" +
-      "Du kannst den Titel korrigieren, z. B.:\n" +
-      `/fiximport ${item.id} | Eldarnir | ${item.year || ""}`
+    text: cleanTelegramText(fallbackPreview).slice(0, 4000)
   });
+
   return;
 }
 
