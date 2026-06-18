@@ -20099,35 +20099,43 @@ async function notifyStartup() {
 // =============================
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`✅ Server läuft auf Port ${PORT}`);
-});
+async function startServer() {
+  try {
+    await testPostgresConnection();
+    await ensurePostgresTables();
 
-if (String(process.env.USERBOT_ENABLED || "").toLowerCase() === "true") {
-  setTimeout(() => {
-    startUserbotImporter().catch((error) => {
-      console.error("❌ Userbot Importer konnte nicht gestartet werden:", error);
+    if (process.env.CREATE_COMMAND_CENTERS === "true") {
+      try {
+        console.log("🎛 Erstelle Command Centers...");
+        await ensureCommandCenters();
+        console.log("✅ Command Centers bereit");
+      } catch (err) {
+        console.error("❌ Command Center Fehler:", err.message);
+      }
+    }
+
+    app.listen(PORT, () => {
+      console.log(`✅ Server läuft auf Port ${PORT}`);
     });
-  }, 3000);
-} else {
-  console.log("ℹ️ Userbot Importer deaktiviert. USERBOT_ENABLED ist nicht true.");
+
+    if (String(process.env.USERBOT_ENABLED || "").toLowerCase() === "true") {
+      setTimeout(() => {
+        startUserbotImporter().catch((error) => {
+          console.error("❌ Userbot Importer konnte nicht gestartet werden:", error);
+        });
+      }, 3000);
+    } else {
+      console.log("ℹ️ Userbot Importer deaktiviert. USERBOT_ENABLED ist nicht true.");
+    }
+
+    await notifyStartup();
+  } catch (error) {
+    console.error("❌ Server Start Fehler:", error);
+    process.exit(1);
+  }
 }
 
-  await testPostgresConnection();
-  await ensurePostgresTables();
-
-  if (process.env.CREATE_COMMAND_CENTERS === "true") {
-    try {
-      console.log("🎛 Erstelle Command Centers...");
-      await ensureCommandCenters();
-      console.log("✅ Command Centers bereit");
-    } catch (err) {
-      console.error("❌ Command Center Fehler:", err.message);
-    }
-  }
-
-  await notifyStartup();
-});
+startServer();
 
 // =============================
 // AUTO ERROR RECOVERY
