@@ -14217,6 +14217,8 @@ if (text === "/start" || text === "/admin") {
       "• /imports — offene Userbot-Importe\n" +
       "• /importinfo ID — Import-Details anzeigen\n" +
       "• /ignoreimport ID — Import ausblenden\n" +
+      "• /restoreimport ID — ignorierten Import wiederherstellen\n" +
+      "• /fiximport ID | TITEL | JAHR — Import-Titel korrigieren\n" +
       "• /processimport ID — Import-Vorschau erstellen\n\n" +
 
       "🧠 𝐑𝐄𝐏𝐀𝐈𝐑 & 𝐑𝐄𝐂𝐎𝐕𝐄𝐑𝐘\n\n" +
@@ -15420,6 +15422,128 @@ if (command === "/ignoreimport") {
       chat_id: msg.chat.id,
       text:
         "❌ Fehler beim Ignorieren des Imports:\n\n" +
+        String(err.message).slice(0, 1000)
+    });
+  }
+
+  return;
+}
+
+// =============================
+// FIX USERBOT IMPORT TITLE / YEAR
+// =============================
+if (command === "/fiximport") {
+  if (!pgPool) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Supabase/pgPool ist nicht aktiv.\n\n" +
+        "Userbot-Importe laufen aktuell nur mit Supabase."
+    });
+    return;
+  }
+
+  const raw = text.replace(command, "").trim();
+
+  const parts = raw
+    .split("|")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (parts.length < 2) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/fiximport ID | TITEL | JAHR\n\n" +
+        "Beispiel:\n" +
+        "/fiximport 2 | The Fires | 2025\n\n" +
+        "Oder ohne Jahr:\n" +
+        "/fiximport 2 | The Fires"
+    });
+    return;
+  }
+
+  const importId = Number(parts[0]);
+  const newTitle = parts[1];
+  const newYear = parts[2] ? Number(parts[2]) : null;
+
+  if (!importId || !Number.isFinite(importId)) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Ungültige Import-ID.\n\n" +
+        "Beispiel:\n" +
+        "/fiximport 2 | The Fires | 2025"
+    });
+    return;
+  }
+
+  if (!newTitle) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Kein neuer Titel angegeben.\n\n" +
+        "Beispiel:\n" +
+        "/fiximport 2 | The Fires | 2025"
+    });
+    return;
+  }
+
+  try {
+    const result = await pgPool.query(
+      `
+      UPDATE userbot_imports
+      SET title = $1,
+          year = COALESCE($2, year),
+          status = 'staged',
+          updated_at = NOW()
+      WHERE id = $3
+      RETURNING id, media_type, title, year, file_name, status
+      `,
+      [
+        newTitle,
+        newYear && Number.isFinite(newYear) ? newYear : null,
+        importId
+      ]
+    );
+
+    const item = result.rows[0];
+
+    if (!item) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Import nicht gefunden:\n\n" +
+          `Import-ID: ${importId}`
+      });
+      return;
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "✏️ USERBOT IMPORT KORRIGIERT\n" +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        `🆔 Import-ID: ${item.id}\n` +
+        `🎞 Typ: ${item.media_type || "unknown"}\n` +
+        `🏷 Neuer Titel: ${item.title || "Unbekannt"}\n` +
+        `📅 Jahr: ${item.year || "leer"}\n` +
+        `📁 Datei: ${item.file_name || "leer"}\n` +
+        `📌 Status: ${item.status || "staged"}\n\n` +
+        "Jetzt testen:\n" +
+        `/processimport ${item.id}\n\n` +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "@LibraryOfLegends"
+    });
+  } catch (err) {
+    console.error("❌ /fiximport Fehler:", err.message);
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Fehler beim Korrigieren des Imports:\n\n" +
         String(err.message).slice(0, 1000)
     });
   }
