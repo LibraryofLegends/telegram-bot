@@ -8,10 +8,13 @@ const { Pool } = require("pg");
 const Parser = require("rss-parser");
 const rssParser = new Parser();
 
+const { startUserbotImporter } = require("./userbot-importer");
+
 const app = express();
 
 const { registerUserbotSessionSetup } = require("./userbot-session-web");
 registerUserbotSessionSetup(app);
+
 app.use(express.json({ limit: "50mb" }));
 
 // =============================
@@ -20096,8 +20099,19 @@ async function notifyStartup() {
 // =============================
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
+});
+
+if (String(process.env.USERBOT_ENABLED || "").toLowerCase() === "true") {
+  setTimeout(() => {
+    startUserbotImporter().catch((error) => {
+      console.error("❌ Userbot Importer konnte nicht gestartet werden:", error);
+    });
+  }, 3000);
+} else {
+  console.log("ℹ️ Userbot Importer deaktiviert. USERBOT_ENABLED ist nicht true.");
+}
 
   await testPostgresConnection();
   await ensurePostgresTables();
