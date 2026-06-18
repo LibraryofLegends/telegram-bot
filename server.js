@@ -14220,6 +14220,7 @@ if (text === "/start" || text === "/admin") {
       "• /restoreimport ID — ignorierten Import wiederherstellen\n" +
       "• /fiximport ID | TITEL | JAHR — Import-Titel korrigieren\n" +
       "• /processimport ID — Import-Vorschau erstellen\n\n" +
+      "• /approveimport ID — Import final ins Archiv kopieren\n" +
 
       "🧠 𝐑𝐄𝐏𝐀𝐈𝐑 & 𝐑𝐄𝐂𝐎𝐕𝐄𝐑𝐘\n\n" +
       "• /rebuildcommandcenters\n" +
@@ -15886,6 +15887,256 @@ await tg("sendMessage", {
       text:
         "❌ Fehler beim Erstellen der Import-Vorschau:\n\n" +
         String(err.message).slice(0, 1000)
+    });
+  }
+
+  return;
+}
+
+function buildApprovedImportCaption(item) {
+  const isSeries = item.media_type === "series";
+
+  const episodeCode = isSeries
+    ? `S${String(item.season || 1).padStart(2, "0")}E${String(item.episode || 0).padStart(2, "0")}`
+    : "";
+
+  const technicalMeta = [
+    item.quality,
+    item.media_source,
+    item.codec,
+    item.audio
+  ].filter(Boolean).join(" | ");
+
+  const lines = [];
+
+  if (isSeries) {
+    lines.push(`📺 ${String(item.title || "UNBEKANNTE SERIE").toUpperCase()}`);
+    lines.push(`🎞 ${episodeCode}${item.episode_title ? ` • ${item.episode_title}` : ""}`);
+  } else {
+    lines.push(`🎬 ${String(item.title || "UNBEKANNTER FILM").toUpperCase()}${item.year ? ` (${item.year})` : ""}`);
+  }
+
+  lines.push("");
+  lines.push(`🔥 ${item.quality || "Qualität unbekannt"} | 🇩🇪 ${item.audio || "Audio unbekannt"}`);
+
+  if (technicalMeta) {
+    lines.push(`⚙️ ${technicalMeta}`);
+  }
+
+  if (item.width && item.height) {
+    lines.push(`📺 ${item.width}x${item.height}`);
+  }
+
+  if (item.duration_minutes) {
+    lines.push(`⏱ ${item.duration_minutes} Min.`);
+  }
+
+  if (item.file_size) {
+    lines.push(`💾 ${item.file_size}`);
+  }
+
+  lines.push("");
+  lines.push(`🆔 Import #${item.id}`);
+  lines.push("👉 @LibraryOfLegends");
+
+  return lines.join("\n");
+}
+
+// =============================
+// APPROVE USERBOT IMPORT — COPY TO ARCHIVE
+// =============================
+if (command === "/approveimport") {
+  if (!pgPool) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Supabase/pgPool ist nicht aktiv.\n\n" +
+        "Userbot-Importe laufen aktuell nur mit Supabase."
+    });
+    return;
+  }
+
+  const importId = Number(text.replace(command, "").trim());
+
+  if (!importId || !Number.isFinite(importId)) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/approveimport 2"
+    });
+    return;
+  }
+
+  try {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM userbot_imports
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [importId]
+    );
+
+    const item = result.rows[0];
+
+    if (!item) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Import nicht gefunden:\n\n" +
+          `Import-ID: ${importId}`
+      });
+      return;
+    }
+
+    if (!["staged", "pending", "error"].includes(item.status)) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "⚠️ Dieser Import kann nicht verarbeitet werden.\n\n" +
+          `🆔 Import-ID: ${item.id}\n` +
+          `📌 Status: ${item.status || "unbekannt"}`
+      });
+      return;
+    }
+
+    const isSeries = item.media_type === "series";
+    const targetChatId = isSeries ? SERIES_GROUP_ID : MOVIE_GROUP_ID;
+
+    if (!targetChatId) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Zielgruppe fehlt.\n\n" +
+          (isSeries
+            ? "Bitte SERIES_GROUP_ID in Render prüfen."
+            : "Bitte MOVIE_GROUP_ID in Render prüfen.")
+      });
+      return;
+    }
+
+    const stagingChatId =
+      process.env.BOT_STAGING_CHAT_ID ||
+      process.env.STAGING_GROUP_ID ||
+      process.env.STAGING_CHAT_ID;
+
+    if (!stagingChatId) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ BOT_STAGING_CHAT_ID fehlt in Render.\n\n" +
+          "Der Bot braucht die numerische Chat-ID der 📤 LOL Staging Gruppe,\n" +
+          "damit er die Datei ins Archiv kopieren kann."
+      });
+      return;
+    }
+
+    if (!item.staging_message_id) {
+      await pgPool.query(
+        `
+        UPDATE userbot_imports
+        SET status = 'error',
+            updated_at = NOW()
+        WHERE id = $1
+        `,
+        [item.id]
+      );
+
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Staging Message ID fehlt.\n\n" +
+          `🆔 Import-ID: ${item.id}\n` +
+          "Die Datei wurde zwar importiert, aber die Message-ID der Staging-Datei wurde nicht gespeichert.\n\n" +
+          "Bitte Datei erneut in 📥 LOL Import senden oder Userbot-Import nochmal testen."
+      });
+      return;
+    }
+
+    let topicId = null;
+
+    if (isSeries) {
+      topicId = await createOrGetTopic({
+        chatId: targetChatId,
+        name: item.title || "Unbekannte Serie",
+        type: "series"
+      });
+    } else {
+      topicId = await createOrGetTopic({
+        chatId: targetChatId,
+        name: "🎬 Movie Library",
+        type: "system_hub"
+      });
+    }
+
+    const caption = buildApprovedImportCaption(item);
+
+    const copyPayload = {
+      chat_id: targetChatId,
+      from_chat_id: stagingChatId,
+      message_id: Number(item.staging_message_id),
+      caption: cleanTelegramText(caption).slice(0, 1000)
+    };
+
+    if (topicId) {
+      copyPayload.message_thread_id = Number(topicId);
+    }
+
+    const copied = await tg("copyMessage", copyPayload);
+
+    const finalMessageId =
+      copied?.message_id ||
+      copied?.result?.message_id ||
+      null;
+
+    await pgPool.query(
+      `
+      UPDATE userbot_imports
+      SET status = 'processed',
+          updated_at = NOW()
+      WHERE id = $1
+      `,
+      [item.id]
+    );
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "✅ USERBOT IMPORT VERARBEITET\n" +
+        "━━━━━━━━━━━━━━━━━━\n\n" +
+        `🆔 Import-ID: ${item.id}\n` +
+        `${isSeries ? "📺" : "🎬"} ${item.title || "Unbekannt"} ${item.year || ""}\n` +
+        (isSeries
+          ? `🎞 S${String(item.season || 1).padStart(2, "0")}E${String(item.episode || 0).padStart(2, "0")}\n`
+          : "") +
+        `📤 Ziel: ${isSeries ? "Seriengruppe" : "Filmgruppe"}\n` +
+        `🧵 Topic ID: ${topicId || "ohne"}\n` +
+        `💬 Message ID: ${finalMessageId || "unbekannt"}\n\n` +
+        "✅ Status wurde auf processed gesetzt.\n\n" +
+        "━━━━━━━━━━━━━━━━━━\n" +
+        "@LibraryOfLegends"
+    });
+  } catch (err) {
+    console.error("❌ /approveimport Fehler:", err.message);
+
+    await pgPool.query(
+      `
+      UPDATE userbot_imports
+      SET status = 'error',
+          updated_at = NOW()
+      WHERE id = $1
+      `,
+      [importId]
+    ).catch(() => {});
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Fehler beim Freigeben des Imports:\n\n" +
+        String(err.message).slice(0, 1500)
     });
   }
 
