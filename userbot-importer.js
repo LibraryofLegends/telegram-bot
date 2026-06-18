@@ -75,18 +75,84 @@ function detectCodec(text = "") {
 
 function parseMediaFileName(fileName = "") {
   const original = String(fileName || "").trim();
+
+  const readable = original
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+    .replace(/@\w+/g, " ")
+    .replace(/[._]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
   const cleaned = cleanReleaseText(original);
 
-  const seriesMatch = cleaned.match(/(.+?)\s+s(\d{1,2})\s*e(\d{1,2})/i);
-  const yearMatch = cleaned.match(/\b(19\d{2}|20\d{2})\b/);
+  const yearMatch = readable.match(/\b(19\d{2}|20\d{2})\b/);
+
+  // Standard-Serienformat: S01E02
+  const seriesMatch = readable.match(/(.+?)\s+s(\d{1,2})\s*e(\d{1,3})(?:\s*[-:=]\s*(.+))?/i);
 
   if (seriesMatch) {
     return {
       type: "series",
-      title: titleCase(seriesMatch[1]),
+      title: titleCase(
+        seriesMatch[1]
+          .replace(/\b(19\d{2}|20\d{2})\b/g, "")
+          .replace(/\s+-\s*$/, "")
+          .trim()
+      ),
       year: yearMatch ? Number(yearMatch[1]) : null,
       season: Number(seriesMatch[2]),
       episode: Number(seriesMatch[3]),
+      episodeTitle: cleanEpisodeTitle(seriesMatch[4] || ""),
+      quality: detectQuality(original),
+      source: detectSource(original),
+      codec: detectCodec(original),
+    };
+  }
+
+  // Alternative Schreibweise: 1x02
+  const xMatch = readable.match(/(.+?)\s+(\d{1,2})x(\d{1,3})(?:\s*[-:=]\s*(.+))?/i);
+
+  if (xMatch) {
+    return {
+      type: "series",
+      title: titleCase(
+        xMatch[1]
+          .replace(/\b(19\d{2}|20\d{2})\b/g, "")
+          .replace(/\s+-\s*$/, "")
+          .trim()
+      ),
+      year: yearMatch ? Number(yearMatch[1]) : null,
+      season: Number(xMatch[2]),
+      episode: Number(xMatch[3]),
+      episodeTitle: cleanEpisodeTitle(xMatch[4] || ""),
+      quality: detectQuality(original),
+      source: detectSource(original),
+      codec: detectCodec(original),
+    };
+  }
+
+  // Deutsche/englische Schreibweise: Episode 2 / Folge 2 / Ep 2
+  const episodeWordMatch = readable.match(
+    /(.+?)\s*[- ]\s*(?:episode|folge|ep)\s*(\d{1,3})(?:\s*[-:=]?\s*(.+))?/i
+  );
+
+  if (episodeWordMatch) {
+    return {
+      type: "series",
+      title: titleCase(
+        episodeWordMatch[1]
+          .replace(/\b(19\d{2}|20\d{2})\b/g, "")
+          .replace(/\s+-\s*$/, "")
+          .trim()
+      ),
+      year: yearMatch ? Number(yearMatch[1]) : null,
+
+      // Wenn kein Sxx im Dateinamen steht, nehmen wir sicherheitshalber Staffel 1.
+      // Später können wir das über Serien-Datenbank/TMDB genauer machen.
+      season: 1,
+
+      episode: Number(episodeWordMatch[2]),
+      episodeTitle: cleanEpisodeTitle(episodeWordMatch[3] || ""),
       quality: detectQuality(original),
       source: detectSource(original),
       codec: detectCodec(original),
@@ -105,6 +171,7 @@ function parseMediaFileName(fileName = "") {
     year: yearMatch ? Number(yearMatch[1]) : null,
     season: null,
     episode: null,
+    episodeTitle: null,
     quality: detectQuality(original),
     source: detectSource(original),
     codec: detectCodec(original),
