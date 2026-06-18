@@ -52,51 +52,54 @@ function cleanReleaseText(text = "") {
     .trim();
 }
 
-function detectQuality(text = "") {
-  const source = String(text);
+function normalizeReleaseText(text = "") {
+  return String(text || "")
+    .replace(/[_\-.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  if (/\b(2160p|4k|uhd)\b/i.test(source)) return "UHD / 4K";
-  if (/\b(1080p|fhd)\b/i.test(source)) return "FHD / 1080p";
-  if (/\b720p\b/i.test(source)) return "HD / 720p";
-  if (/\b480p\b/i.test(source)) return "SD / 480p";
+function detectQuality(text = "") {
+  const source = normalizeReleaseText(text);
+
+  if (/(^|\s)(2160p|4k|uhd)(\s|$)/i.test(source)) return "UHD / 4K";
+  if (/(^|\s)(1080p|fhd)(\s|$)/i.test(source)) return "FHD / 1080p";
+  if (/(^|\s)720p(\s|$)/i.test(source)) return "HD / 720p";
+  if (/(^|\s)480p(\s|$)/i.test(source)) return "SD / 480p";
 
   return null;
 }
 
 function detectSource(text = "") {
-  const source = String(text);
+  const source = normalizeReleaseText(text);
 
-  if (/\bweb[-_. ]?dl\b/i.test(source)) return "WEB-DL";
-  if (/\bweb[-_. ]?rip\b/i.test(source)) return "WEBRip";
-  if (/\bblu[-_. ]?ray\b/i.test(source)) return "BluRay";
-  if (/\bbrrip\b/i.test(source)) return "BRRip";
-  if (/\bhdrip\b/i.test(source)) return "HDRip";
-  if (/\bdvdrip\b/i.test(source)) return "DVDRip";
+  if (/web\s*dl/i.test(source)) return "WEB-DL";
+  if (/web\s*rip/i.test(source)) return "WEBRip";
+  if (/(^|\s)web(\s|$)/i.test(source)) return "WEB";
+  if (/blu\s*ray/i.test(source)) return "BluRay";
+  if (/(^|\s)brrip(\s|$)/i.test(source)) return "BRRip";
+  if (/(^|\s)hdrip(\s|$)/i.test(source)) return "HDRip";
+  if (/(^|\s)dvdrip(\s|$)/i.test(source)) return "DVDRip";
 
   return null;
 }
 
 function detectCodec(text = "") {
-  const source = String(text);
+  const source = normalizeReleaseText(text);
 
-  if (/\b(x265|h265|hevc)\b/i.test(source)) return "H.265 / HEVC";
-  if (/\b(x264|h264)\b/i.test(source)) return "H.264";
-  if (/\bav1\b/i.test(source)) return "AV1";
+  if (/(^|\s)(x265|h265|hevc)(\s|$)/i.test(source)) return "H.265 / HEVC";
+  if (/(^|\s)(x264|h264)(\s|$)/i.test(source)) return "H.264";
+  if (/(^|\s)av1(\s|$)/i.test(source)) return "AV1";
 
   return null;
 }
 
 function detectAudioLanguage(text = "") {
-  const source = String(text);
+  const source = normalizeReleaseText(text);
 
-  const hasGerman =
-    /\b(german|deutsch|ger|de)\b/i.test(source);
-
-  const hasEnglish =
-    /\b(english|englisch|eng|en)\b/i.test(source);
-
-  const hasDL =
-    /\b(dl|dual|dual[-_. ]?language|multi)\b/i.test(source);
+  const hasGerman = /(^|\s)(german|deutsch|ger|de)(\s|$)/i.test(source);
+  const hasEnglish = /(^|\s)(english|englisch|eng|en)(\s|$)/i.test(source);
+  const hasDL = /(^|\s)(dl|dual|dual language|multi)(\s|$)/i.test(source);
 
   if (hasDL && hasGerman) return "Deutsch / Dual Language";
   if (hasDL) return "Dual Language";
@@ -305,25 +308,24 @@ function buildImportReport({ fileName, parsed, fileSize, mimeType, videoMeta }) 
 }
 
   if (parsed.quality) lines.push(`🔥 Qualität: ${parsed.quality}`);
-  if (parsed.source) lines.push(`📡 Quelle: ${parsed.source}`);
-  if (parsed.codec) lines.push(`🎥 Codec: ${parsed.codec}`);
+if (parsed.source) lines.push(`📡 Quelle: ${parsed.source}`);
+if (parsed.codec) lines.push(`🎥 Codec: ${parsed.codec}`);
 if (parsed.audio) lines.push(`🔊 Audio: ${parsed.audio}`);
 if (fileSize) lines.push(`💾 Größe: ${fileSize}`);
-  if (mimeType) lines.push(`🧾 MIME: ${mimeType}`);
+if (mimeType) lines.push(`🧾 MIME: ${mimeType}`);
 
-  if (videoMeta.width && videoMeta.height) {
-    lines.push(`📺 Auflösung: ${videoMeta.width}x${videoMeta.height}`);
-  }
-
-  if (videoMeta.duration) {
-    lines.push(`⏱ Dauer: ${Math.round(Number(videoMeta.duration) / 60)} Min.`);
-  }
-
-  lines.push("");
-  lines.push("✅ Datei wurde in die Staging-Gruppe weitergeleitet.");
-
-  return lines.join("\n");
+if (videoMeta.width && videoMeta.height) {
+  lines.push(`📺 Auflösung: ${videoMeta.width}x${videoMeta.height}`);
 }
+
+if (videoMeta.duration) {
+  lines.push(`⏱ Dauer: ${Math.round(Number(videoMeta.duration) / 60)} Min.`);
+}
+
+lines.push("");
+lines.push("✅ Datei wurde in die Staging-Gruppe weitergeleitet.");
+
+return lines.join("\n");
 
 async function resolveChat(client, reference, label) {
   const ref = String(reference || "").trim();
@@ -417,17 +419,32 @@ function extractForwardedMessageId(result) {
   if (!result) return null;
 
   if (Array.isArray(result)) {
-    return result[0]?.id ? String(result[0].id) : null;
+    for (const item of result) {
+      const found = extractForwardedMessageId(item);
+      if (found) return found;
+    }
   }
 
-  if (result.id) {
-    return String(result.id);
-  }
+  if (result.id) return String(result.id);
+
+  if (result.message?.id) return String(result.message.id);
 
   if (Array.isArray(result.updates)) {
     for (const update of result.updates) {
       if (update.message?.id) return String(update.message.id);
-      if (update.id) return String(update.id);
+      if (update.id && update.className?.includes("Message")) {
+        return String(update.id);
+      }
+
+      const nested = extractForwardedMessageId(update);
+      if (nested) return nested;
+    }
+  }
+
+  if (result.updates?.updates && Array.isArray(result.updates.updates)) {
+    for (const update of result.updates.updates) {
+      const nested = extractForwardedMessageId(update);
+      if (nested) return nested;
     }
   }
 
