@@ -8658,14 +8658,31 @@ async function searchSeriesTMDB(title, season, episode) {
       formatRating(details.vote_average),
 
     episodeRating:
-      episodeDetails?.vote_average
-        ? formatRating(episodeDetails.vote_average)
-        : "",
+  episodeDetails?.vote_average
+    ? formatRating(episodeDetails.vote_average)
+    : "",
 
-    overview:
-      episodeDetails?.overview ||
-      details.overview ||
-      "Keine Beschreibung verfügbar.",
+episodeVoteAverage:
+  episodeDetails?.vote_average !== undefined &&
+  episodeDetails?.vote_average !== null
+    ? Number(episodeDetails.vote_average)
+    : null,
+
+episodeVoteCount:
+  episodeDetails?.vote_count !== undefined &&
+  episodeDetails?.vote_count !== null
+    ? Number(episodeDetails.vote_count)
+    : 0,
+
+episodeOverview:
+  episodeDetails?.overview ||
+  details.overview ||
+  "Keine Beschreibung verfügbar.",
+
+overview:
+  episodeDetails?.overview ||
+  details.overview ||
+  "Keine Beschreibung verfügbar.",
 
     posterUrl:
       posterUrl(
@@ -10121,190 +10138,380 @@ function getSeriesNexusMeta(tmdb, media, extras = {}) {
 }
 
 // =============================
-// SERIES CAPTION — LEGENDS PREMIUM DOSSIER
+// SERIES CAPTION — COMPACT EPISODE REGISTRY
 // =============================
 async function seriesCaption(tmdb, media, extras = {}) {
+  const rawSeriesTitle =
+    tmdb.seriesTitle ||
+    media.seriesTitle ||
+    "Unbekannte Serie";
+
+  const seriesTitle =
+    llShortSeriesTitle(rawSeriesTitle);
+
+  const seasonText =
+    String(media.season || tmdb.seasonNumber || 1)
+      .padStart(2, "0");
+
+  const episodeText =
+    String(media.episode || tmdb.episodeNumber || 1)
+      .padStart(2, "0");
+
+  const episodeDisplay =
+    media.isDoubleEpisode && media.episodeEnd
+      ? `S${seasonText}E${episodeText}+E${String(media.episodeEnd).padStart(2, "0")}`
+      : `S${seasonText}E${episodeText}`;
+
   const finalEpisodeTitle =
     tmdb.episodeTitle ||
     media.episodeTitleFromFile ||
     "Episode";
 
-  const seriesTitle =
-    tmdb.seriesTitle ||
-    media.seriesTitle ||
-    "Unbekannte Serie";
-
-  const seasonText =
-    String(media.season).padStart(2, "0");
-
-  const episodeText =
-    String(media.episode).padStart(2, "0");
-
-  const episodeDisplay =
-    media.isDoubleEpisode && media.episodeEnd
-      ? `S${seasonText}E${String(media.episode).padStart(2, "0")}+E${String(media.episodeEnd).padStart(2, "0")}`
-      : `S${seasonText}E${episodeText}`;
-
-  const genreParts =
-    String(tmdb.genre || "Sonstige")
-      .split(/[\/•,]/)
-      .map((g) => g.trim())
-      .filter(Boolean)
-      .slice(0, 3);
-
-  const genreText =
-    genreParts.length
-      ? genreParts.join(" ∙ ")
-      : "Sonstige";
-
-  const genreTags =
-    genreParts
-      .map((g) =>
-        `#${g.replace(/\s+/g, "")}`
-      )
-      .join(" ");
-
-  const seriesTag =
-    "#" + String(seriesTitle)
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((word) =>
-        word.charAt(0).toUpperCase() +
-        word.slice(1).toLowerCase()
-      )
-      .join("")
-      .replace(/[^a-zA-Z0-9ÄÖÜäöüß]/g, "");
-
   const story =
-    trimTextAtSentence(
-      tmdb.overview || "Keine Beschreibung verfügbar.",
-      230
+    llCompactDossierText(
+      tmdb.episodeOverview ||
+      tmdb.overview ||
+      "Keine Beschreibung verfügbar.",
+      260
     );
 
-  const ratingNumber =
-    getRatingValue(tmdb.rating);
-
-  const stars =
-    ratingNumber >= 9
-      ? "★★★★★"
-      : getRatingStars(ratingNumber);
-
-  const ratingText =
-    ratingNumber > 0
-      ? ratingNumber.toFixed(1)
-      : "Unbekannt";
-
-  const { rank } =
-    getLegendStatusAndRank(ratingText);
+  const fileSize =
+    llFormatCompactSize(
+      extras.fileSize ||
+      extras.fileSizeBytes ||
+      media.fileSize ||
+      media.size ||
+      ""
+    );
 
   const quality =
-    extras.quality || "HD";
-
-  const resolution =
-    extras.resolution &&
-    extras.resolution !== "Unbekannt"
-      ? extras.resolution
-      : extras.videoResolution &&
-        extras.videoResolution !== "Unbekannt"
-        ? extras.videoResolution
-        : "";
-
-  const sourceLabel =
-    quality === "UHD"
-      ? "UHD 4K"
-      : quality === "FHD"
-        ? "FHD"
-        : quality === "HD"
-          ? "HD"
-          : quality || "Unbekannt";
-
-  const sourceText =
-    resolution
-      ? `${sourceLabel} ∙ ${resolution}`
-      : sourceLabel;
-
-  const fileSize =
-    extras.fileSize || "Unbekannt";
-
-  function normalizeEpisodeVideoCodec(codec = "") {
-    const value =
-      String(codec || "").toLowerCase();
-
-    if (
-      value.includes("hevc") ||
-      value.includes("h.265") ||
-      value.includes("x265")
-    ) {
-      return "HEVC x265";
-    }
-
-    if (
-      value.includes("avc") ||
-      value.includes("h.264") ||
-      value.includes("x264")
-    ) {
-      return "x264";
-    }
-
-    if (codec && codec !== "Unbekannt") {
-      return String(codec)
-        .replace("HEVC / ", "")
-        .replace("AVC / ", "");
-    }
-
-    return quality === "UHD"
-      ? "HEVC x265"
-      : "x264";
-  }
-
-  const videoCodec =
-    normalizeEpisodeVideoCodec(extras.videoCodec);
-
-  const audioCodec =
-    extras.audioCodec && extras.audioCodec !== "Unbekannt"
-      ? extras.audioCodec
-      : "DD+";
-
-  const audioChannels =
-    extras.audioChannels && extras.audioChannels !== "Unbekannt"
-      ? extras.audioChannels
-      : "5.1";
+    llFormatCompactQuality(media, extras);
 
   const audioText =
-    extras.audio && extras.audio !== "Unbekannt"
-      ? extras.audio
-      : `🇩🇪 ${audioCodec} ${audioChannels}`;
+    llFormatCompactAudio(media, extras);
 
-  const eliteTag =
-    ratingNumber >= 8 || quality === "UHD"
-      ? "#Elite"
-      : "#Archive";
+  const seriesTag =
+    "#" + llMakeCompactHashTag(seriesTitle);
 
-  const caption =
-    "╔══════════════╗\n" +
-      "👑 PREMIUM DOSSIER\n" +
-    "╚══════════════╝\n\n" +
-
-    `📺 ${escapeHtml(String(seriesTitle).toUpperCase())} ∙ 🌐 ${escapeHtml(episodeDisplay)}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 Episode: ${escapeHtml(finalEpisodeTitle)}\n` +
-    `🎭 Genre: ${escapeHtml(genreText)}\n` +
-    `⭐ Rank: 🏆 ${escapeHtml(rank)} ∙ ${stars}\n` +
-    "──────────────────\n" +
-    "💎 EPISODE DATA\n" +
-    `├ 💿 Source: ${escapeHtml(sourceText)}\n` +
-    `├ 💾 Größe: ${escapeHtml(fileSize)} ∙ ${escapeHtml(videoCodec)}\n` +
-    `└ 🔊 Audio: ${escapeHtml(audioText)}\n` +
-    "──────────────────\n" +
-    "📖 EPISODE DOSSIER\n" +
-    `${escapeHtml(story)}\n` +
-    "──────────────────\n" +
-    "📡 INDEXED & VERIFIED ✅\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `${seriesTag} #${episodeDisplay.replace(/[^A-Z0-9]/g, "")} ${eliteTag} ${genreTags}\n\n` +
-    "@LibraryOfLegends";
+  const caption = [
+    "██▓▒░ EPISODE REGISTRY ░▒▓██",
+    "",
+    `📺 ${escapeHtml(String(seriesTitle).toUpperCase())} ∙ ${escapeHtml(episodeDisplay)}`,
+    "───────────────────",
+    `🎬 Ep: ${escapeHtml(finalEpisodeTitle)}`,
+    llFormatEpisodeRank(tmdb, media, extras),
+    "───────────────────",
+    `📦 ${escapeHtml(fileSize)} ∙ ${escapeHtml(quality)} ║ 🔊 Audio: ${escapeHtml(audioText)}`,
+    "───────────────────",
+    `📖 DOSSIER: ${escapeHtml(story)}`,
+    "━━━━━━━━━━━━━━━━━━━",
+    `${seriesTag} #${episodeDisplay.replace(/[^A-Z0-9]/g, "")} @LibraryOfLegends`
+  ].join("\n");
 
   return cleanTelegramText(caption).slice(0, 1024);
+}
+
+function llFormatEpisodeRank(tmdb = {}, media = {}, extras = {}) {
+  const rating =
+    llGetRealEpisodeRating(tmdb, media, extras);
+
+  if (rating === null) {
+    return "⭐ Rank: 🏆 Archive ∙ Noch nicht bewertet";
+  }
+
+  const stars =
+    llStarsFromRating10(rating);
+
+  return `⭐ Rank: 🏆 ${rating.toFixed(1)}/10 ∙ ${stars}`;
+}
+
+function llGetRealEpisodeRating(tmdb = {}, media = {}, extras = {}) {
+  const candidates = [
+    tmdb.episodeVoteAverage,
+    tmdb.episodeRating,
+    tmdb.episode?.vote_average,
+    tmdb.episode?.voteAverage,
+    media.episodeVoteAverage,
+    media.episodeRating,
+    extras.episodeVoteAverage,
+    extras.episodeRating
+  ];
+
+  for (const value of candidates) {
+    const rating =
+      llNormalizeEpisodeRating(value);
+
+    if (rating !== null && rating > 0) {
+      return rating;
+    }
+  }
+
+  return null;
+}
+
+function llNormalizeEpisodeRating(value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const match =
+    String(value)
+      .replace(",", ".")
+      .match(/\d+(?:\.\d+)?/);
+
+  if (!match) {
+    return null;
+  }
+
+  const number =
+    Number(match[0]);
+
+  if (!Number.isFinite(number) || number <= 0) {
+    return null;
+  }
+
+  if (number > 10 && number <= 100) {
+    return number / 10;
+  }
+
+  if (number > 10) {
+    return 10;
+  }
+
+  return number;
+}
+
+function llStarsFromRating10(rating = 0) {
+  const stars =
+    Math.max(
+      0,
+      Math.min(
+        5,
+        Math.round(Number(rating || 0) / 2)
+      )
+    );
+
+  return "★".repeat(stars) + "☆".repeat(5 - stars);
+}
+
+function llShortSeriesTitle(title = "") {
+  const clean =
+    String(title || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const key =
+    clean
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+
+  const shortTitles = {
+    starwarsdieabenteuerderjungenjedi: "Star Wars: Junge Jedi",
+    starwarsjungejedi: "Star Wars: Junge Jedi"
+  };
+
+  return shortTitles[key] || clean;
+}
+
+function llCompactDossierText(text = "", maxLength = 260) {
+  const clean =
+    String(text || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  if (clean.length <= maxLength) {
+    return clean;
+  }
+
+  const cut =
+    clean.slice(0, maxLength);
+
+  const lastSentence =
+    Math.max(
+      cut.lastIndexOf("."),
+      cut.lastIndexOf("!"),
+      cut.lastIndexOf("?")
+    );
+
+  if (lastSentence > maxLength * 0.55) {
+    return cut.slice(0, lastSentence + 1);
+  }
+
+  return cut.replace(/\s+\S*$/, "") + "…";
+}
+
+function llFormatCompactSize(value) {
+  if (!value) {
+    return "Unbekannt";
+  }
+
+  if (typeof value === "number") {
+    const mb =
+      value > 1024 * 1024
+        ? value / 1024 / 1024
+        : value;
+
+    return `${Math.round(mb)} MB`;
+  }
+
+  const text =
+    String(value).trim();
+
+  const match =
+    text.match(/([\d.,]+)\s*(GB|MB)/i);
+
+  if (!match) {
+    return text;
+  }
+
+  const number =
+    Number(match[1].replace(",", "."));
+
+  const unit =
+    match[2].toUpperCase();
+
+  if (unit === "GB") {
+    return `${number.toFixed(2)} GB`;
+  }
+
+  return `${Math.round(number)} MB`;
+}
+
+function llFormatCompactQuality(media = {}, extras = {}) {
+  const quality =
+    String(extras.quality || media.quality || "")
+      .toUpperCase()
+      .trim();
+
+  const resolution =
+    extras.resolution ||
+    extras.videoResolution ||
+    media.resolution ||
+    "";
+
+  const width =
+    Number(extras.width || media.width || 0);
+
+  const height =
+    Number(extras.height || media.height || 0);
+
+  const resMatch =
+    String(resolution).match(/(\d{3,4})x(\d{3,4})/);
+
+  const detectedWidth =
+    width || Number(resMatch?.[1] || 0);
+
+  const detectedHeight =
+    height || Number(resMatch?.[2] || 0);
+
+  if (
+    quality.includes("UHD") ||
+    quality.includes("4K") ||
+    detectedHeight >= 2160 ||
+    detectedWidth >= 3840
+  ) {
+    return "UHD 2160p";
+  }
+
+  if (
+    quality.includes("FHD") ||
+    quality.includes("1080") ||
+    detectedHeight >= 1080 ||
+    detectedWidth >= 1920
+  ) {
+    return "FHD 1080p";
+  }
+
+  if (
+    quality.includes("HD") ||
+    quality.includes("720") ||
+    detectedHeight >= 720 ||
+    detectedWidth >= 1280
+  ) {
+    return "HD 720p";
+  }
+
+  return "SD";
+}
+
+function llFormatCompactAudio(media = {}, extras = {}) {
+  const rawLang =
+    extras.audio ||
+    extras.audioLanguage ||
+    media.audio ||
+    media.audioLanguage ||
+    "";
+
+  const rawCodec =
+    extras.audioCodec ||
+    media.audioCodec ||
+    "DD+";
+
+  const rawChannels =
+    extras.audioChannels ||
+    media.audioChannels ||
+    "";
+
+  const lang =
+    String(rawLang || "").toLowerCase();
+
+  let flag = "🇩🇪";
+
+  if (
+    lang.includes("deutsch") &&
+    lang.includes("englisch")
+  ) {
+    flag = "🇩🇪/🇬🇧";
+  } else if (
+    lang.includes("english") ||
+    lang.includes("englisch")
+  ) {
+    flag = "🇬🇧";
+  }
+
+  let codec =
+    String(rawCodec || "DD+")
+      .replace("E-AC3 / DDP", "DD+")
+      .replace("E-AC3", "DD+")
+      .replace("DDP", "DD+")
+      .replace("Unbekannt", "DD+")
+      .trim();
+
+  if (!codec) {
+    codec = "DD+";
+  }
+
+  const channels =
+    rawChannels && rawChannels !== "Unbekannt"
+      ? ` ${rawChannels}`
+      : "";
+
+  return `${flag} ${codec}${channels}`.trim();
+}
+
+function llMakeCompactHashTag(text = "") {
+  return String(text || "")
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/Ä/g, "Ae")
+    .replace(/Ö/g, "Oe")
+    .replace(/Ü/g, "Ue")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) =>
+      word.charAt(0).toUpperCase() +
+      word.slice(1)
+    )
+    .join("");
 }
 
 // =============================
