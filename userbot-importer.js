@@ -4,6 +4,19 @@ const { TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
 
+const { Pool } = require("pg");
+
+const DATABASE_URL = process.env.DATABASE_URL || "";
+
+const pgPool = DATABASE_URL
+  ? new Pool({
+      connectionString: DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    })
+  : null;
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
@@ -353,6 +366,181 @@ async function resolveChat(client, reference, label) {
   );
 }
 
+async function ensureUserbotImportTables() {
+  if (!pgPool) {
+    console.log("ℹ️ Keine DATABASE_URL gesetzt. Userbot-Importe werden nicht in Supabase gespeichert.");
+    return;
+  }
+
+  await pgPool.query(`
+    CREATE TABLE IF NOT EXISTS userbot_imports (
+      id SERIAL PRIMARY KEY,
+      unique_key TEXT UNIQUE,
+
+      source_chat TEXT,
+      staging_chat TEXT,
+
+      source_message_id TEXT,
+      staging_message_id TEXT,
+
+      media_type TEXT,
+      title TEXT,
+      year INTEGER,
+      season INTEGER,
+      episode INTEGER,
+      episode_title TEXT,
+
+      file_name TEXT,
+      file_size TEXT,
+      mime_type TEXT,
+      width INTEGER,
+      height INTEGER,
+      duration_minutes INTEGER,
+
+      quality TEXT,
+      media_source TEXT,
+      codec TEXT,
+      audio TEXT,
+
+      status TEXT DEFAULT 'staged',
+      raw_json JSONB,
+
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  console.log("✅ Userbot Import Tabelle bereit");
+}
+
+function extractForwardedMessageId(result) {
+  if (!result) return null;
+
+  if (Array.isArray(result)) {
+    return result[0]?.id ? String(result[0].id) : null;
+  }
+
+  if (result.id) {
+    return String(result.id);
+  }
+
+  if (Array.isArray(result.updates)) {
+    for (const update of result.updates) {
+      if (update.message?.id) return String(update.message.id);
+      if (update.id) return String(update.id);
+    }
+  }
+
+  return null;
+}
+
+async function saveUserbotImport(data) {
+  if (!pgPool) return null;
+
+  try {
+    const result = await pgPool.query(
+      `
+      INSERT INTO userbot_imports (
+        unique_key,
+
+        source_chat,
+        staging_chat,
+
+        source_message_id,
+        staging_message_id,
+
+        media_type,
+        title,
+        year,
+        season,
+        episode,
+        episode_title,
+
+        file_name,
+        file_size,
+        mime_type,
+        width,
+        height,
+        duration_minutes,
+
+        quality,
+        media_source,
+        codec,
+        audio,
+
+        status,
+        raw_json
+      )
+      VALUES (
+        $1, $2, $3, $4, $5,
+        $6, $7, $8, $9, $10, $11,
+        $12, $13, $14, $15, $16, $17,
+        $18, $19, $20, $21,
+        $22, $23
+      )
+      ON CONFLICT (unique_key)
+      DO UPDATE SET
+        staging_message_id = EXCLUDED.staging_message_id,
+        media_type = EXCLUDED.media_type,
+        title = EXCLUDED.title,
+        year = EXCLUDED.year,
+        season = EXCLUDED.season,
+        episode = EXCLUDED.episode,
+        episode_title = EXCLUDED.episode_title,
+        file_name = EXCLUDED.file_name,
+        file_size = EXCLUDED.file_size,
+        mime_type = EXCLUDED.mime_type,
+        width = EXCLUDED.width,
+        height = EXCLUDED.height,
+        duration_minutes = EXCLUDED.duration_minutes,
+        quality = EXCLUDED.quality,
+        media_source = EXCLUDED.media_source,
+        codec = EXCLUDED.codec,
+        audio = EXCLUDED.audio,
+        raw_json = EXCLUDED.raw_json,
+        updated_at = NOW()
+      RETURNING id;
+      `,
+      [
+        data.uniqueKey,
+
+        data.sourceChat,
+        data.stagingChat,
+
+        data.sourceMessageId,
+        data.stagingMessageId,
+
+        data.mediaType,
+        data.title,
+        data.year,
+        data.season,
+        data.episode,
+        data.episodeTitle,
+
+        data.fileName,
+        data.fileSize,
+        data.mimeType,
+        data.width,
+        data.height,
+        data.durationMinutes,
+
+        data.quality,
+        data.mediaSource,
+        data.codec,
+        data.audio,
+
+        data.status || "staged",
+        data.rawJson,
+      ]
+    );
+
+    return result.rows[0]?.id || null;
+  } catch (error) {
+    console.error("❌ Supabase Userbot Import Speicherfehler:", error.message);
+    return null;
+  }
+}
+
 async function startUserbotImporter() {
   if (!isUserbotEnabled()) {
     console.log("ℹ️ Userbot Importer deaktiviert. USERBOT_ENABLED ist nicht true.");
@@ -394,9 +582,11 @@ async function startUserbotImporter() {
 
   const me = await client.getMe();
 
-  console.log("✅ Userbot verbunden als:", me.username || me.firstName || me.id);
+console.log("✅ Userbot verbunden als:", me.username || me.firstName || me.id);
 
-  const importEntity = await resolveChat(client, IMPORT_CHAT, "IMPORT_CHAT");
+await ensureUserbotImportTables();
+
+const importEntity = await resolveChat(client, IMPORT_CHAT, "IMPORT_CHAT");
   const stagingEntity = await resolveChat(client, STAGING_CHAT, "STAGING_CHAT");
 
   console.log("📥 Import-Chat gefunden:", IMPORT_CHAT);
@@ -431,22 +621,73 @@ async function startUserbotImporter() {
         console.log("📂 Datei:", fileName);
         console.log("🧠 Parsed:", parsed);
 
-        await client.forwardMessages(stagingEntity, {
-          messages: [message.id],
-          fromPeer: importEntity,
-        });
+        const forwardedResult = await client.forwardMessages(stagingEntity, {
+  messages: [message.id],
+  fromPeer: importEntity,
+});
 
-        await client.sendMessage(stagingEntity, {
-          message: buildImportReport({
-            fileName,
-            parsed,
-            fileSize,
-            mimeType,
-            videoMeta,
-          }),
-        });
+const stagingMessageId = extractForwardedMessageId(forwardedResult);
 
-        console.log("✅ Datei wurde in Staging weitergeleitet.");
+const importDbId = await saveUserbotImport({
+  uniqueKey: `${String(message.chatId || IMPORT_CHAT)}:${String(message.id)}`,
+
+  sourceChat: String(IMPORT_CHAT),
+  stagingChat: String(STAGING_CHAT),
+
+  sourceMessageId: String(message.id),
+  stagingMessageId: stagingMessageId,
+
+  mediaType: parsed.type,
+  title: parsed.title || null,
+  year: parsed.year || null,
+  season: parsed.season || null,
+  episode: parsed.episode || null,
+  episodeTitle: parsed.episodeTitle || null,
+
+  fileName,
+  fileSize,
+  mimeType,
+  width: videoMeta.width || null,
+  height: videoMeta.height || null,
+  durationMinutes: videoMeta.duration
+    ? Math.round(Number(videoMeta.duration) / 60)
+    : null,
+
+  quality: parsed.quality || null,
+  mediaSource: parsed.source || null,
+  codec: parsed.codec || null,
+  audio: parsed.audio || null,
+
+  status: "staged",
+  rawJson: {
+    parsed,
+    fileName,
+    fileSize,
+    mimeType,
+    videoMeta,
+  },
+});
+
+let report = buildImportReport({
+  fileName,
+  parsed,
+  fileSize,
+  mimeType,
+  videoMeta,
+});
+
+if (importDbId) {
+  report += `\n🆔 Import-ID: ${importDbId}`;
+}
+
+await client.sendMessage(stagingEntity, {
+  message: report,
+});
+
+console.log("✅ Datei wurde in Staging weitergeleitet.");
+if (importDbId) {
+  console.log("✅ Import in Supabase gespeichert. ID:", importDbId);
+}
       } catch (error) {
         console.error("❌ Fehler beim Userbot-Import:", error);
       } finally {
