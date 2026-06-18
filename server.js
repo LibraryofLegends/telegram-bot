@@ -10193,18 +10193,22 @@ async function seriesCaption(tmdb, media, extras = {}) {
   const seriesTag =
     "#" + llMakeCompactHashTag(seriesTitle);
 
+  // Kürzere Linien, damit Telegram sie nicht hässlich umbricht
+  const divider = "────────────";
+  const strongDivider = "━━━━━━━━━━━━";
+
   const caption = [
     "██▓▒░ EPISODE REGISTRY ░▒▓██",
     "",
     `📺 ${escapeHtml(String(seriesTitle).toUpperCase())} ∙ ${escapeHtml(episodeDisplay)}`,
-    "───────────────────",
+    divider,
     `🎬 Ep: ${escapeHtml(finalEpisodeTitle)}`,
     llFormatEpisodeRank(tmdb, media, extras),
-    "───────────────────",
+    divider,
     `📦 ${escapeHtml(fileSize)} ∙ ${escapeHtml(quality)} ║ 🔊 Audio: ${escapeHtml(audioText)}`,
-    "───────────────────",
+    divider,
     `📖 DOSSIER: ${escapeHtml(story)}`,
-    "━━━━━━━━━━━━━━━━━━━",
+    strongDivider,
     `${seriesTag} #${episodeDisplay.replace(/[^A-Z0-9]/g, "")} @LibraryOfLegends`
   ].join("\n");
 
