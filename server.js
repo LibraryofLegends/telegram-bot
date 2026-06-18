@@ -15552,6 +15552,104 @@ if (command === "/fiximport") {
 }
 
 // =============================
+// USERBOT IMPORT SEARCH HELPERS
+// =============================
+function uniqueImportSearchTerms(values = []) {
+  const seen = new Set();
+  const result = [];
+
+  for (const value of values) {
+    const clean = String(value || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!clean) continue;
+
+    const key = clean.toLowerCase();
+
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    result.push(clean);
+  }
+
+  return result;
+}
+
+function buildImportSearchCandidates(item) {
+  const title = String(item.title || "").trim();
+  const year = item.year ? String(item.year) : "";
+
+  const candidates = [];
+
+  if (title && year) candidates.push(`${title} ${year}`);
+  if (title) candidates.push(title);
+
+  // Für Titel mit deutschem Untertitel / Alternativtitel
+  if (/the fires/i.test(title)) {
+    candidates.push(year ? `The Fires ${year}` : "The Fires");
+    candidates.push("The Fires");
+  }
+
+  if (/brennender abgrund/i.test(title)) {
+    candidates.push(year ? `Brennender Abgrund ${year}` : "Brennender Abgrund");
+    candidates.push("Brennender Abgrund");
+  }
+
+  // Bekannter Originaltitel für diesen Import
+  if (/the fires|brennender abgrund/i.test(title)) {
+    candidates.push(year ? `Eldarnir ${year}` : "Eldarnir");
+    candidates.push("Eldarnir");
+  }
+
+  // Falls Titel aus vielen Wörtern besteht: erste 2–3 Wörter versuchen
+  const words = title.split(" ").filter(Boolean);
+
+  if (words.length >= 2) {
+    const firstTwo = words.slice(0, 2).join(" ");
+    candidates.push(year ? `${firstTwo} ${year}` : firstTwo);
+    candidates.push(firstTwo);
+  }
+
+  if (words.length >= 3) {
+    const firstThree = words.slice(0, 3).join(" ");
+    candidates.push(year ? `${firstThree} ${year}` : firstThree);
+    candidates.push(firstThree);
+  }
+
+  return uniqueImportSearchTerms(candidates);
+}
+
+async function findImportDossier(item) {
+  const isSeries = item.media_type === "series";
+  const candidates = buildImportSearchCandidates(item);
+
+  for (const candidate of candidates) {
+    try {
+      const dossier = isSeries
+        ? await seriesInfoCaption(candidate)
+        : await movieInfoCaption(candidate);
+
+      if (dossier) {
+        return {
+          dossier,
+          matchedQuery: candidate,
+          candidates
+        };
+      }
+    } catch (err) {
+      console.error("⚠️ Import Dossier Suche fehlgeschlagen:", candidate, err.message);
+    }
+  }
+
+  return {
+    dossier: null,
+    matchedQuery: null,
+    candidates
+  };
+}
+
+// =============================
 // PROCESS USERBOT IMPORT — PREVIEW ONLY
 // =============================
 if (command === "/processimport") {
@@ -15658,42 +15756,42 @@ if (command === "/processimport") {
 
       "━━━━━━━━━━━━━━━━━━\n" +
       "🔎 TMDB / DOSSIER\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `Suche: ${searchQuery || "leer"}\n\n`;
+"━━━━━━━━━━━━━━━━━━\n\n" +
+`Primäre Suche: ${searchQuery || "leer"}\n` +
+"Mehrere Suchvarianten werden automatisch getestet.\n\n";
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text: cleanTelegramText(previewHeader).slice(0, 4000)
     });
 
-    let dossier = null;
+    const dossierResult = await findImportDossier(item);
+const dossier = dossierResult.dossier;
 
-    if (isSeries) {
-      dossier = await seriesInfoCaption(searchTitle);
-    } else {
-      dossier = await movieInfoCaption(searchQuery);
-    }
+if (!dossier) {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "⚠️ Keine TMDB-/Dossier-Daten gefunden.\n\n" +
+      "Versuchte Suchbegriffe:\n\n" +
+      dossierResult.candidates.map((c) => `• ${c}`).join("\n").slice(0, 2500) +
+      "\n\nDer Import bleibt unverändert auf staged.\n\n" +
+      "Du kannst den Titel korrigieren, z. B.:\n" +
+      `/fiximport ${item.id} | Eldarnir | ${item.year || ""}`
+  });
+  return;
+}
 
-    if (!dossier) {
-      await tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text:
-          "⚠️ Keine TMDB-/Dossier-Daten gefunden.\n\n" +
-          "Der Import bleibt unverändert auf staged.\n\n" +
-          "Du kannst den Titel später korrigieren oder manuell verarbeiten."
-      });
-      return;
-    }
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "✅ VORSCHAU-DOSSIER\n" +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        dossier,
-      parse_mode: "HTML"
-    });
+await tg("sendMessage", {
+  chat_id: msg.chat.id,
+  text:
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "✅ VORSCHAU-DOSSIER\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `🔎 Gefunden mit: ${dossierResult.matchedQuery}\n\n` +
+    dossier,
+  parse_mode: "HTML"
+});
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
