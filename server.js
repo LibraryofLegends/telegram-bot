@@ -14213,7 +14213,9 @@ if (text === "/start" || text === "/admin") {
       "• /qualitystats\n" +
       "• /duplicates\n" +
       "• /smartduplicates\n" +
-      "• /pgstats\n\n" +
+      "• /pgstats\n" +
+      "• /imports — offene Userbot-Importe\n" +
+      "• /importinfo ID — Import-Details anzeigen\n\n" +
 
       "🧠 𝐑𝐄𝐏𝐀𝐈𝐑 & 𝐑𝐄𝐂𝐎𝐕𝐄𝐑𝐘\n\n" +
       "• /rebuildcommandcenters\n" +
@@ -15111,6 +15113,237 @@ if (command === "/pgstats") {
     chat_id: msg.chat.id,
     text: cleanTelegramText(resultText).slice(0, 4000)
   });
+
+  return;
+}
+
+// =============================
+// USERBOT IMPORT QUEUE
+// =============================
+if (command === "/imports") {
+  if (!pgPool) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Supabase/pgPool ist nicht aktiv.\n\n" +
+        "Die Userbot-Import-Warteschlange läuft aktuell nur mit Supabase."
+    });
+    return;
+  }
+
+  try {
+    const result = await pgPool.query(`
+      SELECT
+        id,
+        media_type,
+        title,
+        year,
+        season,
+        episode,
+        episode_title,
+        file_name,
+        file_size,
+        quality,
+        media_source,
+        codec,
+        audio,
+        status,
+        created_at
+      FROM userbot_imports
+      WHERE status IN ('staged', 'pending', 'error')
+      ORDER BY created_at DESC
+      LIMIT 20
+    `);
+
+    const rows = result.rows;
+
+    let resultText =
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📦 USERBOT IMPORT QUEUE\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n";
+
+    if (!rows.length) {
+      resultText +=
+        "✅ Keine offenen Userbot-Importe gefunden.\n\n" +
+        "Neue Dateien aus 📥 LOL Import erscheinen hier automatisch.";
+    } else {
+      resultText += `📥 Offene Importe: ${rows.length}\n\n`;
+
+      for (const item of rows) {
+        const isSeries = item.media_type === "series";
+        const icon = isSeries ? "📺" : "🎬";
+
+        const episodeText = isSeries
+          ? ` S${String(item.season || 1).padStart(2, "0")}E${String(item.episode || 0).padStart(2, "0")}`
+          : "";
+
+        const meta = [
+          item.quality,
+          item.media_source,
+          item.codec,
+          item.audio
+        ].filter(Boolean).join(" | ");
+
+        resultText +=
+          `🆔 Import-ID: ${item.id}\n` +
+          `${icon} ${item.title || "Unbekannt"}${item.year ? ` (${item.year})` : ""}${episodeText}\n`;
+
+        if (item.episode_title) {
+          resultText += `📝 ${item.episode_title}\n`;
+        }
+
+        if (meta) {
+          resultText += `⚙️ ${meta}\n`;
+        }
+
+        if (item.file_size) {
+          resultText += `💾 ${item.file_size}\n`;
+        }
+
+        resultText +=
+          `📌 Status: ${item.status || "staged"}\n` +
+          `🔎 Details: /importinfo ${item.id}\n\n` +
+          "━━━━━━━━━━━━━━━━━━\n\n";
+      }
+    }
+
+    resultText += "\n@LibraryOfLegends";
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: cleanTelegramText(resultText).slice(0, 4000)
+    });
+  } catch (err) {
+    console.error("❌ /imports Fehler:", err.message);
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Fehler beim Laden der Userbot-Importe:\n\n" +
+        String(err.message).slice(0, 1000)
+    });
+  }
+
+  return;
+}
+
+// =============================
+// USERBOT IMPORT DETAILS
+// =============================
+if (command === "/importinfo") {
+  if (!pgPool) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Supabase/pgPool ist nicht aktiv.\n\n" +
+        "Die Userbot-Import-Details laufen aktuell nur mit Supabase."
+    });
+    return;
+  }
+
+  const importId = Number(text.replace(command, "").trim());
+
+  if (!importId || !Number.isFinite(importId)) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/importinfo 2"
+    });
+    return;
+  }
+
+  try {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM userbot_imports
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [importId]
+    );
+
+    const item = result.rows[0];
+
+    if (!item) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Import nicht gefunden:\n\n" +
+          `Import-ID: ${importId}`
+      });
+      return;
+    }
+
+    const isSeries = item.media_type === "series";
+    const icon = isSeries ? "📺" : "🎬";
+
+    const episodeText = isSeries
+      ? `S${String(item.season || 1).padStart(2, "0")}E${String(item.episode || 0).padStart(2, "0")}`
+      : "";
+
+    const resultText =
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "📦 USERBOT IMPORT DETAILS\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+
+      `🆔 Import-ID: ${item.id}\n` +
+      `📌 Status: ${item.status || "staged"}\n\n` +
+
+      `${icon} Typ: ${item.media_type || "unknown"}\n` +
+      `🏷 Titel: ${item.title || "Unbekannt"}\n` +
+      (item.year ? `📅 Jahr: ${item.year}\n` : "") +
+      (isSeries ? `🎞 Episode: ${episodeText}\n` : "") +
+      (item.episode_title ? `📝 Episodentitel: ${item.episode_title}\n` : "") +
+
+      "\n━━━━━━━━━━━━━━━━━━\n" +
+      "📂 DATEI\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+
+      `📁 Name: ${item.file_name || "leer"}\n` +
+      `💾 Größe: ${item.file_size || "leer"}\n` +
+      `🧾 MIME: ${item.mime_type || "leer"}\n` +
+      `📺 Auflösung: ${item.width && item.height ? `${item.width}x${item.height}` : "leer"}\n` +
+      `⏱ Dauer: ${item.duration_minutes ? `${item.duration_minutes} Min.` : "leer"}\n\n` +
+
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "⚙️ TECHNIK\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+
+      `🔥 Qualität: ${item.quality || "leer"}\n` +
+      `📡 Quelle: ${item.media_source || "leer"}\n` +
+      `🎥 Codec: ${item.codec || "leer"}\n` +
+      `🔊 Audio: ${item.audio || "leer"}\n\n` +
+
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "🧭 TELEGRAM\n" +
+      "━━━━━━━━━━━━━━━━━━\n\n" +
+
+      `📥 Source Chat: ${item.source_chat || "leer"}\n` +
+      `📤 Staging Chat: ${item.staging_chat || "leer"}\n` +
+      `📩 Source Message ID: ${item.source_message_id || "leer"}\n` +
+      `📨 Staging Message ID: ${item.staging_message_id || "leer"}\n\n` +
+
+      "━━━━━━━━━━━━━━━━━━\n" +
+      "Nächster Schritt später:\n" +
+      `/processimport ${item.id}\n\n` +
+      "@LibraryOfLegends";
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: cleanTelegramText(resultText).slice(0, 4000)
+    });
+  } catch (err) {
+    console.error("❌ /importinfo Fehler:", err.message);
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Fehler beim Laden der Import-Details:\n\n" +
+        String(err.message).slice(0, 1000)
+    });
+  }
 
   return;
 }
