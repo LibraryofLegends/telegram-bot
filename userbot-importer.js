@@ -250,9 +250,13 @@ function buildImportReport({ fileName, parsed, fileSize, mimeType, videoMeta }) 
   if (parsed.year) lines.push(`📅 Jahr: ${parsed.year}`);
 
   if (parsed.type === "series") {
-    lines.push(`📀 Staffel: ${String(parsed.season).padStart(2, "0")}`);
-    lines.push(`🎞 Episode: ${String(parsed.episode).padStart(2, "0")}`);
+  lines.push(`📀 Staffel: ${String(parsed.season).padStart(2, "0")}`);
+  lines.push(`🎞 Episode: ${String(parsed.episode).padStart(2, "0")}`);
+
+  if (parsed.episodeTitle) {
+    lines.push(`📝 Episodentitel: ${parsed.episodeTitle}`);
   }
+}
 
   if (parsed.quality) lines.push(`🔥 Qualität: ${parsed.quality}`);
   if (parsed.source) lines.push(`📡 Quelle: ${parsed.source}`);
