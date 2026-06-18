@@ -15585,21 +15585,26 @@ function buildImportSearchCandidates(item) {
   if (title && year) candidates.push(`${title} ${year}`);
   if (title) candidates.push(title);
 
-  // Für Titel mit deutschem Untertitel / Alternativtitel
-  if (/the fires/i.test(title)) {
-    candidates.push(year ? `The Fires ${year}` : "The Fires");
-    candidates.push("The Fires");
-  }
+  const lowerTitle = title.toLowerCase();
 
-  if (/brennender abgrund/i.test(title)) {
-    candidates.push(year ? `Brennender Abgrund ${year}` : "Brennender Abgrund");
-    candidates.push("Brennender Abgrund");
-  }
-
-  // Bekannter Originaltitel für diesen Import
-  if (/the fires|brennender abgrund/i.test(title)) {
-    candidates.push(year ? `Eldarnir ${year}` : "Eldarnir");
-    candidates.push("Eldarnir");
+  // Spezialfall: The Fires / Brennender Abgrund / Eldarnir
+  if (
+    lowerTitle.includes("the fires") ||
+    lowerTitle.includes("brennender abgrund") ||
+    lowerTitle.includes("eldarnir")
+  ) {
+    candidates.push(
+      year ? `The Fires ${year}` : "The Fires",
+      "The Fires",
+      year ? `The Fires Brennender Abgrund ${year}` : "The Fires Brennender Abgrund",
+      "The Fires Brennender Abgrund",
+      year ? `The Fires - Brennender Abgrund ${year}` : "The Fires - Brennender Abgrund",
+      "The Fires - Brennender Abgrund",
+      year ? `Brennender Abgrund ${year}` : "Brennender Abgrund",
+      "Brennender Abgrund",
+      year ? `Eldarnir ${year}` : "Eldarnir",
+      "Eldarnir"
+    );
   }
 
   // Falls Titel aus vielen Wörtern besteht: erste 2–3 Wörter versuchen
