@@ -15654,6 +15654,76 @@ async function findImportDossier(item) {
   };
 }
 
+function buildFallbackImportPreview(item, dossierResult) {
+  const isSeries = item.media_type === "series";
+  const icon = isSeries ? "📺" : "🎬";
+
+  const episodeCode = isSeries
+    ? `S${String(item.season || 1).padStart(2, "0")}E${String(item.episode || 0).padStart(2, "0")}`
+    : "";
+
+  const technicalMeta = [
+    item.quality,
+    item.media_source,
+    item.codec,
+    item.audio
+  ].filter(Boolean).join(" | ");
+
+  let text =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "⚠️ IMPORT FALLBACK PREVIEW\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "TMDB/Dossier wurde nicht gefunden.\n" +
+    "Der Import kann trotzdem manuell vorbereitet werden.\n\n" +
+
+    `🆔 Import-ID: ${item.id}\n` +
+    `📌 Status: ${item.status || "staged"}\n\n` +
+
+    `${icon} ${isSeries ? "Serie" : "Film"} erkannt\n` +
+    `🏷 Titel: ${item.title || "Unbekannt"}\n` +
+    (item.year ? `📅 Jahr: ${item.year}\n` : "") +
+    (isSeries ? `🎞 Episode: ${episodeCode}\n` : "") +
+    (item.episode_title ? `📝 Episodentitel: ${item.episode_title}\n` : "") +
+
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "📂 DATEI\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `📁 ${item.file_name || "leer"}\n` +
+    `💾 ${item.file_size || "leer"}\n` +
+    `📺 ${item.width && item.height ? `${item.width}x${item.height}` : "Auflösung leer"}\n` +
+    `⏱ ${item.duration_minutes ? `${item.duration_minutes} Min.` : "Dauer leer"}\n`;
+
+  if (technicalMeta) {
+    text += `⚙️ ${technicalMeta}\n`;
+  }
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "🔎 VERSUCHTE SUCHBEGRIFFE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n";
+
+  if (dossierResult?.candidates?.length) {
+    text += dossierResult.candidates.map((c) => `• ${c}`).join("\n");
+  } else {
+    text += "Keine Suchbegriffe vorhanden.";
+  }
+
+  text +=
+    "\n\n━━━━━━━━━━━━━━━━━━\n" +
+    "🧭 NÄCHSTER SCHRITT\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "Wenn der Titel falsch ist:\n" +
+    `/fiximport ${item.id} | Neuer Titel | ${item.year || "JAHR"}\n\n` +
+    "Wenn die Daten so passen, bauen wir danach:\n" +
+    `/approveimport ${item.id}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return text;
+}
+
 // =============================
 // PROCESS USERBOT IMPORT — PREVIEW ONLY
 // =============================
