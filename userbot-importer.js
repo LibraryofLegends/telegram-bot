@@ -73,6 +73,16 @@ function detectCodec(text = "") {
   return null;
 }
 
+function cleanEpisodeTitle(text = "") {
+  return String(text || "")
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+    .replace(/^[:=\-\s]+/, "")
+    .replace(/^=+/, "")
+    .replace(/=+$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function parseMediaFileName(fileName = "") {
   const original = String(fileName || "").trim();
 
