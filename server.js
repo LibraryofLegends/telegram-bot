@@ -16731,6 +16731,94 @@ async function ensureUserbotImportProcessingColumns() {
   `);
 }
 
+async function saveApprovedMovieImportToDb(item, finalMessageId, topicId) {
+  if (!pgPool) return;
+
+  const title =
+    item.title || "Unbekannter Titel";
+
+  const year =
+    item.year || null;
+
+  const genre =
+    item.genre || "Sonstige";
+
+  const rating =
+    item.rating || null;
+
+  const runtime =
+    item.duration_minutes || null;
+
+  const overview =
+    item.overview || "Keine Beschreibung verfügbar.";
+
+  const posterUrl =
+    item.poster_url || null;
+
+  const fileName =
+    item.file_name || "";
+
+  const fileId =
+    item.file_id || item.telegram_file_id || "";
+
+  const uniqueKey =
+    item.unique_key ||
+    item.file_unique_id ||
+    `userbot-import-${item.id}`;
+
+  await pgPool.query(
+    `
+    INSERT INTO movies
+    (
+      title,
+      year,
+      genre,
+      rating,
+      runtime,
+      overview,
+      poster_url,
+      file_name,
+      file_id,
+      unique_key,
+      telegram_message_id,
+      topic_id
+    )
+    VALUES
+    (
+      $1, $2, $3, $4, $5, $6,
+      $7, $8, $9, $10, $11, $12
+    )
+    ON CONFLICT (unique_key) DO UPDATE
+    SET
+      title = EXCLUDED.title,
+      year = EXCLUDED.year,
+      genre = EXCLUDED.genre,
+      rating = EXCLUDED.rating,
+      runtime = EXCLUDED.runtime,
+      overview = EXCLUDED.overview,
+      poster_url = EXCLUDED.poster_url,
+      file_name = EXCLUDED.file_name,
+      file_id = EXCLUDED.file_id,
+      telegram_message_id = EXCLUDED.telegram_message_id,
+      topic_id = EXCLUDED.topic_id
+    `,
+    [
+      title,
+      year,
+      genre,
+      rating,
+      runtime,
+      overview,
+      posterUrl,
+      fileName,
+      fileId,
+      uniqueKey,
+      String(finalMessageId),
+      topicId ? String(topicId) : null
+    ]
+  );
+}
+
 // =============================
 // APPROVE USERBOT IMPORT — COPY TO ARCHIVE
 // =============================
@@ -16914,21 +17002,31 @@ console.log("💬 Final Message ID:", finalMessageId || "unbekannt");
 
 if (copied?.__error || !finalMessageId) {
   await pgPool.query(
-    `
-    UPDATE userbot_imports
-    SET status = 'error',
-        target_chat_id = $2,
-        target_topic_id = $3,
-        final_message_id = NULL,
-        updated_at = NOW()
-    WHERE id = $1
-    `,
-    [
-      item.id,
-      String(targetChatId),
-      topicId ? String(topicId) : null
-    ]
+  `
+  UPDATE userbot_imports
+  SET status = 'archived',
+      target_chat_id = $2,
+      target_topic_id = $3,
+      final_message_id = $4,
+      processed_at = NOW(),
+      updated_at = NOW()
+  WHERE id = $1
+  `,
+  [
+    item.id,
+    String(targetChatId),
+    topicId ? String(topicId) : null,
+    String(finalMessageId)
+  ]
+);
+
+if (!isSeries) {
+  await saveApprovedMovieImportToDb(
+    item,
+    finalMessageId,
+    topicId
   );
+}
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
