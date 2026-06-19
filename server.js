@@ -17779,49 +17779,141 @@ for (const season of seasons) {
 }
 
 // =============================
-// PREMIUM DASHBOARD
+// DASHBOARD — PREMIUM COMPACT
 // =============================
-if (command === "/dashboard") {
+if (
+  command === "/dashboard" ||
+  command.startsWith("/dashboard@")
+) {
   let movieCount = 0;
-  let seriesCount = 0;
+  let episodeCount = 0;
   let topicCount = 0;
   let collectionCount = 0;
   let seriesLibraryCount = 0;
 
   if (pgPool) {
-    const movies = await pgPool.query(`SELECT COUNT(*) AS count FROM movies`);
-    const series = await pgPool.query(`SELECT COUNT(*) AS count FROM series`);
-    const topics = await pgPool.query(`SELECT COUNT(*) AS count FROM topics`);
-    const collections = await pgPool.query(`SELECT COUNT(*) AS count FROM collections`);
-    const seriesLibrary = await pgPool.query(`SELECT COUNT(*) AS count FROM series_library`);
+    const movies =
+      await pgPool.query(`
+        SELECT COUNT(*) AS count
+        FROM movies
+      `);
 
-    movieCount = movies.rows[0].count;
-    seriesCount = series.rows[0].count;
-    topicCount = topics.rows[0].count;
-    collectionCount = collections.rows[0].count;
-    seriesLibraryCount = seriesLibrary.rows[0].count;
+    const episodes =
+      await pgPool.query(`
+        SELECT COUNT(*) AS count
+        FROM series
+      `);
+
+    const topics =
+      await pgPool.query(`
+        SELECT COUNT(*) AS count
+        FROM topics
+      `);
+
+    const collections =
+      await pgPool.query(`
+        SELECT COUNT(*) AS count
+        FROM collections
+      `);
+
+    const seriesLibrary =
+      await pgPool.query(`
+        SELECT COUNT(*) AS count
+        FROM series_library
+      `);
+
+    movieCount =
+      Number(movies.rows[0]?.count || 0);
+
+    episodeCount =
+      Number(episodes.rows[0]?.count || 0);
+
+    topicCount =
+      Number(topics.rows[0]?.count || 0);
+
+    collectionCount =
+      Number(collections.rows[0]?.count || 0);
+
+    seriesLibraryCount =
+      Number(seriesLibrary.rows[0]?.count || 0);
   } else {
-    movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
-    seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
-    topicCount = db.prepare("SELECT COUNT(*) AS count FROM topics").get().count;
-    collectionCount = db.prepare("SELECT COUNT(*) AS count FROM collections").get().count;
-    seriesLibraryCount = db.prepare("SELECT COUNT(*) AS count FROM series_library").get().count;
+    movieCount =
+      Number(
+        db.prepare(`
+          SELECT COUNT(*) AS count
+          FROM movies
+        `).get()?.count || 0
+      );
+
+    episodeCount =
+      Number(
+        db.prepare(`
+          SELECT COUNT(*) AS count
+          FROM series
+        `).get()?.count || 0
+      );
+
+    topicCount =
+      Number(
+        db.prepare(`
+          SELECT COUNT(*) AS count
+          FROM topics
+        `).get()?.count || 0
+      );
+
+    collectionCount =
+      Number(
+        db.prepare(`
+          SELECT COUNT(*) AS count
+          FROM collections
+        `).get()?.count || 0
+      );
+
+    seriesLibraryCount =
+      Number(
+        db.prepare(`
+          SELECT COUNT(*) AS count
+          FROM series_library
+        `).get()?.count || 0
+      );
   }
+
+  const movieWord =
+    movieCount === 1 ? "Film" : "Filme";
+
+  const collectionWord =
+    collectionCount === 1 ? "Filmreihe" : "Filmreihen";
+
+  const seriesWord =
+    seriesLibraryCount === 1 ? "Serie" : "Serien";
+
+  const episodeWord =
+    episodeCount === 1 ? "Folge" : "Folgen";
+
+  const topicWord =
+    topicCount === 1 ? "Thema" : "Themen";
+
+  const resultText =
+    "🎛 Dashboard\n\n" +
+
+    "Archiv\n" +
+    `${movieCount} ${movieWord}\n` +
+    `${collectionCount} ${collectionWord}\n` +
+    `${seriesLibraryCount} ${seriesWord}\n` +
+    `${episodeCount} ${episodeWord}\n\n` +
+
+    "System\n" +
+    `${topicCount} ${topicWord}\n` +
+    "Status · Online\n\n" +
+
+    "/library · Hauptnavigation\n" +
+    "/systemhub · System & Verwaltung\n\n" +
+
+    "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🎛 PREMIUM DASHBOARD\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `🎬 Filme: ${movieCount}\n` +
-      `🎞 Collections: ${collectionCount}\n` +
-      `📺 Serien: ${seriesLibraryCount}\n` +
-      `🎞 Serien-Episoden: ${seriesCount}\n` +
-      `🧵 Themen: ${topicCount}\n\n` +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "⚙️ SYSTEM STATUS: ONLINE\n" +
-      "@LibraryOfLegends"
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
