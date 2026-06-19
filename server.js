@@ -15744,28 +15744,49 @@ if (
       item.audio || "Unbekannt";
 
     const rawStatus =
-  String(item.status || "staged").toLowerCase();
+      String(item.status || "staged").toLowerCase();
 
-const statusMap = {
-  staged: "Bereit",
-  queued: "Wartet",
-  processing: "Wird verarbeitet",
-  processed: "Vorbereitet",
-  archived: "Archiviert",
-  failed: "Fehler"
-};
+    const statusMap = {
+      staged: "Bereit",
+      pending: "Wartet",
+      queued: "Wartet",
+      processing: "Wird verarbeitet",
+      processed: "Vorbereitet",
+      archived: "Archiviert",
+      done: "Archiviert",
+      error: "Fehler",
+      failed: "Fehler",
+      ignored: "Ignoriert"
+    };
 
-const status =
-  statusMap[rawStatus] || item.status || "Bereit";
+    const status =
+      statusMap[rawStatus] || item.status || "Bereit";
+
+    const isArchived =
+      Boolean(item.final_message_id) ||
+      rawStatus === "archived" ||
+      rawStatus === "done";
 
     const targetText =
-  item.final_message_id
-    ? "Archiviert"
-    : item.target_chat_id
-      ? "Ziel gesetzt"
-      : rawStatus === "processed"
-        ? "Bereit zur Übernahme"
-        : "Noch nicht archiviert";
+      isArchived
+        ? "Archiviert"
+        : item.target_chat_id
+          ? "Ziel gesetzt"
+          : rawStatus === "processed"
+            ? "Bereit zur Übernahme"
+            : rawStatus === "ignored"
+              ? "Ignoriert"
+              : "Noch nicht archiviert";
+
+    const actionText =
+      isArchived
+        ? "Abgeschlossen\nImport wurde archiviert.\n\n"
+        : rawStatus === "ignored"
+          ? "Aktion\n" +
+            `/restoreimport ${item.id} · wiederherstellen\n\n`
+          : "Aktion\n" +
+            `/processimport ${item.id} · Vorschau prüfen\n` +
+            `/approveimport ${item.id} · final archivieren\n\n`;
 
     let resultText =
       `📦 Import #${item.id}\n\n` +
@@ -15801,9 +15822,7 @@ const status =
       `Topic · ${item.target_topic_id || "leer"}\n` +
       `Final · ${item.final_message_id || "leer"}\n\n` +
 
-      "Aktion\n" +
-      `/processimport ${item.id} · übernehmen\n\n` +
-
+      actionText +
       "@LibraryOfLegends";
 
     await tg("sendMessage", {
