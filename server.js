@@ -18662,10 +18662,17 @@ if (
   const resultText =
     "⚙️ System\n\n" +
 
+    "Übersicht\n" +
+    "/dashboard · Dashboard\n" +
+    "/stats · Statistik\n" +
+    "/pgstats · Datenbankstatus\n\n" +
+
     "Import\n" +
-    "/queue · Import-Warteschlange\n" +
-    "/pgstats · Datenbankstatus\n" +
-    "/dashboard · Übersicht\n\n" +
+    "/queue · Import Queue\n\n" +
+
+    "Cache\n" +
+    "/cache · TMDB Cache\n" +
+    "/clearcache · Cache leeren\n\n" +
 
     "Filme\n" +
     "/movies · Filme A–Z\n" +
