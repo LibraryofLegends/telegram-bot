@@ -18412,10 +18412,56 @@ if (
 
     "🎞 Filmreihen\n" +
     "/collections · Filmreihen öffnen\n\n" +
+    "/systemhub · System & Verwaltung\n\n" +
 
     "Archiv\n" +
     `${movieCount} ${movieWord} · ${seriesCount} ${seriesWord} · ${episodeCount} ${episodeWord}\n` +
     `${collectionCount} ${collectionWord}\n\n` +
+
+    "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: cleanTelegramText(resultText).slice(0, 4000)
+  });
+
+  return;
+}
+
+// =============================
+// SYSTEM HUB — PREMIUM COMPACT
+// =============================
+if (
+  command === "/systemhub" ||
+  command.startsWith("/systemhub@") ||
+  command === "/adminhub" ||
+  command.startsWith("/adminhub@")
+) {
+  const resultText =
+    "⚙️ System\n\n" +
+
+    "Import\n" +
+    "/queue · Import-Warteschlange\n" +
+    "/pgstats · Datenbankstatus\n" +
+    "/dashboard · Übersicht\n\n" +
+
+    "Filme\n" +
+    "/movies · Filme A–Z\n" +
+    "/moviehub · Filmarchiv\n" +
+    "/newmovies · Neue Filme\n" +
+    "/collections · Filmreihen\n" +
+    "/rebuildcollections · Filmreihen aktualisieren\n\n" +
+
+    "Serien\n" +
+    "/serieshub · Serienarchiv\n" +
+    "/seriesaz · Serien A–Z\n" +
+    "/newseries · Neue Folgen\n" +
+    "/trendingseries · Trending Serien\n" +
+    "/featuredseries · Highlights Serien\n\n" +
+
+    "Rebuild\n" +
+    "/rebuildserieshub Name · Serien-Hub neu bauen\n" +
+    "/seriesregistry Name · Serienübersicht erzeugen\n\n" +
 
     "@LibraryOfLegends";
 
