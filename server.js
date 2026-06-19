@@ -10162,13 +10162,14 @@ async function seriesCaption(tmdb, media, extras = {}) {
       ? `${rating.toFixed(1)}/10`
       : "Noch nicht bewertet";
 
+  const rawStory =
+    tmdb.episodeOverview ||
+    tmdb.overview ||
+    "Keine Beschreibung verfügbar.";
+
   const story =
-    llCompactDossierText(
-      tmdb.episodeOverview ||
-      tmdb.overview ||
-      "Keine Beschreibung verfügbar.",
-      260
-    );
+    llCompactDossierText(rawStory, 220)
+      .replace(/\s+\/\s+/g, " ");
 
   const fileSize =
     llFormatCompactSize(
@@ -10193,7 +10194,8 @@ async function seriesCaption(tmdb, media, extras = {}) {
 
   const caption = [
     `📺 ${escapeHtml(seriesTitle)}`,
-    `${escapeHtml(episodeDisplay)} · ${escapeHtml(finalEpisodeTitle)}`,
+    `${escapeHtml(episodeDisplay)}`,
+    `${escapeHtml(finalEpisodeTitle)}`,
     "",
     `⭐ ${escapeHtml(ratingText)}`,
     `📦 ${escapeHtml(quality)} · ${escapeHtml(fileSize)} · ${escapeHtml(audioText)}`,
