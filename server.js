@@ -15343,74 +15343,147 @@ if (command === "/clearseries") {
 }
 
 // =============================
-// SUPABASE / POSTGRES STATS
+// PG STATS — PREMIUM COMPACT
 // =============================
-if (command === "/pgstats") {
+if (
+  command === "/pgstats" ||
+  command.startsWith("/pgstats@")
+) {
   if (!pgPool) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "❌ Supabase/pgPool ist nicht aktiv.\n\n" +
-        "Der Bot läuft aktuell mit SQLite."
+        "🧪 Datenbank\n\n" +
+        "PostgreSQL/Supabase ist nicht aktiv.\n" +
+        "Der Bot läuft aktuell mit SQLite.\n\n" +
+        "@LibraryOfLegends"
     });
+
     return;
   }
 
-  const movies = await pgPool.query(`SELECT COUNT(*) AS count FROM movies`);
-  const seriesEpisodes = await pgPool.query(`SELECT COUNT(*) AS count FROM series`);
-  const seriesLibrary = await pgPool.query(`SELECT COUNT(*) AS count FROM series_library`);
-  const seriesTopics = await pgPool.query(`SELECT COUNT(*) AS count FROM series_topics`);
-  const topics = await pgPool.query(`SELECT COUNT(*) AS count FROM topics`);
-  const collections = await pgPool.query(`SELECT COUNT(*) AS count FROM collections`);
-  const universes = await pgPool.query(`SELECT COUNT(*) AS count FROM universes`);
+  async function safePgCount(tableName) {
+    const allowedTables = new Set([
+      "movies",
+      "series",
+      "series_library",
+      "series_topics",
+      "topics",
+      "collections",
+      "universes"
+    ]);
 
-  const latestMovie = await pgPool.query(`
-    SELECT title, year, created_at
-    FROM movies
-    ORDER BY created_at DESC
-    LIMIT 1
-  `);
+    if (!allowedTables.has(tableName)) {
+      return 0;
+    }
 
-  const latestSeries = await pgPool.query(`
-    SELECT series_title, season, episode, created_at
-    FROM series
-    ORDER BY created_at DESC
-    LIMIT 1
-  `);
+    try {
+      const result =
+        await pgPool.query(`
+          SELECT COUNT(*) AS count
+          FROM ${tableName}
+        `);
 
-  let resultText =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🧪 SUPABASE DEBUG\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-    `🎬 Filme: ${movies.rows[0].count}\n` +
-    `📺 Serien: ${seriesLibrary.rows[0].count}\n` +
-    `🎞 Serien-Episoden: ${seriesEpisodes.rows[0].count}\n` +
-    `🧵 Serien-Topics: ${seriesTopics.rows[0].count}\n` +
-    `🧩 Topics gesamt: ${topics.rows[0].count}\n` +
-    `🎞 Collections: ${collections.rows[0].count}\n` +
-    `🌌 Universes: ${universes.rows[0].count}\n\n`;
-
-  if (latestMovie.rows.length) {
-    const m = latestMovie.rows[0];
-
-    resultText +=
-      "🎬 Letzter Film:\n" +
-      `• ${m.title} ${m.year || ""}\n\n`;
+      return Number(result.rows[0]?.count || 0);
+    } catch (err) {
+      console.error(`⚠️ PG Count Fehler (${tableName}):`, err.message);
+      return 0;
+    }
   }
 
-  if (latestSeries.rows.length) {
-    const s = latestSeries.rows[0];
+  const movieCount =
+    await safePgCount("movies");
 
-    resultText +=
-      "📺 Letzte Serienfolge:\n" +
-      `• ${s.series_title} ` +
-      `S${String(s.season).padStart(2, "0")}` +
-      `E${String(s.episode).padStart(2, "0")}\n\n`;
+  const episodeCount =
+    await safePgCount("series");
+
+  const seriesCount =
+    await safePgCount("series_library");
+
+  const seriesTopicCount =
+    await safePgCount("series_topics");
+
+  const topicCount =
+    await safePgCount("topics");
+
+  const collectionCount =
+    await safePgCount("collections");
+
+  const universeCount =
+    await safePgCount("universes");
+
+  let latestMovieText =
+    "Kein Film gespeichert";
+
+  let latestSeriesText =
+    "Keine Serienfolge gespeichert";
+
+  try {
+    const latestMovie =
+      await pgPool.query(`
+        SELECT title, year, created_at
+        FROM movies
+        ORDER BY created_at DESC
+        LIMIT 1
+      `);
+
+    if (latestMovie.rows.length) {
+      const m =
+        latestMovie.rows[0];
+
+      latestMovieText =
+        `${m.title}${m.year ? ` (${m.year})` : ""}`;
+    }
+  } catch (err) {
+    console.error("⚠️ PG Latest Movie Fehler:", err.message);
   }
 
-  resultText +=
-    "✅ PostgreSQL/Supabase aktiv\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
+  try {
+    const latestSeries =
+      await pgPool.query(`
+        SELECT series_title, season, episode, created_at
+        FROM series
+        ORDER BY created_at DESC
+        LIMIT 1
+      `);
+
+    if (latestSeries.rows.length) {
+      const s =
+        latestSeries.rows[0];
+
+      const title =
+        typeof llShortSeriesTitle === "function"
+          ? llShortSeriesTitle(s.series_title)
+          : s.series_title;
+
+      latestSeriesText =
+        `${title} S${String(s.season || 1).padStart(2, "0")}E${String(s.episode || 1).padStart(2, "0")}`;
+    }
+  } catch (err) {
+    console.error("⚠️ PG Latest Series Fehler:", err.message);
+  }
+
+  const resultText =
+    "🧪 Datenbank\n\n" +
+
+    "PostgreSQL\n" +
+    "Status · Aktiv\n\n" +
+
+    "Archiv\n" +
+    `${movieCount} Filme\n` +
+    `${collectionCount} Filmreihen\n` +
+    `${seriesCount} Serien\n` +
+    `${episodeCount} Folgen\n\n` +
+
+    "System\n" +
+    `${topicCount} Themen\n` +
+    `${seriesTopicCount} Serien-Themen\n` +
+    `${universeCount} Universen\n\n` +
+
+    "Zuletzt gespeichert\n" +
+    `Film · ${latestMovieText}\n` +
+    `Serie · ${latestSeriesText}\n\n` +
+
     "@LibraryOfLegends";
 
   await tg("sendMessage", {
