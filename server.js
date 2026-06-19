@@ -16187,6 +16187,120 @@ if (
 }
 
 // =============================
+// SYNC USERBOT IMPORT TO MOVIE DB
+// =============================
+if (
+  command === "/syncimportdb" ||
+  command.startsWith("/syncimportdb@")
+) {
+  if (!pgPool) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "📦 Import-Datenbank Sync\n\n" +
+        "Supabase/PostgreSQL ist nicht aktiv.\n" +
+        "Der Sync benötigt Supabase.\n\n" +
+        "@LibraryOfLegends"
+    });
+    return;
+  }
+
+  const importId =
+    Number(
+      text
+        .replace(/^\/syncimportdb(?:@\w+)?/i, "")
+        .trim()
+    );
+
+  if (!importId || !Number.isFinite(importId)) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung\n\n" +
+        "/syncimportdb 3"
+    });
+    return;
+  }
+
+  try {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM userbot_imports
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [importId]
+    );
+
+    const item =
+      result.rows[0];
+
+    if (!item) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Import nicht gefunden\n\n" +
+          `Import #${importId}`
+      });
+      return;
+    }
+
+    const isSeries =
+      item.media_type === "series";
+
+    if (isSeries) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          `📦 Import #${item.id}\n\n` +
+          "Serien-Sync kommt separat.\n" +
+          "Dieser Befehl speichert aktuell nur Filme in movies.\n\n" +
+          "@LibraryOfLegends"
+      });
+      return;
+    }
+
+    await saveApprovedMovieImportToDb(
+      item,
+      item.final_message_id || "",
+      item.target_topic_id || null
+    );
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        `✅ Import #${item.id} synchronisiert\n\n` +
+
+        `${item.title || "Unbekannter Titel"}${item.year ? ` (${item.year})` : ""}\n` +
+        "Film\n\n" +
+
+        "Datenbank\n" +
+        "Eintrag wurde in movies gespeichert.\n\n" +
+
+        "Jetzt prüfen\n" +
+        "/newmovies\n" +
+        "/movies\n\n" +
+
+        "@LibraryOfLegends"
+    });
+  } catch (err) {
+    console.error("❌ /syncimportdb Fehler:", err.message);
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Import konnte nicht synchronisiert werden\n\n" +
+        String(err.message).slice(0, 1200) +
+        "\n\n" +
+        "@LibraryOfLegends"
+    });
+  }
+
+  return;
+}
+
+// =============================
 // USERBOT IMPORT SEARCH HELPERS
 // =============================
 function uniqueImportSearchTerms(values = []) {
