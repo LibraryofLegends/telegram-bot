@@ -18830,7 +18830,7 @@ resultText += "@LibraryOfLegends";
 }
 
 // =============================
-// SERIES HUB
+// SERIES HUB — PREMIUM COMPACT
 // =============================
 if (command === "/serieshub") {
   let latest = [];
@@ -18861,8 +18861,8 @@ if (command === "/serieshub") {
         COUNT(*) AS count
       FROM series
       GROUP BY series_title
-      ORDER BY MAX(rating) DESC, count DESC, series_title ASC
-      LIMIT 5
+      ORDER BY count DESC, series_title ASC
+      LIMIT 10
     `);
 
     latest = latestResult.rows;
@@ -18888,54 +18888,114 @@ if (command === "/serieshub") {
       SELECT series_title, genre, rating, COUNT(*) AS count
       FROM series
       GROUP BY series_title
-      ORDER BY rating DESC, count DESC, series_title ASC
-      LIMIT 5
+      ORDER BY count DESC, series_title ASC
+      LIMIT 10
     `).all();
   }
 
-  let resultText =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📺 SERIES HUB\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+  featured.sort((a, b) => {
+    const ratingA =
+      typeof extractRatingNumber === "function"
+        ? extractRatingNumber(a.rating)
+        : getRatingValue(a.rating);
 
-  resultText += "🆕 NEUE FOLGEN\n";
+    const ratingB =
+      typeof extractRatingNumber === "function"
+        ? extractRatingNumber(b.rating)
+        : getRatingValue(b.rating);
+
+    if (ratingB !== ratingA) {
+      return ratingB - ratingA;
+    }
+
+    return Number(b.count || 0) - Number(a.count || 0);
+  });
+
+  featured = featured.slice(0, 5);
+
+  let resultText =
+    "📺 Serien\n\n";
+
+  resultText += "Neue Folgen\n";
+
   if (!latest.length) {
     resultText += "Noch keine Folgen gespeichert.\n\n";
   } else {
     for (const s of latest) {
-      resultText += `• ${s.series_title} S${String(s.season).padStart(2, "0")}E${String(s.episode).padStart(2, "0")}`;
-      if (s.episode_title) resultText += ` • ${s.episode_title}`;
-      resultText += "\n";
+      const title =
+        typeof llShortSeriesTitle === "function"
+          ? llShortSeriesTitle(s.series_title)
+          : s.series_title;
+
+      const season =
+        String(s.season || 1).padStart(2, "0");
+
+      const episode =
+        String(s.episode || 1).padStart(2, "0");
+
+      const episodeTitle =
+        String(s.episode_title || "")
+          .replace(/\s+\/\s+/g, " ")
+          .trim();
+
+      resultText += `• ${title} · S${season}E${episode}\n`;
+
+      if (episodeTitle) {
+        resultText += `  ${episodeTitle}\n`;
+      }
     }
+
     resultText += "\n";
   }
 
-  resultText += "🔥 TRENDING\n";
+  resultText += "Trending\n";
+
   if (!trending.length) {
     resultText += "Noch keine Trends verfügbar.\n\n";
   } else {
     for (const s of trending) {
-      resultText += `• ${s.series_title} — ${s.count} Episode(n)\n`;
+      const title =
+        typeof llShortSeriesTitle === "function"
+          ? llShortSeriesTitle(s.series_title)
+          : s.series_title;
+
+      resultText += `• ${title} · ${s.count} Folge(n)\n`;
     }
+
     resultText += "\n";
   }
 
-  resultText += "⭐ FEATURED\n";
+  resultText += "Featured\n";
+
   if (!featured.length) {
     resultText += "Noch keine Featured-Serien verfügbar.\n\n";
   } else {
     for (const s of featured) {
-      resultText += `• ${s.series_title} — ${s.rating || "Unbekannt"}\n`;
+      const title =
+        typeof llShortSeriesTitle === "function"
+          ? llShortSeriesTitle(s.series_title)
+          : s.series_title;
+
+      const ratingNumber =
+        typeof extractRatingNumber === "function"
+          ? extractRatingNumber(s.rating)
+          : getRatingValue(s.rating);
+
+      const ratingText =
+        ratingNumber > 0
+          ? `${ratingNumber.toFixed(1)}/10`
+          : "Unbekannt";
+
+      resultText += `• ${title} · ${ratingText}\n`;
     }
+
     resultText += "\n";
   }
 
-  resultText += "━━━━━━━━━━━━━━━━━━\n";
-  resultText += "🔤 /seriesaz — Serien A-Z\n";
-  resultText += "🆕 /newseries — Neue Folgen\n";
-  resultText += "🔥 /trendingseries — Trending\n";
-  resultText += "⭐ /featuredseries — Featured\n";
-  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "/seriesaz · Serien A–Z\n";
+  resultText += "/newseries · Neue Folgen\n";
+  resultText += "/trendingseries · Trending\n";
+  resultText += "/featuredseries · Featured\n\n";
   resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
