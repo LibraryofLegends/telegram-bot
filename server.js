@@ -9481,8 +9481,11 @@ function movieCaption(tmdb, extras = {}) {
       .replace(/^#/, "")
       .toUpperCase();
 
-  const archiveTag =
-    `#${archiveId.replace(/[^A-Z0-9]/g, "")}`;
+  const displayArchiveId =
+  archiveId
+    .replace(/^LIB-MOV-/i, "")
+    .replace(/^MOV-/i, "")
+    .replace(/^MOV/i, "");
 
   const caption =
     `🎬 ${escapeHtml(title)}${escapeHtml(year)}\n\n` +
@@ -9493,9 +9496,9 @@ function movieCaption(tmdb, extras = {}) {
 
     `${escapeHtml(story)}\n\n` +
 
-    `Archiv #${escapeHtml(archiveId)}\n` +
-    `${genreTags ? `${genreTags} ` : ""}${archiveTag}\n` +
-    "@LibraryOfLegends";
+    `Archiv #${escapeHtml(displayArchiveId)}\n` +
+`${genreTags ? `${genreTags}\n` : ""}` +
+"@LibraryOfLegends";
 
   return cleanTelegramText(caption).slice(0, 1024);
 }
