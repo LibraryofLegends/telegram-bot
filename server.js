@@ -16208,74 +16208,145 @@ async function findImportDossier(item) {
   };
 }
 
-function buildFallbackImportPreview(item, dossierResult) {
-  const isSeries = item.media_type === "series";
-  const icon = isSeries ? "📺" : "🎬";
+function buildFallbackImportPreview(item = {}, dossierResult = {}) {
+  const isSeries =
+    item.media_type === "series";
 
-  const episodeCode = isSeries
-    ? `S${String(item.season || 1).padStart(2, "0")}E${String(item.episode || 0).padStart(2, "0")}`
-    : "";
+  const typeText =
+    isSeries ? "Serie" :
+    item.media_type === "movie" ? "Film" :
+    "Unbekannt";
 
-  const technicalMeta = [
-    item.quality,
-    item.media_source,
-    item.codec,
-    item.audio
-  ].filter(Boolean).join(" | ");
+  const title =
+    item.title || "Unbekannter Titel";
 
-  let text =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "⚠️ IMPORT FALLBACK PREVIEW\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+  const yearText =
+    item.year ? ` (${item.year})` : "";
 
-    "TMDB/Dossier wurde nicht gefunden.\n" +
-    "Der Import kann trotzdem manuell vorbereitet werden.\n\n" +
+  const seasonText =
+    String(item.season || 1).padStart(2, "0");
 
-    `🆔 Import-ID: ${item.id}\n` +
-    `📌 Status: ${item.status || "staged"}\n\n` +
+  const episodeText =
+    String(item.episode || 0).padStart(2, "0");
 
-    `${icon} ${isSeries ? "Serie" : "Film"} erkannt\n` +
-    `🏷 Titel: ${item.title || "Unbekannt"}\n` +
-    (item.year ? `📅 Jahr: ${item.year}\n` : "") +
-    (isSeries ? `🎞 Episode: ${episodeCode}\n` : "") +
-    (item.episode_title ? `📝 Episodentitel: ${item.episode_title}\n` : "") +
+  const episodeCode =
+    isSeries
+      ? `S${seasonText}E${episodeText}`
+      : "";
 
-    "\n━━━━━━━━━━━━━━━━━━\n" +
-    "📂 DATEI\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+  const episodeTitle =
+    String(item.episode_title || "")
+      .replace(/\s+\/\s+/g, " · ")
+      .replace(/\s+/g, " ")
+      .trim();
 
-    `📁 ${item.file_name || "leer"}\n` +
-    `💾 ${item.file_size || "leer"}\n` +
-    `📺 ${item.width && item.height ? `${item.width}x${item.height}` : "Auflösung leer"}\n` +
-    `⏱ ${item.duration_minutes ? `${item.duration_minutes} Min.` : "Dauer leer"}\n`;
+  const rawStatus =
+    String(item.status || "staged").toLowerCase();
 
-  if (technicalMeta) {
-    text += `⚙️ ${technicalMeta}\n`;
-  }
+  const statusMap = {
+    staged: "Bereit",
+    pending: "Wartet",
+    queued: "Wartet",
+    error: "Fehler",
+    processing: "Wird verarbeitet",
+    processed: "Vorbereitet",
+    archived: "Archiviert",
+    done: "Archiviert"
+  };
 
-  text +=
-    "\n━━━━━━━━━━━━━━━━━━\n" +
-    "🔎 VERSUCHTE SUCHBEGRIFFE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+  const statusText =
+    statusMap[rawStatus] || item.status || "Bereit";
 
-  if (dossierResult?.candidates?.length) {
-    text += dossierResult.candidates.map((c) => `• ${c}`).join("\n");
+  const fileSize =
+    typeof llFormatCompactSize === "function"
+      ? llFormatCompactSize(item.file_size || "")
+      : item.file_size || "Unbekannt";
+
+  const resolution =
+    item.width && item.height
+      ? `${item.width}x${item.height}`
+      : "Unbekannt";
+
+  const duration =
+    item.duration_minutes
+      ? `${item.duration_minutes} Min.`
+      : "Unbekannt";
+
+  const quality =
+    item.quality || "Unbekannt";
+
+  const source =
+    item.media_source || "Unbekannt";
+
+  const codec =
+    item.codec || "Unbekannt";
+
+  const audio =
+    item.audio || "Unbekannt";
+
+  const triedQueries =
+    dossierResult.triedQueries ||
+    dossierResult.queries ||
+    dossierResult.attemptedQueries ||
+    [];
+
+  let queryText = "";
+
+  if (Array.isArray(triedQueries) && triedQueries.length) {
+    queryText =
+      triedQueries
+        .filter(Boolean)
+        .slice(0, 5)
+        .map((q) => `• ${q}`)
+        .join("\n");
   } else {
-    text += "Keine Suchbegriffe vorhanden.";
+    const searchTitle =
+      item.title || "";
+
+    queryText =
+      item.year
+        ? `• ${searchTitle} ${item.year}\n• ${searchTitle}`
+        : `• ${searchTitle || "Keine Suchbegriffe gespeichert"}`;
   }
 
-  text +=
-    "\n\n━━━━━━━━━━━━━━━━━━\n" +
-    "🧭 NÄCHSTER SCHRITT\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-    "Wenn der Titel falsch ist:\n" +
-    `/fiximport ${item.id} | Neuer Titel | ${item.year || "JAHR"}\n\n` +
-    "Wenn die Daten so passen, bauen wir danach:\n" +
-    `/approveimport ${item.id}\n\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
+  let resultText =
+    `⚠️ Import-Vorschau #${item.id}\n\n` +
+
+    "Kein TMDB-Dossier gefunden.\n" +
+    "Der Import kann trotzdem manuell geprüft werden.\n\n" +
+
+    `${title}${yearText}\n` +
+    `${typeText}`;
+
+  if (isSeries && episodeCode) {
+    resultText += ` · ${episodeCode}`;
+  }
+
+  resultText += ` · ${statusText}\n`;
+
+  if (episodeTitle) {
+    resultText += `${episodeTitle}\n`;
+  }
+
+  resultText +=
+    "\nDatei\n" +
+    `${quality} · ${fileSize}\n` +
+    `${audio}\n\n` +
+
+    "Technik\n" +
+    `${source} · ${codec}\n` +
+    `${resolution} · ${duration}\n\n` +
+
+    "Suchbegriffe\n" +
+    `${queryText}\n\n` +
+
+    "Aktionen\n" +
+    `/fiximport ${item.id} | Neuer Titel | ${item.year || "Jahr"}\n` +
+    `/approveimport ${item.id} · trotzdem übernehmen\n\n` +
+
     "@LibraryOfLegends";
 
-  return text;
+  return cleanTelegramText(resultText).slice(0, 4000);
 }
 
 // =============================
