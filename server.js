@@ -18468,7 +18468,7 @@ await tg("sendMessage", {
 }
 
 // =============================
-// NEW SERIES EPISODES
+// NEW SERIES — PREMIUM COMPACT
 // =============================
 if (command === "/newseries") {
   let rows = [];
@@ -18500,35 +18500,62 @@ if (command === "/newseries") {
   }
 
   let resultText =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🆕 NEUE FOLGEN\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+    "🆕 Neue Folgen\n\n";
 
   for (const s of rows) {
-    const seasonText = String(s.season).padStart(2, "0");
-    const episodeText = String(s.episode).padStart(2, "0");
+    const title =
+      typeof llShortSeriesTitle === "function"
+        ? llShortSeriesTitle(s.series_title)
+        : s.series_title;
 
-    const genreText = String(s.genre || "Sonstige")
-      .split("/")
-      .map((g) => g.trim())
-      .filter(Boolean)
-      .slice(0, 2)
-      .join(" • ");
+    const seasonText =
+      String(s.season || 1).padStart(2, "0");
 
-    resultText += `📺 ${s.series_title}\n`;
-    resultText += `🎞 S${seasonText}E${episodeText}`;
-    if (s.episode_title) resultText += ` • ${s.episode_title}`;
-    resultText += "\n";
-    resultText += `🎭 ${genreText}\n`;
-    resultText += `⭐ ${s.rating || "Unbekannt"}\n\n`;
+    const episodeText =
+      String(s.episode || 1).padStart(2, "0");
+
+    const episodeTitle =
+      String(s.episode_title || "")
+        .replace(/\s+\/\s+/g, " · ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const genreText =
+      String(s.genre || "Sonstige")
+        .split(/[\/•,]/)
+        .map((g) =>
+          typeof llNormalizeGenreName === "function"
+            ? llNormalizeGenreName(g.trim())
+            : g.trim()
+        )
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(" · ") || "Sonstige";
+
+    const ratingNumber =
+      typeof extractRatingNumber === "function"
+        ? extractRatingNumber(s.rating)
+        : getRatingValue(s.rating);
+
+    const ratingText =
+      ratingNumber > 0
+        ? `${ratingNumber.toFixed(1)}/10`
+        : "Unbekannt";
+
+    resultText += `• ${title} · S${seasonText}E${episodeText}\n`;
+
+    if (episodeTitle) {
+      resultText += `  ${episodeTitle}\n`;
+    }
+
+    resultText += `  ${genreText} · ${ratingText}\n\n`;
   }
 
-  resultText += "━━━━━━━━━━━━━━━━━━\n";
   resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text: resultText.slice(0, 4000)
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
