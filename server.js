@@ -18312,6 +18312,122 @@ if (command === "/collection") {
 }
 
 // =============================
+// LIBRARY HOME — PREMIUM COMPACT
+// =============================
+if (
+  command === "/library" ||
+  command.startsWith("/library@") ||
+  command === "/home" ||
+  command.startsWith("/home@")
+) {
+  let movieCount = 0;
+  let seriesCount = 0;
+  let episodeCount = 0;
+  let collectionCount = 0;
+
+  if (pgPool) {
+    const movieResult = await pgPool.query(`
+      SELECT COUNT(*) AS count
+      FROM movies
+    `);
+
+    const seriesResult = await pgPool.query(`
+      SELECT
+        COUNT(DISTINCT series_title) AS series_count,
+        COUNT(*) AS episode_count
+      FROM series
+    `);
+
+    const collectionResult = await pgPool.query(`
+      SELECT COUNT(*) AS count
+      FROM collections
+    `);
+
+    movieCount =
+      Number(movieResult.rows[0]?.count || 0);
+
+    seriesCount =
+      Number(seriesResult.rows[0]?.series_count || 0);
+
+    episodeCount =
+      Number(seriesResult.rows[0]?.episode_count || 0);
+
+    collectionCount =
+      Number(collectionResult.rows[0]?.count || 0);
+  } else {
+    const movieRow = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM movies
+    `).get();
+
+    const seriesRow = db.prepare(`
+      SELECT
+        COUNT(DISTINCT series_title) AS series_count,
+        COUNT(*) AS episode_count
+      FROM series
+    `).get();
+
+    const collectionRow = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM collections
+    `).get();
+
+    movieCount =
+      Number(movieRow?.count || 0);
+
+    seriesCount =
+      Number(seriesRow?.series_count || 0);
+
+    episodeCount =
+      Number(seriesRow?.episode_count || 0);
+
+    collectionCount =
+      Number(collectionRow?.count || 0);
+  }
+
+  const movieWord =
+    movieCount === 1 ? "Film" : "Filme";
+
+  const seriesWord =
+    seriesCount === 1 ? "Serie" : "Serien";
+
+  const episodeWord =
+    episodeCount === 1 ? "Folge" : "Folgen";
+
+  const collectionWord =
+    collectionCount === 1 ? "Filmreihe" : "Filmreihen";
+
+  const resultText =
+    "🏛️ Library of Legends\n\n" +
+
+    "🎬 Filme\n" +
+    "/moviehub · Filmarchiv öffnen\n" +
+    "/newmovies · Neue Filme\n" +
+    "/movies · Filme A–Z\n\n" +
+
+    "📺 Serien\n" +
+    "/serieshub · Serienarchiv öffnen\n" +
+    "/newseries · Neue Folgen\n" +
+    "/seriesaz · Serien A–Z\n\n" +
+
+    "🎞 Filmreihen\n" +
+    "/collections · Filmreihen öffnen\n\n" +
+
+    "Archiv\n" +
+    `${movieCount} ${movieWord} · ${seriesCount} ${seriesWord} · ${episodeCount} ${episodeWord}\n` +
+    `${collectionCount} ${collectionWord}\n\n` +
+
+    "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: cleanTelegramText(resultText).slice(0, 4000)
+  });
+
+  return;
+}
+
+// =============================
 // MOVIE HUB — PREMIUM COMPACT
 // =============================
 if (command === "/moviehub") {
@@ -18392,7 +18508,7 @@ if (command === "/moviehub") {
     resultText += "\n";
   }
 
-  resultText += "Featured\n";
+  resultText += "Highlights\n";
 
   if (!featured.length) {
     resultText += "Noch keine Featured-Filme verfügbar.\n\n";
