@@ -10713,27 +10713,25 @@ function seriesRegistryCaption(series = {}, stats = {}) {
     series.genres ||
     "Sonstige";
 
-  const genreText =
+  const genreParts =
     String(genre || "Sonstige")
       .split(/[\/•,]/)
       .map((g) => g.trim())
       .filter(Boolean)
-      .slice(0, 3)
-      .join(" ∙ ") ||
-    "Sonstige";
+      .slice(0, 2);
+
+  const genreText =
+    genreParts.length
+      ? genreParts.join(" · ")
+      : "Sonstige";
 
   const ratingNumber =
     getRatingValue(series.rating || stats.rating);
 
   const ratingText =
     ratingNumber > 0
-      ? ratingNumber.toFixed(1)
+      ? `${ratingNumber.toFixed(1)}/10`
       : "Unbekannt";
-
-  const stars =
-    ratingNumber >= 9
-      ? "★★★★★"
-      : getRatingStars(ratingNumber);
 
   const savedEpisodes =
     Number(
@@ -10743,88 +10741,108 @@ function seriesRegistryCaption(series = {}, stats = {}) {
       0
     );
 
- const totalEpisodesRaw =
-  stats.totalEpisodes ??
-  stats.officialTotalEpisodes ??
-  series.total_episodes ??
-  series.totalEpisodes ??
-  savedEpisodes;
+  const totalEpisodes =
+    Number(
+      stats.totalEpisodes ??
+      stats.officialTotalEpisodes ??
+      series.total_episodes ??
+      series.totalEpisodes ??
+      0
+    );
 
-const totalEpisodes =
-  Number(totalEpisodesRaw || 0);
-
-  const percent =
+  const episodeProgress =
     totalEpisodes > 0
-      ? Math.min(
-          100,
-          Math.round((savedEpisodes / totalEpisodes) * 100)
-        )
-      : 0;
-
-  const progressBar =
-    buildSeriesRegistryBar(savedEpisodes, totalEpisodes);
-
-  const progressStatus =
-    totalEpisodes > 0 && savedEpisodes >= totalEpisodes
-      ? "[COMPLETE]"
-      : savedEpisodes > 0
-        ? "[ACTIVE]"
-        : "[PENDING]";
-
-  const level =
-    getSeriesRegistryLevel(savedEpisodes, totalEpisodes);
+      ? `${savedEpisodes}/${totalEpisodes} Folgen im Archiv`
+      : `${savedEpisodes} Folgen im Archiv`;
 
   const status =
-    getSeriesRegistryStatus(
-      ratingText,
-      savedEpisodes,
-      totalEpisodes
-    );
+    totalEpisodes > 0 && savedEpisodes >= totalEpisodes
+      ? "Vollständig"
+      : savedEpisodes > 0
+        ? "Im Aufbau"
+        : "Noch nicht gestartet";
 
   const story =
     trimTextAtSentence(
       series.overview ||
       series.description ||
       "Keine Serienbeschreibung verfügbar.",
-      230
+      260
     );
 
   const seasons =
-    stats.seasons ||
-    series.seasons ||
-    [];
+    Array.isArray(stats.seasons)
+      ? stats.seasons
+      : Array.isArray(series.seasons)
+        ? series.seasons
+        : [];
 
-  const timeline =
-    buildSeriesSeasonTimeline(seasons);
+  const seasonLines =
+    seasons.length
+      ? seasons
+          .slice(0, 10)
+          .map((season, index) => {
+            const seasonNumber =
+              Number(
+                season.season ||
+                season.season_number ||
+                index + 1
+              );
 
-  const coreStatus =
-    totalEpisodes > 0 && savedEpisodes >= totalEpisodes
-      ? "SIGNED & SECURED"
-      : "ARCHIVE IN PROGRESS";
+            const seasonText =
+              String(seasonNumber).padStart(2, "0");
 
-  const tags =
-    makeSeriesRegistryTags(title, genre, level);
+            const saved =
+              Number(
+                season.savedEpisodes ??
+                season.saved ??
+                season.current ??
+                season.episodesSaved ??
+                0
+              );
 
-  const caption =
-    "██▓▒░ SERIES REGISTRY ░▒▓██\n" +
-    "──────────────────\n" +
-    `📺 ${escapeHtml(String(title).toUpperCase())}${year ? ` (${escapeHtml(year)})` : ""}\n` +
-    `⚡ LEVEL • ${escapeHtml(level)}\n` +
-    "──────────────────\n" +
-    `🎭 Genre: ${escapeHtml(genreText)}\n` +
-    `⭐ Rating: ${escapeHtml(ratingText)}/10 ∙ ${stars} IMDb\n` +
-    `📊 Progress: ${progressBar} ${percent}% ${progressStatus}\n` +
-    `💎 Status: ${escapeHtml(status)}\n` +
-    "──────────────────\n" +
-    "📖 SERIES DOSSIER & BRIEFING\n" +
-    `${escapeHtml(story)}\n` +
-    "──────────────────\n" +
-    "🛰️ CONTROL TIMELINE (SEASONS)\n" +
-    `${escapeHtml(timeline)}\n` +
-    `└─ 🔒 CORE STATUS: ${escapeHtml(coreStatus)}\n` +
-    "──────────────────\n" +
-    `${tags}\n\n` +
-    "@LibraryOfLegends";
+            const total =
+              Number(
+                season.totalEpisodes ??
+                season.total ??
+                season.official ??
+                season.episode_count ??
+                0
+              );
+
+            if (total > 0) {
+              return `S${seasonText} · ${saved}/${total} Folgen`;
+            }
+
+            return `S${seasonText} · ${saved} Folgen`;
+          })
+          .join("\n")
+      : "Noch keine Staffeldaten verfügbar.";
+
+  const moreSeasons =
+    seasons.length > 10
+      ? `\n+ ${seasons.length - 10} weitere Staffel(n)`
+      : "";
+
+  const seriesTag =
+    "#" + llMakeCompactHashTag(title);
+
+  const caption = [
+    `📺 ${escapeHtml(title)}${year ? ` (${escapeHtml(year)})` : ""}`,
+    "",
+    `⭐ ${escapeHtml(ratingText)}`,
+    `🎭 ${escapeHtml(genreText)}`,
+    `📚 ${escapeHtml(episodeProgress)}`,
+    `Status · ${escapeHtml(status)}`,
+    "",
+    escapeHtml(story),
+    "",
+    "Staffeln",
+    escapeHtml(seasonLines + moreSeasons),
+    "",
+    `${seriesTag} #Serien`,
+    "@LibraryOfLegends"
+  ].join("\n");
 
   return cleanTelegramText(caption).slice(0, 1800);
 }
