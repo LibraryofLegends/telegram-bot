@@ -15626,26 +15626,36 @@ if (command === "/imports") {
 }
 
 // =============================
-// USERBOT IMPORT DETAILS
+// USERBOT IMPORT DETAILS — PREMIUM COMPACT
 // =============================
-if (command === "/importinfo") {
+if (
+  command === "/importinfo" ||
+  command.startsWith("/importinfo@")
+) {
   if (!pgPool) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "❌ Supabase/pgPool ist nicht aktiv.\n\n" +
-        "Die Userbot-Import-Details laufen aktuell nur mit Supabase."
+        "📦 Importdetails\n\n" +
+        "Supabase/PostgreSQL ist nicht aktiv.\n" +
+        "Die Userbot-Import-Details benötigen Supabase.\n\n" +
+        "@LibraryOfLegends"
     });
     return;
   }
 
-  const importId = Number(text.replace(command, "").trim());
+  const importId =
+    Number(
+      text
+        .replace(/^\/importinfo(?:@\w+)?/i, "")
+        .trim()
+    );
 
   if (!importId || !Number.isFinite(importId)) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "⚠️ Nutzung:\n\n" +
+        "⚠️ Nutzung\n\n" +
         "/importinfo 2"
     });
     return;
@@ -15662,79 +15672,124 @@ if (command === "/importinfo") {
       [importId]
     );
 
-    const item = result.rows[0];
+    const item =
+      result.rows[0];
 
     if (!item) {
       await tg("sendMessage", {
         chat_id: msg.chat.id,
         text:
-          "❌ Import nicht gefunden:\n\n" +
-          `Import-ID: ${importId}`
+          "❌ Import nicht gefunden\n\n" +
+          `Import #${importId}`
       });
       return;
     }
 
-    const isSeries = item.media_type === "series";
-    const icon = isSeries ? "📺" : "🎬";
+    const isSeries =
+      item.media_type === "series";
 
-    const episodeText = isSeries
-      ? `S${String(item.season || 1).padStart(2, "0")}E${String(item.episode || 0).padStart(2, "0")}`
-      : "";
+    const typeText =
+      isSeries ? "Serie" :
+      item.media_type === "movie" ? "Film" :
+      "Unbekannt";
 
-    const resultText =
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "📦 USERBOT IMPORT DETAILS\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+    const title =
+      item.title || "Unbekannter Titel";
 
-      `🆔 Import-ID: ${item.id}\n` +
-      `📌 Status: ${item.status || "staged"}\n\n` +
+    const yearText =
+      item.year ? ` (${item.year})` : "";
 
-      `${icon} Typ: ${item.media_type || "unknown"}\n` +
-      `🏷 Titel: ${item.title || "Unbekannt"}\n` +
-      (item.year ? `📅 Jahr: ${item.year}\n` : "") +
-      (isSeries ? `🎞 Episode: ${episodeText}\n` : "") +
-      (item.episode_title ? `📝 Episodentitel: ${item.episode_title}\n` : "") +
+    const seasonText =
+      String(item.season || 1).padStart(2, "0");
 
-      "\n━━━━━━━━━━━━━━━━━━\n" +
-      "📂 DATEI\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+    const episodeText =
+      String(item.episode || 0).padStart(2, "0");
 
-      `📁 Name: ${item.file_name || "leer"}\n` +
-      `💾 Größe: ${item.file_size || "leer"}\n` +
-      `🧾 MIME: ${item.mime_type || "leer"}\n` +
-      `📺 Auflösung: ${item.width && item.height ? `${item.width}x${item.height}` : "leer"}\n` +
-      `⏱ Dauer: ${item.duration_minutes ? `${item.duration_minutes} Min.` : "leer"}\n\n` +
+    const episodeDisplay =
+      isSeries
+        ? `S${seasonText}E${episodeText}`
+        : "";
 
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "⚙️ TECHNIK\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+    const episodeTitle =
+      String(item.episode_title || "")
+        .replace(/\s+\/\s+/g, " · ")
+        .replace(/\s+/g, " ")
+        .trim();
 
-      `🔥 Qualität: ${item.quality || "leer"}\n` +
-      `📡 Quelle: ${item.media_source || "leer"}\n` +
-      `🎥 Codec: ${item.codec || "leer"}\n` +
-      `🔊 Audio: ${item.audio || "leer"}\n\n` +
+    const fileSize =
+      typeof llFormatCompactSize === "function"
+        ? llFormatCompactSize(item.file_size || "")
+        : item.file_size || "Unbekannt";
 
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🧭 TELEGRAM\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+    const resolution =
+      item.width && item.height
+        ? `${item.width}x${item.height}`
+        : "Unbekannt";
 
-      `📥 Source Chat: ${item.source_chat || "leer"}\n` +
-      `📤 Staging Chat: ${item.staging_chat || "leer"}\n` +
-      `📩 Source Message ID: ${item.source_message_id || "leer"}\n` +
-      `📨 Staging Message ID: ${item.staging_message_id || "leer"}\n\n` +
+    const duration =
+      item.duration_minutes
+        ? `${item.duration_minutes} Min.`
+        : "Unbekannt";
 
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "📤 FINAL ARCHIVE\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+    const quality =
+      item.quality || "Unbekannt";
 
-      `🎯 Target Chat ID: ${item.target_chat_id || "leer"}\n` +
-      `🧵 Target Topic ID: ${item.target_topic_id || "leer"}\n` +
-      `💬 Final Message ID: ${item.final_message_id || "leer"}\n` +
-      `✅ Processed At: ${item.processed_at || "leer"}\n\n` +
+    const source =
+      item.media_source || "Unbekannt";
 
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "Nächster Schritt später:\n" +
-      `/processimport ${item.id}\n\n` +
+    const codec =
+      item.codec || "Unbekannt";
+
+    const audio =
+      item.audio || "Unbekannt";
+
+    const status =
+      item.status || "staged";
+
+    const targetText =
+      item.final_message_id
+        ? "Archiviert"
+        : item.target_chat_id
+          ? "Ziel gesetzt"
+          : "Noch nicht archiviert";
+
+    let resultText =
+      `📦 Import #${item.id}\n\n` +
+
+      `${title}${yearText}\n` +
+      `${typeText}`;
+
+    if (isSeries && episodeDisplay) {
+      resultText += ` · ${episodeDisplay}`;
+    }
+
+    resultText += ` · ${status}\n`;
+
+    if (episodeTitle) {
+      resultText += `${episodeTitle}\n`;
+    }
+
+    resultText +=
+      "\nDatei\n" +
+      `${quality} · ${fileSize}\n` +
+      `${audio}\n\n` +
+
+      "Technik\n" +
+      `${source} · ${codec}\n` +
+      `${resolution} · ${duration}\n\n` +
+
+      "Telegram\n" +
+      `Quelle · ${item.source_message_id || "leer"}\n` +
+      `Staging · ${item.staging_message_id || "leer"}\n\n` +
+
+      "Archiv\n" +
+      `Status · ${targetText}\n` +
+      `Topic · ${item.target_topic_id || "leer"}\n` +
+      `Final · ${item.final_message_id || "leer"}\n\n` +
+
+      "Aktion\n" +
+      `/processimport ${item.id} · übernehmen\n\n` +
+
       "@LibraryOfLegends";
 
     await tg("sendMessage", {
@@ -15747,7 +15802,7 @@ if (command === "/importinfo") {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "❌ Fehler beim Laden der Import-Details:\n\n" +
+        "❌ Fehler beim Laden der Import-Details\n\n" +
         String(err.message).slice(0, 1000)
     });
   }
