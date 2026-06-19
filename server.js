@@ -10701,6 +10701,9 @@ function seriesRegistryCaption(series = {}, stats = {}) {
     series.seriesTitle ||
     series.name ||
     "Unbekannte Serie";
+    
+    const displayTitle =
+  llShortSeriesTitle(title);
 
   const year =
     series.year ||
@@ -10763,12 +10766,12 @@ function seriesRegistryCaption(series = {}, stats = {}) {
         : "Noch nicht gestartet";
 
   const story =
-    trimTextAtSentence(
-      series.overview ||
-      series.description ||
-      "Keine Serienbeschreibung verfügbar.",
-      260
-    );
+  trimTextAtSentence(
+    series.overview ||
+    series.description ||
+    "Keine Serienbeschreibung verfügbar.",
+    260
+  ).replace(/\s+\/\s+/g, " ");
 
   const seasons =
     Array.isArray(stats.seasons)
@@ -10825,10 +10828,10 @@ function seriesRegistryCaption(series = {}, stats = {}) {
       : "";
 
   const seriesTag =
-    "#" + llMakeCompactHashTag(title);
+  "#" + llMakeCompactHashTag(displayTitle);
 
   const caption = [
-    `📺 ${escapeHtml(title)}${year ? ` (${escapeHtml(year)})` : ""}`,
+    `📺 ${escapeHtml(displayTitle)}${year ? ` (${escapeHtml(year)})` : ""}`,
     "",
     `⭐ ${escapeHtml(ratingText)}`,
     `🎭 ${escapeHtml(genreText)}`,
