@@ -16262,10 +16262,10 @@ if (
     }
 
     await saveApprovedMovieImportToDb(
-      item,
-      item.final_message_id || "",
-      item.target_topic_id || null
-    );
+  item,
+  item.final_message_id || null,
+  item.target_topic_id || null
+);
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
@@ -16931,16 +16931,22 @@ async function saveApprovedMovieImportToDb(item, finalMessageId, topicId) {
     item.title || "Unbekannter Titel";
 
   const year =
-    item.year || null;
+    item.year && Number.isFinite(Number(item.year))
+      ? Number(item.year)
+      : null;
 
   const genre =
     item.genre || "Sonstige";
 
   const rating =
-    item.rating || null;
+    item.rating && Number.isFinite(Number(item.rating))
+      ? Number(item.rating)
+      : null;
 
   const runtime =
-    item.duration_minutes || null;
+    item.duration_minutes && Number.isFinite(Number(item.duration_minutes))
+      ? Number(item.duration_minutes)
+      : null;
 
   const overview =
     item.overview || "Keine Beschreibung verfügbar.";
@@ -16958,6 +16964,16 @@ async function saveApprovedMovieImportToDb(item, finalMessageId, topicId) {
     item.unique_key ||
     item.file_unique_id ||
     `userbot-import-${item.id}`;
+
+  const telegramMessageId =
+    finalMessageId && Number.isFinite(Number(finalMessageId))
+      ? Number(finalMessageId)
+      : null;
+
+  const topicValue =
+    topicId && Number.isFinite(Number(topicId))
+      ? Number(topicId)
+      : null;
 
   await pgPool.query(
     `
@@ -17006,8 +17022,8 @@ async function saveApprovedMovieImportToDb(item, finalMessageId, topicId) {
       fileName,
       fileId,
       uniqueKey,
-      String(finalMessageId),
-      topicId ? String(topicId) : null
+      telegramMessageId,
+      topicValue
     ]
   );
 }
