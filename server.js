@@ -10118,23 +10118,49 @@ async function seriesCaption(tmdb, media, extras = {}) {
   const seriesTitle =
     llShortSeriesTitle(rawSeriesTitle);
 
+  const seasonNumber =
+    media.season ||
+    tmdb.seasonNumber ||
+    1;
+
+  const episodeNumber =
+    media.episode ||
+    tmdb.episodeNumber ||
+    1;
+
   const seasonText =
-    String(media.season || tmdb.seasonNumber || 1)
-      .padStart(2, "0");
+    String(seasonNumber).padStart(2, "0");
 
   const episodeText =
-    String(media.episode || tmdb.episodeNumber || 1)
-      .padStart(2, "0");
+    String(episodeNumber).padStart(2, "0");
+
+  const episodeEndText =
+    media.isDoubleEpisode && media.episodeEnd
+      ? String(media.episodeEnd).padStart(2, "0")
+      : null;
 
   const episodeDisplay =
-    media.isDoubleEpisode && media.episodeEnd
-      ? `S${seasonText}E${episodeText}+E${String(media.episodeEnd).padStart(2, "0")}`
+    episodeEndText
+      ? `S${seasonText}E${episodeText}–E${episodeEndText}`
       : `S${seasonText}E${episodeText}`;
+
+  const footerEpisode =
+    episodeEndText
+      ? `Episode ${Number(episodeNumber)}–${Number(media.episodeEnd)}`
+      : `Episode ${Number(episodeNumber)}`;
 
   const finalEpisodeTitle =
     tmdb.episodeTitle ||
     media.episodeTitleFromFile ||
     "Episode";
+
+  const rating =
+    llGetRealEpisodeRating(tmdb, media, extras);
+
+  const ratingText =
+    rating !== null
+      ? `${rating.toFixed(1)}/10`
+      : "Noch nicht bewertet";
 
   const story =
     llCompactDossierText(
@@ -10162,23 +10188,21 @@ async function seriesCaption(tmdb, media, extras = {}) {
   const seriesTag =
     "#" + llMakeCompactHashTag(seriesTitle);
 
-  // Kürzere Linien, damit Telegram sie nicht hässlich umbricht
-  const divider = "────────────";
-  const strongDivider = "━━━━━━━━━━━━";
+  const episodeTag =
+    "#" + episodeDisplay.replace(/[^A-Z0-9]/g, "");
 
   const caption = [
-    "██▓▒░ EPISODE REGISTRY ░▒▓██",
+    `📺 ${escapeHtml(seriesTitle)}`,
+    `${escapeHtml(episodeDisplay)} · ${escapeHtml(finalEpisodeTitle)}`,
     "",
-    `📺 ${escapeHtml(String(seriesTitle).toUpperCase())} ∙ ${escapeHtml(episodeDisplay)}`,
-    divider,
-    `🎬 Ep: ${escapeHtml(finalEpisodeTitle)}`,
-    llFormatEpisodeRank(tmdb, media, extras),
-    divider,
-    `📦 ${escapeHtml(fileSize)} ∙ ${escapeHtml(quality)} ║ 🔊 Audio: ${escapeHtml(audioText)}`,
-    divider,
-    `📖 DOSSIER: ${escapeHtml(story)}`,
-    strongDivider,
-    `${seriesTag} #${episodeDisplay.replace(/[^A-Z0-9]/g, "")} @LibraryOfLegends`
+    `⭐ ${escapeHtml(ratingText)}`,
+    `📦 ${escapeHtml(quality)} · ${escapeHtml(fileSize)} · ${escapeHtml(audioText)}`,
+    "",
+    escapeHtml(story),
+    "",
+    `Staffel ${Number(seasonNumber)} · ${footerEpisode}`,
+    `${seriesTag} ${episodeTag}`,
+    "@LibraryOfLegends"
   ].join("\n");
 
   return cleanTelegramText(caption).slice(0, 1024);
