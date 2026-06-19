@@ -10494,6 +10494,58 @@ function llFormatCompactAudio(media = {}, extras = {}) {
   return `${flag} ${codec}${channels}`.trim();
 }
 
+function llNormalizeGenreName(genre = "") {
+  const value =
+    String(genre || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const key =
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "");
+
+  const map = {
+    kids: "Familie",
+    family: "Familie",
+    familie: "Familie",
+    children: "Familie",
+    kinder: "Familie",
+
+    sciencefiction: "Sci-Fi",
+    scifi: "Sci-Fi",
+    syfy: "Sci-Fi",
+
+    actionadventure: "Action",
+    adventure: "Abenteuer",
+
+    crime: "Krimi",
+    mystery: "Mystery",
+    thriller: "Thriller",
+    horror: "Horror",
+
+    animation: "Animation",
+    anime: "Anime",
+
+    comedy: "Komödie",
+    drama: "Drama",
+    fantasy: "Fantasy",
+
+    documentary: "Dokumentation",
+    history: "Historie",
+    war: "Krieg",
+    western: "Western",
+
+    tvmovie: "TV-Film",
+    music: "Musik",
+    romance: "Romantik"
+  };
+
+  return map[key] || value || "Sonstige";
+}
+
 function llMakeCompactHashTag(text = "") {
   return String(text || "")
     .replace(/ä/g, "ae")
@@ -10719,7 +10771,7 @@ function seriesRegistryCaption(series = {}, stats = {}) {
   const genreParts =
     String(genre || "Sonstige")
       .split(/[\/•,]/)
-      .map((g) => g.trim())
+      .map((g) => llNormalizeGenreName(g.trim()))
       .filter(Boolean)
       .slice(0, 2);
 
@@ -18725,7 +18777,7 @@ if (command === "/trendingseries") {
     const genreText =
       String(s.genre || "Sonstige")
         .split(/[\/•,]/)
-        .map((g) => g.trim())
+        .map((g) => llNormalizeGenreName(g.trim()))
         .filter(Boolean)
         .slice(0, 2)
         .join(" · ") || "Sonstige";
@@ -18822,7 +18874,7 @@ if (command === "/featuredseries") {
     const genreText =
       String(s.genre || "Sonstige")
         .split(/[\/•,]/)
-        .map((g) => g.trim())
+        .map((g) => llNormalizeGenreName(g.trim()))
         .filter(Boolean)
         .slice(0, 2)
         .join(" · ") || "Sonstige";
