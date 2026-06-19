@@ -18674,7 +18674,7 @@ if (
 }
 
 // =============================
-// TRENDING SERIES
+// TRENDING SERIES — PREMIUM COMPACT
 // =============================
 if (command === "/trendingseries") {
   let rows = [];
@@ -18712,29 +18712,36 @@ if (command === "/trendingseries") {
   }
 
   let resultText =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🔥 TRENDING SERIEN\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+    "🔥 Trending Serien\n\n";
 
   let rank = 1;
 
   for (const s of rows) {
-    const genreText = String(s.genre || "Sonstige")
-      .split("/")
-      .map((g) => g.trim())
-      .filter(Boolean)
-      .slice(0, 2)
-      .join(" • ");
+    const title =
+      typeof llShortSeriesTitle === "function"
+        ? llShortSeriesTitle(s.series_title)
+        : s.series_title;
 
-    resultText += `#${rank} 📺 ${s.series_title}\n`;
-    resultText += `📀 ${s.count} Episode(n)\n`;
-    resultText += `🎭 ${genreText}\n`;
-    resultText += `⭐ ${s.rating || "Unbekannt"}\n\n`;
+    const genreText =
+      String(s.genre || "Sonstige")
+        .split(/[\/•,]/)
+        .map((g) => g.trim())
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(" · ") || "Sonstige";
+
+    const count =
+      Number(s.count || 0);
+
+    const episodeWord =
+      count === 1 ? "Folge" : "Folgen";
+
+    resultText += `${rank}. ${title}\n`;
+    resultText += `${count} ${episodeWord} · ${genreText}\n\n`;
 
     rank++;
   }
 
-  resultText += "━━━━━━━━━━━━━━━━━━\n";
   resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
@@ -18746,7 +18753,7 @@ if (command === "/trendingseries") {
 }
 
 // =============================
-// FEATURED SERIES
+// FEATURED SERIES — PREMIUM COMPACT
 // =============================
 if (command === "/featuredseries") {
   let rows = [];
@@ -18774,17 +18781,24 @@ if (command === "/featuredseries") {
       LIMIT 10
     `).all();
   }
-  
+
   rows.sort((a, b) => {
-  const ratingA = extractRatingNumber(a.rating);
-  const ratingB = extractRatingNumber(b.rating);
+    const ratingA =
+      typeof extractRatingNumber === "function"
+        ? extractRatingNumber(a.rating)
+        : getRatingValue(a.rating);
 
-  if (ratingB !== ratingA) {
-    return ratingB - ratingA;
-  }
+    const ratingB =
+      typeof extractRatingNumber === "function"
+        ? extractRatingNumber(b.rating)
+        : getRatingValue(b.rating);
 
-  return Number(b.count || 0) - Number(a.count || 0);
-});
+    if (ratingB !== ratingA) {
+      return ratingB - ratingA;
+    }
+
+    return Number(b.count || 0) - Number(a.count || 0);
+  });
 
   if (!rows.length) {
     await tg("sendMessage", {
@@ -18795,31 +18809,47 @@ if (command === "/featuredseries") {
   }
 
   let resultText =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "⭐ FEATURED SERIEN\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+    "⭐ Featured Serien\n\n";
 
   let rank = 1;
 
-for (const s of rows) {
+  for (const s of rows) {
+    const title =
+      typeof llShortSeriesTitle === "function"
+        ? llShortSeriesTitle(s.series_title)
+        : s.series_title;
 
-  const genreText = String(s.genre || "Sonstige")
-    .split("/")
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .slice(0, 2)
-    .join(" • ");
+    const genreText =
+      String(s.genre || "Sonstige")
+        .split(/[\/•,]/)
+        .map((g) => g.trim())
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(" · ") || "Sonstige";
 
-  resultText += `#${rank} 📺 ${s.series_title}\n`;
-  resultText += `📀 ${s.count} Episode(n)\n`;
-  resultText += `🎭 ${genreText}\n`;
-  resultText += `⭐ ${s.rating || "Unbekannt"}\n\n`;
+    const ratingNumber =
+      typeof extractRatingNumber === "function"
+        ? extractRatingNumber(s.rating)
+        : getRatingValue(s.rating);
 
-  rank++; // ← GENAU HIER
-}
+    const ratingText =
+      ratingNumber > 0
+        ? `${ratingNumber.toFixed(1)}/10`
+        : "Unbekannt";
 
-resultText += "━━━━━━━━━━━━━━━━━━\n";
-resultText += "@LibraryOfLegends";
+    const count =
+      Number(s.count || 0);
+
+    const episodeWord =
+      count === 1 ? "Folge" : "Folgen";
+
+    resultText += `${rank}. ${title}\n`;
+    resultText += `${ratingText} · ${count} ${episodeWord} · ${genreText}\n\n`;
+
+    rank++;
+  }
+
+  resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
