@@ -18390,7 +18390,7 @@ if (command === "/series") {
 }
 
 // =============================
-// SERIES A-Z
+// SERIES A-Z — PREMIUM COMPACT
 // =============================
 if (command === "/seriesaz") {
   let rows = [];
@@ -18398,13 +18398,13 @@ if (command === "/seriesaz") {
   if (pgPool) {
     const result = await pgPool.query(`
       SELECT
-  series_title,
-  MAX(genre) AS genre,
-  MAX(rating) AS rating,
-  COUNT(*) AS count
-FROM series
-GROUP BY series_title
-ORDER BY series_title ASC
+        series_title,
+        MAX(genre) AS genre,
+        MAX(rating) AS rating,
+        COUNT(*) AS count
+      FROM series
+      GROUP BY series_title
+      ORDER BY series_title ASC
     `);
 
     rows = result.rows;
@@ -18418,51 +18418,86 @@ ORDER BY series_title ASC
   }
 
   if (!rows.length) {
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: "📺 Noch keine Serien gespeichert."
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "📺 Noch keine Serien gespeichert."
+    });
+    return;
+  }
+
+  rows.sort((a, b) => {
+    const titleA =
+      typeof llShortSeriesTitle === "function"
+        ? llShortSeriesTitle(a.series_title)
+        : a.series_title;
+
+    const titleB =
+      typeof llShortSeriesTitle === "function"
+        ? llShortSeriesTitle(b.series_title)
+        : b.series_title;
+
+    return String(titleA).localeCompare(String(titleB), "de");
   });
-  return;
-}
 
-console.log("📺 SERIESAZ ROWS:", rows);
+  let currentLetter = "";
 
-let currentLetter = "";
-let resultText =
-  "━━━━━━━━━━━━━━━━━━\n" +
-  "🔤 SERIEN A-Z\n" +
-  "━━━━━━━━━━━━━━━━━━\n";
+  let resultText =
+    "🔤 Serien A–Z\n\n";
 
   for (const s of rows) {
-    const letter = String(s.series_title || "#").charAt(0).toUpperCase();
+    const title =
+      typeof llShortSeriesTitle === "function"
+        ? llShortSeriesTitle(s.series_title)
+        : s.series_title;
+
+    const letter =
+      String(title || "#")
+        .charAt(0)
+        .toUpperCase();
 
     if (letter !== currentLetter) {
       currentLetter = letter;
-      resultText += `\n${currentLetter}\n`;
+      resultText += `${currentLetter}\n`;
     }
 
-    const genreText = String(s.genre || "Sonstige")
-      .split("/")
-      .map((g) => g.trim())
-      .filter(Boolean)
-      .slice(0, 2)
-      .join(" • ");
+    const genreText =
+      String(s.genre || "Sonstige")
+        .split(/[\/•,]/)
+        .map((g) =>
+          typeof llNormalizeGenreName === "function"
+            ? llNormalizeGenreName(g.trim())
+            : g.trim()
+        )
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(" · ") || "Sonstige";
 
-    resultText += `• ${s.series_title}\n`;
-    resultText += `  📀 ${s.count} Episode(n)\n`;
-    resultText += `  🎭 ${genreText}\n`;
-    resultText += `  ⭐ ${s.rating || "Unbekannt"}\n\n`;
+    const ratingNumber =
+      typeof extractRatingNumber === "function"
+        ? extractRatingNumber(s.rating)
+        : getRatingValue(s.rating);
+
+    const ratingText =
+      ratingNumber > 0
+        ? `${ratingNumber.toFixed(1)}/10`
+        : "Unbekannt";
+
+    const count =
+      Number(s.count || 0);
+
+    const episodeWord =
+      count === 1 ? "Folge" : "Folgen";
+
+    resultText += `• ${title}\n`;
+    resultText += `  ${count} ${episodeWord} · ${genreText} · ${ratingText}\n\n`;
   }
 
-  resultText += "━━━━━━━━━━━━━━━━━━\n";
   resultText += "@LibraryOfLegends";
 
-  console.log("📺 SERIESAZ RESULT:", resultText);
-
-await tg("sendMessage", {
-  chat_id: msg.chat.id,
-  text: cleanTelegramText(resultText).slice(0, 4000)
-});
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: cleanTelegramText(resultText).slice(0, 4000)
+  });
 
   return;
 }
