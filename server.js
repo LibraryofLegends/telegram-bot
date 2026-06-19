@@ -18110,20 +18110,18 @@ if (command === "/rebuildcollections") {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🎞 COLLECTION REBUILD\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `✅ Aktualisiert: ${updated}\n` +
-      `⚠️ Fehler: ${failed}\n\n` +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
+      text:
+  "🎞 Filmreihen aktualisiert\n\n" +
+  `Aktualisiert · ${updated}\n` +
+  `Fehler · ${failed}\n\n` +
+  "@LibraryOfLegends"
   });
 
   return;
 }
   
   // =============================
-// COLLECTIONS LIST
+// COLLECTIONS LIST — PREMIUM COMPACT
 // =============================
 if (command === "/collections") {
   let rows = [];
@@ -18167,17 +18165,20 @@ if (command === "/collections") {
   }
 
   let resultText =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🎞 FILMREIHEN\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+    "🎞 Filmreihen\n\n";
 
   for (const row of rows) {
-    resultText += `🎞 ${row.collection_name}\n`;
-    resultText += `🎬 Filme: ${row.movie_count || 0}\n`;
-    resultText += `🧵 Topic: ${row.topic_id || "nicht gesetzt"}\n\n`;
+    const count =
+      Number(row.movie_count || 0);
+
+    const movieWord =
+      count === 1 ? "Film" : "Filme";
+
+    resultText += `• ${row.collection_name}\n`;
+    resultText += `  ${count} ${movieWord}\n\n`;
   }
 
-  resultText += "━━━━━━━━━━━━━━━━━━\n";
+  resultText += "/collection Name · Filmreihe öffnen\n\n";
   resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
@@ -18189,7 +18190,7 @@ if (command === "/collections") {
 }
 
 // =============================
-// SINGLE COLLECTION
+// SINGLE COLLECTION — PREMIUM COMPACT
 // =============================
 if (command === "/collection") {
   const query = text.replace(command, "").trim();
@@ -18266,25 +18267,41 @@ if (command === "/collection") {
   }
 
   let resultText =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🎞 FILMREIHE\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-    `🎬 ${collection.collection_name}\n` +
-    `🧩 TMDB Collection ID: ${collection.tmdb_collection_id || "Unbekannt"}\n` +
-    `🧵 Topic ID: ${collection.topic_id || "nicht gesetzt"}\n\n`;
+    `🎞 ${collection.collection_name}\n\n`;
 
   if (!movies.length) {
-    resultText += "Noch keine Filme in dieser Filmreihe gespeichert.\n";
+    resultText += "Noch keine Filme in dieser Filmreihe gespeichert.\n\n";
   } else {
-    resultText += "🎬 FILME\n\n";
+    const count =
+      movies.length;
+
+    const movieWord =
+      count === 1 ? "Film" : "Filme";
+
+    resultText += `${count} ${movieWord} im Archiv\n\n`;
 
     for (const m of movies) {
-      resultText += `• ${m.title} ${m.year || ""}\n`;
-      resultText += `  ⭐ ${m.rating || "Unbekannt"}\n\n`;
+      const title =
+        String(m.title || "Unbekannter Film").trim();
+
+      const yearText =
+        m.year ? ` (${m.year})` : "";
+
+      const ratingNumber =
+        typeof extractRatingNumber === "function"
+          ? extractRatingNumber(m.rating)
+          : getRatingValue(m.rating);
+
+      const ratingText =
+        ratingNumber > 0
+          ? `${ratingNumber.toFixed(1)}/10`
+          : "Unbekannt";
+
+      resultText += `• ${title}${yearText}\n`;
+      resultText += `  ${ratingText}\n\n`;
     }
   }
 
-  resultText += "━━━━━━━━━━━━━━━━━━\n";
   resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
@@ -18296,7 +18313,7 @@ if (command === "/collection") {
 }
 
   // =============================
-// MOVIE LIST
+// MOVIE LIST — PREMIUM COMPACT
 // =============================
 if (command === "/movies") {
   let movies = [];
@@ -18306,7 +18323,7 @@ if (command === "/movies") {
       SELECT title, year, genre, rating
       FROM movies
       ORDER BY title ASC
-      LIMIT 50
+      LIMIT 80
     `);
 
     movies = result.rows;
@@ -18315,26 +18332,60 @@ if (command === "/movies") {
       SELECT title, year, genre, rating
       FROM movies
       ORDER BY title ASC
-      LIMIT 50
+      LIMIT 80
     `).all();
   }
 
   let resultText =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🎬 FILME\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n";
+    "🎬 Filme A–Z\n\n";
 
   if (!movies.length) {
     resultText += "Noch keine Filme gespeichert.\n";
   } else {
+    let currentLetter = "";
+
     for (const m of movies) {
-      resultText += `• ${m.title} ${m.year || ""}\n`;
-      resultText += `  🎭 ${m.genre || "Unbekannt"}\n`;
-      resultText += `  ⭐ ${m.rating || "Unbekannt"}\n\n`;
+      const title =
+        String(m.title || "Unbekannter Film").trim();
+
+      const letter =
+        title.charAt(0).toUpperCase();
+
+      if (letter !== currentLetter) {
+        currentLetter = letter;
+        resultText += `${currentLetter}\n`;
+      }
+
+      const yearText =
+        m.year ? ` (${m.year})` : "";
+
+      const genreText =
+        String(m.genre || "Sonstige")
+          .split(/[\/•,]/)
+          .map((g) =>
+            typeof llNormalizeGenreName === "function"
+              ? llNormalizeGenreName(g.trim())
+              : g.trim()
+          )
+          .filter(Boolean)
+          .slice(0, 2)
+          .join(" · ") || "Sonstige";
+
+      const ratingNumber =
+        typeof extractRatingNumber === "function"
+          ? extractRatingNumber(m.rating)
+          : getRatingValue(m.rating);
+
+      const ratingText =
+        ratingNumber > 0
+          ? `${ratingNumber.toFixed(1)}/10`
+          : "Unbekannt";
+
+      resultText += `• ${title}${yearText}\n`;
+      resultText += `  ${genreText} · ${ratingText}\n\n`;
     }
   }
 
-  resultText += "━━━━━━━━━━━━━━━━━━\n";
   resultText += "@LibraryOfLegends";
 
   await tg("sendMessage", {
