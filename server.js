@@ -18311,6 +18311,206 @@ if (command === "/collection") {
   return;
 }
 
+// =============================
+// MOVIE HUB — PREMIUM COMPACT
+// =============================
+if (command === "/moviehub") {
+  let latest = [];
+  let featured = [];
+
+  if (pgPool) {
+    const latestResult = await pgPool.query(`
+      SELECT title, year, genre, rating, created_at
+      FROM movies
+      ORDER BY created_at DESC
+      LIMIT 5
+    `);
+
+    const featuredResult = await pgPool.query(`
+      SELECT title, year, genre, rating
+      FROM movies
+      ORDER BY created_at DESC
+      LIMIT 80
+    `);
+
+    latest = latestResult.rows;
+    featured = featuredResult.rows;
+  } else {
+    latest = db.prepare(`
+      SELECT title, year, genre, rating, created_at
+      FROM movies
+      ORDER BY created_at DESC
+      LIMIT 5
+    `).all();
+
+    featured = db.prepare(`
+      SELECT title, year, genre, rating
+      FROM movies
+      ORDER BY created_at DESC
+      LIMIT 80
+    `).all();
+  }
+
+  featured.sort((a, b) => {
+    const ratingA =
+      typeof extractRatingNumber === "function"
+        ? extractRatingNumber(a.rating)
+        : getRatingValue(a.rating);
+
+    const ratingB =
+      typeof extractRatingNumber === "function"
+        ? extractRatingNumber(b.rating)
+        : getRatingValue(b.rating);
+
+    if (ratingB !== ratingA) {
+      return ratingB - ratingA;
+    }
+
+    return String(a.title || "").localeCompare(String(b.title || ""), "de");
+  });
+
+  featured = featured.slice(0, 5);
+
+  let resultText =
+    "🎬 Filme\n\n";
+
+  resultText += "Neu im Archiv\n";
+
+  if (!latest.length) {
+    resultText += "Noch keine Filme gespeichert.\n\n";
+  } else {
+    for (const m of latest) {
+      const title =
+        String(m.title || "Unbekannter Film").trim();
+
+      const yearText =
+        m.year ? ` (${m.year})` : "";
+
+      resultText += `• ${title}${yearText}\n`;
+    }
+
+    resultText += "\n";
+  }
+
+  resultText += "Featured\n";
+
+  if (!featured.length) {
+    resultText += "Noch keine Featured-Filme verfügbar.\n\n";
+  } else {
+    for (const m of featured) {
+      const title =
+        String(m.title || "Unbekannter Film").trim();
+
+      const yearText =
+        m.year ? ` (${m.year})` : "";
+
+      const ratingNumber =
+        typeof extractRatingNumber === "function"
+          ? extractRatingNumber(m.rating)
+          : getRatingValue(m.rating);
+
+      const ratingText =
+        ratingNumber > 0
+          ? `${ratingNumber.toFixed(1)}/10`
+          : "Unbekannt";
+
+      resultText += `• ${title}${yearText} · ${ratingText}\n`;
+    }
+
+    resultText += "\n";
+  }
+
+  resultText += "/movies · Filme A–Z\n";
+  resultText += "/newmovies · Neue Filme\n";
+  resultText += "/collections · Filmreihen\n\n";
+  resultText += "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: cleanTelegramText(resultText).slice(0, 4000)
+  });
+
+  return;
+}
+
+// =============================
+// NEW MOVIES — PREMIUM COMPACT
+// =============================
+if (command === "/newmovies") {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT title, year, genre, rating, created_at
+      FROM movies
+      ORDER BY created_at DESC
+      LIMIT 10
+    `);
+
+    rows = result.rows;
+  } else {
+    rows = db.prepare(`
+      SELECT title, year, genre, rating, created_at
+      FROM movies
+      ORDER BY created_at DESC
+      LIMIT 10
+    `).all();
+  }
+
+  if (!rows.length) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text: "🎬 Noch keine neuen Filme gespeichert."
+    });
+    return;
+  }
+
+  let resultText =
+    "🆕 Neue Filme\n\n";
+
+  for (const m of rows) {
+    const title =
+      String(m.title || "Unbekannter Film").trim();
+
+    const yearText =
+      m.year ? ` (${m.year})` : "";
+
+    const genreText =
+      String(m.genre || "Sonstige")
+        .split(/[\/•,]/)
+        .map((g) =>
+          typeof llNormalizeGenreName === "function"
+            ? llNormalizeGenreName(g.trim())
+            : g.trim()
+        )
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(" · ") || "Sonstige";
+
+    const ratingNumber =
+      typeof extractRatingNumber === "function"
+        ? extractRatingNumber(m.rating)
+        : getRatingValue(m.rating);
+
+    const ratingText =
+      ratingNumber > 0
+        ? `${ratingNumber.toFixed(1)}/10`
+        : "Unbekannt";
+
+    resultText += `• ${title}${yearText}\n`;
+    resultText += `  ${genreText} · ${ratingText}\n\n`;
+  }
+
+  resultText += "@LibraryOfLegends";
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: cleanTelegramText(resultText).slice(0, 4000)
+  });
+
+  return;
+}
+
   // =============================
 // MOVIE LIST — PREMIUM COMPACT
 // =============================
