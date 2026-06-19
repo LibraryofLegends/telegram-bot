@@ -18456,8 +18456,8 @@ if (
     "/serieshub · Serienarchiv\n" +
     "/seriesaz · Serien A–Z\n" +
     "/newseries · Neue Folgen\n" +
-    "/trendingseries · Trending Serien\n" +
-    "/featuredseries · Highlights Serien\n\n" +
+    "/trendingseries · Beliebte Serien\n" +
+    "/featuredseries · Serien-Highlights\n\n" +
 
     "Rebuild\n" +
     "/rebuildserieshub Name · Serien-Hub neu bauen\n" +
