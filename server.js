@@ -18934,9 +18934,10 @@ if (command === "/serieshub") {
         String(s.episode || 1).padStart(2, "0");
 
       const episodeTitle =
-        String(s.episode_title || "")
-          .replace(/\s+\/\s+/g, " ")
-          .trim();
+  String(s.episode_title || "")
+    .replace(/\s+\/\s+/g, " · ")
+    .replace(/\s+/g, " ")
+    .trim();
 
       resultText += `• ${title} · S${season}E${episode}\n`;
 
@@ -18959,7 +18960,13 @@ if (command === "/serieshub") {
           ? llShortSeriesTitle(s.series_title)
           : s.series_title;
 
-      resultText += `• ${title} · ${s.count} Folge(n)\n`;
+      const count =
+  Number(s.count || 0);
+
+const episodeWord =
+  count === 1 ? "Folge" : "Folgen";
+
+resultText += `• ${title} · ${count} ${episodeWord}\n`;
     }
 
     resultText += "\n";
