@@ -17920,9 +17920,12 @@ if (
 }
 
   // =============================
-// STATS
+// STATS — PREMIUM COMPACT
 // =============================
-if (command === "/stats") {
+if (
+  command === "/stats" ||
+  command.startsWith("/stats@")
+) {
   let movieCount = 0;
   let seriesEpisodeCount = 0;
   let seriesCount = 0;
@@ -17930,91 +17933,218 @@ if (command === "/stats") {
   let collectionCount = 0;
 
   if (pgPool) {
-    const movies = await pgPool.query(`SELECT COUNT(*) AS count FROM movies`);
-    const episodes = await pgPool.query(`SELECT COUNT(*) AS count FROM series`);
-    const seriesLib = await pgPool.query(`SELECT COUNT(*) AS count FROM series_library`);
-    const topics = await pgPool.query(`SELECT COUNT(*) AS count FROM topics`);
-    const collections = await pgPool.query(`SELECT COUNT(*) AS count FROM collections`);
+    const movies =
+      await pgPool.query(`
+        SELECT COUNT(*) AS count
+        FROM movies
+      `);
 
-    movieCount = movies.rows[0].count;
-    seriesEpisodeCount = episodes.rows[0].count;
-    seriesCount = seriesLib.rows[0].count;
-    topicCount = topics.rows[0].count;
-    collectionCount = collections.rows[0].count;
+    const episodes =
+      await pgPool.query(`
+        SELECT COUNT(*) AS count
+        FROM series
+      `);
+
+    const seriesLib =
+      await pgPool.query(`
+        SELECT COUNT(*) AS count
+        FROM series_library
+      `);
+
+    const topics =
+      await pgPool.query(`
+        SELECT COUNT(*) AS count
+        FROM topics
+      `);
+
+    const collections =
+      await pgPool.query(`
+        SELECT COUNT(*) AS count
+        FROM collections
+      `);
+
+    movieCount =
+      Number(movies.rows[0]?.count || 0);
+
+    seriesEpisodeCount =
+      Number(episodes.rows[0]?.count || 0);
+
+    seriesCount =
+      Number(seriesLib.rows[0]?.count || 0);
+
+    topicCount =
+      Number(topics.rows[0]?.count || 0);
+
+    collectionCount =
+      Number(collections.rows[0]?.count || 0);
   } else {
-    movieCount = db.prepare("SELECT COUNT(*) AS count FROM movies").get().count;
-    seriesEpisodeCount = db.prepare("SELECT COUNT(*) AS count FROM series").get().count;
-    seriesCount = db.prepare("SELECT COUNT(*) AS count FROM series_library").get().count;
-    topicCount = db.prepare("SELECT COUNT(*) AS count FROM topics").get().count;
-    collectionCount = db.prepare("SELECT COUNT(*) AS count FROM collections").get().count;
+    movieCount =
+      Number(db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM movies
+      `).get()?.count || 0);
+
+    seriesEpisodeCount =
+      Number(db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM series
+      `).get()?.count || 0);
+
+    seriesCount =
+      Number(db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM series_library
+      `).get()?.count || 0);
+
+    topicCount =
+      Number(db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM topics
+      `).get()?.count || 0);
+
+    collectionCount =
+      Number(db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM collections
+      `).get()?.count || 0);
   }
+
+  const movieWord =
+    movieCount === 1 ? "Film" : "Filme";
+
+  const collectionWord =
+    collectionCount === 1 ? "Filmreihe" : "Filmreihen";
+
+  const seriesWord =
+    seriesCount === 1 ? "Serie" : "Serien";
+
+  const episodeWord =
+    seriesEpisodeCount === 1 ? "Folge" : "Folgen";
+
+  const topicWord =
+    topicCount === 1 ? "Thema" : "Themen";
+
+  const resultText =
+    "📊 Statistik\n\n" +
+
+    "Archiv\n" +
+    `${movieCount} ${movieWord}\n` +
+    `${collectionCount} ${collectionWord}\n` +
+    `${seriesCount} ${seriesWord}\n` +
+    `${seriesEpisodeCount} ${episodeWord}\n\n` +
+
+    "System\n" +
+    `${topicCount} ${topicWord}\n\n` +
+
+    "@LibraryOfLegends";
 
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "📊 𝐒𝐓𝐀𝐓𝐈𝐒𝐓𝐈𝐊\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `🎬 Filme: ${movieCount}\n` +
-      `🎞 Collections: ${collectionCount}\n` +
-      `📺 Serien: ${seriesCount}\n` +
-      `🎞 Serien-Episoden: ${seriesEpisodeCount}\n` +
-      `🧵 Themen gespeichert: ${topicCount}\n\n` +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
 }
   
-  if (text === "/queue") {
+  // =============================
+// QUEUE — PREMIUM COMPACT
+// =============================
+if (
+  command === "/queue" ||
+  command.startsWith("/queue@")
+) {
+  const waiting =
+    Number(UPLOAD_QUEUE.length || 0);
+
+  const activeUploads =
+    Number(ACTIVE_UPLOADS.size || 0);
+
+  const queueStatus =
+    UPLOAD_QUEUE_RUNNING ? "Aktiv" : "Bereit";
+
+  const waitingWord =
+    waiting === 1 ? "Import" : "Importe";
+
+  const activeWord =
+    activeUploads === 1 ? "Upload" : "Uploads";
+
+  const resultText =
+    "📥 Import Queue\n\n" +
+
+    "Status\n" +
+    `${queueStatus}\n\n` +
+
+    "Warteschlange\n" +
+    `${waiting} wartende ${waitingWord}\n` +
+    `${activeUploads} aktive ${activeWord}\n\n` +
+
+    "@LibraryOfLegends";
+
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "📥 UPLOAD QUEUE\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `⏳ Wartend: ${UPLOAD_QUEUE.length}\n` +
-      `⚙️ Aktiv: ${UPLOAD_QUEUE_RUNNING ? "Ja" : "Nein"}\n` +
-      `🧩 Aktive Uploads: ${ACTIVE_UPLOADS.size}\n\n` +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
 }
 
-if (text === "/cache") {
+// =============================
+// CACHE — PREMIUM COMPACT
+// =============================
+if (
+  command === "/cache" ||
+  command.startsWith("/cache@")
+) {
+  const cacheCount =
+    Number(TMDB_CACHE.size || 0);
+
+  const entryWord =
+    cacheCount === 1 ? "Eintrag" : "Einträge";
+
+  const resultText =
+    "⚡ TMDB Cache\n\n" +
+
+    "Status\n" +
+    `${cacheCount} ${entryWord}\n` +
+    "TTL · 6 Stunden\n\n" +
+
+    "/clearcache · Cache leeren\n\n" +
+
+    "@LibraryOfLegends";
+
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "⚡ TMDB CACHE\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `📦 Einträge: ${TMDB_CACHE.size}\n` +
-      `⏳ TTL: 6 Stunden\n\n` +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
 }
 
-if (text === "/clearcache") {
-
-  const before = TMDB_CACHE.size;
+// =============================
+// CLEAR CACHE — PREMIUM COMPACT
+// =============================
+if (
+  command === "/clearcache" ||
+  command.startsWith("/clearcache@")
+) {
+  const before =
+    Number(TMDB_CACHE.size || 0);
 
   TMDB_CACHE.clear();
 
+  const entryWord =
+    before === 1 ? "Eintrag" : "Einträge";
+
+  const resultText =
+    "🧹 Cache geleert\n\n" +
+
+    `${before} ${entryWord} entfernt\n\n` +
+
+    "@LibraryOfLegends";
+
   await tg("sendMessage", {
     chat_id: msg.chat.id,
-    text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🧹 CACHE GELEERT\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `⚡ Entfernte Einträge: ${before}\n\n` +
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "@LibraryOfLegends"
+    text: cleanTelegramText(resultText).slice(0, 4000)
   });
 
   return;
