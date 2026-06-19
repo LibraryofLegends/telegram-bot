@@ -15462,36 +15462,57 @@ if (
   } catch (err) {
     console.error("⚠️ PG Latest Series Fehler:", err.message);
   }
+  
+  const movieWord =
+  movieCount === 1 ? "Film" : "Filme";
+
+const collectionWord =
+  collectionCount === 1 ? "Filmreihe" : "Filmreihen";
+
+const seriesWord =
+  seriesCount === 1 ? "Serie" : "Serien";
+
+const episodeWord =
+  episodeCount === 1 ? "Folge" : "Folgen";
+
+const topicWord =
+  topicCount === 1 ? "Thema" : "Themen";
+
+const seriesTopicWord =
+  seriesTopicCount === 1 ? "Serien-Thema" : "Serien-Themen";
+
+const universeWord =
+  universeCount === 1 ? "Universum" : "Universen";
 
   const resultText =
-    "🧪 Datenbank\n\n" +
+  "🧪 Datenbank\n\n" +
 
-    "PostgreSQL\n" +
-    "Status · Aktiv\n\n" +
+  "PostgreSQL\n" +
+  "Status · Aktiv\n\n" +
 
-    "Archiv\n" +
-    `${movieCount} Filme\n` +
-    `${collectionCount} Filmreihen\n` +
-    `${seriesCount} Serien\n` +
-    `${episodeCount} Folgen\n\n` +
+  "Archiv\n" +
+  `${movieCount} ${movieWord}\n` +
+  `${collectionCount} ${collectionWord}\n` +
+  `${seriesCount} ${seriesWord}\n` +
+  `${episodeCount} ${episodeWord}\n\n` +
 
-    "System\n" +
-    `${topicCount} Themen\n` +
-    `${seriesTopicCount} Serien-Themen\n` +
-    `${universeCount} Universen\n\n` +
+  "System\n" +
+  `${topicCount} ${topicWord}\n` +
+  `${seriesTopicCount} ${seriesTopicWord}\n` +
+  `${universeCount} ${universeWord}\n\n` +
 
-    "Zuletzt gespeichert\n" +
-    `Film · ${latestMovieText}\n` +
-    `Serie · ${latestSeriesText}\n\n` +
+  "Zuletzt gespeichert\n" +
+  `Film · ${latestMovieText}\n` +
+  `Serie · ${latestSeriesText}\n\n` +
 
-    "@LibraryOfLegends";
+  "@LibraryOfLegends";
 
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: cleanTelegramText(resultText).slice(0, 4000)
-  });
+await tg("sendMessage", {
+  chat_id: msg.chat.id,
+  text: cleanTelegramText(resultText).slice(0, 4000)
+});
 
-  return;
+return;
 }
 
 // =============================
