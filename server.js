@@ -16301,6 +16301,171 @@ if (
 }
 
 // =============================
+// FIX IMPORT MOVIE META
+// =============================
+if (
+  command === "/fiximportmovie" ||
+  command.startsWith("/fiximportmovie@")
+) {
+  if (!pgPool) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "🎬 Film-Metadaten\n\n" +
+        "Supabase/PostgreSQL ist nicht aktiv.\n" +
+        "Dieser Befehl benötigt Supabase.\n\n" +
+        "@LibraryOfLegends"
+    });
+    return;
+  }
+
+  const raw =
+    text
+      .replace(/^\/fiximportmovie(?:@\w+)?/i, "")
+      .trim();
+
+  const parts =
+    raw
+      .split("|")
+      .map((p) => p.trim());
+
+  const importId =
+    Number(parts[0]);
+
+  const genre =
+    parts[1] || null;
+
+  const rating =
+    parts[2] && Number.isFinite(Number(parts[2]))
+      ? Number(parts[2])
+      : null;
+
+  const overview =
+    parts[3] || null;
+
+  if (!importId || !Number.isFinite(importId) || !genre) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung\n\n" +
+        "/fiximportmovie ID | Genre | Bewertung | Beschreibung\n\n" +
+        "Beispiel\n" +
+        "/fiximportmovie 3 | Action / Thriller | 6.2 | Ein Fahrer gerät in eine gefährliche Verschwörung."
+    });
+    return;
+  }
+
+  try {
+    const importResult = await pgPool.query(
+      `
+      SELECT *
+      FROM userbot_imports
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [importId]
+    );
+
+    const item =
+      importResult.rows[0];
+
+    if (!item) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Import nicht gefunden\n\n" +
+          `Import #${importId}`
+      });
+      return;
+    }
+
+    if (item.media_type === "series") {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          `📦 Import #${item.id}\n\n` +
+          "Dieser Befehl ist nur für Filme.\n" +
+          "Serien-Metadaten machen wir separat.\n\n" +
+          "@LibraryOfLegends"
+      });
+      return;
+    }
+
+    const uniqueKey =
+      item.unique_key ||
+      item.file_unique_id ||
+      `userbot-import-${item.id}`;
+
+    const updateResult = await pgPool.query(
+      `
+      UPDATE movies
+      SET genre = $1,
+          rating = COALESCE($2, rating),
+          overview = COALESCE($3, overview)
+      WHERE unique_key = $4
+         OR (
+          LOWER(title) = LOWER($5)
+          AND year = $6
+         )
+      RETURNING id, title, year, genre, rating
+      `,
+      [
+        genre,
+        rating,
+        overview,
+        uniqueKey,
+        item.title || "",
+        item.year || null
+      ]
+    );
+
+    const movie =
+      updateResult.rows[0];
+
+    if (!movie) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          `❌ Film nicht in movies gefunden\n\n` +
+          `${item.title || "Unbekannter Titel"}${item.year ? ` (${item.year})` : ""}\n\n` +
+          "Erst ausführen:\n" +
+          `/syncimportdb ${item.id}\n\n` +
+          "@LibraryOfLegends"
+      });
+      return;
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        `✅ Film-Metadaten aktualisiert\n\n` +
+
+        `${movie.title || "Unbekannter Titel"}${movie.year ? ` (${movie.year})` : ""}\n` +
+        `${movie.genre || "Sonstige"}${movie.rating ? ` · ${movie.rating}/10` : ""}\n\n` +
+
+        "Jetzt prüfen\n" +
+        "/movies\n" +
+        "/newmovies\n\n" +
+
+        "@LibraryOfLegends"
+    });
+  } catch (err) {
+    console.error("❌ /fiximportmovie Fehler:", err.message);
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Film-Metadaten konnten nicht aktualisiert werden\n\n" +
+        String(err.message).slice(0, 1200) +
+        "\n\n" +
+        "@LibraryOfLegends"
+    });
+  }
+
+  return;
+}
+
+// =============================
 // USERBOT IMPORT SEARCH HELPERS
 // =============================
 function uniqueImportSearchTerms(values = []) {
