@@ -17110,7 +17110,9 @@ function buildApprovedImportCaption(item = {}) {
     item.media_type === "series";
 
   const title =
-    String(item.title || "Unbekannter Titel").trim();
+    String(item.title || "Unbekannter Titel")
+      .replace(/\s+/g, " ")
+      .trim();
 
   const yearText =
     item.year ? ` (${item.year})` : "";
@@ -17133,31 +17135,41 @@ function buildApprovedImportCaption(item = {}) {
       .trim();
 
   const quality =
-    item.quality || "Unbekannt";
-
-  const audio =
-    item.audio || "Unbekannt";
+    item.quality || "";
 
   const fileSize =
     typeof llFormatCompactSize === "function"
       ? llFormatCompactSize(item.file_size || "")
-      : item.file_size || "Unbekannt";
+      : item.file_size || "";
+
+  const audio =
+    item.audio || "";
 
   const source =
-    item.media_source || "Unbekannt";
+    item.media_source || "";
 
   const codec =
-    item.codec || "Unbekannt";
+    item.codec || "";
 
   const resolution =
     item.width && item.height
       ? `${item.width}x${item.height}`
-      : "Unbekannt";
+      : "";
 
   const duration =
     item.duration_minutes
       ? `${item.duration_minutes} Min.`
-      : "Unbekannt";
+      : "";
+
+  const mainLine =
+    [quality, fileSize, audio]
+      .filter(Boolean)
+      .join(" · ");
+
+  const techLine =
+    [source, codec, resolution]
+      .filter(Boolean)
+      .join(" · ");
 
   let resultText = "";
 
@@ -17167,16 +17179,19 @@ function buildApprovedImportCaption(item = {}) {
       `${episodeCode}\n` +
       (episodeTitle ? `${episodeTitle}\n` : "") +
       "\n" +
-      `${quality} · ${fileSize} · ${audio}\n` +
-      `${source} · ${codec} · ${resolution}\n\n` +
+      (mainLine ? `${mainLine}\n` : "") +
+      (techLine ? `${techLine}\n` : "") +
+      (duration ? `${duration}\n` : "") +
+      "\n" +
       `Import #${item.id}\n` +
       "@LibraryOfLegends";
   } else {
     resultText =
       `🎬 ${title}${yearText}\n\n` +
-      `${quality} · ${fileSize} · ${audio}\n` +
-      `${source} · ${codec} · ${resolution}\n` +
-      `${duration}\n\n` +
+      (mainLine ? `${mainLine}\n` : "") +
+      (techLine ? `${techLine}\n` : "") +
+      (duration ? `${duration}\n` : "") +
+      "\n" +
       `Import #${item.id}\n` +
       "@LibraryOfLegends";
   }
@@ -18786,6 +18801,288 @@ for (const season of seasons) {
 `✅ Erstellt: ${createdCount}\n` +
 (failedSeasons.length ? `⚠️ Fehler: ${failedSeasons.join(", ")}` : "🏆 Alle Staffelkarten erstellt")
   });
+
+  return;
+}
+
+// =============================
+// WIPE ARCHIVE — MOVIES / SERIES / TOPICS
+// =============================
+if (
+  command === "/wipearchive" ||
+  command.startsWith("/wipearchive@")
+) {
+  if (!pgPool) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "🧹 Archiv-Reset\n\n" +
+        "Supabase/PostgreSQL ist nicht aktiv.\n" +
+        "Der Archiv-Reset benötigt Supabase.\n\n" +
+        "@LibraryOfLegends"
+    });
+    return;
+  }
+
+  const raw =
+    text
+      .replace(/^\/wipearchive(?:@\w+)?/i, "")
+      .trim();
+
+  const confirmed =
+    raw === "CONFIRM";
+
+  const archiveTables = [
+    "movies",
+    "series",
+    "series_library",
+    "collections",
+    "universes",
+    "topics",
+    "series_topics"
+  ];
+
+  async function getExistingArchiveTables() {
+    const result = await pgPool.query(
+      `
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = ANY($1)
+      `,
+      [archiveTables]
+    );
+
+    const existing =
+      result.rows.map((row) => row.table_name);
+
+    return archiveTables.filter((table) =>
+      existing.includes(table)
+    );
+  }
+
+  async function safeCount(tableName) {
+    if (!archiveTables.includes(tableName)) return 0;
+
+    try {
+      const result = await pgPool.query(
+        `SELECT COUNT(*) AS count FROM "${tableName}"`
+      );
+
+      return Number(result.rows[0]?.count || 0);
+    } catch (err) {
+      console.error(`⚠️ Count Fehler (${tableName}):`, err.message);
+      return 0;
+    }
+  }
+
+  async function collectTopicsForDeletion() {
+    const rows = [];
+
+    try {
+      const result = await pgPool.query(
+        `
+        SELECT chat_id, topic_id, name, type
+        FROM topics
+        WHERE chat_id IS NOT NULL
+          AND topic_id IS NOT NULL
+        `
+      );
+
+      for (const row of result.rows) {
+        rows.push({
+          chatId: row.chat_id,
+          topicId: row.topic_id,
+          name: row.name,
+          type: row.type
+        });
+      }
+    } catch (err) {
+      console.error("⚠️ topics konnten nicht gelesen werden:", err.message);
+    }
+
+    try {
+      const result = await pgPool.query(
+        `
+        SELECT topic_id, name
+        FROM series_topics
+        WHERE topic_id IS NOT NULL
+        `
+      );
+
+      for (const row of result.rows) {
+        rows.push({
+          chatId: SERIES_GROUP_ID,
+          topicId: row.topic_id,
+          name: row.name,
+          type: "series"
+        });
+      }
+    } catch (err) {
+      console.error("⚠️ series_topics konnten nicht gelesen werden:", err.message);
+    }
+
+    const seen = new Set();
+    const unique = [];
+
+    for (const row of rows) {
+      if (!row.chatId || !row.topicId) continue;
+
+      const key =
+        `${String(row.chatId)}:${String(row.topicId)}`;
+
+      if (seen.has(key)) continue;
+
+      seen.add(key);
+      unique.push(row);
+    }
+
+    return unique;
+  }
+
+  async function deleteTelegramTopicSafe(topic) {
+    try {
+      const result = await tg("deleteForumTopic", {
+        chat_id: topic.chatId,
+        message_thread_id: Number(topic.topicId)
+      });
+
+      if (result?.__error) {
+        return {
+          ok: false,
+          error:
+            result.description ||
+            result.error?.description ||
+            "Telegram-Fehler"
+        };
+      }
+
+      return {
+        ok: true,
+        error: null
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        error: err.message
+      };
+    }
+  }
+
+  try {
+    const existingTables =
+      await getExistingArchiveTables();
+
+    const counts = {};
+
+    for (const table of archiveTables) {
+      counts[table] =
+        existingTables.includes(table)
+          ? await safeCount(table)
+          : 0;
+    }
+
+    const topicsToDelete =
+      await collectTopicsForDeletion();
+
+    if (!confirmed) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "⚠️ Archiv-Reset vorbereitet\n\n" +
+
+          "Dieser Vorgang löscht Filme, Serien und gespeicherte Topics.\n\n" +
+
+          "Datenbank\n" +
+          `Filme · ${counts.movies}\n` +
+          `Serien-Episoden · ${counts.series}\n` +
+          `Serien-Hubs · ${counts.series_library}\n` +
+          `Filmreihen · ${counts.collections}\n` +
+          `Universen · ${counts.universes}\n` +
+          `Topics · ${counts.topics}\n` +
+          `Serien-Topics · ${counts.series_topics}\n\n` +
+
+          "Telegram\n" +
+          `${topicsToDelete.length} gespeicherte Topics werden gelöscht, falls der Bot die Rechte dafür hat.\n\n` +
+
+          "Nicht gelöscht\n" +
+          "userbot_imports bleibt erhalten.\n\n" +
+
+          "Zum endgültigen Löschen ausführen:\n" +
+          "/wipearchive CONFIRM\n\n" +
+
+          "@LibraryOfLegends"
+      });
+      return;
+    }
+
+    let deletedTopicCount = 0;
+    let failedTopicCount = 0;
+
+    for (const topic of topicsToDelete) {
+      const result =
+        await deleteTelegramTopicSafe(topic);
+
+      if (result.ok) {
+        deletedTopicCount++;
+      } else {
+        failedTopicCount++;
+        console.error(
+          "⚠️ Topic konnte nicht gelöscht werden:",
+          topic,
+          result.error
+        );
+      }
+    }
+
+    if (existingTables.length) {
+      const tableSql =
+        existingTables
+          .map((table) => `"${table}"`)
+          .join(", ");
+
+      await pgPool.query(
+        `TRUNCATE TABLE ${tableSql} RESTART IDENTITY CASCADE`
+      );
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "✅ Archiv wurde zurückgesetzt\n\n" +
+
+        "Gelöscht\n" +
+        `Filme · ${counts.movies}\n` +
+        `Serien-Episoden · ${counts.series}\n` +
+        `Serien-Hubs · ${counts.series_library}\n` +
+        `Filmreihen · ${counts.collections}\n` +
+        `Universen · ${counts.universes}\n` +
+        `DB-Topics · ${counts.topics + counts.series_topics}\n\n` +
+
+        "Telegram Topics\n" +
+        `Gelöscht · ${deletedTopicCount}\n` +
+        `Fehlgeschlagen · ${failedTopicCount}\n\n` +
+
+        "Import-Historie\n" +
+        "userbot_imports wurde nicht gelöscht.\n\n" +
+
+        "/library\n" +
+        "/pgstats\n\n" +
+
+        "@LibraryOfLegends"
+    });
+  } catch (err) {
+    console.error("❌ /wipearchive Fehler:", err.message);
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Archiv-Reset fehlgeschlagen\n\n" +
+        String(err.message).slice(0, 1500) +
+        "\n\n" +
+        "@LibraryOfLegends"
+    });
+  }
 
   return;
 }
