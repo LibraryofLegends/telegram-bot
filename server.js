@@ -15743,15 +15743,29 @@ if (
     const audio =
       item.audio || "Unbekannt";
 
-    const status =
-      item.status || "staged";
+    const rawStatus =
+  String(item.status || "staged").toLowerCase();
+
+const statusMap = {
+  staged: "Bereit",
+  queued: "Wartet",
+  processing: "Wird verarbeitet",
+  processed: "Vorbereitet",
+  archived: "Archiviert",
+  failed: "Fehler"
+};
+
+const status =
+  statusMap[rawStatus] || item.status || "Bereit";
 
     const targetText =
-      item.final_message_id
-        ? "Archiviert"
-        : item.target_chat_id
-          ? "Ziel gesetzt"
-          : "Noch nicht archiviert";
+  item.final_message_id
+    ? "Archiviert"
+    : item.target_chat_id
+      ? "Ziel gesetzt"
+      : rawStatus === "processed"
+        ? "Bereit zur Übernahme"
+        : "Noch nicht archiviert";
 
     let resultText =
       `📦 Import #${item.id}\n\n` +
