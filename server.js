@@ -16887,14 +16887,28 @@ const alreadyArchived =
   rawStatus === "done";
 
 if (alreadyArchived) {
+  if (!isSeries && item.final_message_id) {
+    await saveApprovedMovieImportToDb(
+      item,
+      item.final_message_id,
+      item.target_topic_id
+    );
+  }
+
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
       `📦 Import #${item.id}\n\n` +
       "Dieser Import wurde bereits archiviert.\n\n" +
+      "Datenbank\n" +
+      (!isSeries
+        ? "Filmeintrag wurde geprüft/gespeichert.\n"
+        : "Serien-Sync folgt separat.\n") +
       `Final · ${item.final_message_id || "gesetzt"}\n\n` +
+      `/importinfo ${item.id}\n\n` +
       "@LibraryOfLegends"
   });
+
   return;
 }
 
