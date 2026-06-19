@@ -16763,16 +16763,45 @@ if (command === "/approveimport") {
       return;
     }
 
-    if (!["staged", "pending", "error"].includes(item.status)) {
-      await tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text:
-          "⚠️ Dieser Import kann nicht verarbeitet werden.\n\n" +
-          `🆔 Import-ID: ${item.id}\n` +
-          `📌 Status: ${item.status || "unbekannt"}`
-      });
-      return;
-    }
+    const rawStatus =
+  String(item.status || "staged").toLowerCase();
+
+const allowedImportStatuses = [
+  "staged",
+  "pending",
+  "queued",
+  "error",
+  "processed"
+];
+
+const alreadyArchived =
+  Boolean(item.final_message_id) ||
+  rawStatus === "archived" ||
+  rawStatus === "done";
+
+if (alreadyArchived) {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      `📦 Import #${item.id}\n\n` +
+      "Dieser Import wurde bereits archiviert.\n\n" +
+      `Final · ${item.final_message_id || "gesetzt"}\n\n` +
+      "@LibraryOfLegends"
+  });
+  return;
+}
+
+if (!allowedImportStatuses.includes(rawStatus)) {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      `⚠️ Import #${item.id}\n\n` +
+      "Dieser Import kann aktuell nicht verarbeitet werden.\n\n" +
+      `Status · ${item.status || "unbekannt"}\n\n` +
+      "@LibraryOfLegends"
+  });
+  return;
+}
 
     const isSeries = item.media_type === "series";
     const targetChatId = isSeries ? SERIES_GROUP_ID : MOVIE_GROUP_ID;
@@ -16885,20 +16914,24 @@ if (copied?.__error || !finalMessageId) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "❌ IMPORT NICHT KOPIERT\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
-      `🆔 Import-ID: ${item.id}\n` +
-      `🎬 ${item.title || "Unbekannt"} ${item.year || ""}\n\n` +
-      "Telegram konnte die Staging-Nachricht nicht kopieren:\n\n" +
+      `❌ Import #${item.id} nicht kopiert\n\n` +
+
+      `${item.title || "Unbekannter Titel"}${item.year ? ` (${item.year})` : ""}\n\n` +
+
+      "Telegram konnte die Staging-Nachricht nicht ins Archiv kopieren.\n\n" +
+
+      "Fehler\n" +
       `${copied?.description || copied?.error?.description || "Keine Message-ID erhalten"}\n\n` +
-      "Der Import wurde auf status = error gesetzt,\n" +
-      "nicht auf processed.\n\n" +
-      "Prüfe jetzt:\n" +
-      "1. BOT_STAGING_CHAT_ID ist wirklich die Chat-ID von 📤 LOL Staging\n" +
-      "2. Der normale Bot ist Mitglied/Admin in 📤 LOL Staging\n" +
-      "3. Die Staging Message ID existiert dort wirklich\n\n" +
-      "━━━━━━━━━━━━━━━━━━\n" +
+
+      "Status\n" +
+      "Der Import wurde auf Fehler gesetzt.\n\n" +
+
+      "Prüfen\n" +
+      "BOT_STAGING_CHAT_ID\n" +
+      "Bot-Rechte in der Staging-Gruppe\n" +
+      "Staging Message ID\n\n" +
+
+      `/importinfo ${item.id}\n\n` +
       "@LibraryOfLegends"
   });
 
@@ -16908,7 +16941,7 @@ if (copied?.__error || !finalMessageId) {
 await pgPool.query(
   `
   UPDATE userbot_imports
-  SET status = 'processed',
+  SET status = 'archived',
       target_chat_id = $2,
       target_topic_id = $3,
       final_message_id = $4,
@@ -16924,24 +16957,33 @@ await pgPool.query(
   ]
 );
 
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "✅ USERBOT IMPORT VERARBEITET\n" +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        `🆔 Import-ID: ${item.id}\n` +
-        `${isSeries ? "📺" : "🎬"} ${item.title || "Unbekannt"} ${item.year || ""}\n` +
-        (isSeries
-          ? `🎞 S${String(item.season || 1).padStart(2, "0")}E${String(item.episode || 0).padStart(2, "0")}\n`
-          : "") +
-        `📤 Ziel: ${isSeries ? "Seriengruppe" : "Filmgruppe"}\n` +
-        `🧵 Topic ID: ${topicId || "ohne"}\n` +
-        `💬 Message ID: ${finalMessageId || "unbekannt"}\n\n` +
-        "✅ Status wurde auf processed gesetzt.\n\n" +
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "@LibraryOfLegends"
-    });
+const titleText =
+  `${item.title || "Unbekannter Titel"}${item.year ? ` (${item.year})` : ""}`;
+
+const episodeText =
+  isSeries
+    ? `S${String(item.season || 1).padStart(2, "0")}E${String(item.episode || 0).padStart(2, "0")}`
+    : "";
+
+await tg("sendMessage", {
+  chat_id: msg.chat.id,
+  text:
+    `✅ Import #${item.id} archiviert\n\n` +
+
+    `${titleText}\n` +
+    `${isSeries ? "Serie" : "Film"}${isSeries ? ` · ${episodeText}` : ""}\n\n` +
+
+    "Ziel\n" +
+    `${isSeries ? "Seriengruppe" : "Filmgruppe"}\n` +
+    `Topic · ${topicId || "ohne"}\n` +
+    `Message · ${finalMessageId || "unbekannt"}\n\n` +
+
+    "Status\n" +
+    "Archiviert\n\n" +
+
+    `/importinfo ${item.id}\n\n` +
+    "@LibraryOfLegends"
+});
   } catch (err) {
     console.error("❌ /approveimport Fehler:", err.message);
 
@@ -16958,8 +17000,11 @@ await pgPool.query(
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "❌ Fehler beim Freigeben des Imports:\n\n" +
-        String(err.message).slice(0, 1500)
+        "❌ Import konnte nicht freigegeben werden\n\n" +
+        String(err.message).slice(0, 1500) +
+        "\n\n" +
+        `/importinfo ${importId}\n\n` +
+        "@LibraryOfLegends"
     });
   }
 
