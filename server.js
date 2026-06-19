@@ -16279,26 +16279,36 @@ function buildFallbackImportPreview(item, dossierResult) {
 }
 
 // =============================
-// PROCESS USERBOT IMPORT — PREVIEW ONLY
+// PROCESS USERBOT IMPORT — PREMIUM PREVIEW
 // =============================
-if (command === "/processimport") {
+if (
+  command === "/processimport" ||
+  command.startsWith("/processimport@")
+) {
   if (!pgPool) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "❌ Supabase/pgPool ist nicht aktiv.\n\n" +
-        "Userbot-Importe laufen aktuell nur mit Supabase."
+        "📦 Import-Vorschau\n\n" +
+        "Supabase/PostgreSQL ist nicht aktiv.\n" +
+        "Userbot-Importe benötigen Supabase.\n\n" +
+        "@LibraryOfLegends"
     });
     return;
   }
 
-  const importId = Number(text.replace(command, "").trim());
+  const importId =
+    Number(
+      text
+        .replace(/^\/processimport(?:@\w+)?/i, "")
+        .trim()
+    );
 
   if (!importId || !Number.isFinite(importId)) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "⚠️ Nutzung:\n\n" +
+        "⚠️ Nutzung\n\n" +
         "/processimport 2"
     });
     return;
@@ -16315,120 +16325,205 @@ if (command === "/processimport") {
       [importId]
     );
 
-    const item = result.rows[0];
+    const item =
+      result.rows[0];
 
     if (!item) {
       await tg("sendMessage", {
         chat_id: msg.chat.id,
         text:
-          "❌ Import nicht gefunden:\n\n" +
-          `Import-ID: ${importId}`
+          "❌ Import nicht gefunden\n\n" +
+          `Import #${importId}`
       });
       return;
     }
 
-    if (!["staged", "pending", "error"].includes(item.status)) {
+    const rawStatus =
+      String(item.status || "staged").toLowerCase();
+
+    const statusMap = {
+      staged: "Bereit",
+      pending: "Wartet",
+      queued: "Wartet",
+      error: "Fehler",
+      processing: "Wird verarbeitet",
+      processed: "Vorbereitet",
+      archived: "Archiviert",
+      done: "Archiviert"
+    };
+
+    const statusText =
+      statusMap[rawStatus] || item.status || "Bereit";
+
+    const isFinalArchived =
+      Boolean(item.final_message_id) ||
+      rawStatus === "archived" ||
+      rawStatus === "done";
+
+    if (isFinalArchived) {
       await tg("sendMessage", {
         chat_id: msg.chat.id,
         text:
-          "⚠️ Dieser Import ist nicht mehr offen.\n\n" +
-          `🆔 Import-ID: ${item.id}\n` +
-          `📌 Status: ${item.status || "unbekannt"}`
+          `📦 Import #${item.id}\n\n` +
+          "Dieser Import wurde bereits archiviert.\n\n" +
+          `Final · ${item.final_message_id || "gesetzt"}\n\n` +
+          "@LibraryOfLegends"
       });
       return;
     }
 
-    const isSeries = item.media_type === "series";
-    const icon = isSeries ? "📺" : "🎬";
+    const allowedPreviewStatuses =
+      ["staged", "pending", "queued", "error", "processed"];
 
-    const episodeCode = isSeries
-      ? `S${String(item.season || 1).padStart(2, "0")}E${String(item.episode || 0).padStart(2, "0")}`
-      : "";
+    if (!allowedPreviewStatuses.includes(rawStatus)) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          `📦 Import #${item.id}\n\n` +
+          "Dieser Import ist aktuell nicht für die Vorschau freigegeben.\n\n" +
+          `Status · ${statusText}\n\n` +
+          "@LibraryOfLegends"
+      });
+      return;
+    }
 
-    const searchTitle = item.title || "";
-    const searchQuery = item.year
-      ? `${searchTitle} ${item.year}`
-      : searchTitle;
+    const isSeries =
+      item.media_type === "series";
 
-    const technicalMeta = [
-      item.quality,
-      item.media_source,
-      item.codec,
-      item.audio
-    ].filter(Boolean).join(" | ");
+    const typeText =
+      isSeries ? "Serie" :
+      item.media_type === "movie" ? "Film" :
+      "Unbekannt";
+
+    const title =
+      item.title || "Unbekannter Titel";
+
+    const yearText =
+      item.year ? ` (${item.year})` : "";
+
+    const seasonText =
+      String(item.season || 1).padStart(2, "0");
+
+    const episodeText =
+      String(item.episode || 0).padStart(2, "0");
+
+    const episodeCode =
+      isSeries
+        ? `S${seasonText}E${episodeText}`
+        : "";
+
+    const episodeTitle =
+      String(item.episode_title || "")
+        .replace(/\s+\/\s+/g, " · ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const searchTitle =
+      item.title || "";
+
+    const searchQuery =
+      item.year
+        ? `${searchTitle} ${item.year}`
+        : searchTitle;
+
+    const fileSize =
+      typeof llFormatCompactSize === "function"
+        ? llFormatCompactSize(item.file_size || "")
+        : item.file_size || "Unbekannt";
+
+    const resolution =
+      item.width && item.height
+        ? `${item.width}x${item.height}`
+        : "Unbekannt";
+
+    const duration =
+      item.duration_minutes
+        ? `${item.duration_minutes} Min.`
+        : "Unbekannt";
+
+    const quality =
+      item.quality || "Unbekannt";
+
+    const source =
+      item.media_source || "Unbekannt";
+
+    const codec =
+      item.codec || "Unbekannt";
+
+    const audio =
+      item.audio || "Unbekannt";
 
     let previewHeader =
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🧪 IMPORT PREVIEW\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+      `📦 Import-Vorschau #${item.id}\n\n` +
 
-      `🆔 Import-ID: ${item.id}\n` +
-      `📌 Status: ${item.status || "staged"}\n\n` +
+      `${title}${yearText}\n` +
+      `${typeText}`;
 
-      `${icon} Typ: ${item.media_type || "unknown"}\n` +
-      `🏷 Titel: ${item.title || "Unbekannt"}\n` +
-      (item.year ? `📅 Jahr: ${item.year}\n` : "") +
-      (isSeries ? `🎞 Episode: ${episodeCode}\n` : "") +
-      (item.episode_title ? `📝 Episodentitel: ${item.episode_title}\n` : "") +
-      "\n" +
+    if (isSeries && episodeCode) {
+      previewHeader += ` · ${episodeCode}`;
+    }
 
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "📂 IMPORT-DATEN\n" +
-      "━━━━━━━━━━━━━━━━━━\n\n" +
+    previewHeader += ` · ${statusText}\n`;
 
-      `📁 Datei: ${item.file_name || "leer"}\n` +
-      `💾 Größe: ${item.file_size || "leer"}\n` +
-      `📺 Auflösung: ${item.width && item.height ? `${item.width}x${item.height}` : "leer"}\n` +
-      `⏱ Dauer: ${item.duration_minutes ? `${item.duration_minutes} Min.` : "leer"}\n` +
-      (technicalMeta ? `⚙️ ${technicalMeta}\n` : "") +
-      "\n" +
+    if (episodeTitle) {
+      previewHeader += `${episodeTitle}\n`;
+    }
 
-      "━━━━━━━━━━━━━━━━━━\n" +
-      "🔎 TMDB / DOSSIER\n" +
-"━━━━━━━━━━━━━━━━━━\n\n" +
-`Primäre Suche: ${searchQuery || "leer"}\n` +
-"Mehrere Suchvarianten werden automatisch getestet.\n\n";
+    previewHeader +=
+      "\nDatei\n" +
+      `${quality} · ${fileSize}\n` +
+      `${audio}\n\n` +
+
+      "Technik\n" +
+      `${source} · ${codec}\n` +
+      `${resolution} · ${duration}\n\n` +
+
+      "TMDB\n" +
+      `Suche · ${searchQuery || "leer"}\n` +
+      "Mehrere Suchvarianten werden automatisch geprüft.\n\n" +
+
+      "@LibraryOfLegends";
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text: cleanTelegramText(previewHeader).slice(0, 4000)
     });
 
-    const dossierResult = await findImportDossier(item);
-const dossier = dossierResult.dossier;
+    const dossierResult =
+      await findImportDossier(item);
 
-if (!dossier) {
-  const fallbackPreview = buildFallbackImportPreview(item, dossierResult);
+    const dossier =
+      dossierResult.dossier;
 
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text: cleanTelegramText(fallbackPreview).slice(0, 4000)
-  });
+    if (!dossier) {
+      const fallbackPreview =
+        buildFallbackImportPreview(item, dossierResult);
 
-  return;
-}
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text: cleanTelegramText(fallbackPreview).slice(0, 4000)
+      });
 
-await tg("sendMessage", {
-  chat_id: msg.chat.id,
-  text:
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "✅ VORSCHAU-DOSSIER\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-    `🔎 Gefunden mit: ${dossierResult.matchedQuery}\n\n` +
-    dossier,
-  parse_mode: "HTML"
-});
+      return;
+    }
 
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "━━━━━━━━━━━━━━━━━━\n" +
-        "🧭 NÄCHSTER SCHRITT\n" +
-        "━━━━━━━━━━━━━━━━━━\n\n" +
-        "Wenn die Vorschau stimmt, bauen wir als Nächstes:\n\n" +
-        `/approveimport ${item.id}\n\n` +
-        "Dann postet der Bot den Import final ins Archiv und setzt den Status auf processed.\n\n" +
-        "━━━━━━━━━━━━━━━━━━\n" +
+        "✅ Vorschau gefunden\n\n" +
+        `Quelle · ${dossierResult.matchedQuery || "Automatische Suche"}\n\n` +
+        dossier,
+      parse_mode: "HTML"
+    });
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "🧭 Nächster Schritt\n\n" +
+        "Wenn die Vorschau stimmt:\n\n" +
+        `/approveimport ${item.id} · final archivieren\n\n` +
+        "Wenn etwas nicht stimmt, Importdetails prüfen:\n\n" +
+        `/importinfo ${item.id}\n\n` +
         "@LibraryOfLegends"
     });
 
@@ -16438,7 +16533,7 @@ await tg("sendMessage", {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "❌ Fehler beim Erstellen der Import-Vorschau:\n\n" +
+        "❌ Fehler beim Erstellen der Import-Vorschau\n\n" +
         String(err.message).slice(0, 1000)
     });
   }
