@@ -16301,6 +16301,139 @@ if (
 }
 
 // =============================
+// MARK USERBOT IMPORT AS ARCHIVED
+// =============================
+if (
+  command === "/markimportarchived" ||
+  command.startsWith("/markimportarchived@")
+) {
+  if (!pgPool) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "📦 Import markieren\n\n" +
+        "Supabase/PostgreSQL ist nicht aktiv.\n\n" +
+        "@LibraryOfLegends"
+    });
+    return;
+  }
+
+  const raw =
+    text
+      .replace(/^\/markimportarchived(?:@\w+)?/i, "")
+      .trim();
+
+  const parts =
+    raw
+      .split("|")
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+  const importId =
+    Number(parts[0]);
+
+  const topicId =
+    parts[1] || null;
+
+  const finalMessageId =
+    parts[2] || null;
+
+  if (!importId || !Number.isFinite(importId) || !finalMessageId) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung\n\n" +
+        "/markimportarchived ID | TopicID | MessageID\n\n" +
+        "Beispiel\n" +
+        "/markimportarchived 3 | 18373 | 18374"
+    });
+    return;
+  }
+
+  try {
+    const importResult = await pgPool.query(
+      `
+      SELECT *
+      FROM userbot_imports
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [importId]
+    );
+
+    const item =
+      importResult.rows[0];
+
+    if (!item) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "❌ Import nicht gefunden\n\n" +
+          `Import #${importId}`
+      });
+      return;
+    }
+
+    const isSeries =
+      item.media_type === "series";
+
+    const targetChatId =
+      isSeries ? SERIES_GROUP_ID : MOVIE_GROUP_ID;
+
+    await pgPool.query(
+      `
+      UPDATE userbot_imports
+      SET status = 'archived',
+          target_chat_id = $2,
+          target_topic_id = $3,
+          final_message_id = $4,
+          processed_at = COALESCE(processed_at, NOW()),
+          updated_at = NOW()
+      WHERE id = $1
+      `,
+      [
+        importId,
+        targetChatId ? String(targetChatId) : null,
+        topicId ? String(topicId) : null,
+        String(finalMessageId)
+      ]
+    );
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        `✅ Import #${importId} markiert\n\n` +
+
+        `${item.title || "Unbekannter Titel"}${item.year ? ` (${item.year})` : ""}\n` +
+        `${isSeries ? "Serie" : "Film"}\n\n` +
+
+        "Status\n" +
+        "Archiviert\n\n" +
+
+        "Archiv\n" +
+        `Topic · ${topicId || "leer"}\n` +
+        `Final · ${finalMessageId}\n\n` +
+
+        `/importinfo ${importId}\n\n` +
+        "@LibraryOfLegends"
+    });
+  } catch (err) {
+    console.error("❌ /markimportarchived Fehler:", err.message);
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Import konnte nicht markiert werden\n\n" +
+        String(err.message).slice(0, 1200) +
+        "\n\n" +
+        "@LibraryOfLegends"
+    });
+  }
+
+  return;
+}
+
+// =============================
 // FIX IMPORT MOVIE META
 // =============================
 if (
