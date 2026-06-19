@@ -18107,14 +18107,13 @@ if (command === "/rebuildcollections") {
     }
   }
 
-  await tg("sendMessage", {
+    await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      text:
-  "🎞 Filmreihen aktualisiert\n\n" +
-  `Aktualisiert · ${updated}\n` +
-  `Fehler · ${failed}\n\n` +
-  "@LibraryOfLegends"
+      "🎞 Filmreihen aktualisiert\n\n" +
+      `Aktualisiert · ${updated}\n` +
+      `Fehler · ${failed}\n\n` +
+      "@LibraryOfLegends"
   });
 
   return;
