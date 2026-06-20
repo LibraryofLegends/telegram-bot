@@ -9395,112 +9395,97 @@ const videoCodec =
   return cleanTelegramText(caption).slice(0, 1024);
 }
 
-function movieCaption(tmdb, extras = {}) {
-  const genreParts =
-    String(tmdb.genre || "Sonstige")
-      .split(/[\/•,]/)
-      .map((g) => g.trim())
-      .filter(Boolean)
-      .slice(0, 2);
-
-  const genreText =
-    genreParts.length
-      ? genreParts.join(" · ")
-      : "Sonstige";
-
-  const genreTags =
-    genreParts
-      .map((g) =>
-        `#${g.replace(/\s+/g, "")}`
-      )
-      .join(" ");
-
-  const ratingNumber =
-    getRatingValue(tmdb.rating);
-
-  const ratingText =
-    ratingNumber > 0
-      ? `${ratingNumber.toFixed(1)}/10`
-      : "Unbekannt";
-
-  const rawQuality =
-    extras.quality || "HD";
-
-  const qualityMap = {
-    UHD: "UHD 2160p",
-    FHD: "FHD 1080p",
-    HD: "HD 720p",
-    SD: "SD"
-  };
-
-  const quality =
-    qualityMap[rawQuality] || rawQuality;
-
-  const fileSize =
-    extras.fileSize || "Unbekannt";
-
-  const rawAudio =
-    extras.audio ||
-    extras.audioText ||
-    extras.language ||
-    extras.languages ||
-    extras.audioLanguage ||
-    extras.audioLanguages ||
-    null;
-
-  const audio =
-    Array.isArray(rawAudio)
-      ? rawAudio.join(" / ")
-      : rawAudio
-        ? String(rawAudio)
-        : "Deutsch";
-
-  const story =
-    trimTextAtSentence(
-      tmdb.overview || "Keine Beschreibung verfügbar.",
-      260
-    );
-
+function movieCaption(tmdb = {}, extras = {}) {
   const title =
-    String(tmdb.title || "Unbekannt").trim();
+    String(tmdb.title || extras.title || "Unbekannter Titel")
+      .replace(/\s+/g, " ")
+      .trim();
 
   const year =
-    tmdb.year ? ` (${tmdb.year})` : "";
+    tmdb.year ||
+    extras.year ||
+    "";
 
-  const rawArchiveId =
-    extras.archiveId ||
-    extras.libraryId ||
-    (
-      tmdb.year
-        ? `LL-${tmdb.year}`
-        : "LL-MOVIE"
+  const yearText =
+    year ? ` (${year})` : "";
+
+  const ratingValue =
+    tmdb.rating ||
+    tmdb.vote_average ||
+    extras.rating ||
+    "";
+
+  const rating =
+    ratingValue && Number.isFinite(Number(ratingValue))
+      ? `${Number(ratingValue).toFixed(1)}/10`
+      : "Bewertung folgt";
+
+  const genre =
+    String(tmdb.genre || extras.genre || "Genre folgt")
+      .split("/")
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .map((g) =>
+        typeof llNormalizeGenreName === "function"
+          ? llNormalizeGenreName(g)
+          : g
+      )
+      .slice(0, 2)
+      .join(" · ") || "Genre folgt";
+
+  const cast =
+    String(tmdb.cast || extras.cast || "")
+      .split("•")
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(" · ") || "Cast folgt";
+
+  const overview =
+    trimTextAtSentence(
+      tmdb.overview ||
+      extras.overview ||
+      extras.description ||
+      "Handlung folgt.",
+      360
     );
 
-  const archiveId =
-    String(rawArchiveId)
-      .replace(/^#/, "")
-      .toUpperCase();
+  const quality =
+    extras.quality ||
+    tmdb.quality ||
+    "";
 
-  const displayArchiveId =
-  archiveId
-    .replace(/^LIB-MOV-/i, "")
-    .replace(/^MOV-/i, "")
-    .replace(/^MOV/i, "");
+  const fileSize =
+    typeof llFormatCompactSize === "function"
+      ? llFormatCompactSize(extras.fileSize || extras.file_size || "")
+      : extras.fileSize || extras.file_size || "";
 
-  const caption =
-    `🎬 ${escapeHtml(title)}${escapeHtml(year)}\n\n` +
+  const audio =
+    extras.audio ||
+    extras.audioText ||
+    tmdb.audio ||
+    "";
 
-    `⭐ ${escapeHtml(ratingText)}\n` +
-    `🎭 ${escapeHtml(genreText)}\n` +
-    `📦 ${escapeHtml(quality)} · ${escapeHtml(fileSize)} · ${escapeHtml(audio)}\n\n` +
+  const mediaLine =
+    [quality, fileSize, audio]
+      .filter(Boolean)
+      .join(" · ");
 
-    `${escapeHtml(story)}\n\n` +
+  const resultText =
+    `🎬 ${title}${yearText}\n\n` +
 
-    `Archiv #${escapeHtml(displayArchiveId)}\n` +
-`${genreTags ? `${genreTags}\n` : ""}` +
-"@LibraryOfLegends";
+    `⭐ ${rating}\n` +
+    `🎭 ${genre}\n` +
+    `👥 ${cast}\n\n` +
 
-  return cleanTelegramText(caption).slice(0, 1024);
+    "📝 Handlung\n" +
+    `${overview}\n\n` +
+
+    (mediaLine ? `📦 ${mediaLine}\n\n` : "") +
+
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(resultText).slice(0, 1000);
 }
 
 function movieLiteCaption(tmdb, extras = {}) {
