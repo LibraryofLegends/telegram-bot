@@ -9452,6 +9452,13 @@ function llDetectAudioTextFromFileName(fileName = "", fallback = "") {
 }
 
 function movieCaption(tmdb = {}, extras = {}) {
+  const makeHashTag = (value = "") => {
+    return "#" + String(value || "")
+      .replace(/&/g, "Und")
+      .replace(/[^\p{L}\p{N}]+/gu, "")
+      .trim();
+  };
+
   const title =
     String(tmdb.title || extras.title || "Unbekannter Titel")
       .replace(/\s+/g, " ")
@@ -9478,28 +9485,30 @@ function movieCaption(tmdb = {}, extras = {}) {
   const rating =
     ratingValue && Number.isFinite(Number(ratingValue))
       ? `${Number(ratingValue).toFixed(1)}/10`
-      : "Bewertung folgt";
+      : "folgt";
 
-  const genre =
-    String(tmdb.genre || extras.genre || "Genre folgt")
-      .split("/")
-      .map((g) => g.trim())
-      .filter(Boolean)
-      .map((g) =>
-        typeof llNormalizeGenreName === "function"
-          ? llNormalizeGenreName(g)
-          : g
-      )
-      .slice(0, 2)
-      .join(" · ") || "Genre folgt";
+  const fskValue =
+    tmdb.fsk ||
+    tmdb.certification ||
+    tmdb.ageRating ||
+    extras.fsk ||
+    extras.certification ||
+    extras.ageRating ||
+    "";
 
-  const cast =
+  const fsk =
+    fskValue
+      ? `FSK ${String(fskValue).replace(/^FSK\s*/i, "").trim()}`
+      : "FSK folgt";
+
+  const castTags =
     String(tmdb.cast || extras.cast || "")
       .split("•")
       .map((p) => p.trim())
       .filter(Boolean)
-      .slice(0, 3)
-      .join(" · ") || "Cast folgt";
+      .slice(0, 2)
+      .map(makeHashTag)
+      .join(" · ") || "#CastFolgt";
 
   const overview =
     trimTextAtSentence(
@@ -9507,7 +9516,7 @@ function movieCaption(tmdb = {}, extras = {}) {
       extras.overview ||
       extras.description ||
       "Handlung folgt.",
-      360
+      260
     );
 
   const quality =
@@ -9540,16 +9549,68 @@ function movieCaption(tmdb = {}, extras = {}) {
     "";
 
   const audio =
-    llDetectAudioTextFromFileName(
-      fileName,
-      extras.audio ||
+    typeof llDetectAudioTextFromFileName === "function"
+      ? llDetectAudioTextFromFileName(
+          fileName,
+          extras.audio ||
+            extras.audioText ||
+            extras.language ||
+            extras.languages ||
+            tmdb.audio ||
+            tmdb.language ||
+            ""
+        )
+      : extras.audio ||
         extras.audioText ||
-        extras.language ||
-        extras.languages ||
         tmdb.audio ||
-        tmdb.language ||
-        ""
-    );
+        "Unbekannt";
+
+  const mediaLine =
+    [quality, fileSize, audio]
+      .filter(Boolean)
+      .join(" · ");
+
+  const genreTags =
+    String(tmdb.genre || extras.genre || "")
+      .split("/")
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .map((g) =>
+        typeof llNormalizeGenreName === "function"
+          ? llNormalizeGenreName(g)
+          : g
+      )
+      .slice(0, 3)
+      .map(makeHashTag)
+      .join(" ");
+
+  const archiveId =
+    extras.libraryId ||
+    extras.library_id ||
+    tmdb.libraryId ||
+    tmdb.library_id ||
+    "";
+
+  const archiveTag =
+    archiveId
+      ? makeHashTag(archiveId)
+      : "#LIB";
+
+  const resultText =
+    `🎬 ${title}${yearText}\n` +
+    `⭐ Bewertung: ${rating} | 🔞 ${fsk}\n` +
+    `👥 ${castTags}\n\n` +
+
+    "📝 Handlung:\n" +
+    `${overview}\n\n` +
+
+    `📦 ${mediaLine || "Unbekannt"}\n\n` +
+
+    `🗂 Archiv: ${archiveTag}${genreTags ? ` ${genreTags}` : ""}\n` +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(resultText).slice(0, 1000);
+}
 
   const mediaLine =
     [quality, fileSize, audio]
