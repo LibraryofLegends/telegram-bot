@@ -9396,59 +9396,73 @@ const videoCodec =
 }
 
 function llDetectAudioTextFromFileName(fileName = "", fallback = "") {
-  const rawFallback =
+  const combined =
+    `${fileName || ""} ${fallback || ""}`
+      .toLowerCase()
+      .replace(/[._-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const fallbackClean =
     String(fallback || "")
       .replace(/\s+/g, " ")
       .trim();
 
-  if (
-    rawFallback &&
+  const fallbackIsUseful =
+    fallbackClean &&
     ![
       "unbekannt",
       "unknown",
       "leer",
       "n/a",
       "-"
-    ].includes(rawFallback.toLowerCase())
-  ) {
-    return rawFallback;
+    ].includes(fallbackClean.toLowerCase());
+
+  const hasGerman =
+    /\b(german|deutsch|ger|de)\b/i.test(combined);
+
+  const hasEnglish =
+    /\b(english|englisch|eng|en)\b/i.test(combined);
+
+  const hasDual =
+    /\b(dl|dual|multi|mehrsprachig|2 audio|zwei tonspuren)\b/i.test(combined);
+
+  const hasDdPlus =
+    /\b(ddp|dd\+|eac3|e-ac-3|dolby digital plus)\b/i.test(combined);
+
+  const hasAc3 =
+    /\b(ac3|ac-3|dolby digital)\b/i.test(combined);
+
+  const hasAac =
+    /\b(aac)\b/i.test(combined);
+
+  let languageText = "";
+
+  if ((hasGerman && hasDual) || (hasGerman && hasEnglish) || hasDual) {
+    languageText = "Deutsch / Dual Language";
+  } else if (hasGerman) {
+    languageText = "Deutsch";
+  } else if (hasEnglish) {
+    languageText = "Englisch";
+  } else if (fallbackIsUseful && !fallbackClean.toLowerCase().includes("unbekannt")) {
+    languageText = fallbackClean;
+  } else {
+    languageText = "Deutsch";
   }
 
-  const name =
-    String(fileName || "")
-      .toLowerCase();
-
-  if (
-    name.includes("german.dl") ||
-    name.includes(".dl.") ||
-    name.includes(" dl ") ||
-    name.includes("dual") ||
-    name.includes("dual.language") ||
-    name.includes("dual-language") ||
-    name.includes("multi")
-  ) {
-    return "Deutsch / Dual Language";
+  if (hasDdPlus) {
+    return `${languageText} DD+`;
   }
 
-  if (
-    name.includes("german") ||
-    name.includes("deutsch") ||
-    name.includes(".de.") ||
-    name.includes(".ger.")
-  ) {
-    return "Deutsch";
+  if (hasAc3) {
+    return `${languageText} AC-3`;
   }
 
-  if (
-    name.includes("english") ||
-    name.includes("englisch") ||
-    name.includes(".en.") ||
-    name.includes(".eng.")
-  ) {
-    return "Englisch";
+  if (hasAac) {
+    return `${languageText} AAC`;
   }
 
-  return "Unbekannt";
+  return languageText;
 }
 
 function llExtractRatingNumber(value) {
@@ -9656,24 +9670,33 @@ function movieCaption(tmdb = {}, extras = {}) {
     tmdb.file_name ||
     "";
 
-  const audio =
-    typeof llDetectAudioTextFromFileName === "function"
-      ? llDetectAudioTextFromFileName(
-          fileName,
-          extras.audio ||
-            extras.audioText ||
-            extras.language ||
-            extras.languages ||
-            tmdb.audio ||
-            tmdb.language ||
-            ""
-        )
-      : (
-          extras.audio ||
-          extras.audioText ||
-          tmdb.audio ||
-          "Unbekannt"
-        );
+  const audioSourceText =
+  [
+    extras.audio,
+    extras.audioText,
+    extras.language,
+    extras.languages,
+    extras.audioCodec,
+    extras.audioChannels,
+    tmdb.audio,
+    tmdb.language,
+    fileName
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+const audio =
+  typeof llDetectAudioTextFromFileName === "function"
+    ? llDetectAudioTextFromFileName(
+        fileName,
+        audioSourceText
+      )
+    : (
+        extras.audio ||
+        extras.audioText ||
+        tmdb.audio ||
+        "Deutsch"
+      );
 
   const mediaLine =
     [
