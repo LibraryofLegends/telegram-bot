@@ -17352,6 +17352,139 @@ if (
   return;
 }
 
+// =============================
+// ENRICH USERBOT IMPORT WITH TMDB DATA
+// =============================
+async function enrichApprovedImportItem(item = {}) {
+  if (!item || item.media_type === "series") {
+    return item;
+  }
+
+  if (typeof searchMovieTMDB !== "function") {
+    return item;
+  }
+
+  const candidates =
+    typeof buildImportSearchCandidates === "function"
+      ? buildImportSearchCandidates(item)
+      : [
+          item.year
+            ? `${item.title || ""} ${item.year}`
+            : item.title || ""
+        ];
+
+  let tmdb = null;
+  let matchedQuery = "";
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+
+    try {
+      tmdb = await searchMovieTMDB(
+        candidate,
+        item.year || ""
+      );
+
+      if (tmdb) {
+        matchedQuery = candidate;
+        break;
+      }
+    } catch (err) {
+      console.error(
+        "⚠️ Import TMDB Enrichment Fehler:",
+        candidate,
+        err.message
+      );
+    }
+  }
+
+  if (!tmdb) {
+    console.log("⚠️ Kein TMDB-Enrichment gefunden für Import:", {
+      id: item.id,
+      title: item.title,
+      year: item.year
+    });
+
+    return item;
+  }
+
+  console.log("✅ Import mit TMDB-Daten erweitert:", {
+    id: item.id,
+    title: item.title,
+    matchedQuery,
+    tmdbTitle: tmdb.title,
+    tmdbYear: tmdb.year
+  });
+
+  return {
+    ...item,
+
+    title:
+      item.title ||
+      tmdb.title,
+
+    year:
+      item.year ||
+      tmdb.year,
+
+    genre:
+      item.genre ||
+      tmdb.genre,
+
+    rating:
+      item.rating ||
+      tmdb.rating,
+
+    overview:
+      item.overview ||
+      tmdb.overview,
+
+    description:
+      item.description ||
+      tmdb.overview,
+
+    poster_url:
+      item.poster_url ||
+      tmdb.posterUrl,
+
+    posterUrl:
+      item.posterUrl ||
+      tmdb.posterUrl,
+
+    fsk:
+      item.fsk ||
+      tmdb.fsk,
+
+    certification:
+      item.certification ||
+      tmdb.fsk,
+
+    director:
+      item.director ||
+      tmdb.director,
+
+    cast:
+      item.cast ||
+      tmdb.cast,
+
+    cast_list:
+      item.cast_list ||
+      tmdb.cast,
+
+    collection:
+      item.collection ||
+      tmdb.collection,
+
+    collection_id:
+      item.collection_id ||
+      tmdb.collectionId,
+
+    tmdb_id:
+      item.tmdb_id ||
+      tmdb.tmdbId
+  };
+}
+
 function buildApprovedImportCaption(item = {}) {
   const makeHashTag = (value = "") => {
     const clean =
@@ -17361,6 +17494,43 @@ function buildApprovedImportCaption(item = {}) {
         .trim();
 
     return clean ? `#${clean}` : "";
+  };
+
+  const extractRating = (value = "") => {
+    if (typeof llExtractRatingNumber === "function") {
+      const found =
+        llExtractRatingNumber(value);
+
+      if (
+        found !== null &&
+        found !== undefined &&
+        Number.isFinite(Number(found))
+      ) {
+        return Number(found);
+      }
+    }
+
+    const matches =
+      String(value || "")
+        .replace(",", ".")
+        .match(/\d+(?:\.\d+)?/g);
+
+    if (!matches || !matches.length) {
+      return null;
+    }
+
+    const number =
+      Number(matches[matches.length - 1]);
+
+    if (
+      !Number.isFinite(number) ||
+      number <= 0 ||
+      number > 10
+    ) {
+      return null;
+    }
+
+    return number;
   };
 
   const isSeries =
@@ -17374,16 +17544,18 @@ function buildApprovedImportCaption(item = {}) {
   const yearText =
     item.year ? ` (${item.year})` : "";
 
-  const ratingValue =
-    item.rating ||
-    item.vote_average ||
-    item.voteAverage ||
-    item.tmdbRating ||
-    "";
+  const ratingNumber =
+    extractRating(
+      item.rating ||
+      item.vote_average ||
+      item.voteAverage ||
+      item.tmdbRating ||
+      ""
+    );
 
   const rating =
-    ratingValue && Number.isFinite(Number(ratingValue))
-      ? `${Number(ratingValue).toFixed(1)}/10`
+    ratingNumber
+      ? `${ratingNumber.toFixed(1)}/10`
       : "folgt";
 
   const fskValue =
@@ -17392,20 +17564,42 @@ function buildApprovedImportCaption(item = {}) {
     item.ageRating ||
     "";
 
+  const fskClean =
+    String(fskValue || "")
+      .replace(/^FSK\s*/i, "")
+      .replace(/^Unbekannt$/i, "")
+      .trim();
+
   const fsk =
-    fskValue
-      ? `FSK ${String(fskValue).replace(/^FSK\s*/i, "").trim()}`
+    fskClean
+      ? `FSK ${fskClean}`
       : "FSK folgt";
 
+  const rawCast =
+    String(
+      item.cast ||
+      item.cast_list ||
+      item.castList ||
+      ""
+    )
+      .replace(/\s+/g, " ")
+      .trim();
+
   const castTags =
-    String(item.cast || "")
-      .split("•")
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(makeHashTag)
-      .filter(Boolean)
-      .join(" · ") || "#CastFolgt";
+    rawCast &&
+    !["unbekannt", "cast folgt"].includes(rawCast.toLowerCase())
+      ? rawCast
+          .split("•")
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .slice(0, 2)
+          .map(makeHashTag)
+          .filter(Boolean)
+          .join(" · ")
+      : "";
+
+  const finalCastTags =
+    castTags || "#CastFolgt";
 
   const overview =
     trimTextAtSentence(
@@ -17416,24 +17610,68 @@ function buildApprovedImportCaption(item = {}) {
     );
 
   const quality =
-    item.quality || "";
+    item.quality ||
+    "Unbekannt";
 
   const fileSize =
     typeof llFormatCompactSize === "function"
-      ? llFormatCompactSize(item.file_size || item.fileSize || "")
-      : item.file_size || item.fileSize || "";
+      ? llFormatCompactSize(
+          item.file_size ||
+          item.fileSize ||
+          ""
+        )
+      : (
+          item.file_size ||
+          item.fileSize ||
+          ""
+        );
+
+  const fileName =
+    item.file_name ||
+    item.fileName ||
+    item.original_file_name ||
+    item.originalFileName ||
+    "";
+
+  const audioSourceText =
+    [
+      item.audio,
+      item.audioText,
+      item.language,
+      item.languages,
+      item.audio_codec,
+      item.audioCodec,
+      item.audio_channels,
+      item.audioChannels,
+      fileName
+    ]
+      .filter(Boolean)
+      .join(" ");
 
   const audio =
-    item.audio || "Unbekannt";
+    typeof llDetectAudioTextFromFileName === "function"
+      ? llDetectAudioTextFromFileName(
+          fileName,
+          audioSourceText
+        )
+      : (
+          item.audio ||
+          item.audioText ||
+          "Deutsch"
+        );
 
   const mediaLine =
-    [quality, fileSize, audio]
+    [
+      quality,
+      fileSize || "Unbekannt",
+      audio || "Unbekannt"
+    ]
       .filter(Boolean)
       .join(" · ");
 
   const genreTags =
     String(item.genre || "")
-      .split("/")
+      .split(/[\/•,]/)
       .map((g) => g.trim())
       .filter(Boolean)
       .map((g) =>
@@ -17478,11 +17716,11 @@ function buildApprovedImportCaption(item = {}) {
         .trim();
 
     const seriesText =
-      `📺 ${title}\n` +
-      `${episodeCode}\n` +
-      (episodeTitle ? `${episodeTitle}\n` : "") +
+      `📺 ${escapeHtml(title)}\n` +
+      `${escapeHtml(episodeCode)}\n` +
+      (episodeTitle ? `${escapeHtml(episodeTitle)}\n` : "") +
       "\n" +
-      `📦 ${mediaLine || "Unbekannt"}\n\n` +
+      `📦 ${escapeHtml(mediaLine || "Unbekannt")}\n\n` +
       `🗂 Archiv: ${archiveTag}\n` +
       "@LibraryOfLegends";
 
@@ -17490,14 +17728,14 @@ function buildApprovedImportCaption(item = {}) {
   }
 
   const movieText =
-    `🎬 ${title}${yearText}\n` +
-    `⭐ Bewertung: ${rating} | 🔞 ${fsk}\n` +
-    `👥 ${castTags}\n\n` +
+    `🎬 ${escapeHtml(title)}${escapeHtml(yearText)}\n` +
+    `⭐ Bewertung: ${escapeHtml(rating)} | 🔞 ${escapeHtml(fsk)}\n` +
+    `👥 ${finalCastTags}\n\n` +
 
     "📝 Handlung:\n" +
-    `${overview}\n\n` +
+    `${escapeHtml(overview)}\n\n` +
 
-    `📦 ${mediaLine || "Unbekannt"}\n\n` +
+    `📦 ${escapeHtml(mediaLine || "Unbekannt")}\n\n` +
 
     `🗂 Archiv: ${archiveTag}${genreTags ? ` ${genreTags}` : ""}\n` +
     "@LibraryOfLegends";
@@ -17821,7 +18059,13 @@ if (!allowedImportStatuses.includes(rawStatus)) {
       });
     }
 
-    const caption = buildApprovedImportCaption(item);
+    const approvedItem =
+  !isSeries && typeof enrichApprovedImportItem === "function"
+    ? await enrichApprovedImportItem(item)
+    : item;
+
+const caption =
+  buildApprovedImportCaption(approvedItem);
 
     const copyPayload = {
       chat_id: targetChatId,
@@ -17864,7 +18108,7 @@ if (copied?.__error || !finalMessageId) {
 
 if (!isSeries) {
   await saveApprovedMovieImportToDb(
-    item,
+    approvedItem,
     finalMessageId,
     topicId
   );
