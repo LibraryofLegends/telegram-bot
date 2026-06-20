@@ -17117,6 +17117,50 @@ function buildApprovedImportCaption(item = {}) {
   const yearText =
     item.year ? ` (${item.year})` : "";
 
+  const rating =
+    item.rating && Number.isFinite(Number(item.rating))
+      ? `${Number(item.rating).toFixed(1)}/10`
+      : "Bewertung folgt";
+
+  const genre =
+    String(item.genre || "Genre folgt")
+      .split("/")
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .join(" · ");
+
+  const cast =
+    String(item.cast || "")
+      .split("•")
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(" · ") || "Cast folgt";
+
+  const overview =
+    trimTextAtSentence(
+      item.overview ||
+      item.description ||
+      "Handlung folgt.",
+      360
+    );
+
+  const fileSize =
+    typeof llFormatCompactSize === "function"
+      ? llFormatCompactSize(item.file_size || "")
+      : item.file_size || "";
+
+  const quality =
+    item.quality || "";
+
+  const audio =
+    item.audio || "";
+
+  const mediaLine =
+    [quality, fileSize, audio]
+      .filter(Boolean)
+      .join(" · ");
+
   const seasonText =
     String(item.season || 1).padStart(2, "0");
 
@@ -17134,43 +17178,6 @@ function buildApprovedImportCaption(item = {}) {
       .replace(/\s+/g, " ")
       .trim();
 
-  const quality =
-    item.quality || "";
-
-  const fileSize =
-    typeof llFormatCompactSize === "function"
-      ? llFormatCompactSize(item.file_size || "")
-      : item.file_size || "";
-
-  const audio =
-    item.audio || "";
-
-  const source =
-    item.media_source || "";
-
-  const codec =
-    item.codec || "";
-
-  const resolution =
-    item.width && item.height
-      ? `${item.width}x${item.height}`
-      : "";
-
-  const duration =
-    item.duration_minutes
-      ? `${item.duration_minutes} Min.`
-      : "";
-
-  const mainLine =
-    [quality, fileSize, audio]
-      .filter(Boolean)
-      .join(" · ");
-
-  const techLine =
-    [source, codec, resolution]
-      .filter(Boolean)
-      .join(" · ");
-
   let resultText = "";
 
   if (isSeries) {
@@ -17179,20 +17186,22 @@ function buildApprovedImportCaption(item = {}) {
       `${episodeCode}\n` +
       (episodeTitle ? `${episodeTitle}\n` : "") +
       "\n" +
-      (mainLine ? `${mainLine}\n` : "") +
-      (techLine ? `${techLine}\n` : "") +
-      (duration ? `${duration}\n` : "") +
-      "\n" +
-      `Import #${item.id}\n` +
+      `⭐ ${rating}\n` +
+      `🎭 ${genre}\n` +
+      `👥 ${cast}\n\n` +
+      "📝 Handlung\n" +
+      `${overview}\n\n` +
+      (mediaLine ? `📦 ${mediaLine}\n\n` : "") +
       "@LibraryOfLegends";
   } else {
     resultText =
       `🎬 ${title}${yearText}\n\n` +
-      (mainLine ? `${mainLine}\n` : "") +
-      (techLine ? `${techLine}\n` : "") +
-      (duration ? `${duration}\n` : "") +
-      "\n" +
-      `Import #${item.id}\n` +
+      `⭐ ${rating}\n` +
+      `🎭 ${genre}\n` +
+      `👥 ${cast}\n\n` +
+      "📝 Handlung\n" +
+      `${overview}\n\n` +
+      (mediaLine ? `📦 ${mediaLine}\n\n` : "") +
       "@LibraryOfLegends";
   }
 
