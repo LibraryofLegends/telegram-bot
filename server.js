@@ -17237,6 +17237,16 @@ if (
 }
 
 function buildApprovedImportCaption(item = {}) {
+  const makeHashTag = (value = "") => {
+    const clean =
+      String(value || "")
+        .replace(/&/g, "Und")
+        .replace(/[^\p{L}\p{N}]+/gu, "")
+        .trim();
+
+    return clean ? `#${clean}` : "";
+  };
+
   const isSeries =
     item.media_type === "series";
 
@@ -17248,95 +17258,135 @@ function buildApprovedImportCaption(item = {}) {
   const yearText =
     item.year ? ` (${item.year})` : "";
 
+  const ratingValue =
+    item.rating ||
+    item.vote_average ||
+    item.voteAverage ||
+    item.tmdbRating ||
+    "";
+
   const rating =
-    item.rating && Number.isFinite(Number(item.rating))
-      ? `${Number(item.rating).toFixed(1)}/10`
-      : "Bewertung folgt";
+    ratingValue && Number.isFinite(Number(ratingValue))
+      ? `${Number(ratingValue).toFixed(1)}/10`
+      : "folgt";
 
-  const genre =
-    String(item.genre || "Genre folgt")
-      .split("/")
-      .map((g) => g.trim())
-      .filter(Boolean)
-      .join(" · ");
+  const fskValue =
+    item.fsk ||
+    item.certification ||
+    item.ageRating ||
+    "";
 
-  const cast =
+  const fsk =
+    fskValue
+      ? `FSK ${String(fskValue).replace(/^FSK\s*/i, "").trim()}`
+      : "FSK folgt";
+
+  const castTags =
     String(item.cast || "")
       .split("•")
       .map((p) => p.trim())
       .filter(Boolean)
-      .slice(0, 3)
-      .join(" · ") || "Cast folgt";
+      .slice(0, 2)
+      .map(makeHashTag)
+      .filter(Boolean)
+      .join(" · ") || "#CastFolgt";
 
   const overview =
     trimTextAtSentence(
       item.overview ||
       item.description ||
       "Handlung folgt.",
-      360
+      260
     );
-
-  const fileSize =
-    typeof llFormatCompactSize === "function"
-      ? llFormatCompactSize(item.file_size || "")
-      : item.file_size || "";
 
   const quality =
     item.quality || "";
 
+  const fileSize =
+    typeof llFormatCompactSize === "function"
+      ? llFormatCompactSize(item.file_size || item.fileSize || "")
+      : item.file_size || item.fileSize || "";
+
   const audio =
-    item.audio || "";
+    item.audio || "Unbekannt";
 
   const mediaLine =
     [quality, fileSize, audio]
       .filter(Boolean)
       .join(" · ");
 
-  const seasonText =
-    String(item.season || 1).padStart(2, "0");
+  const genreTags =
+    String(item.genre || "")
+      .split("/")
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .map((g) =>
+        typeof llNormalizeGenreName === "function"
+          ? llNormalizeGenreName(g)
+          : g
+      )
+      .slice(0, 3)
+      .map(makeHashTag)
+      .filter(Boolean)
+      .join(" ");
 
-  const episodeText =
-    String(item.episode || 0).padStart(2, "0");
+  const archiveId =
+    item.library_id ||
+    item.libraryId ||
+    item.archive_id ||
+    item.archiveId ||
+    item.import_archive_id ||
+    "";
 
-  const episodeCode =
-    isSeries
-      ? `S${seasonText}E${episodeText}`
-      : "";
-
-  const episodeTitle =
-    String(item.episode_title || "")
-      .replace(/\s+\/\s+/g, " · ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-  let resultText = "";
+  const archiveTag =
+    archiveId
+      ? makeHashTag(archiveId)
+      : item.id
+        ? makeHashTag(`LIB${String(item.id).padStart(4, "0")}`)
+        : "#LIB";
 
   if (isSeries) {
-    resultText =
+    const seasonText =
+      String(item.season || 1).padStart(2, "0");
+
+    const episodeText =
+      String(item.episode || 0).padStart(2, "0");
+
+    const episodeCode =
+      `S${seasonText}E${episodeText}`;
+
+    const episodeTitle =
+      String(item.episode_title || "")
+        .replace(/\s+\/\s+/g, " · ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const seriesText =
       `📺 ${title}\n` +
       `${episodeCode}\n` +
       (episodeTitle ? `${episodeTitle}\n` : "") +
       "\n" +
-      `⭐ ${rating}\n` +
-      `🎭 ${genre}\n` +
-      `👥 ${cast}\n\n` +
-      "📝 Handlung\n" +
-      `${overview}\n\n` +
-      (mediaLine ? `📦 ${mediaLine}\n\n` : "") +
+      `📦 ${mediaLine || "Unbekannt"}\n\n` +
+      `🗂 Archiv: ${archiveTag}\n` +
       "@LibraryOfLegends";
-  } else {
-    resultText =
-      `🎬 ${title}${yearText}\n\n` +
-      `⭐ ${rating}\n` +
-      `🎭 ${genre}\n` +
-      `👥 ${cast}\n\n` +
-      "📝 Handlung\n" +
-      `${overview}\n\n` +
-      (mediaLine ? `📦 ${mediaLine}\n\n` : "") +
-      "@LibraryOfLegends";
+
+    return cleanTelegramText(seriesText).slice(0, 1000);
   }
 
-  return cleanTelegramText(resultText).slice(0, 1000);
+  const movieText =
+    `🎬 ${title}${yearText}\n` +
+    `⭐ Bewertung: ${rating} | 🔞 ${fsk}\n` +
+    `👥 ${castTags}\n\n` +
+
+    "📝 Handlung:\n" +
+    `${overview}\n\n` +
+
+    `📦 ${mediaLine || "Unbekannt"}\n\n` +
+
+    `🗂 Archiv: ${archiveTag}${genreTags ? ` ${genreTags}` : ""}\n` +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(movieText).slice(0, 1000);
 }
 
 // =============================
