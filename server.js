@@ -9395,6 +9395,62 @@ const videoCodec =
   return cleanTelegramText(caption).slice(0, 1024);
 }
 
+function llDetectAudioTextFromFileName(fileName = "", fallback = "") {
+  const rawFallback =
+    String(fallback || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  if (
+    rawFallback &&
+    ![
+      "unbekannt",
+      "unknown",
+      "leer",
+      "n/a",
+      "-"
+    ].includes(rawFallback.toLowerCase())
+  ) {
+    return rawFallback;
+  }
+
+  const name =
+    String(fileName || "")
+      .toLowerCase();
+
+  if (
+    name.includes("german.dl") ||
+    name.includes(".dl.") ||
+    name.includes(" dl ") ||
+    name.includes("dual") ||
+    name.includes("dual.language") ||
+    name.includes("dual-language") ||
+    name.includes("multi")
+  ) {
+    return "Deutsch / Dual Language";
+  }
+
+  if (
+    name.includes("german") ||
+    name.includes("deutsch") ||
+    name.includes(".de.") ||
+    name.includes(".ger.")
+  ) {
+    return "Deutsch";
+  }
+
+  if (
+    name.includes("english") ||
+    name.includes("englisch") ||
+    name.includes(".en.") ||
+    name.includes(".eng.")
+  ) {
+    return "Englisch";
+  }
+
+  return "Unbekannt";
+}
+
 function movieCaption(tmdb = {}, extras = {}) {
   const title =
     String(tmdb.title || extras.title || "Unbekannter Titel")
@@ -9412,7 +9468,11 @@ function movieCaption(tmdb = {}, extras = {}) {
   const ratingValue =
     tmdb.rating ||
     tmdb.vote_average ||
+    tmdb.voteAverage ||
+    tmdb.tmdbRating ||
     extras.rating ||
+    extras.vote_average ||
+    extras.voteAverage ||
     "";
 
   const rating =
@@ -9457,14 +9517,39 @@ function movieCaption(tmdb = {}, extras = {}) {
 
   const fileSize =
     typeof llFormatCompactSize === "function"
-      ? llFormatCompactSize(extras.fileSize || extras.file_size || "")
-      : extras.fileSize || extras.file_size || "";
+      ? llFormatCompactSize(
+          extras.fileSize ||
+          extras.file_size ||
+          tmdb.fileSize ||
+          tmdb.file_size ||
+          ""
+        )
+      : extras.fileSize ||
+        extras.file_size ||
+        tmdb.fileSize ||
+        tmdb.file_size ||
+        "";
+
+  const fileName =
+    extras.fileName ||
+    extras.file_name ||
+    extras.originalFileName ||
+    extras.original_file_name ||
+    tmdb.fileName ||
+    tmdb.file_name ||
+    "";
 
   const audio =
-    extras.audio ||
-    extras.audioText ||
-    tmdb.audio ||
-    "";
+    llDetectAudioTextFromFileName(
+      fileName,
+      extras.audio ||
+        extras.audioText ||
+        extras.language ||
+        extras.languages ||
+        tmdb.audio ||
+        tmdb.language ||
+        ""
+    );
 
   const mediaLine =
     [quality, fileSize, audio]
