@@ -9451,6 +9451,42 @@ function llDetectAudioTextFromFileName(fileName = "", fallback = "") {
   return "Unbekannt";
 }
 
+function llExtractRatingNumber(value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const matches =
+    String(value)
+      .replace(",", ".")
+      .match(/\d+(?:\.\d+)?/g);
+
+  if (!matches || !matches.length) {
+    return null;
+  }
+
+  const number =
+    Number(matches[matches.length - 1]);
+
+  if (!Number.isFinite(number) || number <= 0) {
+    return null;
+  }
+
+  if (number > 10 && number <= 100) {
+    return number / 10;
+  }
+
+  if (number > 10) {
+    return 10;
+  }
+
+  return number;
+}
+
 function movieCaption(tmdb = {}, extras = {}) {
   const makeHashTag = (value = "") => {
     return "#" + String(value || "")
@@ -9473,19 +9509,23 @@ function movieCaption(tmdb = {}, extras = {}) {
     year ? ` (${year})` : "";
 
   const ratingValue =
-    tmdb.rating ||
-    tmdb.vote_average ||
-    tmdb.voteAverage ||
-    tmdb.tmdbRating ||
-    extras.rating ||
-    extras.vote_average ||
-    extras.voteAverage ||
-    "";
+  extras.rating ||
+  extras.vote_average ||
+  extras.voteAverage ||
+  tmdb.rating ||
+  tmdb.vote_average ||
+  tmdb.voteAverage ||
+  tmdb.tmdbRating ||
+  tmdb.imdbRating ||
+  "";
 
-  const rating =
-    ratingValue && Number.isFinite(Number(ratingValue))
-      ? `${Number(ratingValue).toFixed(1)}/10`
-      : "folgt";
+const ratingNumber =
+  llExtractRatingNumber(ratingValue);
+
+const rating =
+  ratingNumber
+    ? `${ratingNumber.toFixed(1)}/10`
+    : "folgt";
 
   const fskValue =
     tmdb.fsk ||
@@ -9592,9 +9632,12 @@ function movieCaption(tmdb = {}, extras = {}) {
     "";
 
   const archiveTag =
-    archiveId
-      ? makeHashTag(archiveId)
-      : "#LIB";
+  archiveId
+    ? makeHashTag(
+        String(archiveId)
+          .replace(/^LIB[A-Z]{3}/i, "LIB")
+      )
+    : "#LIB";
 
   const resultText =
     `🎬 ${title}${yearText}\n` +
