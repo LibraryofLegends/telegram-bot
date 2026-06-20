@@ -22982,9 +22982,11 @@ async function processMovieUpload({ msg, media, tmdb }) {
     );
 
   const extras = {
-    ...mediaExtras,
-    libraryId: await makeLibraryCode(tmdb.genre)
-  };
+  ...getMediaExtras(fileName, msg),
+  fileName,
+  file_name: fileName,
+  libraryId: await makeLibraryCode(tmdb.genre)
+};
 
   const fileSize =
     extras.fileSize || "Unbekannt";
