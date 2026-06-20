@@ -23113,44 +23113,44 @@ async function processMovieUpload({ msg, media, tmdb }) {
       getMediaExtras(fileName, msg)
     );
 
+  const libraryId =
+    await makeLibraryCode(tmdb.genre);
+
+  const audioText =
+    typeof llDetectAudioTextFromFileName === "function"
+      ? llDetectAudioTextFromFileName(
+          fileName,
+          mediaExtras.audio ||
+            mediaExtras.audioText ||
+            mediaExtras.language ||
+            mediaExtras.languages ||
+            tmdb.audio ||
+            tmdb.language ||
+            ""
+        )
+      : (
+          mediaExtras.audio ||
+          mediaExtras.audioText ||
+          "Unbekannt"
+        );
+
   const extras = {
-  ...getMediaExtras(fileName, msg),
-  fileName,
-  file_name: fileName,
-  libraryId: await makeLibraryCode(tmdb.genre)
-};
+    ...mediaExtras,
 
-  const fileSize =
-    extras.fileSize || "Unbekannt";
+    fileName,
+    file_name: fileName,
 
-  const fileSizeBytes =
-    extras.fileSizeBytes || null;
+    libraryId,
 
-  const quality =
-    extras.quality || "HD";
+    audio: audioText,
+    audioText
+  };
 
-  const source =
-    extras.source || "Unbekannt";
-
-  const videoCodec =
-    extras.videoCodec || "Unbekannt";
-
-  const audioCodec =
-    extras.audioCodec || "Unbekannt";
-
-  const audioChannels =
-    extras.audioChannels || "Unbekannt";
-
-  const resolution =
-    extras.resolution || "Unbekannt";
-
-  const hdr =
-    extras.hdr || null;
-
-  const universeData = detectUniverse(
-    tmdb.title,
-    tmdb.collection
-  );
+  const universeData =
+    detectUniverse(
+      tmdb.title,
+      tmdb.collection
+    );
 
   const starWarsEra =
     universeData?.universeKey === "StarWars"
@@ -23171,25 +23171,24 @@ async function processMovieUpload({ msg, media, tmdb }) {
   // =============================
   // MOVIE TOPIC ROUTING — LIBRARY V3
   // =============================
+  const detectedCollection =
+    tmdb.collection ||
+    detectCollection(tmdb.title) ||
+    null;
+
   const finalTopicName =
     getSmartMovieTopic({
       ...tmdb,
-      collection:
-        tmdb.collection ||
-        detectCollection(tmdb.title) ||
-        null,
-      universe:
-        universeData?.universeName || null
+      collection: detectedCollection,
+      universe: universeData?.universeName || null
     });
 
-  const finalTopicType =
-    "movie_category";
-
-  const topicId = await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: finalTopicName,
-    type: finalTopicType
-  });
+  const topicId =
+    await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: finalTopicName,
+      type: "movie_category"
+    });
 
   if (!topicId) {
     await tg("sendMessage", {
@@ -23202,305 +23201,205 @@ async function processMovieUpload({ msg, media, tmdb }) {
     return;
   }
 
-// =============================
-// MOVIE HUB SETUP DEAKTIVIERT
-// Keine automatischen Hub-Posts mehr pro Topic
-// =============================
-/*
-if (!universeData?.universeName) {
-  await createMovieHubIfMissing({
-    topicId,
-    topicName: finalTopicName,
-    banner:
-      tmdb.collectionBackdrop ||
-      tmdb.backdropUrl ||
-      tmdb.posterUrl ||
-      null
-  });
-}
-*/
+  // =============================
+  // COLLECTION DB ENTRY — LIBRARY V3
+  // =============================
+  if (detectedCollection && !universeData?.universeName) {
+    const existingCollection =
+      tmdb.collectionId
+        ? await getCollection(tmdb.collectionId)
+        : null;
 
-// =============================
-// COLLECTION DB ENTRY — LIBRARY V3
-// =============================
-const detectedCollection =
-  tmdb.collection ||
-  detectCollection(tmdb.title) ||
-  null;
-
-if (detectedCollection && !universeData?.universeName) {
-  const existingCollection =
-    tmdb.collectionId
-      ? await getCollection(tmdb.collectionId)
-      : null;
-
-  if (!existingCollection && tmdb.collectionId) {
-    await saveCollection({
-      collectionName: detectedCollection,
-      tmdbCollectionId: tmdb.collectionId,
-      topicId,
-      posterUrl: tmdb.collectionPoster || tmdb.posterUrl
-    });
+    if (!existingCollection && tmdb.collectionId) {
+      await saveCollection({
+        collectionName: detectedCollection,
+        tmdbCollectionId: tmdb.collectionId,
+        topicId,
+        posterUrl: tmdb.collectionPoster || tmdb.posterUrl
+      });
+    }
   }
-}
 
-// =============================
-// POST COVER
-// =============================
-await tg("sendPhoto", {
-  chat_id: MOVIE_GROUP_ID,
-  message_thread_id: topicId,
-  photo:
-    tmdb.posterUrl ||
-    "https://via.placeholder.com/500x750.png?text=No+Cover"
-});
+  // =============================
+  // POST COVER
+  // =============================
+  await tg("sendPhoto", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: topicId,
+    photo:
+      tmdb.posterUrl ||
+      "https://via.placeholder.com/500x750.png?text=No+Cover"
+  });
 
-// =============================
-// COPY ORIGINAL MEDIA WITH FULL DOSSIER
-// =============================
-const captionExtras = {
-  ...extras,
+  // =============================
+  // COPY ORIGINAL MEDIA WITH MOVIE CAPTION
+  // =============================
+  const captionExtras = {
+    ...extras,
 
-  topicName: finalTopicName,
+    topicName: finalTopicName,
 
-  universe:
-    universeData?.universeName || null,
+    universe:
+      universeData?.universeName || null,
 
-  universePhase:
-    universeData?.phase || null,
+    universePhase:
+      universeData?.phase || null,
 
-  collection:
-    detectedCollection,
+    collection:
+      detectedCollection,
 
-  collectionMovies:
-    tmdb.collectionMovies?.length || 1,
+    collectionMovies:
+      tmdb.collectionMovies?.length || 1,
 
-  collectionOrder:
-    tmdb.collectionMovies || []
-};
+    collectionOrder:
+      tmdb.collectionMovies || []
+  };
 
-const movieDossierCaption =
-  detectedCollection
-    ? collectionSagaCaption(
-        {
-          ...tmdb,
-          collection: detectedCollection
-        },
-        captionExtras
-      )
-    : movieCaption(
-        tmdb,
-        captionExtras
-      );
+  const movieDossierCaption =
+    movieCaption(
+      tmdb,
+      captionExtras
+    );
 
-const copied = await copyOriginalMedia({
-  fromChatId: msg.chat.id,
-  messageId: msg.message_id,
-  targetChatId: MOVIE_GROUP_ID,
-  topicId,
-  caption: movieDossierCaption,
-  fileId,
-  isVideo: !!msg.video,
-  adminChatId: msg.chat.id
-});
+  const copied =
+    await copyOriginalMedia({
+      fromChatId: msg.chat.id,
+      messageId: msg.message_id,
+      targetChatId: MOVIE_GROUP_ID,
+      topicId,
+      caption: movieDossierCaption,
+      fileId,
+      isVideo: !!msg.video,
+      adminChatId: msg.chat.id
+    });
 
-if (!copied?.message_id) {
+  if (!copied?.message_id) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Cover wurde gepostet, aber Film konnte nicht kopiert werden."
+    });
+
+    return;
+  }
+
+  // =============================
+  // SAVE MOVIE
+  // =============================
+  await saveMovie({
+    title: tmdb.title,
+    year: tmdb.year,
+    genre: tmdb.genre,
+    rating: tmdb.rating,
+    runtime: tmdb.runtime,
+    overview: tmdb.overview,
+    posterUrl: tmdb.posterUrl,
+
+    fileName,
+    fileId,
+    uniqueKey: media.uniqueKey,
+
+    telegramMessageId: copied.message_id,
+    topicId,
+
+    collection:
+      detectedCollection,
+
+    quality:
+      extras.quality,
+
+    audio:
+      extras.audio,
+
+    source:
+      extras.source,
+
+    fsk:
+      tmdb.fsk,
+
+    director:
+      tmdb.director,
+
+    cast:
+      tmdb.cast,
+
+    libraryId:
+      extras.libraryId,
+
+    resolution:
+      extras.resolution,
+
+    fileSize:
+      extras.fileSize,
+
+    fileSizeBytes:
+      extras.fileSizeBytes,
+
+    videoCodec:
+      extras.videoCodec,
+
+    audioCodec:
+      extras.audioCodec,
+
+    audioChannels:
+      extras.audioChannels,
+
+    hdr:
+      extras.hdr,
+
+    universe:
+      universeData?.universeName || null,
+
+    universePhase:
+      universeData?.phase || null,
+
+    starWarsEra:
+      starWarsEra?.key || null
+  });
+
+  if (isHallOfFameMovie(tmdb.rating)) {
+    await createOrGetTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: "🏆 Hall of Fame",
+      type: "system_hub"
+    });
+
+    console.log("🏆 Hall of Fame Movie erkannt:", tmdb.title);
+  }
+
+  // =============================
+  // ADMIN CONFIRMATION
+  // =============================
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "⚠️ Cover wurde gepostet, aber Film konnte nicht kopiert werden."
+      "✅ Film erfolgreich einsortiert:\n\n" +
+      `🎬 ${tmdb.title}\n` +
+      `🎭 Thema: ${finalTopicName}\n` +
+      (
+        detectedCollection
+          ? `🎞 Filmreihe: ${detectedCollection}\n`
+          : ""
+      ) +
+      `🏷 ${extras.libraryId}`
   });
 
-  return;
-}
+  // =============================
+  // REFRESH GLOBAL SYSTEMS
+  // =============================
+  try {
+    await refreshMainCommandCentersOnly();
+  } catch (err) {
+    console.error(
+      "⚠️ Main Command Center Refresh Fehler:",
+      err.message
+    );
+  }
 
-// =============================
-// SAVE MOVIE
-// =============================
-await saveMovie({
-  title: tmdb.title,
-  year: tmdb.year,
-  genre: tmdb.genre,
-  rating: tmdb.rating,
-  runtime: tmdb.runtime,
-  overview: tmdb.overview,
-  posterUrl: tmdb.posterUrl,
-
-  fileName,
-  fileId,
-  uniqueKey: media.uniqueKey,
-
-  telegramMessageId: copied.message_id,
-  topicId,
-
-  collection:
-  tmdb.collection ||
-  detectCollection(tmdb.title) ||
-  null,
-
-  quality: extras.quality,
-  audio: extras.audio,
-  source: extras.source,
-
-  fsk: tmdb.fsk,
-  director: tmdb.director,
-  cast: tmdb.cast,
-
-  libraryId: extras.libraryId,
-
-  resolution: extras.resolution,
-  fileSize: extras.fileSize,
-  fileSizeBytes: extras.fileSizeBytes,
-
-  videoCodec: extras.videoCodec,
-  audioCodec: extras.audioCodec,
-  audioChannels: extras.audioChannels,
-
-  hdr: extras.hdr,
-
-  universe:
-  universeData?.universeName ||
-  detectUniverse(tmdb.title) ||
-  null,
-  universePhase: universeData?.phase || null,
-
-  starWarsEra: starWarsEra?.key || null
-});
-
-if (isHallOfFameMovie(tmdb.rating)) {
-  await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: "🏆 Hall of Fame",
-    type: "system_hub"
-  });
-
-  console.log("🏆 Hall of Fame Movie erkannt:", tmdb.title);
-}
-
-// =============================
-// UPDATE MOVIE INDEX HUB — DISABLED IN LIBRARY V3
-// =============================
-// Alte technische Movie-Hubs deaktiviert.
-// Keine automatischen Extra-Topics mehr pro Upload.
-
-/*
-try {
-  await createOrUpdateMovieIndexHub();
-  await createOrUpdateCollectionsIndexHub();
-  await createOrUpdateUniversesIndexHub();
-  await createOrUpdatePremiumQualityHub();
-  await createOrUpdateEliteArchiveHub();
-  await createOrUpdateNewReleasesHub();
-  await createOrUpdateMovieLibraryHub();
-} catch (err) {
-  console.error(
-    "⚠️ Movie Hubs Update Fehler:",
-    err.message
+  logToDb(
+    "movie_saved",
+    `${tmdb.title} ${tmdb.year || ""}`
   );
-}
-*/
-
-// =============================
-// UPDATE HUBS — DISABLED IN MOVIE V3
-// =============================
-// Keine automatischen Hub-Updates mehr pro Upload.
-// Filme werden nur noch in die feste V3-Topic-Struktur einsortiert.
-// Das verhindert doppelte Topics, technische Hubs und überfüllte Themenbereiche.
-
-/*
-if (universeData?.universeName) {
-  try {
-    await createOrUpdateUniverseHub(
-      universeData.universeName
-    );
-
-    await createOrUpdateMultiverseCommandCenter();
-
-    if (isDcUniverse(universeData?.universeKey)) {
-      await createOrUpdateDcCommandCenter();
-    }
-
-    if (isMarvelUniverse(universeData?.universeKey)) {
-      await createOrUpdateMarvelCommandCenter();
-    }
-
-    if (isDisneyUniverse(universeData?.universeKey)) {
-      await createOrUpdateDisneyCommandCenter();
-    }
-
-  } catch (err) {
-    console.error(
-      "⚠️ Universe/Multiverse Hub Update Fehler:",
-      err.message
-    );
-  }
-} else {
-  try {
-    await updateMovieHub({
-      topicId,
-      topicName: finalTopicName
-    });
-  } catch (err) {
-    console.error("⚠️ Movie Hub Update Fehler:", err.message);
-  }
-
-  if (useCollectionTopic) {
-    try {
-      await createOrUpdateCollectionHub(tmdb, topicId);
-    } catch (err) {
-      console.error("⚠️ Collection Hub Fehler:", err.message);
-    }
-  }
-}
-*/
-
-// =============================
-// UPDATE STAR WARS ERA HUBS
-// =============================
-/*
-if (starWarsEra) {
-  try {
-    await createOrUpdateStarWarsEraHubs();
-    await createOrUpdateStarWarsCommandCenter();
-  } catch (err) {
-    console.error(
-      "⚠️ Star Wars Era/Command Center Update Fehler:",
-      err.message
-    );
-  }
-}
-*/
-
-// =============================
-// ADMIN CONFIRMATION
-// =============================
-await tg("sendMessage", {
-  chat_id: msg.chat.id,
-  text:
-    "✅ Film erfolgreich einsortiert:\n\n" +
-    `🎬 ${tmdb.title}\n` +
-    `🎭 Thema: ${finalTopicName}\n` +
-    (
-      tmdb.collection
-        ? `🎞 Filmreihe: ${tmdb.collection}\n`
-        : ""
-    ) +
-    `🏷 ${extras.libraryId}`
-});
-
-// =============================
-// REFRESH GLOBAL SYSTEMS
-// =============================
-try {
-  await refreshMainCommandCentersOnly();
-} catch (err) {
-  console.error("⚠️ Main Command Center Refresh Fehler:", err.message);
-}
-
-logToDb(
-  "movie_saved",
-  `${tmdb.title} ${tmdb.year || ""}`
-);
 }
 
 // =============================
