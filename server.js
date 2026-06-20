@@ -9487,12 +9487,57 @@ function llExtractRatingNumber(value) {
   return number;
 }
 
+// =============================
+// MOVIE CAPTION — LIBRARY OF LEGENDS COMPACT V3
+// =============================
 function movieCaption(tmdb = {}, extras = {}) {
   const makeHashTag = (value = "") => {
-    return "#" + String(value || "")
-      .replace(/&/g, "Und")
-      .replace(/[^\p{L}\p{N}]+/gu, "")
-      .trim();
+    const clean =
+      String(value || "")
+        .replace(/&/g, "Und")
+        .replace(/[^\p{L}\p{N}]+/gu, "")
+        .trim();
+
+    return clean ? `#${clean}` : "";
+  };
+
+  const extractRating = (value = "") => {
+    if (
+      typeof llExtractRatingNumber === "function"
+    ) {
+      const found =
+        llExtractRatingNumber(value);
+
+      if (
+        found !== null &&
+        found !== undefined &&
+        Number.isFinite(Number(found))
+      ) {
+        return Number(found);
+      }
+    }
+
+    const matches =
+      String(value || "")
+        .replace(",", ".")
+        .match(/\d+(?:\.\d+)?/g);
+
+    if (!matches || !matches.length) {
+      return null;
+    }
+
+    const number =
+      Number(matches[matches.length - 1]);
+
+    if (
+      !Number.isFinite(number) ||
+      number <= 0 ||
+      number > 10
+    ) {
+      return null;
+    }
+
+    return number;
   };
 
   const title =
@@ -9508,24 +9553,21 @@ function movieCaption(tmdb = {}, extras = {}) {
   const yearText =
     year ? ` (${year})` : "";
 
-  const ratingValue =
-  extras.rating ||
-  extras.vote_average ||
-  extras.voteAverage ||
-  tmdb.rating ||
-  tmdb.vote_average ||
-  tmdb.voteAverage ||
-  tmdb.tmdbRating ||
-  tmdb.imdbRating ||
-  "";
+  const ratingNumber =
+    extractRating(
+      tmdb.rating ||
+      tmdb.vote_average ||
+      tmdb.voteAverage ||
+      extras.rating ||
+      extras.vote_average ||
+      extras.voteAverage ||
+      ""
+    );
 
-const ratingNumber =
-  llExtractRatingNumber(ratingValue);
-
-const rating =
-  ratingNumber
-    ? `${ratingNumber.toFixed(1)}/10`
-    : "folgt";
+  const rating =
+    ratingNumber
+      ? `${ratingNumber.toFixed(1)}/10`
+      : "folgt";
 
   const fskValue =
     tmdb.fsk ||
@@ -9536,19 +9578,43 @@ const rating =
     extras.ageRating ||
     "";
 
+  const fskClean =
+    String(fskValue || "")
+      .replace(/^FSK\s*/i, "")
+      .replace(/^Unbekannt$/i, "")
+      .trim();
+
   const fsk =
-    fskValue
-      ? `FSK ${String(fskValue).replace(/^FSK\s*/i, "").trim()}`
+    fskClean
+      ? `FSK ${fskClean}`
       : "FSK folgt";
 
+  const rawCast =
+    String(
+      tmdb.cast ||
+      tmdb.cast_list ||
+      extras.cast ||
+      extras.cast_list ||
+      ""
+    )
+      .replace(/\s+/g, " ")
+      .trim();
+
   const castTags =
-    String(tmdb.cast || extras.cast || "")
-      .split("•")
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(makeHashTag)
-      .join(" · ") || "#CastFolgt";
+    rawCast &&
+    !["unbekannt", "cast folgt"].includes(rawCast.toLowerCase())
+      ? rawCast
+          .split("•")
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .slice(0, 2)
+          .map(makeHashTag)
+          .filter(Boolean)
+          .join(" · ")
+      : "";
+
+  const finalCastTags =
+    castTags || "#CastFolgt";
 
   const overview =
     trimTextAtSentence(
@@ -9562,7 +9628,7 @@ const rating =
   const quality =
     extras.quality ||
     tmdb.quality ||
-    "";
+    "Unbekannt";
 
   const fileSize =
     typeof llFormatCompactSize === "function"
@@ -9573,11 +9639,13 @@ const rating =
           tmdb.file_size ||
           ""
         )
-      : extras.fileSize ||
-        extras.file_size ||
-        tmdb.fileSize ||
-        tmdb.file_size ||
-        "";
+      : (
+          extras.fileSize ||
+          extras.file_size ||
+          tmdb.fileSize ||
+          tmdb.file_size ||
+          ""
+        );
 
   const fileName =
     extras.fileName ||
@@ -9600,19 +9668,25 @@ const rating =
             tmdb.language ||
             ""
         )
-      : extras.audio ||
-        extras.audioText ||
-        tmdb.audio ||
-        "Unbekannt";
+      : (
+          extras.audio ||
+          extras.audioText ||
+          tmdb.audio ||
+          "Unbekannt"
+        );
 
   const mediaLine =
-    [quality, fileSize, audio]
+    [
+      quality,
+      fileSize || "Unbekannt",
+      audio || "Unbekannt"
+    ]
       .filter(Boolean)
       .join(" · ");
 
   const genreTags =
     String(tmdb.genre || extras.genre || "")
-      .split("/")
+      .split(/[\/•,]/)
       .map((g) => g.trim())
       .filter(Boolean)
       .map((g) =>
@@ -9622,6 +9696,7 @@ const rating =
       )
       .slice(0, 3)
       .map(makeHashTag)
+      .filter(Boolean)
       .join(" ");
 
   const archiveId =
@@ -9632,22 +9707,19 @@ const rating =
     "";
 
   const archiveTag =
-  archiveId
-    ? makeHashTag(
-        String(archiveId)
-          .replace(/^LIB[A-Z]{3}/i, "LIB")
-      )
-    : "#LIB";
+    archiveId
+      ? makeHashTag(archiveId)
+      : "#LIB";
 
   const resultText =
-    `🎬 ${title}${yearText}\n` +
-    `⭐ Bewertung: ${rating} | 🔞 ${fsk}\n` +
-    `👥 ${castTags}\n\n` +
+    `🎬 ${escapeHtml(title)}${escapeHtml(yearText)}\n` +
+    `⭐ Bewertung: ${escapeHtml(rating)} | 🔞 ${escapeHtml(fsk)}\n` +
+    `👥 ${finalCastTags}\n\n` +
 
     "📝 Handlung:\n" +
-    `${overview}\n\n` +
+    `${escapeHtml(overview)}\n\n` +
 
-    `📦 ${mediaLine || "Unbekannt"}\n\n` +
+    `📦 ${escapeHtml(mediaLine)}\n\n` +
 
     `🗂 Archiv: ${archiveTag}${genreTags ? ` ${genreTags}` : ""}\n` +
     "@LibraryOfLegends";
