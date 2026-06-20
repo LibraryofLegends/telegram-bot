@@ -9612,28 +9612,6 @@ function movieCaption(tmdb = {}, extras = {}) {
   return cleanTelegramText(resultText).slice(0, 1000);
 }
 
-  const mediaLine =
-    [quality, fileSize, audio]
-      .filter(Boolean)
-      .join(" · ");
-
-  const resultText =
-    `🎬 ${title}${yearText}\n\n` +
-
-    `⭐ ${rating}\n` +
-    `🎭 ${genre}\n` +
-    `👥 ${cast}\n\n` +
-
-    "📝 Handlung\n" +
-    `${overview}\n\n` +
-
-    (mediaLine ? `📦 ${mediaLine}\n\n` : "") +
-
-    "@LibraryOfLegends";
-
-  return cleanTelegramText(resultText).slice(0, 1000);
-}
-
 function movieLiteCaption(tmdb, extras = {}) {
   const nexus = getMovieNexusMeta(tmdb, extras);
 
