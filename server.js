@@ -7988,144 +7988,117 @@ function normalizeAllowedMovieTopic(topicName = "") {
     : "🚀 Neuere Filme";
 }
 
+// =============================
+// SMART MOVIE TOPIC ROUTING V3
+// =============================
 function getSmartMovieTopic(tmdb = {}) {
-  const title = String(tmdb.title || "").toLowerCase();
-  const genre = String(tmdb.genre || "").toLowerCase();
-  const collection = String(tmdb.collection || "").toLowerCase();
-  const universe = String(tmdb.universe || "").toLowerCase();
-  const country = String(tmdb.country || tmdb.land || "").toLowerCase();
-  const year = Number(tmdb.year || 0);
+  const title =
+    String(tmdb.title || "")
+      .toLowerCase();
+
+  const genre =
+    String(tmdb.genre || tmdb.mainGenre || "")
+      .toLowerCase();
+
+  const collection =
+    String(tmdb.collection || "")
+      .toLowerCase();
+
+  const universe =
+    String(tmdb.universe || "")
+      .toLowerCase();
+
+  const text =
+    `${title} ${genre} ${collection} ${universe}`;
+
+  const year =
+    Number(tmdb.year || 0);
 
   // =============================
-  // NEUERSCHEINUNGEN
-  // =============================
-  if (year >= 2024) {
-    return "🔥 Neuerscheinungen";
-  }
-
-  // =============================
-  // UNIVERSES
+  // KLASSIKER & NOSTALGIE
+  // Alles vor 2000
   // =============================
   if (
-    universe.includes("star wars") ||
-    title.includes("star wars") ||
-    collection.includes("star wars")
+    year > 0 &&
+    year < 2000
   ) {
-    return "🌌 Star Wars Universe";
-  }
-
-  if (
-    universe.includes("disney") ||
-    collection.includes("disney") ||
-    title.includes("frozen") ||
-    title.includes("vaiana") ||
-    title.includes("encanto") ||
-    title.includes("aladdin") ||
-    title.includes("lion king")
-  ) {
-    return "🏰 Disney Universe";
-  }
-
-  if (
-    universe.includes("marvel") ||
-    collection.includes("marvel") ||
-    title.includes("avengers") ||
-    title.includes("iron man") ||
-    title.includes("thor") ||
-    title.includes("captain america")
-  ) {
-    return "🧬 Marvel Universe";
-  }
-
-  if (
-    universe.includes("dc") ||
-    title.includes("batman") ||
-    title.includes("joker") ||
-    title.includes("superman") ||
-    title.includes("wonder woman") ||
-    title.includes("aquaman") ||
-    title.includes("flash")
-  ) {
-    return "🦇 DC Universe";
+    return FIXED_LIBRARY_TOPICS.classic.name;
   }
 
   // =============================
-  // FILMREIHEN
-  // =============================
-  if (tmdb.collection) {
-    return "🎞 Filmreihen";
-  }
-
-  // =============================
-  // SPECIAL CATEGORIES
+  // HORROR / MYSTERY / PSYCHO
   // =============================
   if (
-    genre.includes("dokumentation") ||
-    genre.includes("doku") ||
-    genre.includes("documentary")
+    text.includes("horror") ||
+    text.includes("mystery") ||
+    text.includes("psycho") ||
+    text.includes("slasher") ||
+    text.includes("paranormal") ||
+    text.includes("okkult") ||
+    text.includes("dämon") ||
+    text.includes("daemon") ||
+    text.includes("geister") ||
+    text.includes("spuk") ||
+    text.includes("düster") ||
+    text.includes("duester")
   ) {
-    return "📚 Dokumentationen";
-  }
-
-  if (
-    genre.includes("anime") ||
-    title.includes("anime")
-  ) {
-    return "⛩ Anime";
-  }
-
-  if (
-    genre.includes("animation") ||
-    genre.includes("animationsfilm")
-  ) {
-    return "🎨 Animation";
-  }
-
-  if (
-    genre.includes("familie") ||
-    genre.includes("family") ||
-    genre.includes("kinder")
-  ) {
-    return "🧸 Kinderfilme";
-  }
-
-  if (
-    genre.includes("komödie") ||
-    genre.includes("comedy")
-  ) {
-    return "🍿 Familienfilme";
-  }
-
-  if (
-    country &&
-    !country.includes("usa") &&
-    !country.includes("united states") &&
-    !country.includes("deutschland") &&
-    !country.includes("germany")
-  ) {
-    return "🌍 Internationale Filme";
+    return FIXED_LIBRARY_TOPICS.horror.name;
   }
 
   // =============================
-  // JAHRGANG
+  // ACTION / THRILLER / SCI-FI
   // =============================
-  if (year > 0 && year < 1980) {
-    return "🎬 Klassische Filme";
+  if (
+    text.includes("action") ||
+    text.includes("thriller") ||
+    text.includes("krimi") ||
+    text.includes("crime") ||
+    text.includes("science fiction") ||
+    text.includes("sci-fi") ||
+    text.includes("scifi") ||
+    text.includes("fantasy") ||
+    text.includes("abenteuer") ||
+    text.includes("adventure") ||
+    text.includes("superheld") ||
+    text.includes("superhero") ||
+    text.includes("marvel") ||
+    text.includes("dc") ||
+    text.includes("star wars") ||
+    text.includes("star trek") ||
+    text.includes("fast") ||
+    text.includes("furious") ||
+    text.includes("jason statham") ||
+    text.includes("bourne") ||
+    text.includes("mission impossible") ||
+    text.includes("jurassic")
+  ) {
+    return FIXED_LIBRARY_TOPICS.action.name;
   }
 
-  if (year >= 1980 && year <= 1989) {
-    return "📼 Filme der 80er";
+  // =============================
+  // KOMÖDIE / DRAMA / FAMILIE
+  // =============================
+  if (
+    text.includes("komödie") ||
+    text.includes("komoedie") ||
+    text.includes("comedy") ||
+    text.includes("drama") ||
+    text.includes("romantik") ||
+    text.includes("romance") ||
+    text.includes("liebe") ||
+    text.includes("familie") ||
+    text.includes("family") ||
+    text.includes("animation") ||
+    text.includes("anime") ||
+    text.includes("kids") ||
+    text.includes("kinder") ||
+    text.includes("zeichentrick")
+  ) {
+    return FIXED_LIBRARY_TOPICS.drama.name;
   }
 
-  if (year >= 1990 && year <= 1999) {
-    return "📀 Filme der 90er";
-  }
-
-  if (year >= 2000 && year <= 2009) {
-    return "🎥 Filme der 2000er";
-  }
-
-  return "🚀 Neuere Filme";
+  // Standard-Fallback
+  return FIXED_LIBRARY_TOPICS.drama.name;
 }
 
 function formatFileSize(bytes = 0) {
