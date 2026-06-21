@@ -12765,219 +12765,108 @@ async function createOrGetTopic({ chatId, name, type }) {
 }
 
 async function ensureCommandCenters() {
+  console.log("🏛 Fixed Library Topics + Movie Command Center werden geprüft...");
 
-  const movieCenters = [
-  "🎛 Movie Command Center",
-
-  "🔥 Neuerscheinungen",
-
-  "🌌 Star Wars Universe",
-  "🏰 Disney Universe",
-  "🧬 Marvel Universe",
-  "🦇 DC Universe",
-
-  "🎞 Filmreihen",
-
-  "🎬 Klassische Filme",
-  "📼 Filme der 80er",
-  "📀 Filme der 90er",
-  "🎥 Filme der 2000er",
-  "🚀 Neuere Filme",
-
-  "🌍 Internationale Filme",
-  "📚 Dokumentationen",
-  "🎨 Animation",
-  "🍿 Familienfilme",
-  "🧸 Kinderfilme",
-  "⛩ Anime"
-];
-
-  const seriesCenters = [
-  "🎛 SERIES COMMAND CENTER",
-
-  "📺 SERIES LIBRARY",
-  "🔥 TRENDING",
-  "🧩 INCOMPLETE",
-  "🏆 MASTERED",
-
-  "🚨 NEWS CENTER",
-  "📅 COMING SOON",
-  "🎬 PRODUKTIONSSTATUS",
-  "🆕 NEUE STAFFELN",
-
-  "🎭 MINI SERIES",
-  "👶 KIDS SERIES",
-  "🌸 ANIME HUB",
-  "🌍 DOCUMENTARY SERIES",
-
-  "⭐ STAR WARS SERIES",
-  "🧬 MARVEL SERIES",
-  "🦇 DC SERIES",
-  "🏰 DISNEY SERIES",
-
-  "🌌 UNIVERSES"
-];
-
-  for (const name of movieCenters) {
-
-    await createOrGetTopic({
-      chatId: MOVIE_GROUP_ID,
-      name,
+  const fixedMovieTopics = [
+    {
+      name: "🎛 Movie Command Center",
       type: "system_hub"
-    });
+    },
+    {
+      name: "📌 Start & Suche",
+      type: "movie_start"
+    },
+    {
+      name: "💥 Action, Thriller & Sci-Fi",
+      type: "movie_category"
+    },
+    {
+      name: "🍿 Komödie, Drama & Familie",
+      type: "movie_category"
+    },
+    {
+      name: "👻 Horror, Mystery & Psycho",
+      type: "movie_category"
+    },
+    {
+      name: "📺 Klassiker & Nostalgie",
+      type: "movie_category"
+    },
+    {
+      name: "💬 Mitglieder-Chat & Wünsche",
+      type: "member_chat"
+    }
+  ];
 
-    await sleep(300);
-  }
+  const fixedSeriesTopics = [
+    {
+      name: "📌 Start & Suche",
+      type: "series_start"
+    },
+    {
+      name: "💥 Action, Thriller & Sci-Fi",
+      type: "series_category"
+    },
+    {
+      name: "🍿 Komödie, Drama & Familie",
+      type: "series_category"
+    },
+    {
+      name: "👻 Horror, Mystery & Psycho",
+      type: "series_category"
+    },
+    {
+      name: "📺 Klassiker & Nostalgie",
+      type: "series_category"
+    },
+    {
+      name: "💬 Mitglieder-Chat & Wünsche",
+      type: "member_chat"
+    }
+  ];
 
-  // await ensureStarWarsEraTopics();
-
-  /*
-  for (const bucket of movieTopicBuckets) {
-
+  for (const topic of fixedMovieTopics) {
     await createOrGetTopic({
       chatId: MOVIE_GROUP_ID,
-      name: bucket.name,
-      type: bucket.type
+      name: topic.name,
+      type: topic.type
     });
 
-    await sleep(1200);
+    await sleep(800);
   }
-  */
 
-  for (const name of seriesCenters) {
-
+  for (const topic of fixedSeriesTopics) {
     await createOrGetTopic({
       chatId: SERIES_GROUP_ID,
-      name,
-      type: "system_hub"
+      name: topic.name,
+      type: topic.type
     });
 
-    await sleep(1500);
+    await sleep(800);
   }
 
-  await createOrUpdateCommandCenter({
-  chatId: MOVIE_GROUP_ID,
-  topicName: "🎛 Movie Command Center",
-  caption: await movieCommandCenterCaption()
-});
+  // =============================
+  // MOVIE COMMAND CENTER BEHALTEN
+  // =============================
+  try {
+    if (
+      typeof createOrUpdateCommandCenter === "function" &&
+      typeof movieCommandCenterCaption === "function"
+    ) {
+      await createOrUpdateCommandCenter({
+        chatId: MOVIE_GROUP_ID,
+        topicName: "🎛 Movie Command Center",
+        caption: await movieCommandCenterCaption()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Movie Command Center Update Fehler:",
+      err.message
+    );
+  }
 
-// Alte technische Hubs deaktiviert, damit keine Extra-Topics entstehen
-// await createOrUpdateMovieIndexHub();
-// await createOrUpdateCollectionsIndexHub();
-// await createOrUpdateUniversesIndexHub();
-// await createOrUpdatePremiumQualityHub();
-// await createOrUpdateEliteArchiveHub();
-// await createOrUpdateHallOfFameHub();
-// await createOrUpdateNewReleasesHub();
-// await createOrUpdateMovieLibraryHub();
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🎛 SERIES COMMAND CENTER",
-  caption: await seriesCommandCenterCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "📺 SERIES LIBRARY",
-  caption: await seriesLibraryHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🔥 TRENDING",
-  caption: await trendingSeriesHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🧩 INCOMPLETE",
-  caption: await incompleteSeriesHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🏆 MASTERED",
-  caption: await masteredSeriesHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🚨 NEWS CENTER",
-  caption: await seriesNewsCenterCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "📅 COMING SOON",
-  caption: await seriesComingSoonCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🎬 PRODUKTIONSSTATUS",
-  caption: await seriesProductionStatusCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🆕 NEUE STAFFELN",
-  caption: await seriesNewSeasonsCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🎭 MINI SERIES",
-  caption: await miniSeriesHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "👶 KIDS SERIES",
-  caption: await kidsSeriesHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🌸 ANIME HUB",
-  caption: await animeSeriesHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🌍 DOCUMENTARY SERIES",
-  caption: await documentarySeriesHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🌌 UNIVERSES",
-  caption: await seriesUniversesHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "⭐ STAR WARS SERIES",
-  caption: await starWarsSeriesHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🧬 MARVEL SERIES",
-  caption: await marvelSeriesHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🦇 DC SERIES",
-  caption: await dcSeriesHubCaption()
-});
-
-await createOrUpdateCommandCenter({
-  chatId: SERIES_GROUP_ID,
-  topicName: "🏰 DISNEY SERIES",
-  caption: await disneySeriesHubCaption()
-});
+  console.log("✅ Fixed Library Topics + Movie Command Center fertig eingerichtet");
 }
 
 // =============================
