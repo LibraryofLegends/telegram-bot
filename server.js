@@ -12764,90 +12764,315 @@ async function createOrGetTopic({ chatId, name, type }) {
   return topic.message_thread_id;
 }
 
-async function ensureCommandCenters() {
-  console.log("🏛 Fixed Library Topics + Movie Command Center werden geprüft...");
+// =============================
+// FIXED LIBRARY TOPICS V3
+// =============================
+const FIXED_LIBRARY_TOPICS = {
+  start: {
+    name: "📌 Start & Suche",
+    movieType: "movie_start",
+    seriesType: "series_start",
+    locked: true,
+    pin: true,
+    description:
+      "Inhaltsverzeichnis, Suche und wichtigste Navigation."
+  },
 
-  const fixedMovieTopics = [
-    {
-      name: "🎛 Movie Command Center",
-      type: "system_hub"
-    },
-    {
-      name: "📌 Start & Suche",
-      type: "movie_start"
-    },
-    {
-      name: "💥 Action, Thriller & Sci-Fi",
-      type: "movie_category"
-    },
-    {
-      name: "🍿 Komödie, Drama & Familie",
-      type: "movie_category"
-    },
-    {
-      name: "👻 Horror, Mystery & Psycho",
-      type: "movie_category"
-    },
-    {
-      name: "📺 Klassiker & Nostalgie",
-      type: "movie_category"
-    },
-    {
-      name: "💬 Mitglieder-Chat & Wünsche",
-      type: "member_chat"
-    }
-  ];
+  action: {
+    name: "💥 Action, Thriller & Sci-Fi",
+    movieType: "movie_category",
+    seriesType: "series_category",
+    locked: true,
+    pin: false,
+    description:
+      "Action, Thriller, Sci-Fi, Fantasy, Abenteuer und schnelle Unterhaltung."
+  },
 
-  const fixedSeriesTopics = [
-    {
-      name: "📌 Start & Suche",
-      type: "series_start"
-    },
-    {
-      name: "💥 Action, Thriller & Sci-Fi",
-      type: "series_category"
-    },
-    {
-      name: "🍿 Komödie, Drama & Familie",
-      type: "series_category"
-    },
-    {
-      name: "👻 Horror, Mystery & Psycho",
-      type: "series_category"
-    },
-    {
-      name: "📺 Klassiker & Nostalgie",
-      type: "series_category"
-    },
-    {
-      name: "💬 Mitglieder-Chat & Wünsche",
-      type: "member_chat"
-    }
-  ];
+  drama: {
+    name: "🍿 Komödie, Drama & Familie",
+    movieType: "movie_category",
+    seriesType: "series_category",
+    locked: true,
+    pin: false,
+    description:
+      "Komödie, Drama, Familie, Romantik, Animation und ruhige Unterhaltung."
+  },
 
-  for (const topic of fixedMovieTopics) {
-    await createOrGetTopic({
-      chatId: MOVIE_GROUP_ID,
-      name: topic.name,
-      type: topic.type
-    });
+  horror: {
+    name: "👻 Horror, Mystery & Psycho",
+    movieType: "movie_category",
+    seriesType: "series_category",
+    locked: true,
+    pin: false,
+    description:
+      "Horror, Mystery, Psycho, düstere Thriller und gruselige Inhalte."
+  },
 
-    await sleep(800);
+  classic: {
+    name: "📺 Klassiker & Nostalgie",
+    movieType: "movie_category",
+    seriesType: "series_category",
+    locked: true,
+    pin: false,
+    description:
+      "Filme und Serien vor dem Jahr 2000."
+  },
+
+  chat: {
+    name: "💬 Mitglieder-Chat & Wünsche",
+    movieType: "member_chat",
+    seriesType: "member_chat",
+    locked: false,
+    pin: false,
+    description:
+      "Mitglieder-Chat, Wünsche, Fragen und Dateianfragen."
+  }
+};
+
+async function getTopicByUniqueKeyAsync(uniqueKey) {
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE unique_key = $1
+      LIMIT 1
+      `,
+      [uniqueKey]
+    );
+
+    return result.rows[0] || null;
   }
 
-  for (const topic of fixedSeriesTopics) {
+  return getTopic(uniqueKey);
+}
+
+async function getTopicByThreadId(chatId, topicId) {
+  if (!chatId || !topicId) {
+    return null;
+  }
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM topics
+      WHERE chat_id = $1
+      AND topic_id = $2
+      LIMIT 1
+      `,
+      [
+        String(chatId),
+        Number(topicId)
+      ]
+    );
+
+    return result.rows[0] || null;
+  }
+
+  return db.prepare(`
+    SELECT *
+    FROM topics
+    WHERE chat_id = ?
+    AND topic_id = ?
+    LIMIT 1
+  `).get(
+    String(chatId),
+    Number(topicId)
+  );
+}
+
+async function saveTopicHubMessageIdByKey(uniqueKey, messageId) {
+  if (!uniqueKey || !messageId) {
+    return;
+  }
+
+  if (pgPool) {
+    await pgPool.query(
+      `
+      UPDATE topics
+      SET hub_message_id = $1
+      WHERE unique_key = $2
+      `,
+      [
+        Number(messageId),
+        uniqueKey
+      ]
+    );
+
+    return;
+  }
+
+  db.prepare(`
+    UPDATE topics
+    SET hub_message_id = ?
+    WHERE unique_key = ?
+  `).run(
+    Number(messageId),
+    uniqueKey
+  );
+}
+
+function fixedTopicIntroCaption(topic, groupLabel = "Archiv") {
+  return (
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${topic.name}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    `${topic.description}\n\n` +
+    (
+      topic.locked
+        ? "🔒 Schreibschutz · Nur Admins & Bots\n"
+        : "💬 Mitgliederbereich · Chat & Wünsche erlaubt\n"
+    ) +
+    `🏛 Bereich · ${groupLabel}\n\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends"
+  );
+}
+
+async function ensureFixedTopic({
+  chatId,
+  topic,
+  type,
+  groupLabel
+}) {
+  if (!chatId || !topic?.name || !type) {
+    return null;
+  }
+
+  const topicId =
     await createOrGetTopic({
-      chatId: SERIES_GROUP_ID,
+      chatId,
       name: topic.name,
-      type: topic.type
+      type
     });
 
-    await sleep(800);
+  if (!topicId) {
+    return null;
+  }
+
+  const uniqueKey =
+    makeKey(`${type}-${chatId}-${topic.name}`);
+
+  const row =
+    await getTopicByUniqueKeyAsync(uniqueKey);
+
+  if (row?.hub_message_id) {
+    return topicId;
+  }
+
+  const sent =
+    await tg("sendMessage", {
+      chat_id: chatId,
+      message_thread_id: Number(topicId),
+      text: fixedTopicIntroCaption(topic, groupLabel)
+    });
+
+  if (sent?.message_id) {
+    await saveTopicHubMessageIdByKey(
+      uniqueKey,
+      sent.message_id
+    );
+
+    if (topic.pin) {
+      try {
+        await tg("pinChatMessage", {
+          chat_id: chatId,
+          message_id: sent.message_id,
+          disable_notification: true
+        });
+      } catch (err) {
+        console.error(
+          "⚠️ Topic Pin Fehler:",
+          topic.name,
+          err.message
+        );
+      }
+    }
+  }
+
+  return topicId;
+}
+
+async function setupFixedLibraryTopicsForChat({
+  chatId,
+  groupType
+}) {
+  const isSeriesGroup =
+    groupType === "series";
+
+  const groupLabel =
+    isSeriesGroup
+      ? "Seriengruppe"
+      : "Filmgruppe";
+
+  const result = [];
+
+  for (const topic of Object.values(FIXED_LIBRARY_TOPICS)) {
+    const type =
+      isSeriesGroup
+        ? topic.seriesType
+        : topic.movieType;
+
+    const topicId =
+      await ensureFixedTopic({
+        chatId,
+        topic,
+        type,
+        groupLabel
+      });
+
+    result.push({
+      name: topic.name,
+      topicId
+    });
+
+    await sleep(1200);
+  }
+
+  return result;
+}
+
+async function setupFixedLibraryTopics() {
+  const movieTopics =
+    await setupFixedLibraryTopicsForChat({
+      chatId: MOVIE_GROUP_ID,
+      groupType: "movie"
+    });
+
+  const seriesTopics =
+    await setupFixedLibraryTopicsForChat({
+      chatId: SERIES_GROUP_ID,
+      groupType: "series"
+    });
+
+  return {
+    movieTopics,
+    seriesTopics
+  };
+}
+
+async function ensureCommandCenters() {
+  console.log(
+    "🏛 Fixed Library Topics + Movie Command Center werden geprüft..."
+  );
+
+  // =============================
+  // FIXED ARCHIVE TOPICS
+  // =============================
+  if (typeof setupFixedLibraryTopics === "function") {
+    await setupFixedLibraryTopics();
   }
 
   // =============================
   // MOVIE COMMAND CENTER BEHALTEN
   // =============================
+  await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "🎛 Movie Command Center",
+    type: "system_hub"
+  });
+
   try {
     if (
       typeof createOrUpdateCommandCenter === "function" &&
@@ -12866,7 +13091,9 @@ async function ensureCommandCenters() {
     );
   }
 
-  console.log("✅ Fixed Library Topics + Movie Command Center fertig eingerichtet");
+  console.log(
+    "✅ Fixed Library Topics + Movie Command Center fertig eingerichtet"
+  );
 }
 
 // =============================
@@ -14722,6 +14949,47 @@ if (command.startsWith("/testuniverse")) {
     });
     return;
   }
+  
+  // =============================
+// SETUP FIXED LIBRARY TOPICS
+// =============================
+if (
+  command === "/setupfixedtopics" ||
+  command === "/setupgroups"
+) {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "⏳ Feste Archiv-Topics werden geprüft...\n\n" +
+      "Filmgruppe, Seriengruppe und Movie Command Center werden eingerichtet."
+  });
+
+  await ensureCommandCenters();
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "✅ Archiv-Topics eingerichtet\n\n" +
+      "Filmgruppe:\n" +
+      "🎛 Movie Command Center\n" +
+      "📌 Start & Suche\n" +
+      "💥 Action, Thriller & Sci-Fi\n" +
+      "🍿 Komödie, Drama & Familie\n" +
+      "👻 Horror, Mystery & Psycho\n" +
+      "📺 Klassiker & Nostalgie\n" +
+      "💬 Mitglieder-Chat & Wünsche\n\n" +
+      "Seriengruppe:\n" +
+      "📌 Start & Suche\n" +
+      "💥 Action, Thriller & Sci-Fi\n" +
+      "🍿 Komödie, Drama & Familie\n" +
+      "👻 Horror, Mystery & Psycho\n" +
+      "📺 Klassiker & Nostalgie\n" +
+      "💬 Mitglieder-Chat & Wünsche\n\n" +
+      "@LibraryOfLegends"
+  });
+
+  return;
+}
   
   // =============================
 // CHAT ID DEBUG
