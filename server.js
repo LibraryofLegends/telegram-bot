@@ -14923,34 +14923,20 @@ if (command.startsWith("/testuniverse")) {
   return;
 }
 
-  if (text === "/help") {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "📌 Hilfe\n\n" +
-        "➡️ Leite Filme oder Serien an mich weiter.\n" +
-        "➡️ Serien erkennt der Bot über S01E01 oder 1x01.\n" +
-        "➡️ Filme werden automatisch per Genre sortiert.\n" +
-        "➡️ Serien bekommen automatisch eigene Themen."
-    });
-    return;
-  }
-  
-  if (command === "/scanseriesnews") {
-  const seriesTitle =
-    text.replace(command, "").trim();
+  if (command === "/help") {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "📌 Hilfe\n\n" +
+      "➡️ Leite Filme oder Serien an mich weiter.\n" +
+      "➡️ Serien erkennt der Bot über S01E01 oder 1x01.\n" +
+      "➡️ Filme werden automatisch per Genre sortiert.\n" +
+      "➡️ Serien werden automatisch in Archiv-Themen einsortiert."
+  });
+  return;
+}
 
-  if (!seriesTitle) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "⚠️ Nutzung:\n\n" +
-        "/scanseriesnews Landman"
-    });
-    return;
-  }
-  
-  // =============================
+// =============================
 // SETUP FIXED LIBRARY TOPICS
 // =============================
 if (
@@ -14990,6 +14976,25 @@ if (
 
   return;
 }
+
+// =============================
+// SCAN SERIES NEWS
+// =============================
+if (command === "/scanseriesnews") {
+  const seriesTitle =
+    text.replace(command, "").trim();
+
+  if (!seriesTitle) {
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ Nutzung:\n\n" +
+        "/scanseriesnews Landman"
+    });
+    return;
+  }
+
+  // Ab hier kommt dein vorhandener /scanseriesnews-Code weiter.
   
   // =============================
 // CHAT ID DEBUG
