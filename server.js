@@ -8598,6 +8598,73 @@ try {
     .filter(Boolean)
     .join(" • ") || "";
 
+const normalizeProviderName = (name = "") => {
+  const clean =
+    String(name || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const lower =
+    clean.toLowerCase();
+
+  if (
+    lower.includes("paramount")
+  ) {
+    return "Paramount+";
+  }
+
+  if (
+    lower.includes("amazon") ||
+    lower.includes("prime")
+  ) {
+    return "Prime Video";
+  }
+
+  if (
+    lower.includes("disney")
+  ) {
+    return "Disney+";
+  }
+
+  if (
+    lower.includes("netflix")
+  ) {
+    return "Netflix";
+  }
+
+  if (
+    lower.includes("apple")
+  ) {
+    return "Apple TV+";
+  }
+
+  if (
+    lower.includes("wow")
+  ) {
+    return "WOW";
+  }
+
+  if (
+    lower.includes("sky")
+  ) {
+    return "Sky";
+  }
+
+  if (
+    lower.includes("rtl")
+  ) {
+    return "RTL+";
+  }
+
+  if (
+    lower.includes("joyn")
+  ) {
+    return "Joyn";
+  }
+
+  return clean;
+};
+
 const getProviderNames = (region = "DE") => {
   const regionData =
     watchProviders?.results?.[region];
@@ -8606,18 +8673,34 @@ const getProviderNames = (region = "DE") => {
     return "";
   }
 
-  const providers = [
+  const rawProviders = [
     ...(regionData.flatrate || []),
     ...(regionData.free || []),
     ...(regionData.ads || [])
   ];
 
-  return providers
-    .map((p) => p.provider_name)
-    .filter(Boolean)
-    .filter((name, index, arr) => arr.indexOf(name) === index)
-    .slice(0, 3)
-    .join(" • ");
+  const providers =
+    rawProviders
+      .map((p) => normalizeProviderName(p.provider_name))
+      .filter(Boolean)
+      .filter((name, index, arr) => arr.indexOf(name) === index);
+
+  const priority = [
+    "Paramount+",
+    "Netflix",
+    "Disney+",
+    "Prime Video",
+    "Apple TV+",
+    "WOW",
+    "Sky",
+    "RTL+",
+    "Joyn"
+  ];
+
+  const preferred =
+    priority.find((name) => providers.includes(name));
+
+  return preferred || providers[0] || "";
 };
 
 const streamingProvider =
