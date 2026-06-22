@@ -8551,6 +8551,18 @@ async function searchSeriesTMDB(title, season, episode) {
     await tmdbGet(
       `/tv/${best.id}/season/${season}/episode/${episode}`
     );
+    
+    let watchProviders = null;
+
+try {
+  watchProviders =
+    await tmdbGet(`/tv/${best.id}/watch/providers`);
+} catch (err) {
+  console.error(
+    "⚠️ Watch Provider Fehler:",
+    err.message
+  );
+}
 
   const createdBy =
     details.created_by
@@ -8579,6 +8591,40 @@ async function searchSeriesTMDB(title, season, episode) {
     deRating?.rating
       ? `FSK ${deRating.rating}`
       : usRating?.rating || "FSK Unbekannt";
+      
+      const networkText =
+  details.networks
+    ?.map((n) => n.name)
+    .filter(Boolean)
+    .join(" • ") || "";
+
+const getProviderNames = (region = "DE") => {
+  const regionData =
+    watchProviders?.results?.[region];
+
+  if (!regionData) {
+    return "";
+  }
+
+  const providers = [
+    ...(regionData.flatrate || []),
+    ...(regionData.free || []),
+    ...(regionData.ads || [])
+  ];
+
+  return providers
+    .map((p) => p.provider_name)
+    .filter(Boolean)
+    .filter((name, index, arr) => arr.indexOf(name) === index)
+    .slice(0, 3)
+    .join(" • ");
+};
+
+const streamingProvider =
+  getProviderNames("DE") ||
+  getProviderNames("US") ||
+  networkText ||
+  "";
 
   return {
     tmdbId: details.id,
@@ -8677,6 +8723,18 @@ totalEpisodes:
 
 status:
   details.status || null,
+
+network:
+  networkText || null,
+
+networks:
+  networkText || null,
+
+provider:
+  streamingProvider || null,
+
+streamingProvider:
+  streamingProvider || null,
 
 createdBy,
 cast,
@@ -24091,11 +24149,11 @@ const genreLine =
     );
 
   const streamText =
-    tmdb.network ||
-    tmdb.networks ||
-    tmdb.provider ||
-    tmdb.streamingProvider ||
-    "folgt";
+  tmdb.streamingProvider ||
+  tmdb.provider ||
+  tmdb.network ||
+  tmdb.networks ||
+  "folgt";
 
   const mainActor =
     String(tmdb.cast || "")
@@ -24136,7 +24194,7 @@ const genreLine =
   "🎞 EINTRAG AKTIV\n" +
   "━━━━━━━━━━━━━━━━━━\n" +
   `⭐ Rating: ${rating}\n` +
-  `📀 Status: ${statusText}\n` +
+  `📀 Archivstatus: ${statusText}\n` +
   `🎬 Start: ${episodeStart}\n` +
   `🧵 Genre: ${genreLine}\n` +
   "━━━━━━━━━━━━━━━━━━\n" +
