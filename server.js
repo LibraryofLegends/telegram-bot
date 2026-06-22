@@ -24048,10 +24048,23 @@ function buildSeriesIntroCaption(tmdb = {}, media = {}, topicName = "") {
   const totalSeasons =
     Number(tmdb.totalSeasons || tmdb.total_seasons || 0);
 
-  const statusText =
-    totalSeasons > 1
-      ? `Staffel 1–${totalSeasons} verfügbar${tmdb.status ? ` · ${tmdb.status}` : ""}`
-      : `Staffel ${Number(media.season || 1)} verfügbar${tmdb.status ? ` · ${tmdb.status}` : ""}`;
+  const rawStatus =
+  String(tmdb.status || "")
+    .toLowerCase();
+
+const statusGerman =
+  rawStatus.includes("returning")
+    ? "laufend"
+    : rawStatus.includes("ended")
+      ? "abgeschlossen"
+      : rawStatus.includes("canceled") || rawStatus.includes("cancelled")
+        ? "abgesetzt"
+        : tmdb.status || "";
+
+const statusText =
+  totalSeasons > 1
+    ? `Staffeln 1–${totalSeasons} verfügbar${statusGerman ? ` · ${statusGerman}` : ""}`
+    : `Staffel ${Number(media.season || 1)} verfügbar${statusGerman ? ` · ${statusGerman}` : ""}`;
 
   const genreText =
     String(tmdb.genre || "")
@@ -24061,10 +24074,15 @@ function buildSeriesIntroCaption(tmdb = {}, media = {}, topicName = "") {
       .slice(0, 3)
       .join(", ");
 
-  const genreLine =
-    genreText
-      ? `${topicName || "Serienarchiv"} · ${genreText}`
-      : (topicName || "Serienarchiv");
+  const cleanTopicName =
+  String(topicName || "Serienarchiv")
+    .replace(/&amp;/g, "&")
+    .replace(/&/g, "&");
+
+const genreLine =
+  genreText
+    ? `${cleanTopicName} · ${genreText}`
+    : cleanTopicName;
 
   const overview =
     trimTextAtSentence(
@@ -24111,25 +24129,25 @@ function buildSeriesIntroCaption(tmdb = {}, media = {}, topicName = "") {
       : `S${seasonText}E${episodeText}`;
 
   const resultText =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `📺 ${escapeHtml(titleUpper)}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📁 SERIEN-ARCHIV\n" +
-    "PREMIUM EPISODE DATABASE\n" +
-    "🎞 EINTRAG AKTIV\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `⭐ Rating: ${escapeHtml(rating)}\n` +
-    `📀 Status: ${escapeHtml(statusText)}\n` +
-    `🎬 Start: ${escapeHtml(episodeStart)}\n` +
-    `🧵 Genre: ${escapeHtml(genreLine)}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📖 DOSSIER\n" +
-    `${escapeHtml(overview)}\n` +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🍿 Stream: ${escapeHtml(streamText)}\n` +
-    `👤 Hauptrolle: ${escapeHtml(mainActor)}\n` +
-    `${genreTags ? `${genreTags} ` : ""}${seriesTag}${castTag ? ` ${castTag}` : ""}\n` +
-    "👉 @LibraryOfLegends";
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `📺 ${titleUpper}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "📁 SERIEN-ARCHIV\n" +
+  "PREMIUM EPISODE DATABASE\n" +
+  "🎞 EINTRAG AKTIV\n" +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `⭐ Rating: ${rating}\n` +
+  `📀 Status: ${statusText}\n` +
+  `🎬 Start: ${episodeStart}\n` +
+  `🧵 Genre: ${genreLine}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "📖 DOSSIER\n" +
+  `${overview}\n` +
+  "━━━━━━━━━━━━━━━━━━\n" +
+  `🍿 Stream: ${streamText}\n` +
+  `👤 Hauptrolle: ${mainActor}\n` +
+  `${genreTags ? `${genreTags} ` : ""}${seriesTag}${castTag ? ` ${castTag}` : ""}\n` +
+  "👉 @LibraryOfLegends";
 
   return cleanTelegramText(resultText).slice(0, 1800);
 }
