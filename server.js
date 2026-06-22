@@ -13227,48 +13227,437 @@ async function setupFixedLibraryTopics() {
   };
 }
 
+// =============================
+// MOVIE A–Z INDEX V3
+// =============================
+async function getMovieTitlesForAzV3() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT DISTINCT title, year
+      FROM movies
+      WHERE title IS NOT NULL
+      AND title <> ''
+      ORDER BY title ASC
+    `);
+
+    rows = result.rows || [];
+  } else {
+    rows = db.prepare(`
+      SELECT DISTINCT title, year
+      FROM movies
+      WHERE title IS NOT NULL
+      AND title <> ''
+      ORDER BY title ASC
+    `).all();
+  }
+
+  const seen = new Set();
+
+  return rows
+    .map((row) => {
+      const title =
+        String(row.title || "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+      const year =
+        row.year ? ` (${row.year})` : "";
+
+      return {
+        title,
+        label: `${title}${year}`
+      };
+    })
+    .filter((item) => item.title)
+    .filter((item) => {
+      const key =
+        typeof makeKey === "function"
+          ? makeKey(item.label)
+          : item.label.toLowerCase();
+
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) =>
+      a.label.localeCompare(b.label, "de", {
+        sensitivity: "base"
+      })
+    );
+}
+
+async function movieAzIndexCaptionV3() {
+  const movies =
+    await getMovieTitlesForAzV3();
+
+  const groups = {};
+
+  for (const movie of movies) {
+    const first =
+      movie.title.charAt(0).toUpperCase();
+
+    const letter =
+      /[A-ZÄÖÜ]/i.test(first)
+        ? first
+        : "#";
+
+    if (!groups[letter]) {
+      groups[letter] = [];
+    }
+
+    groups[letter].push(movie.label);
+  }
+
+  const letters =
+    Object.keys(groups)
+      .sort((a, b) =>
+        a.localeCompare(b, "de", {
+          sensitivity: "base"
+        })
+      );
+
+  let body = "";
+
+  for (const letter of letters) {
+    body += `${letter}\n`;
+
+    for (const movie of groups[letter]) {
+      body += `• ${movie}\n`;
+    }
+
+    body += "\n";
+  }
+
+  if (!body.trim()) {
+    body =
+      "Noch keine Filme im Archiv.\n\n" +
+      "Sobald Filme gespeichert wurden, erscheint hier automatisch der A–Z Index.\n";
+  }
+
+  const text =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📌 START & SUCHE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "🎬 FILME A–Z\n" +
+    "Einfaches Inhaltsverzeichnis aller gespeicherten Filme.\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    body +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(text).slice(0, 4000);
+}
+
+// =============================
+// SERIES COMMAND CENTER V3 — COMPACT
+// =============================
+async function getSeriesStatsV3() {
+  if (pgPool) {
+    const seriesResult = await pgPool.query(`
+      SELECT COUNT(DISTINCT series_title) AS count
+      FROM series
+    `);
+
+    const episodeResult = await pgPool.query(`
+      SELECT COUNT(*) AS count
+      FROM series
+    `);
+
+    return {
+      seriesCount: Number(seriesResult.rows[0]?.count || 0),
+      episodeCount: Number(episodeResult.rows[0]?.count || 0)
+    };
+  }
+
+  const seriesRow = db.prepare(`
+    SELECT COUNT(DISTINCT series_title) AS count
+    FROM series
+  `).get();
+
+  const episodeRow = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM series
+  `).get();
+
+  return {
+    seriesCount: Number(seriesRow?.count || 0),
+    episodeCount: Number(episodeRow?.count || 0)
+  };
+}
+
+async function seriesCommandCenterCaptionV3() {
+  const stats =
+    await getSeriesStatsV3();
+
+  const text =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🎛 SERIES COMMAND CENTER\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "📺 SERIEN-ARCHIV\n" +
+    "PREMIUM EPISODE DATABASE\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📊 ARCHIV STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `📺 Serien im Archiv: ${stats.seriesCount}\n` +
+    `🎞 Episoden gespeichert: ${stats.episodeCount}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧭 NAVIGATION\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "📌 Start & Suche — Serien A–Z\n" +
+    "💥 Action, Thriller & Sci-Fi\n" +
+    "🍿 Komödie, Drama & Familie\n" +
+    "👻 Horror, Mystery & Psycho\n" +
+    "📺 Klassiker & Nostalgie\n" +
+    "💬 Mitglieder-Chat & Wünsche\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(text).slice(0, 4000);
+}
+
+// =============================
+// SERIES A–Z INDEX V3
+// =============================
+async function getSeriesTitlesForAzV3() {
+  let rows = [];
+
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT DISTINCT series_title
+      FROM series
+      WHERE series_title IS NOT NULL
+      AND series_title <> ''
+      ORDER BY series_title ASC
+    `);
+
+    rows = result.rows || [];
+  } else {
+    rows = db.prepare(`
+      SELECT DISTINCT series_title
+      FROM series
+      WHERE series_title IS NOT NULL
+      AND series_title <> ''
+      ORDER BY series_title ASC
+    `).all();
+  }
+
+  const seen = new Set();
+
+  return rows
+    .map((row) =>
+      String(row.series_title || "")
+        .replace(/\s+/g, " ")
+        .trim()
+    )
+    .filter(Boolean)
+    .filter((title) => {
+      const key =
+        typeof makeKey === "function"
+          ? makeKey(title)
+          : title.toLowerCase();
+
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) =>
+      a.localeCompare(b, "de", {
+        sensitivity: "base"
+      })
+    );
+}
+
+async function seriesAzIndexCaptionV3() {
+  const titles =
+    await getSeriesTitlesForAzV3();
+
+  const groups = {};
+
+  for (const title of titles) {
+    const first =
+      title.charAt(0).toUpperCase();
+
+    const letter =
+      /[A-ZÄÖÜ]/i.test(first)
+        ? first
+        : "#";
+
+    if (!groups[letter]) {
+      groups[letter] = [];
+    }
+
+    groups[letter].push(title);
+  }
+
+  const letters =
+    Object.keys(groups)
+      .sort((a, b) =>
+        a.localeCompare(b, "de", {
+          sensitivity: "base"
+        })
+      );
+
+  let body = "";
+
+  for (const letter of letters) {
+    body += `${letter}\n`;
+
+    for (const title of groups[letter]) {
+      body += `• ${title}\n`;
+    }
+
+    body += "\n";
+  }
+
+  if (!body.trim()) {
+    body =
+      "Noch keine Serien im Archiv.\n\n" +
+      "Sobald Serien gespeichert wurden, erscheint hier automatisch der A–Z Index.\n";
+  }
+
+  const text =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📌 START & SUCHE\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "📺 SERIEN A–Z\n" +
+    "Einfaches Inhaltsverzeichnis aller gespeicherten Serien.\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    body +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(text).slice(0, 4000);
+}
+
 async function ensureCommandCenters() {
   console.log(
-    "🏛 Fixed Library Topics + Movie Command Center werden geprüft..."
+    "🏛 Fixed Library Topics + Command Center + A–Z werden geprüft..."
   );
 
   // =============================
-  // FIXED ARCHIVE TOPICS
-  // =============================
-  if (typeof setupFixedLibraryTopics === "function") {
-    await setupFixedLibraryTopics();
+// FIXED ARCHIVE TOPICS
+// =============================
+if (typeof setupFixedLibraryTopics === "function") {
+  await setupFixedLibraryTopics();
+}
+
+// =============================
+// MOVIE COMMAND CENTER BEHALTEN
+// =============================
+await createOrGetTopic({
+  chatId: MOVIE_GROUP_ID,
+  name: "🎛 Movie Command Center",
+  type: "system_hub"
+});
+
+try {
+  if (
+    typeof createOrUpdateCommandCenter === "function" &&
+    typeof movieCommandCenterCaption === "function"
+  ) {
+    await createOrUpdateCommandCenter({
+      chatId: MOVIE_GROUP_ID,
+      topicName: "🎛 Movie Command Center",
+      caption: await movieCommandCenterCaption()
+    });
   }
-
-  // =============================
-  // MOVIE COMMAND CENTER BEHALTEN
-  // =============================
-  await createOrGetTopic({
-    chatId: MOVIE_GROUP_ID,
-    name: "🎛 Movie Command Center",
-    type: "system_hub"
-  });
-
-  try {
-    if (
-      typeof createOrUpdateCommandCenter === "function" &&
-      typeof movieCommandCenterCaption === "function"
-    ) {
-      await createOrUpdateCommandCenter({
-        chatId: MOVIE_GROUP_ID,
-        topicName: "🎛 Movie Command Center",
-        caption: await movieCommandCenterCaption()
-      });
-    }
-  } catch (err) {
-    console.error(
-      "⚠️ Movie Command Center Update Fehler:",
-      err.message
-    );
-  }
-
-  console.log(
-    "✅ Fixed Library Topics + Movie Command Center fertig eingerichtet"
+} catch (err) {
+  console.error(
+    "⚠️ Movie Command Center Update Fehler:",
+    err.message
   );
+}
+
+// =============================
+// MOVIE A–Z INDEX IN START & SUCHE
+// =============================
+try {
+  if (
+    typeof createOrUpdateCommandCenter === "function" &&
+    typeof movieAzIndexCaptionV3 === "function"
+  ) {
+    await createOrUpdateCommandCenter({
+      chatId: MOVIE_GROUP_ID,
+      topicName: "📌 Start & Suche",
+      caption: await movieAzIndexCaptionV3()
+    });
+  }
+} catch (err) {
+  console.error(
+    "⚠️ Film A–Z Index Update Fehler:",
+    err.message
+  );
+}
+
+// =============================
+// SERIES COMMAND CENTER BEHALTEN
+// =============================
+await createOrGetTopic({
+  chatId: SERIES_GROUP_ID,
+  name: "🎛 SERIES COMMAND CENTER",
+  type: "system_hub"
+});
+
+try {
+  if (
+    typeof createOrUpdateCommandCenter === "function" &&
+    typeof seriesCommandCenterCaptionV3 === "function"
+  ) {
+    await createOrUpdateCommandCenter({
+      chatId: SERIES_GROUP_ID,
+      topicName: "🎛 SERIES COMMAND CENTER",
+      caption: await seriesCommandCenterCaptionV3()
+    });
+  }
+} catch (err) {
+  console.error(
+    "⚠️ Series Command Center Update Fehler:",
+    err.message
+  );
+}
+
+// =============================
+// SERIES A–Z INDEX IN START & SUCHE
+// =============================
+try {
+  if (
+    typeof createOrUpdateCommandCenter === "function" &&
+    typeof seriesAzIndexCaptionV3 === "function"
+  ) {
+    await createOrUpdateCommandCenter({
+      chatId: SERIES_GROUP_ID,
+      topicName: "📌 Start & Suche",
+      caption: await seriesAzIndexCaptionV3()
+    });
+  }
+} catch (err) {
+  console.error(
+    "⚠️ Serien A–Z Index Update Fehler:",
+    err.message
+  );
+}
+
+console.log(
+  "✅ Fixed Library Topics + Movie/Series Command Center + A–Z Index fertig eingerichtet"
+);
 }
 
 // =============================
