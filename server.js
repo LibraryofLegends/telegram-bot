@@ -8552,6 +8552,32 @@ async function searchSeriesTMDB(title, season, episode) {
       `/tv/${best.id}/season/${season}/episode/${episode}`
     );
     
+    let seasonImages = null;
+
+try {
+  seasonImages =
+    await tmdbGet(
+      `/tv/${best.id}/season/${season}/images`,
+      {
+        include_image_language: "de,en,null"
+      }
+    );
+} catch (err) {
+  console.error(
+    "⚠️ Season Images Fehler:",
+    err.message
+  );
+}
+
+const seasonPosterPath =
+  seasonDetails?.poster_path ||
+  seasonImages?.posters?.find((p) => p.iso_639_1 === "de")?.file_path ||
+  seasonImages?.posters?.find((p) => p.iso_639_1 === null)?.file_path ||
+  seasonImages?.posters?.find((p) => p.iso_639_1 === "en")?.file_path ||
+  seasonImages?.posters?.[0]?.file_path ||
+  details.poster_path ||
+  "";
+    
     let watchProviders = null;
 
 try {
@@ -8775,15 +8801,12 @@ overview:
   "Keine Beschreibung verfügbar.",
 
     seasonPosterUrl:
-  posterUrl(
-    seasonDetails?.poster_path ||
-    details.poster_path
-  ),
+  posterUrl(seasonPosterPath),
 
 posterUrl:
   posterUrl(
     episodeDetails?.still_path ||
-    seasonDetails?.poster_path ||
+    seasonPosterPath ||
     details.poster_path
   ),
 
@@ -24851,6 +24874,57 @@ async function getSavedSeriesEpisodeTotal(seriesTitle = "") {
   ).length;
 }
 
+// =============================
+// SAVED EPISODES PER SERIES SEASON
+// =============================
+async function getSavedSeriesSeasonEpisodeTotal(seriesTitle, season) {
+  const targetKey =
+    typeof makeKey === "function"
+      ? makeKey(seriesTitle)
+      : String(seriesTitle || "").toLowerCase().trim();
+
+  const seasonNumber =
+    Number(season || 1);
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT series_title
+      FROM series
+      WHERE season = $1
+      `,
+      [seasonNumber]
+    );
+
+    return result.rows.filter((row) => {
+      const rowKey =
+        typeof makeKey === "function"
+          ? makeKey(row.series_title)
+          : String(row.series_title || "").toLowerCase().trim();
+
+      return rowKey === targetKey;
+    }).length;
+  }
+
+  const rows = db.prepare(`
+    SELECT series_title
+    FROM series
+    WHERE season = ?
+  `).all(seasonNumber);
+
+  return rows.filter((row) => {
+    const rowKey =
+      typeof makeKey === "function"
+        ? makeKey(row.series_title)
+        : String(row.series_title || "").toLowerCase().trim();
+
+    return rowKey === targetKey;
+  }).length;
+}
+
+// =============================
+// SERIES / SEASON INTRO CARD — ONE PER SEASON
+// =============================
 async function createSeriesIntroIfFirstEpisode({
   tmdb,
   media,
@@ -24859,66 +24933,87 @@ async function createSeriesIntroIfFirstEpisode({
 }) {
   const seriesTitle =
     tmdb.seriesTitle ||
+    tmdb.title ||
     media.seriesTitle ||
     "";
 
-  if (!seriesTitle || !topicId) {
-    return;
+  const season =
+    Number(
+      media.season ||
+      tmdb.seasonNumber ||
+      1
+    );
+
+  if (!seriesTitle || !season || !topicId) {
+    return null;
   }
 
-  const savedEpisodes =
-    await getSavedSeriesEpisodeTotal(seriesTitle);
-
-  if (savedEpisodes > 0) {
-    console.log("ℹ️ Serien-Intro existiert bereits oder Serie hat Episoden:", {
+  const savedSeasonEpisodes =
+    await getSavedSeriesSeasonEpisodeTotal(
       seriesTitle,
-      savedEpisodes
-    });
+      season
+    );
 
-    return;
+  if (savedSeasonEpisodes > 0) {
+    console.log(
+      "ℹ️ Staffel-Intro existiert bereits oder Staffel enthält Episoden:",
+      {
+        seriesTitle,
+        season,
+        savedSeasonEpisodes
+      }
+    );
+
+    return null;
   }
+
+  const caption =
+    buildSeriesIntroCaption(
+      tmdb,
+      {
+        ...media,
+        season
+      },
+      topicName
+    );
 
   const poster =
-  tmdb.seasonPosterUrl ||
-  tmdb.seriesPosterUrl ||
-  tmdb.posterUrl ||
-  tmdb.backdropUrl ||
-  null;
+    tmdb.seasonPosterUrl ||
+    tmdb.seriesPosterUrl ||
+    tmdb.posterUrl ||
+    tmdb.backdropUrl ||
+    null;
+
+  let sent = null;
 
   if (poster) {
-    try {
+    sent =
       await tg("sendPhoto", {
         chat_id: SERIES_GROUP_ID,
         message_thread_id: Number(topicId),
         photo: poster,
-        caption: buildSeriesIntroCaption(
-          tmdb,
-          media,
-          topicName
-        )
+        caption
       });
-
-      console.log("✅ Serien-Intro mit Poster gepostet:", seriesTitle);
-      return;
-    } catch (err) {
-      console.error(
-        "⚠️ Serien-Intro Poster Fehler:",
-        err.message
-      );
-    }
+  } else {
+    sent =
+      await tg("sendMessage", {
+        chat_id: SERIES_GROUP_ID,
+        message_thread_id: Number(topicId),
+        text: caption
+      });
   }
 
-  await tg("sendMessage", {
-    chat_id: SERIES_GROUP_ID,
-    message_thread_id: Number(topicId),
-    text: buildSeriesIntroCaption(
-      tmdb,
-      media,
-      topicName
-    )
-  });
+  console.log(
+    "✅ Staffel-Intro erstellt:",
+    {
+      seriesTitle,
+      season,
+      messageId: sent?.message_id || null,
+      poster: poster || "kein Poster"
+    }
+  );
 
-  console.log("✅ Serien-Intro ohne Poster gepostet:", seriesTitle);
+  return sent;
 }
 
 // =============================
