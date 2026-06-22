@@ -1410,72 +1410,60 @@ async function saveSeriesLibrary(data) {
   return result.lastInsertRowid;
 }
 
+// =============================
+// SAVE SERIES TOPIC — LIBRARY V3 COMPATIBILITY
+// Alte Einzel-Serien-Topics werden nicht mehr gespeichert.
+// Serien landen jetzt in festen Archiv-Kategorien.
+// Diese Funktion bleibt nur bestehen, damit alte Aufrufe nicht crashen.
+// =============================
 async function saveSeriesTopic(seriesName, topicId) {
-  if (pgPool) {
-    return await pgPool.query(
-      `
-      INSERT INTO series_topics
-      (
-        series_name,
-        topic_id,
-        topic_title
-      )
-      VALUES ($1, $2, $3)
-      ON CONFLICT (series_name)
-      DO UPDATE SET
-        topic_id = EXCLUDED.topic_id,
-        topic_title = EXCLUDED.topic_title
-      `,
-      [
-        seriesName,
-        topicId,
-        seriesName
-      ]
-    );
-  }
-
-  return db.prepare(`
-    INSERT INTO series_topics
-    (
-      series_name,
-      topic_id,
-      topic_title
-    )
-    VALUES (?, ?, ?)
-    ON CONFLICT(series_name)
-    DO UPDATE SET
-      topic_id = excluded.topic_id,
-      topic_title = excluded.topic_title
-  `).run(
+  console.log("ℹ️ saveSeriesTopic übersprungen — Library V3 nutzt feste Serien-Kategorien:", {
     seriesName,
-    topicId,
-    seriesName
-  );
+    topicId
+  });
+
+  return {
+    skipped: true,
+    reason: "Library V3 uses fixed series categories",
+    seriesName,
+    topicId
+  };
 }
 
-async function getSeriesTopic(seriesName) {
-  if (pgPool) {
-    const result = await pgPool.query(
-      `
-      SELECT topic_id
-      FROM series_topics
-      WHERE series_name = $1
-      LIMIT 1
-      `,
-      [seriesName]
-    );
+// =============================
+// SERIES TOPIC COMPATIBILITY — LIBRARY V3
+// Alte Einzel-Serien-Topics werden nicht mehr benutzt.
+// Serien landen jetzt in festen Archiv-Kategorien.
+// =============================
+async function getSeriesTopic(seriesName, tmdb = {}, media = {}) {
+  const finalSeriesTopicName =
+    typeof getSmartSeriesTopic === "function"
+      ? getSmartSeriesTopic(
+          {
+            ...tmdb,
+            seriesTitle:
+              tmdb.seriesTitle ||
+              tmdb.title ||
+              seriesName
+          },
+          {
+            ...media,
+            seriesTitle:
+              media.seriesTitle ||
+              media.title ||
+              seriesName
+          }
+        )
+      : FIXED_LIBRARY_TOPICS.drama.name;
 
-    return result.rows[0]?.topic_id || null;
-  }
+  const topicId =
+    await createOrGetTopic({
+      chatId: SERIES_GROUP_ID,
+      name: finalSeriesTopicName,
+      type: "series_category"
+    });
 
-  const row = db.prepare(`
-    SELECT topic_id
-    FROM series_topics
-    WHERE series_name = ?
-    LIMIT 1
-  `).get(seriesName);
-
-  return row?.topic_id || null;
+  return topicId || null;
 }
 
 async function getMissingEpisodes(seriesTitle, season) {
@@ -14840,6 +14828,7 @@ if (text === "/start" || text === "/admin") {
 
       "🧠 𝐑𝐄𝐏𝐀𝐈𝐑 & 𝐑𝐄𝐂𝐎𝐕𝐄𝐑𝐘\n\n" +
       "• /rebuildcommandcenters\n" +
+      "• /setupgroups — feste Film- & Serien-Topics erstellen\n" +
       "• /cleartopicsdb\n" +
       "• /clearmoviesdb\n" +
       "• /resetpremiumtopic\n" +
@@ -23877,6 +23866,123 @@ async function processMovieUpload({ msg, media, tmdb }) {
 }
 
 // =============================
+// SMART SERIES TOPIC ROUTING V3
+// =============================
+function getSmartSeriesTopic(tmdb = {}, media = {}) {
+  const title =
+    String(
+      tmdb.seriesTitle ||
+      tmdb.title ||
+      media.seriesTitle ||
+      media.title ||
+      ""
+    )
+      .toLowerCase();
+
+  const genre =
+    String(
+      tmdb.genre ||
+      tmdb.mainGenre ||
+      media.genre ||
+      ""
+    )
+      .toLowerCase();
+
+  const universe =
+    String(
+      tmdb.universe ||
+      tmdb.universeName ||
+      media.universe ||
+      ""
+    )
+      .toLowerCase();
+
+  const text =
+    `${title} ${genre} ${universe}`;
+
+  const rawYear =
+    tmdb.firstAirDate ||
+    tmdb.first_air_date ||
+    tmdb.year ||
+    media.year ||
+    "";
+
+  const yearMatch =
+    String(rawYear).match(/\d{4}/);
+
+  const year =
+    yearMatch
+      ? Number(yearMatch[0])
+      : 0;
+
+  if (year > 0 && year < 2000) {
+    return FIXED_LIBRARY_TOPICS.classic.name;
+  }
+
+  if (
+    text.includes("horror") ||
+    text.includes("mystery") ||
+    text.includes("psycho") ||
+    text.includes("slasher") ||
+    text.includes("paranormal") ||
+    text.includes("okkult") ||
+    text.includes("dämon") ||
+    text.includes("daemon") ||
+    text.includes("geister") ||
+    text.includes("spuk") ||
+    text.includes("düster") ||
+    text.includes("duester")
+  ) {
+    return FIXED_LIBRARY_TOPICS.horror.name;
+  }
+
+  if (
+    text.includes("action") ||
+    text.includes("thriller") ||
+    text.includes("krimi") ||
+    text.includes("crime") ||
+    text.includes("science fiction") ||
+    text.includes("sci-fi") ||
+    text.includes("scifi") ||
+    text.includes("fantasy") ||
+    text.includes("abenteuer") ||
+    text.includes("adventure") ||
+    text.includes("superheld") ||
+    text.includes("superhero") ||
+    text.includes("marvel") ||
+    text.includes("dc") ||
+    text.includes("star wars") ||
+    text.includes("star trek") ||
+    text.includes("mission impossible") ||
+    text.includes("jurassic")
+  ) {
+    return FIXED_LIBRARY_TOPICS.action.name;
+  }
+
+  if (
+    text.includes("komödie") ||
+    text.includes("komoedie") ||
+    text.includes("comedy") ||
+    text.includes("sitcom") ||
+    text.includes("drama") ||
+    text.includes("romantik") ||
+    text.includes("romance") ||
+    text.includes("liebe") ||
+    text.includes("familie") ||
+    text.includes("family") ||
+    text.includes("animation") ||
+    text.includes("anime") ||
+    text.includes("kids") ||
+    text.includes("kinder") ||
+    text.includes("zeichentrick")
+  ) {
+    return FIXED_LIBRARY_TOPICS.drama.name;
+  }
+
+  return FIXED_LIBRARY_TOPICS.drama.name;
+}
+
+// =============================
 // UPLOAD HANDLER
 // =============================
 async function handleUpload(msg) {
@@ -23902,16 +24008,15 @@ async function handleUpload(msg) {
     `${fileName}-${fileId}`;
 
   if (ACTIVE_UPLOADS.has(uploadKey)) {
+  console.log(
+    "⚠️ Doppelter Upload blockiert:",
+    fileName
+  );
 
-    console.log(
-      "⚠️ Doppelter Upload blockiert:",
-      fileName
-    );
+  return;
+}
 
-    return;
-  }
-
-  ACTIVE_UPLOADS.add(uploadKey);
+ACTIVE_UPLOADS.set(uploadKey, Date.now());
 
   try {
 
@@ -23930,7 +24035,21 @@ const media =
   manualSeries ||
   parseMedia(fileName);
 
-  console.log("🧠 Parsed:", media);
+console.log("🧠 Parsed:", media);
+
+if (!media || !media.type) {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "❌ Datei konnte nicht erkannt werden.\n\n" +
+      `📁 ${fileName}\n\n` +
+      "Erwartet wird z.B.:\n" +
+      "🎬 Film.Name.2024.mp4\n" +
+      "📺 Serie.Name.S01E01.mp4"
+  });
+
+  return;
+}
 
   if (media.type === "series") {
     const exists = await seriesExists(media.uniqueKey);
@@ -23971,46 +24090,40 @@ const tmdb = await searchSeriesTMDB(
       return;
     }
 
-    let topicId = await getSeriesTopic(tmdb.seriesTitle);
+    const finalSeriesTopicName =
+  typeof getSmartSeriesTopic === "function"
+    ? getSmartSeriesTopic(tmdb, media)
+    : FIXED_LIBRARY_TOPICS.drama.name;
 
-if (!topicId) {
-  topicId = await createOrGetTopic({
+const topicId =
+  await createOrGetTopic({
     chatId: SERIES_GROUP_ID,
-    name: tmdb.seriesTitle,
-    type: "series"
+    name: finalSeriesTopicName,
+    type: "series_category"
   });
 
-  if (topicId) {
-    await saveSeriesTopic(tmdb.seriesTitle, topicId);
-  }
+if (!topicId) {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "❌ Serien-Thema konnte nicht erstellt werden.\n\n" +
+      "Prüfe SERIES_GROUP_ID, Bot-Adminrechte und Forum-Themen."
+  });
+
+  return;
 }
-    
-    console.log("🧵 SERIES TOPIC ID:", topicId, tmdb.seriesTitle);
 
-    if (!topicId) {
-      await tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text:
-          "❌ Serien-Thema konnte nicht erstellt werden.\n\n" +
-          "Prüfe SERIES_GROUP_ID, Bot-Adminrechte und Forum-Themen."
-      });
-      return;
-    }
-
-    const extras = {
-  ...getMediaExtras(fileName, msg)
-};
-
-await createSeriesHubIfMissing({
-  tmdb,
-  topicId
-});
-
-await createSeasonCardIfMissing({
-  tmdb,
+console.log("🧵 SERIES CATEGORY TOPIC:", {
   topicId,
-  season: media.season
+  seriesTitle: tmdb.seriesTitle,
+  topicName: finalSeriesTopicName
 });
+
+const extras = {
+  ...getMediaExtras(fileName, msg),
+  fileName,
+  file_name: fileName
+};
 
 const captionText =
   await seriesCaption(
@@ -24030,15 +24143,17 @@ const copied = await copyOriginalMedia({
   adminChatId: msg.chat.id
 });
 
-    if (!copied?.message_id) {
-      await tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text: "⚠️ Serien-Karte wurde gepostet, aber Datei konnte nicht kopiert werden."
-      });
-      return;
-    }
-    
-    const seriesUniverseData =
+if (!copied?.message_id) {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "⚠️ Serien-Datei konnte nicht kopiert werden."
+  });
+
+  return;
+}
+
+const seriesUniverseData =
   detectUniverse(
     tmdb.seriesTitle,
     ""
@@ -24085,12 +24200,16 @@ for (const ep of episodesToSave) {
   const doubleEpisodeBaseTitle =
     media.episodeTitleFromFile ||
     tmdb.episodeTitle ||
-    "Der schnellste Mann der Welt";
+    "Episode";
 
   const finalEpisodeTitle =
     episodesToSave.length > 1
       ? `${doubleEpisodeBaseTitle} Teil ${episodeIndex}`
-      : (tmdb.episodeTitle || media.episodeTitleFromFile || "");
+      : (
+          tmdb.episodeTitle ||
+          media.episodeTitleFromFile ||
+          ""
+        );
 
   await saveSeries({
     seriesTitle: tmdb.seriesTitle || media.seriesTitle,
@@ -24121,103 +24240,70 @@ for (const ep of episodesToSave) {
   });
 }
 
+// =============================
+// MISSING EPISODES CHECK
+// Bleibt aktiv, weil es nur dem Admin meldet,
+// aber keine neuen Topics erstellt.
+// =============================
 try {
-  await createOrUpdateSingleSeriesHub(
-    tmdb.seriesTitle,
-    topicId
-  );
-} catch (err) {
-  console.error("⚠️ Single Series Hub Fehler:", err.message);
-}
+  if (typeof getMissingEpisodes === "function") {
+    const missingEpisodes = await getMissingEpisodes(
+      tmdb.seriesTitle,
+      media.season
+    );
 
-try {
-  const missingEpisodes = await getMissingEpisodes(
-    tmdb.seriesTitle,
-    media.season
-  );
-
-  if (missingEpisodes.length) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "⚠️ Fehlende Episoden erkannt:\n\n" +
-        `📺 ${tmdb.seriesTitle}\n` +
-        `📀 Staffel ${String(media.season).padStart(2, "0")}\n\n` +
-        "Fehlt:\n" +
-        missingEpisodes
-          .map(ep => `• S${String(media.season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`)
-          .join("\n")
-    });
+    if (missingEpisodes.length) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "⚠️ Fehlende Episoden erkannt:\n\n" +
+          `📺 ${tmdb.seriesTitle}\n` +
+          `📀 Staffel ${String(media.season).padStart(2, "0")}\n\n` +
+          "Fehlt:\n" +
+          missingEpisodes
+            .map(ep => `• S${String(media.season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`)
+            .join("\n")
+      });
+    }
   }
 } catch (err) {
-  console.error("⚠️ Missing Episodes Fehler:", err.message);
+  console.error(
+    "⚠️ Missing Episodes Fehler:",
+    err.message
+  );
 }
 
-try {
-  await updateSeasonCard({
-    tmdb,
-    topicId,
-    season: media.season
-  });
-} catch (err) {
-  console.error("⚠️ Staffelkarte Update Fehler:", err.message);
-}
-    
-    try {
-  await updateSeriesHub({
-    tmdb,
-    topicId
-  });
-} catch (err) {
-  console.error("⚠️ Hub Update Fehler:", err.message);
-}
-
-try {
-  await updateSeriesSmartTopics();
-} catch (err) {
-  console.error("⚠️ Series Smart Topics Fehler:", err.message);
-}
-
-try {
-  await createOrUpdateEpisodeList({
-    topicId,
-    seriesTitle: tmdb.seriesTitle
-  });
-} catch (err) {
-  console.error("⚠️ Episodenliste Update Fehler:", err.message);
-}
+// =============================
+// OLD SERIES HUBS DISABLED — LIBRARY V3
+// Serien landen jetzt in festen Kategorie-Topics.
+// Keine Einzelserien-Hubs, Staffel-Karten oder Episodenlisten mehr pro Upload.
+// =============================
+console.log(
+  "ℹ️ Serien-Hubs übersprungen — Library V3 nutzt feste Serien-Kategorien"
+);
 
 // Library V3:
 // Serien-Universe-Hubs sind deaktiviert,
 // damit Serien nicht versehentlich in der Movie-Gruppe landen.
 console.log("ℹ️ Serien Universe/Multiverse Hub übersprungen");
 
-/*
-if (starWarsEra) {
-  try {
-    await createOrUpdateStarWarsEraHubs();
-    await createOrUpdateStarWarsCommandCenter();
-  } catch (err) {
-    console.error(
-      "⚠️ Serien Star Wars Era/Command Center Fehler:",
-      err.message
-    );
-  }
-}
-*/
-
 await tg("sendMessage", {
   chat_id: msg.chat.id,
   text:
     "✅ Serie erfolgreich einsortiert:\n\n" +
     `📺 ${tmdb.seriesTitle} S${media.seasonText}E${media.episodeText}\n` +
-    `🧵 Thema: ${tmdb.seriesTitle}`
+    `🧵 Thema: ${finalSeriesTopicName}`
 });
 
 try {
-  await refreshMainCommandCentersOnly();
+  if (typeof refreshMainCommandCentersOnly === "function") {
+    await refreshMainCommandCentersOnly();
+  }
 } catch (err) {
-  console.error("⚠️ Main Command Center Refresh Fehler:", err.message);
+  console.error(
+    "⚠️ Main Command Center Refresh Fehler:",
+    err.message
+  );
 }
 
 logToDb(
