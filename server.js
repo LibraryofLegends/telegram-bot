@@ -23983,6 +23983,202 @@ function getSmartSeriesTopic(tmdb = {}, media = {}) {
 }
 
 // =============================
+// SERIES INTRO CARD — LIBRARY V3
+// Wird einmalig gepostet, wenn eine Serie neu startet.
+// =============================
+function buildSeriesIntroCaption(tmdb = {}, media = {}, topicName = "") {
+  const makeHashTag = (value = "") => {
+    const clean =
+      String(value || "")
+        .replace(/&/g, "Und")
+        .replace(/[^\p{L}\p{N}]+/gu, "")
+        .trim();
+
+    return clean ? `#${clean}` : "";
+  };
+
+  const title =
+    String(
+      tmdb.seriesTitle ||
+      tmdb.title ||
+      media.seriesTitle ||
+      "Unbekannte Serie"
+    )
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const titleUpper =
+    title.toUpperCase();
+
+  const seasonText =
+    String(media.season || 1).padStart(2, "0");
+
+  const episodeText =
+    String(media.episode || 1).padStart(2, "0");
+
+  const ratingNumber =
+    typeof llExtractRatingNumber === "function"
+      ? llExtractRatingNumber(
+          tmdb.rating ||
+          tmdb.vote_average ||
+          tmdb.voteAverage ||
+          ""
+        )
+      : extractRatingNumber(
+          tmdb.rating ||
+          tmdb.vote_average ||
+          tmdb.voteAverage ||
+          ""
+        );
+
+  const rating =
+    ratingNumber
+      ? `${Number(ratingNumber).toFixed(1)}/10`
+      : "folgt";
+
+  const genreTags =
+    String(tmdb.genre || "")
+      .split(/[\/•,]/)
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .map(makeHashTag)
+      .filter(Boolean)
+      .join(" ");
+
+  const seriesTag =
+    makeHashTag(title);
+
+  const overview =
+    trimTextAtSentence(
+      tmdb.overview ||
+      "Serienbeschreibung folgt.",
+      220
+    );
+
+  const resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `📺 ${escapeHtml(titleUpper)}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "📁 SERIES ARCHIVE\n" +
+    "PREMIUM EPISODE DATABASE\n" +
+    "🎞 SERIES ENTRY ACTIVE\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `⭐ Rating • ${escapeHtml(rating)}\n` +
+    `📀 Start • Staffel ${seasonText}\n` +
+    `🎬 Erste Episode • S${seasonText}E${episodeText}\n` +
+    `🧵 Bereich • ${escapeHtml(topicName || "Serienarchiv")}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "📖 DOSSIER\n" +
+    `${escapeHtml(overview)}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${genreTags ? `${genreTags}\n` : ""}` +
+    `${seriesTag}\n` +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(resultText).slice(0, 1800);
+}
+
+async function getSavedSeriesEpisodeTotal(seriesTitle = "") {
+  const targetKey =
+    makeKey(seriesTitle);
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT series_title
+      FROM series
+      `
+    );
+
+    return result.rows.filter((row) =>
+      makeKey(row.series_title) === targetKey
+    ).length;
+  }
+
+  const rows = db.prepare(`
+    SELECT series_title
+    FROM series
+  `).all();
+
+  return rows.filter((row) =>
+    makeKey(row.series_title) === targetKey
+  ).length;
+}
+
+async function createSeriesIntroIfFirstEpisode({
+  tmdb,
+  media,
+  topicId,
+  topicName
+}) {
+  const seriesTitle =
+    tmdb.seriesTitle ||
+    media.seriesTitle ||
+    "";
+
+  if (!seriesTitle || !topicId) {
+    return;
+  }
+
+  const savedEpisodes =
+    await getSavedSeriesEpisodeTotal(seriesTitle);
+
+  if (savedEpisodes > 0) {
+    console.log("ℹ️ Serien-Intro existiert bereits oder Serie hat Episoden:", {
+      seriesTitle,
+      savedEpisodes
+    });
+
+    return;
+  }
+
+  const poster =
+    tmdb.posterUrl ||
+    tmdb.backdropUrl ||
+    null;
+
+  if (poster) {
+    try {
+      await tg("sendPhoto", {
+        chat_id: SERIES_GROUP_ID,
+        message_thread_id: Number(topicId),
+        photo: poster,
+        caption: buildSeriesIntroCaption(
+          tmdb,
+          media,
+          topicName
+        )
+      });
+
+      console.log("✅ Serien-Intro mit Poster gepostet:", seriesTitle);
+      return;
+    } catch (err) {
+      console.error(
+        "⚠️ Serien-Intro Poster Fehler:",
+        err.message
+      );
+    }
+  }
+
+  await tg("sendMessage", {
+    chat_id: SERIES_GROUP_ID,
+    message_thread_id: Number(topicId),
+    text: buildSeriesIntroCaption(
+      tmdb,
+      media,
+      topicName
+    )
+  });
+
+  console.log("✅ Serien-Intro ohne Poster gepostet:", seriesTitle);
+}
+
+// =============================
 // UPLOAD HANDLER
 // =============================
 async function handleUpload(msg) {
@@ -24116,6 +24312,13 @@ if (!topicId) {
 console.log("🧵 SERIES CATEGORY TOPIC:", {
   topicId,
   seriesTitle: tmdb.seriesTitle,
+  topicName: finalSeriesTopicName
+});
+
+await createSeriesIntroIfFirstEpisode({
+  tmdb,
+  media,
+  topicId,
   topicName: finalSeriesTopicName
 });
 
