@@ -23983,7 +23983,7 @@ function getSmartSeriesTopic(tmdb = {}, media = {}) {
 }
 
 // =============================
-// SERIES INTRO CARD — LIBRARY V3
+// SERIES INTRO CARD — LIBRARY V3 PREMIUM
 // Wird einmalig gepostet, wenn eine Serie neu startet.
 // =============================
 function buildSeriesIntroCaption(tmdb = {}, media = {}, topicName = "") {
@@ -24016,6 +24016,15 @@ function buildSeriesIntroCaption(tmdb = {}, media = {}, topicName = "") {
   const episodeText =
     String(media.episode || 1).padStart(2, "0");
 
+  const episodeTitle =
+    String(
+      tmdb.episodeTitle ||
+      media.episodeTitleFromFile ||
+      ""
+    )
+      .replace(/\s+/g, " ")
+      .trim();
+
   const ratingNumber =
     typeof llExtractRatingNumber === "function"
       ? llExtractRatingNumber(
@@ -24036,6 +24045,48 @@ function buildSeriesIntroCaption(tmdb = {}, media = {}, topicName = "") {
       ? `${Number(ratingNumber).toFixed(1)}/10`
       : "folgt";
 
+  const totalSeasons =
+    Number(tmdb.totalSeasons || tmdb.total_seasons || 0);
+
+  const statusText =
+    totalSeasons > 1
+      ? `Staffel 1–${totalSeasons} verfügbar${tmdb.status ? ` · ${tmdb.status}` : ""}`
+      : `Staffel ${Number(media.season || 1)} verfügbar${tmdb.status ? ` · ${tmdb.status}` : ""}`;
+
+  const genreText =
+    String(tmdb.genre || "")
+      .split(/[\/•,]/)
+      .map((g) => g.trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(", ");
+
+  const genreLine =
+    genreText
+      ? `${topicName || "Serienarchiv"} · ${genreText}`
+      : (topicName || "Serienarchiv");
+
+  const overview =
+    trimTextAtSentence(
+      tmdb.overview ||
+      "Serienbeschreibung folgt.",
+      360
+    );
+
+  const streamText =
+    tmdb.network ||
+    tmdb.networks ||
+    tmdb.provider ||
+    tmdb.streamingProvider ||
+    "folgt";
+
+  const mainActor =
+    String(tmdb.cast || "")
+      .split("•")
+      .map((p) => p.trim())
+      .filter(Boolean)[0] ||
+    "folgt";
+
   const genreTags =
     String(tmdb.genre || "")
       .split(/[\/•,]/)
@@ -24046,39 +24097,39 @@ function buildSeriesIntroCaption(tmdb = {}, media = {}, topicName = "") {
       .filter(Boolean)
       .join(" ");
 
+  const castTag =
+    mainActor !== "folgt"
+      ? makeHashTag(mainActor)
+      : "";
+
   const seriesTag =
     makeHashTag(title);
 
-  const overview =
-    trimTextAtSentence(
-      tmdb.overview ||
-      "Serienbeschreibung folgt.",
-      220
-    );
+  const episodeStart =
+    episodeTitle
+      ? `S${seasonText}E${episodeText} - "${episodeTitle}"`
+      : `S${seasonText}E${episodeText}`;
 
   const resultText =
     "━━━━━━━━━━━━━━━━━━\n" +
     `📺 ${escapeHtml(titleUpper)}\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-
-    "📁 SERIES ARCHIVE\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "📁 SERIEN-ARCHIV\n" +
     "PREMIUM EPISODE DATABASE\n" +
-    "🎞 SERIES ENTRY ACTIVE\n\n" +
-
+    "🎞 EINTRAG AKTIV\n" +
     "━━━━━━━━━━━━━━━━━━\n" +
-    `⭐ Rating • ${escapeHtml(rating)}\n` +
-    `📀 Start • Staffel ${seasonText}\n` +
-    `🎬 Erste Episode • S${seasonText}E${episodeText}\n` +
-    `🧵 Bereich • ${escapeHtml(topicName || "Serienarchiv")}\n` +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-
+    `⭐ Rating: ${escapeHtml(rating)}\n` +
+    `📀 Status: ${escapeHtml(statusText)}\n` +
+    `🎬 Start: ${escapeHtml(episodeStart)}\n` +
+    `🧵 Genre: ${escapeHtml(genreLine)}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
     "📖 DOSSIER\n" +
-    `${escapeHtml(overview)}\n\n` +
-
+    `${escapeHtml(overview)}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
-    `${genreTags ? `${genreTags}\n` : ""}` +
-    `${seriesTag}\n` +
-    "@LibraryOfLegends";
+    `🍿 Stream: ${escapeHtml(streamText)}\n` +
+    `👤 Hauptrolle: ${escapeHtml(mainActor)}\n` +
+    `${genreTags ? `${genreTags} ` : ""}${seriesTag}${castTag ? ` ${castTag}` : ""}\n` +
+    "👉 @LibraryOfLegends";
 
   return cleanTelegramText(resultText).slice(0, 1800);
 }
