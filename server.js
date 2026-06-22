@@ -24002,12 +24002,12 @@ async function handleUpload(msg) {
   console.log("📁 Datei:", fileName);
 
   // =============================
-  // DUPLICATE SHIELD
-  // =============================
-  const uploadKey =
-    `${fileName}-${fileId}`;
+// DUPLICATE SHIELD
+// =============================
+const uploadKey =
+  `${fileName}-${fileId}`;
 
-  if (ACTIVE_UPLOADS.has(uploadKey)) {
+if (ACTIVE_UPLOADS.has(uploadKey)) {
   console.log(
     "⚠️ Doppelter Upload blockiert:",
     fileName
@@ -24016,9 +24016,9 @@ async function handleUpload(msg) {
   return;
 }
 
-ACTIVE_UPLOADS.set(uploadKey, Date.now());
+ACTIVE_UPLOADS.add(uploadKey);
 
-  try {
+try {
 
   const manualMovie =
   parseManualMovieCaption(
