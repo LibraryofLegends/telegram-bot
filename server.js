@@ -15430,7 +15430,7 @@ if (text === "/start" || text === "/admin") {
       "• /chatid — aktuelle Chat-ID anzeigen\n" +
 
       "🧠 𝐑𝐄𝐏𝐀𝐈𝐑 & 𝐑𝐄𝐂𝐎𝐕𝐄𝐑𝐘\n\n" +
-      "• /rebuildcommandcenters\n" +
+      "• /rebuildcommandcenters — Dashboards aktualisieren\n" +
       "• /setupgroups — feste Film- & Serien-Topics erstellen\n" +
       "• /cleartopicsdb\n" +
       "• /clearmoviesdb\n" +
