@@ -13547,6 +13547,74 @@ async function seriesAzIndexCaptionV3() {
   return cleanTelegramText(text).slice(0, 4000);
 }
 
+// =============================
+// UPDATE FIXED TOPIC HUB MESSAGE
+// nutzt das bestehende feste Topic statt ein neues Topic zu erstellen
+// =============================
+async function createOrUpdateFixedTopicHub({
+  chatId,
+  topic,
+  type,
+  caption
+}) {
+  if (!chatId || !topic?.name || !type || !caption) {
+    return null;
+  }
+
+  const topicId =
+    await createOrGetTopic({
+      chatId,
+      name: topic.name,
+      type
+    });
+
+  if (!topicId) {
+    return null;
+  }
+
+  const uniqueKey =
+    makeKey(`${type}-${chatId}-${topic.name}`);
+
+  const row =
+    await getTopicByUniqueKeyAsync(uniqueKey);
+
+  if (row?.hub_message_id) {
+    try {
+      await tg("editMessageText", {
+        chat_id: chatId,
+        message_id: Number(row.hub_message_id),
+        text: caption
+      });
+
+      return row.hub_message_id;
+    } catch (err) {
+      console.error(
+        "⚠️ Fixed Topic Hub Update Fehler:",
+        topic.name,
+        err.message
+      );
+    }
+  }
+
+  const sent =
+    await tg("sendMessage", {
+      chat_id: chatId,
+      message_thread_id: Number(topicId),
+      text: caption
+    });
+
+  if (sent?.message_id) {
+    await saveTopicHubMessageIdByKey(
+      uniqueKey,
+      sent.message_id
+    );
+
+    return sent.message_id;
+  }
+
+  return null;
+}
+
 async function ensureCommandCenters() {
   console.log(
     "🏛 Fixed Library Topics + Command Center + A–Z werden geprüft..."
@@ -13587,16 +13655,17 @@ try {
 }
 
 // =============================
-// MOVIE A–Z INDEX IN START & SUCHE
+// MOVIE A–Z INDEX IN FESTEM START & SUCHE TOPIC
 // =============================
 try {
   if (
-    typeof createOrUpdateCommandCenter === "function" &&
+    typeof createOrUpdateFixedTopicHub === "function" &&
     typeof movieAzIndexCaptionV3 === "function"
   ) {
-    await createOrUpdateCommandCenter({
+    await createOrUpdateFixedTopicHub({
       chatId: MOVIE_GROUP_ID,
-      topicName: "📌 Start & Suche",
+      topic: FIXED_LIBRARY_TOPICS.start,
+      type: FIXED_LIBRARY_TOPICS.start.movieType,
       caption: await movieAzIndexCaptionV3()
     });
   }
@@ -13635,16 +13704,17 @@ try {
 }
 
 // =============================
-// SERIES A–Z INDEX IN START & SUCHE
+// SERIES A–Z INDEX IN FESTEM START & SUCHE TOPIC
 // =============================
 try {
   if (
-    typeof createOrUpdateCommandCenter === "function" &&
+    typeof createOrUpdateFixedTopicHub === "function" &&
     typeof seriesAzIndexCaptionV3 === "function"
   ) {
-    await createOrUpdateCommandCenter({
+    await createOrUpdateFixedTopicHub({
       chatId: SERIES_GROUP_ID,
-      topicName: "📌 Start & Suche",
+      topic: FIXED_LIBRARY_TOPICS.start,
+      type: FIXED_LIBRARY_TOPICS.start.seriesType,
       caption: await seriesAzIndexCaptionV3()
     });
   }
