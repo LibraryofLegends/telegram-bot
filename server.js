@@ -24045,26 +24045,25 @@ function buildSeriesIntroCaption(tmdb = {}, media = {}, topicName = "") {
       ? `${Number(ratingNumber).toFixed(1)}/10`
       : "folgt";
 
-  const totalSeasons =
-    Number(tmdb.totalSeasons || tmdb.total_seasons || 0);
-
   const rawStatus =
   String(tmdb.status || "")
     .toLowerCase();
 
 const statusGerman =
   rawStatus.includes("returning")
-    ? "laufend"
+    ? "Serie läuft"
     : rawStatus.includes("ended")
       ? "abgeschlossen"
       : rawStatus.includes("canceled") || rawStatus.includes("cancelled")
         ? "abgesetzt"
-        : tmdb.status || "";
+        : "";
+
+const currentSeason =
+  Number(media.season || 1);
 
 const statusText =
-  totalSeasons > 1
-    ? `Staffeln 1–${totalSeasons} verfügbar${statusGerman ? ` · ${statusGerman}` : ""}`
-    : `Staffel ${Number(media.season || 1)} verfügbar${statusGerman ? ` · ${statusGerman}` : ""}`;
+  `Start mit Staffel ${String(currentSeason).padStart(2, "0")}` +
+  (statusGerman ? ` · ${statusGerman}` : "");
 
   const genreText =
     String(tmdb.genre || "")
