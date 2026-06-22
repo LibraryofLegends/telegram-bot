@@ -10463,107 +10463,173 @@ function getSeriesNexusMeta(tmdb, media, extras = {}) {
 }
 
 // =============================
-// SERIES CAPTION — COMPACT EPISODE REGISTRY
+// SERIES EPISODE CAPTION — LIBRARY V3 COMPACT
 // =============================
-async function seriesCaption(tmdb, media, extras = {}) {
-  const rawSeriesTitle =
-    tmdb.seriesTitle ||
-    media.seriesTitle ||
-    "Unbekannte Serie";
+async function seriesCaption(tmdb = {}, media = {}, extras = {}) {
+  const makeHashTag = (value = "") => {
+    const clean =
+      String(value || "")
+        .replace(/&/g, "Und")
+        .replace(/[^\p{L}\p{N}]+/gu, "")
+        .trim();
 
-  const seriesTitle =
-    llShortSeriesTitle(rawSeriesTitle);
+    return clean ? `#${clean}` : "";
+  };
 
-  const seasonNumber =
-    media.season ||
-    tmdb.seasonNumber ||
-    1;
+  const title =
+    String(
+      tmdb.seriesTitle ||
+      tmdb.title ||
+      media.seriesTitle ||
+      "Unbekannte Serie"
+    )
+      .replace(/\s+/g, " ")
+      .trim();
 
-  const episodeNumber =
-    media.episode ||
-    tmdb.episodeNumber ||
-    1;
-
-  const seasonText =
-    String(seasonNumber).padStart(2, "0");
-
-  const episodeText =
-    String(episodeNumber).padStart(2, "0");
-
-  const episodeEndText =
-    media.isDoubleEpisode && media.episodeEnd
-      ? String(media.episodeEnd).padStart(2, "0")
-      : null;
-
-  const episodeDisplay =
-    episodeEndText
-      ? `S${seasonText}E${episodeText}–E${episodeEndText}`
-      : `S${seasonText}E${episodeText}`;
-
-  const footerEpisode =
-    episodeEndText
-      ? `Episode ${Number(episodeNumber)}–${Number(media.episodeEnd)}`
-      : `Episode ${Number(episodeNumber)}`;
-
-  const finalEpisodeTitle =
-    tmdb.episodeTitle ||
-    media.episodeTitleFromFile ||
-    "Episode";
-
-  const rating =
-    llGetRealEpisodeRating(tmdb, media, extras);
-
-  const ratingText =
-    rating !== null
-      ? `${rating.toFixed(1)}/10`
-      : "Noch nicht bewertet";
-
-  const rawStory =
-    tmdb.episodeOverview ||
-    tmdb.overview ||
-    "Keine Beschreibung verfügbar.";
-
-  const story =
-    llCompactDossierText(rawStory, 220)
-      .replace(/\s+\/\s+/g, " ");
-
-  const fileSize =
-    llFormatCompactSize(
-      extras.fileSize ||
-      extras.fileSizeBytes ||
-      media.fileSize ||
-      media.size ||
-      ""
+  const season =
+    Number(
+      media.season ||
+      tmdb.seasonNumber ||
+      1
     );
 
-  const quality =
-    llFormatCompactQuality(media, extras);
+  const episode =
+    Number(
+      media.episode ||
+      tmdb.episodeNumber ||
+      1
+    );
 
-  const audioText =
-    llFormatCompactAudio(media, extras);
+  const seasonText =
+    String(season).padStart(2, "0");
+
+  const episodeText =
+    String(episode).padStart(2, "0");
+
+  const episodeCode =
+    `S${seasonText}E${episodeText}`;
+
+  const episodeTitle =
+    String(
+      tmdb.episodeTitle ||
+      media.episodeTitleFromFile ||
+      ""
+    )
+      .replace(/\s+\/\s+/g, " · ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const ratingNumber =
+    typeof llGetRealEpisodeRating === "function"
+      ? llGetRealEpisodeRating(tmdb, media, extras)
+      : typeof llExtractRatingNumber === "function"
+        ? llExtractRatingNumber(
+            tmdb.episodeRating ||
+            tmdb.rating ||
+            tmdb.vote_average ||
+            tmdb.voteAverage ||
+            ""
+          )
+        : extractRatingNumber(
+            tmdb.episodeRating ||
+            tmdb.rating ||
+            ""
+          );
+
+  const rating =
+    ratingNumber
+      ? `${Number(ratingNumber).toFixed(1)}/10`
+      : "folgt";
+
+  const quality =
+    extras.quality ||
+    tmdb.quality ||
+    "Unbekannt";
+
+  const fileSize =
+    typeof llFormatCompactSize === "function"
+      ? llFormatCompactSize(
+          extras.fileSize ||
+          extras.file_size ||
+          tmdb.fileSize ||
+          tmdb.file_size ||
+          ""
+        )
+      : (
+          extras.fileSize ||
+          extras.file_size ||
+          tmdb.fileSize ||
+          tmdb.file_size ||
+          ""
+        );
+
+  const fileName =
+    extras.fileName ||
+    extras.file_name ||
+    tmdb.fileName ||
+    tmdb.file_name ||
+    "";
+
+  const audio =
+    typeof llDetectAudioTextFromFileName === "function"
+      ? llDetectAudioTextFromFileName(
+          fileName,
+          extras.audio ||
+            extras.audioText ||
+            extras.language ||
+            extras.languages ||
+            tmdb.audio ||
+            tmdb.language ||
+            ""
+        )
+      : (
+          extras.audio ||
+          extras.audioText ||
+          tmdb.audio ||
+          "Unbekannt"
+        );
+
+  const mediaLine =
+    [
+      quality,
+      fileSize || "Unbekannt",
+      audio || "Unbekannt"
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+  const overview =
+    trimTextAtSentence(
+      tmdb.episodeOverview ||
+      tmdb.overview ||
+      extras.overview ||
+      "Keine Beschreibung verfügbar.",
+      220
+    );
 
   const seriesTag =
-    "#" + llMakeCompactHashTag(seriesTitle);
+    makeHashTag(title);
 
   const episodeTag =
-    "#" + episodeDisplay.replace(/[^A-Z0-9]/g, "");
+    makeHashTag(episodeCode);
 
-  const caption = [
-    `📺 ${escapeHtml(seriesTitle)}`,
-    `${escapeHtml(episodeDisplay)}`,
-    `${escapeHtml(finalEpisodeTitle)}`,
-    "",
-    `⭐ ${escapeHtml(ratingText)}`,
-    `📦 ${escapeHtml(quality)} · ${escapeHtml(fileSize)} · ${escapeHtml(audioText)}`,
-    "",
-    escapeHtml(story),
-    "",
-    `Staffel ${Number(seasonNumber)} · ${footerEpisode}`,
-    `${seriesTag} ${episodeTag}`,
-    "@LibraryOfLegends"
-  ].join("\n");
+  const resultText =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `📺 ${escapeHtml(title)}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${escapeHtml(episodeCode)}\n` +
+    `${episodeTitle ? `${escapeHtml(episodeTitle)}\n` : ""}` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `⭐ ${escapeHtml(rating)}\n` +
+    `📦 ${escapeHtml(mediaLine)}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${escapeHtml(overview)}\n` +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `Staffel ${season} · Episode ${episode}\n` +
+    `${seriesTag} ${episodeTag}\n` +
+    "@LibraryOfLegends";
 
-  return cleanTelegramText(caption).slice(0, 1024);
+  return cleanTelegramText(resultText).slice(0, 1000);
 }
 
 function llFormatEpisodeRank(tmdb = {}, media = {}, extras = {}) {
