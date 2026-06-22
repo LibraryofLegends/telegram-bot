@@ -8774,14 +8774,21 @@ overview:
   details.overview ||
   "Keine Beschreibung verfügbar.",
 
-    posterUrl:
-      posterUrl(
-        episodeDetails?.still_path ||
-        details.poster_path
-      ),
+    seasonPosterUrl:
+  posterUrl(
+    seasonDetails?.poster_path ||
+    details.poster_path
+  ),
 
-    seriesPosterUrl:
-      posterUrl(details.poster_path),
+posterUrl:
+  posterUrl(
+    episodeDetails?.still_path ||
+    seasonDetails?.poster_path ||
+    details.poster_path
+  ),
+
+seriesPosterUrl:
+  posterUrl(details.poster_path),
 
     backdropUrl:
       backdropUrl(
@@ -24347,9 +24354,11 @@ async function createSeriesIntroIfFirstEpisode({
   }
 
   const poster =
-    tmdb.posterUrl ||
-    tmdb.backdropUrl ||
-    null;
+  tmdb.seasonPosterUrl ||
+  tmdb.seriesPosterUrl ||
+  tmdb.posterUrl ||
+  tmdb.backdropUrl ||
+  null;
 
   if (poster) {
     try {
