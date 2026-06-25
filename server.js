@@ -13318,8 +13318,17 @@ async function movieAzIndexCaptionV3() {
   const groups = {};
 
   for (const movie of movies) {
+    const title =
+      String(movie.title || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (!title) {
+      continue;
+    }
+
     const first =
-      movie.title.charAt(0).toUpperCase();
+      title.charAt(0).toUpperCase();
 
     const letter =
       /[A-ZÄÖÜ]/i.test(first)
@@ -13330,7 +13339,7 @@ async function movieAzIndexCaptionV3() {
       groups[letter] = [];
     }
 
-    groups[letter].push(movie.label);
+    groups[letter].push(title);
   }
 
   const letters =
@@ -13344,13 +13353,13 @@ async function movieAzIndexCaptionV3() {
   let body = "";
 
   for (const letter of letters) {
-    body += `${letter}\n`;
+    const titles =
+      groups[letter]
+        .filter(Boolean)
+        .filter((title, index, arr) => arr.indexOf(title) === index)
+        .join(" · ");
 
-    for (const movie of groups[letter]) {
-      body += `• ${movie}\n`;
-    }
-
-    body += "\n";
+    body += `${letter}\n${titles}\n\n`;
   }
 
   if (!body.trim()) {
@@ -13365,14 +13374,14 @@ async function movieAzIndexCaptionV3() {
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
     "🎬 FILME A–Z\n" +
-    "Einfaches Inhaltsverzeichnis aller gespeicherten Filme.\n\n" +
+    "Schlankes Inhaltsverzeichnis aller gespeicherten Filme.\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     body +
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends";
 
-  return cleanTelegramText(text).slice(0, 4000);
+  return cleanTelegramText(text).slice(0, 3900);
 }
 
 // =============================
