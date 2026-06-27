@@ -19,7 +19,8 @@ function isAdmin(userId) {
 }
 
 async function upsertPendingUser(pgPool, user) {
-  const query = `
+  const result = await pgPool.query(
+    `
     INSERT INTO bot_users (
       telegram_user_id,
       username,
@@ -28,26 +29,55 @@ async function upsertPendingUser(pgPool, user) {
       status,
       role,
       search_enabled,
-      download_enabled
+      download_enabled,
+      requested_at,
+      updated_at
     )
-    VALUES ($1, $2, $3, $4, 'pending', 'member', FALSE, FALSE)
+    VALUES (
+      $1,
+      $2,
+      $3,
+      $4,
+      'pending',
+      'member',
+      FALSE,
+      FALSE,
+      NOW(),
+      NOW()
+    )
     ON CONFLICT (telegram_user_id)
     DO UPDATE SET
       username = EXCLUDED.username,
       first_name = EXCLUDED.first_name,
       last_name = EXCLUDED.last_name,
+      status = CASE
+        WHEN bot_users.status = 'approved' THEN 'approved'
+        WHEN bot_users.status = 'blocked' THEN 'blocked'
+        ELSE 'pending'
+      END,
+      search_enabled = CASE
+        WHEN bot_users.status = 'approved' THEN bot_users.search_enabled
+        ELSE FALSE
+      END,
+      download_enabled = CASE
+        WHEN bot_users.status = 'approved' THEN bot_users.download_enabled
+        ELSE FALSE
+      END,
+      requested_at = CASE
+        WHEN bot_users.status = 'approved' THEN bot_users.requested_at
+        ELSE NOW()
+      END,
       updated_at = NOW()
     RETURNING *;
-  `;
+    `,
+    [
+      user.id,
+      user.username || null,
+      user.first_name || null,
+      user.last_name || null
+    ]
+  );
 
-  const values = [
-    user.id,
-    user.username || null,
-    user.first_name || null,
-    user.last_name || null,
-  ];
-
-  const result = await pgPool.query(query, values);
   return result.rows[0];
 }
 
