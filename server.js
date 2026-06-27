@@ -24930,13 +24930,25 @@ async function processMovieUpload({ msg, media, tmdb }) {
         newFileName: fileName,
         newExtras: mediaExtras
       });
+      
+          const displayTitle =
+      existingMovie?.title ||
+      tmdb?.title ||
+      media.title ||
+      "Unbekannter Film";
+
+    const displayYear =
+      existingMovie?.year ||
+      tmdb?.year ||
+      media.year ||
+      "";
 
     if (!qualityCheck.isUpgrade) {
       await tg("sendMessage", {
         chat_id: msg.chat.id,
         text:
           "⚠️ Film ist bereits gespeichert:\n\n" +
-          `🎬 ${media.title} ${media.year || ""}\n\n` +
+          `🎬 ${displayTitle}${displayYear ? ` (${displayYear})` : ""}\n\n` +
           `📦 Archiv-Version: ${qualityCheck.oldLabel}\n` +
           `📥 Neuer Upload: ${qualityCheck.newLabel}\n\n` +
           "❌ Kein Qualitätsupgrade erkannt."
@@ -24954,7 +24966,7 @@ async function processMovieUpload({ msg, media, tmdb }) {
       chat_id: msg.chat.id,
       text:
         "♻️ Qualitätsupgrade erkannt:\n\n" +
-        `🎬 ${media.title} ${media.year || ""}\n\n` +
+        `🎬 ${displayTitle}${displayYear ? ` (${displayYear})` : ""}\n\n` +
         `📦 Archiv-Version: ${qualityCheck.oldLabel}\n` +
         `📥 Neuer Upload: ${qualityCheck.newLabel}\n\n` +
         "✅ Neue Version wird verarbeitet."
