@@ -13376,36 +13376,316 @@ async function getMovieTitlesForAzV3() {
     );
 }
 
-async function movieAzIndexCaptionV3() {
-  const movies =
-    await getMovieTitlesForAzV3();
+// =============================
+// A–Z PAGED INDEX STORAGE V3
+// speichert Message-IDs der einzelnen A–Z-Seiten
+// =============================
+async function ensureAzIndexPagesTableV3() {
+  if (pgPool) {
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS az_index_pages (
+        id SERIAL PRIMARY KEY,
+        index_key TEXT UNIQUE NOT NULL,
+        index_type TEXT NOT NULL,
+        chat_id TEXT NOT NULL,
+        topic_id INTEGER NOT NULL,
+        letter TEXT NOT NULL,
+        page INTEGER NOT NULL,
+        message_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
 
+    return;
+  }
+
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS az_index_pages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      index_key TEXT UNIQUE NOT NULL,
+      index_type TEXT NOT NULL,
+      chat_id TEXT NOT NULL,
+      topic_id INTEGER NOT NULL,
+      letter TEXT NOT NULL,
+      page INTEGER NOT NULL,
+      message_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+}
+
+async function getAzIndexPageV3(indexKey) {
+  await ensureAzIndexPagesTableV3();
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM az_index_pages
+      WHERE index_key = $1
+      LIMIT 1
+      `,
+      [indexKey]
+    );
+
+    return result.rows[0] || null;
+  }
+
+  return db.prepare(`
+    SELECT *
+    FROM az_index_pages
+    WHERE index_key = ?
+    LIMIT 1
+  `).get(indexKey);
+}
+
+async function getAzIndexPagesByTypeV3({
+  chatId,
+  indexType
+}) {
+  await ensureAzIndexPagesTableV3();
+
+  if (pgPool) {
+    const result = await pgPool.query(
+      `
+      SELECT *
+      FROM az_index_pages
+      WHERE chat_id = $1
+      AND index_type = $2
+      `,
+      [
+        String(chatId),
+        indexType
+      ]
+    );
+
+    return result.rows || [];
+  }
+
+  return db.prepare(`
+    SELECT *
+    FROM az_index_pages
+    WHERE chat_id = ?
+    AND index_type = ?
+  `).all(
+    String(chatId),
+    indexType
+  );
+}
+
+async function saveAzIndexPageV3({
+  indexKey,
+  indexType,
+  chatId,
+  topicId,
+  letter,
+  page,
+  messageId
+}) {
+  await ensureAzIndexPagesTableV3();
+
+  if (pgPool) {
+    await pgPool.query(
+      `
+      INSERT INTO az_index_pages
+      (index_key, index_type, chat_id, topic_id, letter, page, message_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (index_key)
+      DO UPDATE SET
+        index_type = EXCLUDED.index_type,
+        chat_id = EXCLUDED.chat_id,
+        topic_id = EXCLUDED.topic_id,
+        letter = EXCLUDED.letter,
+        page = EXCLUDED.page,
+        message_id = EXCLUDED.message_id
+      `,
+      [
+        indexKey,
+        indexType,
+        String(chatId),
+        Number(topicId),
+        String(letter),
+        Number(page),
+        Number(messageId)
+      ]
+    );
+
+    return;
+  }
+
+  db.prepare(`
+    INSERT INTO az_index_pages
+    (index_key, index_type, chat_id, topic_id, letter, page, message_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(index_key)
+    DO UPDATE SET
+      index_type = excluded.index_type,
+      chat_id = excluded.chat_id,
+      topic_id = excluded.topic_id,
+      letter = excluded.letter,
+      page = excluded.page,
+      message_id = excluded.message_id
+  `).run(
+    indexKey,
+    indexType,
+    String(chatId),
+    Number(topicId),
+    String(letter),
+    Number(page),
+    Number(messageId)
+  );
+}
+
+async function deleteAzIndexPageV3(indexKey) {
+  await ensureAzIndexPagesTableV3();
+
+  if (pgPool) {
+    await pgPool.query(
+      `
+      DELETE FROM az_index_pages
+      WHERE index_key = $1
+      `,
+      [indexKey]
+    );
+
+    return;
+  }
+
+  db.prepare(`
+    DELETE FROM az_index_pages
+    WHERE index_key = ?
+  `).run(indexKey);
+}
+
+// =============================
+// PAGED A–Z INDEX BUILDER V3
+// erstellt pro Buchstabe mehrere Telegram-Seiten
+// =============================
+function azLetterV3(title = "") {
+  const first =
+    String(title || "")
+      .trim()
+      .charAt(0)
+      .toUpperCase();
+
+  return /[A-ZÄÖÜ]/i.test(first)
+    ? first
+    : "#";
+}
+
+function groupAzItemsV3(items = []) {
   const groups = {};
 
-  for (const movie of movies) {
+  for (const item of items) {
     const title =
-      String(movie.title || "")
+      String(item.title || "")
         .replace(/\s+/g, " ")
         .trim();
 
-    if (!title) {
+    const line =
+      String(item.line || item.title || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (!title || !line) {
       continue;
     }
 
-    const first =
-      title.charAt(0).toUpperCase();
-
     const letter =
-      /[A-ZÄÖÜ]/i.test(first)
-        ? first
-        : "#";
+      azLetterV3(title);
 
     if (!groups[letter]) {
       groups[letter] = [];
     }
 
-    groups[letter].push(title);
+    if (!groups[letter].includes(line)) {
+      groups[letter].push(line);
+    }
   }
+
+  return groups;
+}
+
+function splitAzLinesIntoPagesV3(lines = [], maxChars = 3000) {
+  const pages = [];
+
+  let current = [];
+  let length = 0;
+
+  for (const line of lines) {
+    const addLength =
+      String(line || "").length + 1;
+
+    if (
+      current.length &&
+      length + addLength > maxChars
+    ) {
+      pages.push(current);
+      current = [];
+      length = 0;
+    }
+
+    current.push(line);
+    length += addLength;
+  }
+
+  if (current.length) {
+    pages.push(current);
+  }
+
+  return pages;
+}
+
+function buildAzPageTextV3({
+  heading,
+  letter,
+  page,
+  totalPages,
+  lines
+}) {
+  const text =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    `${heading}\n` +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `🔤 Buchstabe: ${letter}\n` +
+    `📄 Seite: ${page}/${totalPages}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    lines.join("\n") +
+    "\n━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(text).slice(0, 3900);
+}
+
+async function refreshPagedAzIndexV3({
+  chatId,
+  topic,
+  type,
+  indexType,
+  heading,
+  items
+}) {
+  if (!chatId || !topic?.name || !type || !indexType) {
+    return;
+  }
+
+  await ensureAzIndexPagesTableV3();
+
+  const topicId =
+    await createOrGetTopic({
+      chatId,
+      name: topic.name,
+      type
+    });
+
+  if (!topicId) {
+    return;
+  }
+
+  const groups =
+    groupAzItemsV3(items);
 
   const letters =
     Object.keys(groups)
@@ -13415,23 +13695,139 @@ async function movieAzIndexCaptionV3() {
         })
       );
 
-  let body = "";
+  const activeKeys =
+    new Set();
 
   for (const letter of letters) {
-    const titles =
+    const lines =
       groups[letter]
-        .filter(Boolean)
-        .filter((title, index, arr) => arr.indexOf(title) === index)
-        .join(" · ");
+        .sort((a, b) =>
+          a.localeCompare(b, "de", {
+            sensitivity: "base"
+          })
+        );
 
-    body += `${letter}\n${titles}\n\n`;
+    const pages =
+      splitAzLinesIntoPagesV3(lines, 3000);
+
+    for (let i = 0; i < pages.length; i++) {
+      const pageNumber =
+        i + 1;
+
+      const indexKey =
+        makeKey(
+          `${indexType}-${chatId}-${letter}-${pageNumber}`
+        );
+
+      activeKeys.add(indexKey);
+
+      const text =
+        buildAzPageTextV3({
+          heading,
+          letter,
+          page: pageNumber,
+          totalPages: pages.length,
+          lines: pages[i]
+        });
+
+      const existingPage =
+        await getAzIndexPageV3(indexKey);
+
+      if (existingPage?.message_id) {
+        try {
+          await tg("editMessageText", {
+            chat_id: chatId,
+            message_id: Number(existingPage.message_id),
+            text
+          });
+
+          continue;
+        } catch (err) {
+          const msg =
+            String(err.message || "").toLowerCase();
+
+          if (msg.includes("message is not modified")) {
+            continue;
+          }
+
+          console.error(
+            "⚠️ A–Z Seite konnte nicht editiert werden:",
+            indexKey,
+            err.message
+          );
+        }
+      }
+
+      const sent =
+        await tg("sendMessage", {
+          chat_id: chatId,
+          message_thread_id: Number(topicId),
+          text
+        });
+
+      if (sent?.message_id) {
+        await saveAzIndexPageV3({
+          indexKey,
+          indexType,
+          chatId,
+          topicId,
+          letter,
+          page: pageNumber,
+          messageId: sent.message_id
+        });
+
+        await sleep(400);
+      }
+    }
   }
 
-  if (!body.trim()) {
-    body =
-      "Noch keine Filme im Archiv.\n\n" +
-      "Sobald Filme gespeichert wurden, erscheint hier automatisch der A–Z Index.\n";
+  const oldPages =
+    await getAzIndexPagesByTypeV3({
+      chatId,
+      indexType
+    });
+
+  for (const oldPage of oldPages) {
+    if (activeKeys.has(oldPage.index_key)) {
+      continue;
+    }
+
+    try {
+      await tg("deleteMessage", {
+        chat_id: chatId,
+        message_id: Number(oldPage.message_id)
+      });
+    } catch (err) {
+      console.error(
+        "⚠️ Alte A–Z Seite konnte nicht gelöscht werden:",
+        oldPage.index_key,
+        err.message
+      );
+    }
+
+    await deleteAzIndexPageV3(oldPage.index_key);
   }
+}
+
+async function movieAzIndexCaptionV3() {
+  const movies =
+    await getMovieTitlesForAzV3();
+
+  const groups =
+    groupAzItemsV3(
+      movies.map((movie) => ({
+        title: movie.title,
+        line: `• ${movie.label || movie.title}`
+      }))
+    );
+
+  const letters =
+    Object.keys(groups)
+      .sort((a, b) =>
+        a.localeCompare(b, "de", {
+          sensitivity: "base"
+        })
+      );
 
   const text =
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -13439,10 +13835,15 @@ async function movieAzIndexCaptionV3() {
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
     "🎬 FILME A–Z\n" +
-    "Schlankes Inhaltsverzeichnis aller gespeicherten Filme.\n\n" +
+    "Das Inhaltsverzeichnis ist in einzelne Buchstaben-Seiten aufgeteilt.\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    body +
+    `🎬 Filme im Index: ${movies.length}\n` +
+    `🔤 Buchstaben: ${letters.join(" · ") || "Noch leer"}\n\n` +
+
+    "📄 Die Seiten stehen direkt darunter in diesem Topic.\n" +
+    "Wenn ein Buchstabe zu lang wird, erstellt der Bot automatisch Seite 2, Seite 3 usw.\n\n" +
+
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends";
 
@@ -13627,23 +14028,13 @@ async function seriesAzIndexCaptionV3() {
   const titles =
     await getSeriesTitlesForAzV3();
 
-  const groups = {};
-
-  for (const title of titles) {
-    const first =
-      title.charAt(0).toUpperCase();
-
-    const letter =
-      /[A-ZÄÖÜ]/i.test(first)
-        ? first
-        : "#";
-
-    if (!groups[letter]) {
-      groups[letter] = [];
-    }
-
-    groups[letter].push(title);
-  }
+  const groups =
+    groupAzItemsV3(
+      titles.map((title) => ({
+        title,
+        line: `• ${title}`
+      }))
+    );
 
   const letters =
     Object.keys(groups)
@@ -13653,38 +14044,64 @@ async function seriesAzIndexCaptionV3() {
         })
       );
 
-  let body = "";
-
-  for (const letter of letters) {
-    body += `${letter}\n`;
-
-    for (const title of groups[letter]) {
-      body += `• ${title}\n`;
-    }
-
-    body += "\n";
-  }
-
-  if (!body.trim()) {
-    body =
-      "Noch keine Serien im Archiv.\n\n" +
-      "Sobald Serien gespeichert wurden, erscheint hier automatisch der A–Z Index.\n";
-  }
-
   const text =
     "━━━━━━━━━━━━━━━━━━\n" +
     "📌 START & SUCHE\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
     "📺 SERIEN A–Z\n" +
-    "Einfaches Inhaltsverzeichnis aller gespeicherten Serien.\n\n" +
+    "Das Inhaltsverzeichnis ist in einzelne Buchstaben-Seiten aufgeteilt.\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    body +
+    `📺 Serien im Index: ${titles.length}\n` +
+    `🔤 Buchstaben: ${letters.join(" · ") || "Noch leer"}\n\n` +
+
+    "📄 Die Seiten stehen direkt darunter in diesem Topic.\n" +
+    "Wenn ein Buchstabe zu lang wird, erstellt der Bot automatisch Seite 2, Seite 3 usw.\n\n" +
+
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends";
 
-  return cleanTelegramText(text).slice(0, 4000);
+  return cleanTelegramText(text).slice(0, 3900);
+}
+
+// =============================
+// REFRESH MOVIE / SERIES A–Z PAGES V3
+// =============================
+async function refreshMovieAzPagesV3() {
+  const movies =
+    await getMovieTitlesForAzV3();
+
+  await refreshPagedAzIndexV3({
+    chatId: MOVIE_GROUP_ID,
+    topic: FIXED_LIBRARY_TOPICS.start,
+    type: FIXED_LIBRARY_TOPICS.start.movieType,
+    indexType: "movie_az",
+    heading: "🎬 FILME A–Z",
+    items:
+      movies.map((movie) => ({
+        title: movie.title,
+        line: `• ${movie.label || movie.title}`
+      }))
+  });
+}
+
+async function refreshSeriesAzPagesV3() {
+  const titles =
+    await getSeriesTitlesForAzV3();
+
+  await refreshPagedAzIndexV3({
+    chatId: SERIES_GROUP_ID,
+    topic: FIXED_LIBRARY_TOPICS.start,
+    type: FIXED_LIBRARY_TOPICS.start.seriesType,
+    indexType: "series_az",
+    heading: "📺 SERIEN A–Z",
+    items:
+      titles.map((title) => ({
+        title,
+        line: `• ${title}`
+      }))
+  });
 }
 
 // =============================
@@ -25204,6 +25621,20 @@ async function refreshLibraryIndexesAndGapsV3() {
       err.message
     );
   }
+  
+  // =============================
+// MOVIE A–Z PAGES
+// =============================
+try {
+  if (typeof refreshMovieAzPagesV3 === "function") {
+    await refreshMovieAzPagesV3();
+  }
+} catch (err) {
+  console.error(
+    "⚠️ Film A–Z Seiten Refresh Fehler:",
+    err.message
+  );
+}
 
   // =============================
   // MOVIE GAPS
@@ -25269,6 +25700,20 @@ async function refreshLibraryIndexesAndGapsV3() {
       err.message
     );
   }
+  
+  // =============================
+// SERIES A–Z PAGES
+// =============================
+try {
+  if (typeof refreshSeriesAzPagesV3 === "function") {
+    await refreshSeriesAzPagesV3();
+  }
+} catch (err) {
+  console.error(
+    "⚠️ Serien A–Z Seiten Refresh Fehler:",
+    err.message
+  );
+}
 
   // =============================
   // SERIES MISSING EPISODES
