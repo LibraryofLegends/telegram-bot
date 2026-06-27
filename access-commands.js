@@ -11,6 +11,63 @@ const {
   getFullUserInfo,
 } = require("./access-control");
 
+function getAdminNotifyChatIds() {
+  const notifyIds = String(process.env.ADMIN_NOTIFY_CHAT_ID || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  if (notifyIds.length) {
+    return notifyIds;
+  }
+
+  return String(process.env.ADMIN_IDS || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+async function notifyAdminsAboutAccessRequest(bot, user) {
+  const adminChatIds = getAdminNotifyChatIds();
+
+  if (!adminChatIds.length) {
+    console.log("⚠️ Keine ADMIN_NOTIFY_CHAT_ID oder ADMIN_IDS gesetzt.");
+    return;
+  }
+
+  const name = [
+    user.first_name,
+    user.last_name
+  ].filter(Boolean).join(" ") || "Unbekannt";
+
+  const username =
+    user.username
+      ? `@${user.username}`
+      : "—";
+
+  const message =
+    `🔐 Neue Freischaltungs-Anfrage\n\n` +
+    `👤 Name: ${name}\n` +
+    `🔗 Username: ${username}\n` +
+    `🆔 User-ID: ${user.id}\n\n` +
+    `Freigeben mit:\n` +
+    `/freigeben ${user.id}\n\n` +
+    `Sperren mit:\n` +
+    `/sperren ${user.id}`;
+
+  for (const adminChatId of adminChatIds) {
+    try {
+      await bot.sendMessage(adminChatId, message);
+    } catch (err) {
+      console.error(
+        "❌ Admin-Benachrichtigung fehlgeschlagen:",
+        adminChatId,
+        err.response?.data || err.message
+      );
+    }
+  }
+}
+
 async function handleAccessCommands(bot, msg, pgPool) {
   const text = msg.text || "";
   const chatId = msg.chat.id;
@@ -51,14 +108,15 @@ async function handleAccessCommands(bot, msg, pgPool) {
     }
 
     await bot.sendMessage(
-      chatId,
-      `✅ Freischaltungs-Anfrage wurde gespeichert.\n\n` +
-        `Ein Admin kann dich freigeben mit:\n` +
-        `/freigeben ${from.id}`,
-      { reply_to_message_id: msg.message_id }
-    );
+  chatId,
+  `✅ Freischaltungs-Anfrage wurde gespeichert.\n\n` +
+    `Ein Admin wurde benachrichtigt.`,
+  { reply_to_message_id: msg.message_id }
+);
 
-    return true;
+await notifyAdminsAboutAccessRequest(bot, from);
+
+return true;
   }
 
   // Mein Limit anzeigen
