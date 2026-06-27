@@ -9,6 +9,7 @@ const Parser = require("rss-parser");
 const rssParser = new Parser();
 
 const { startUserbotImporter } = require("./userbot-importer");
+const { handleAccessCommands } = require("./access-commands");
 
 const app = express();
 
@@ -272,6 +273,55 @@ await pgPool.query(`
     banner_message_id INTEGER,
     created_at TIMESTAMP DEFAULT NOW()
   );
+`);
+
+await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS bot_users (
+    telegram_user_id BIGINT PRIMARY KEY,
+    username TEXT,
+    first_name TEXT,
+    last_name TEXT,
+
+    status TEXT NOT NULL DEFAULT 'pending'
+      CHECK (status IN ('pending', 'approved', 'blocked', 'rejected')),
+
+    role TEXT NOT NULL DEFAULT 'member'
+      CHECK (role IN ('member', 'vip', 'admin')),
+
+    search_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    download_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+
+    daily_movie_limit INTEGER NOT NULL DEFAULT 3,
+    daily_season_limit INTEGER NOT NULL DEFAULT 1,
+    daily_series_limit INTEGER NOT NULL DEFAULT 0,
+
+    requested_at TIMESTAMPTZ DEFAULT NOW(),
+    approved_at TIMESTAMPTZ,
+    approved_by BIGINT,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  );
+`);
+
+await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS bot_usage_logs (
+    id BIGSERIAL PRIMARY KEY,
+    telegram_user_id BIGINT NOT NULL,
+    action_type TEXT NOT NULL
+      CHECK (action_type IN ('movie', 'episode', 'season', 'series_all')),
+    item_id TEXT,
+    usage_date DATE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+`);
+
+await pgPool.query(`
+  CREATE INDEX IF NOT EXISTS idx_bot_usage_user_date
+  ON bot_usage_logs (telegram_user_id, usage_date);
+`);
+
+await pgPool.query(`
+  CREATE INDEX IF NOT EXISTS idx_bot_users_status
+  ON bot_users (status);
 `);
 
   console.log("✅ Supabase Tabellen bereit");
@@ -12861,6 +12911,27 @@ async function tg(method, payload = {}) {
   );
 }
 
+// =============================
+// ACCESS BOT WRAPPER
+// Für access-commands.js
+// =============================
+const accessBot = {
+  async sendMessage(chatId, text, options = {}) {
+    return tg("sendMessage", {
+      chat_id: chatId,
+      text,
+      ...options
+    });
+  }
+};
+
+async function sendLocalPhoto({
+  chatId,
+  topicId,
+  photoPath,
+  caption
+}) {
+
 async function sendLocalPhoto({
   chatId,
   topicId,
@@ -16010,10 +16081,10 @@ async function handleUpdate(update) {
     return;
   }
 
-  // =============================
-  // NORMAL MESSAGES
-  // =============================
-  const msg =
+// =============================
+// NORMAL MESSAGES
+// =============================
+const msg =
   update.message ||
   update.edited_message;
 
@@ -16034,6 +16105,16 @@ console.log(
   "CHAT TITLE:",
   msg.chat?.title
 );
+
+// =============================
+// ACCESS COMMANDS
+// !id, !freischaltung, !meinlimit,
+// /freigeben, /sperren
+// =============================
+if (msg.text) {
+  const handledAccess = await handleAccessCommands(accessBot, msg, pgPool);
+  if (handledAccess) return;
+}
 
 if (userId !== ADMIN_ID) {
   if (process.env.DEBUG === "true") {
