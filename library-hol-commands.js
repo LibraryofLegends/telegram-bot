@@ -11,6 +11,90 @@ function pad2(value) {
   return String(value || 0).padStart(2, "0");
 }
 
+function parseSeriesAction(seriesRef, restParts = []) {
+  const rest = restParts.map((p) => String(p || "").toLowerCase());
+
+  if (!rest.length) {
+    return {
+      type: "series_help",
+      seriesRef
+    };
+  }
+
+  if (rest[0] === "alle" || rest[0] === "all") {
+    return {
+      type: "series_all",
+      seriesRef
+    };
+  }
+
+  if (
+    (rest[0] === "staffel" || rest[0] === "season") &&
+    /^\d+$/.test(rest[1] || "")
+  ) {
+    return {
+      type: "season",
+      seriesRef,
+      season: Number(rest[1])
+    };
+  }
+
+  const sxe = String(rest[0] || "").match(/^s(\d+)e(\d+)$/i);
+
+  if (sxe) {
+    return {
+      type: "episode",
+      seriesRef,
+      season: Number(sxe[1]),
+      episode: Number(sxe[2])
+    };
+  }
+
+  return {
+    type: "series_help",
+    seriesRef
+  };
+}
+
+function parseSeriesTitleCommand(bodyParts = []) {
+  const lower = bodyParts.map((p) => String(p || "").toLowerCase());
+
+  const sxeIndex = lower.findIndex((p) => /^s\d+e\d+$/i.test(p));
+
+  if (sxeIndex > 0) {
+    const title = bodyParts.slice(0, sxeIndex).join(" ").trim();
+    const sxe = lower[sxeIndex].match(/^s(\d+)e(\d+)$/i);
+
+    if (title && sxe) {
+      return {
+        type: "episode",
+        seriesRef: title,
+        season: Number(sxe[1]),
+        episode: Number(sxe[2])
+      };
+    }
+  }
+
+  const seasonIndex = lower.findIndex((p) => p === "staffel" || p === "season");
+
+  if (
+    seasonIndex > 0 &&
+    /^\d+$/.test(lower[seasonIndex + 1] || "")
+  ) {
+    const title = bodyParts.slice(0, seasonIndex).join(" ").trim();
+
+    if (title) {
+      return {
+        type: "season",
+        seriesRef: title,
+        season: Number(lower[seasonIndex + 1])
+      };
+    }
+  }
+
+  return null;
+}
+
 function parseHolCommand(text = "") {
   const parts = String(text || "")
     .trim()
@@ -27,112 +111,96 @@ function parseHolCommand(text = "") {
     return null;
   }
 
+  // =============================
   // !hol movie 21
-  // !hol film 21
+  // !hol film LIB-ACT-0001
+  // !hol movie oblivion
+  // =============================
   if (
-    (parts[1]?.toLowerCase() === "movie" || parts[1]?.toLowerCase() === "film") &&
-    /^\d+$/.test(parts[2] || "")
+    parts[1]?.toLowerCase() === "movie" ||
+    parts[1]?.toLowerCase() === "film"
   ) {
+    const movieRef = parts.slice(2).join(" ").trim();
+
+    if (!movieRef) {
+      return null;
+    }
+
     return {
       type: "movie",
-      id: Number(parts[2])
+      id: movieRef
     };
   }
 
+  // =============================
   // !hol serie 1 staffel 1
-  // !hol series 1 season 1
   // !hol serie 1 s1e1
-  // !hol serie 1 alle
-  if (
-    ["serie", "series", "show"].includes(parts[1]?.toLowerCase()) &&
-    /^\d+$/.test(parts[2] || "")
-  ) {
-    const seriesRef = Number(parts[2]);
-    const rest = parts.slice(3).map((p) => p.toLowerCase());
+  // !hol serie tulsa king staffel 1
+  // !hol serie tulsa king s1e1
+  // =============================
+  if (["serie", "series", "show"].includes(parts[1]?.toLowerCase())) {
+    const body = parts.slice(2);
 
-    if (!rest.length) {
-      return {
-        type: "series_help",
-        seriesRef
-      };
+    if (!body.length) {
+      return null;
     }
 
-    if (rest[0] === "alle" || rest[0] === "all") {
-      return {
-        type: "series_all",
-        seriesRef
-      };
+    if (/^\d+$/.test(body[0] || "")) {
+      return parseSeriesAction(Number(body[0]), body.slice(1));
     }
 
-    if (
-      (rest[0] === "staffel" || rest[0] === "season") &&
-      /^\d+$/.test(rest[1] || "")
-    ) {
-      return {
-        type: "season",
-        seriesRef,
-        season: Number(rest[1])
-      };
-    }
+    const parsedByTitle = parseSeriesTitleCommand(body);
 
-    const sxe = String(rest[0] || "").match(/^s(\d+)e(\d+)$/i);
-
-    if (sxe) {
-      return {
-        type: "episode",
-        seriesRef,
-        season: Number(sxe[1]),
-        episode: Number(sxe[2])
-      };
+    if (parsedByTitle) {
+      return parsedByTitle;
     }
 
     return {
       type: "series_help",
-      seriesRef
+      seriesRef: body.join(" ").trim()
     };
   }
 
+  // =============================
   // !hol 1 staffel 1
   // !hol 1 s1e1
   // !hol 1 alle
+  // =============================
   if (/^\d+$/.test(parts[1] || "")) {
     const id = Number(parts[1]);
-    const rest = parts.slice(2).map((p) => p.toLowerCase());
+    const rest = parts.slice(2);
 
-    if (
-      rest.length >= 2 &&
-      (rest[0] === "staffel" || rest[0] === "season") &&
-      /^\d+$/.test(rest[1] || "")
-    ) {
-      return {
-        type: "season",
-        seriesRef: id,
-        season: Number(rest[1])
-      };
-    }
-
-    if (rest[0] === "alle" || rest[0] === "all") {
-      return {
-        type: "series_all",
-        seriesRef: id
-      };
-    }
-
-    const sxe = String(rest[0] || "").match(/^s(\d+)e(\d+)$/i);
-
-    if (sxe) {
-      return {
-        type: "episode",
-        seriesRef: id,
-        season: Number(sxe[1]),
-        episode: Number(sxe[2])
-      };
+    if (rest.length) {
+      return parseSeriesAction(id, rest);
     }
 
     // !hol 21 bleibt Film
     return {
       type: "movie",
       id
+    };
+  }
+
+  // =============================
+  // !hol tulsa king s1e1
+  // !hol tulsa king staffel 1
+  // =============================
+  const parsedSeriesTitle = parseSeriesTitleCommand(parts.slice(1));
+
+  if (parsedSeriesTitle) {
+    return parsedSeriesTitle;
+  }
+
+  // =============================
+  // !hol LIB-ACT-0001
+  // !hol oblivion
+  // =============================
+  const movieRef = parts.slice(1).join(" ").trim();
+
+  if (movieRef) {
+    return {
+      type: "movie",
+      id: movieRef
     };
   }
 
@@ -216,7 +284,13 @@ function buildEpisodeCaption(ep) {
   return lines.join("\n").slice(0, 1000);
 }
 
-async function getMovieById(pgPool, movieId) {
+async function getMovieById(pgPool, movieRef) {
+  const refText = String(movieRef || "").trim();
+
+  if (!refText) {
+    return null;
+  }
+
   const result = await pgPool.query(
     `
     SELECT
@@ -238,10 +312,28 @@ async function getMovieById(pgPool, movieId) {
       source,
       audio
     FROM movies
-    WHERE id = $1
+    WHERE
+      id::text = $1::text
+      OR library_id::text ILIKE $2
+      OR title ILIKE $2
+      OR file_name ILIKE $2
+    ORDER BY
+      CASE
+        WHEN id::text = $1::text THEN 0
+        WHEN LOWER(library_id::text) = LOWER($1::text) THEN 1
+        WHEN LOWER(title) = LOWER($1::text) THEN 2
+        WHEN LOWER(title) LIKE LOWER($3) THEN 3
+        ELSE 4
+      END,
+      year NULLS LAST,
+      title ASC
     LIMIT 1;
     `,
-    [movieId]
+    [
+      refText,
+      `%${refText}%`,
+      `${refText}%`
+    ]
   );
 
   return result.rows[0] || null;
@@ -250,10 +342,35 @@ async function getMovieById(pgPool, movieId) {
 async function resolveSeriesBase(pgPool, seriesRef) {
   const refText = String(seriesRef || "").trim();
 
-  if (!/^\d+$/.test(refText)) {
+  if (!refText) {
     return null;
   }
 
+  // ID / series_library_id
+  if (/^\d+$/.test(refText)) {
+    const result = await pgPool.query(
+      `
+      SELECT
+        id,
+        series_library_id,
+        series_title
+      FROM series
+      WHERE
+        series_library_id::text = $1::text
+        OR id::text = $1::text
+      ORDER BY
+        CASE WHEN series_library_id::text = $1::text THEN 0 ELSE 1 END,
+        season::integer ASC,
+        episode::integer ASC
+      LIMIT 1;
+      `,
+      [refText]
+    );
+
+    return result.rows[0] || null;
+  }
+
+  // Titel
   const result = await pgPool.query(
     `
     SELECT
@@ -262,15 +379,23 @@ async function resolveSeriesBase(pgPool, seriesRef) {
       series_title
     FROM series
     WHERE
-      series_library_id::text = $1::text
-      OR id::text = $1::text
+      LOWER(series_title) = LOWER($1)
+      OR series_title ILIKE $2
     ORDER BY
-      CASE WHEN series_library_id::text = $1::text THEN 0 ELSE 1 END,
-      season ASC,
-      episode ASC
+      CASE
+        WHEN LOWER(series_title) = LOWER($1) THEN 0
+        WHEN LOWER(series_title) LIKE LOWER($3) THEN 1
+        ELSE 2
+      END,
+      season::integer ASC,
+      episode::integer ASC
     LIMIT 1;
     `,
-    [refText]
+    [
+      refText,
+      `%${refText}%`,
+      `${refText}%`
+    ]
   );
 
   return result.rows[0] || null;
@@ -487,7 +612,7 @@ async function handleMovieHol(bot, msg, pgPool, parsed) {
   if (!movie) {
     await bot.sendMessage(
       chatId,
-      `❌ Film-ID ${parsed.id} wurde nicht gefunden.`,
+          `❌ Film/Code "${parsed.id}" wurde nicht gefunden.`,
       {
         reply_to_message_id: msg.message_id
       }
