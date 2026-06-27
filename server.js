@@ -13843,6 +13843,368 @@ async function seriesMissingEpisodesCaptionV3() {
   return cleanTelegramText(text).slice(0, 4000);
 }
 
+// =============================
+// MOVIE SERIES DEFINITIONS V3
+// Manuelle Filmreihen-Liste für Lückenprüfung
+// =============================
+const MOVIE_SERIES_DEFINITIONS_V3 = [
+  {
+    name: "Jurassic Universe",
+    movies: [
+      {
+        title: "Jurassic Park",
+        aliases: ["Jurassic Park"]
+      },
+      {
+        title: "Vergessene Welt: Jurassic Park",
+        aliases: [
+          "Vergessene Welt: Jurassic Park",
+          "The Lost World: Jurassic Park",
+          "Jurassic Park 2"
+        ]
+      },
+      {
+        title: "Jurassic Park III",
+        aliases: [
+          "Jurassic Park III",
+          "Jurassic Park 3"
+        ]
+      },
+      {
+        title: "Jurassic World",
+        aliases: ["Jurassic World"]
+      },
+      {
+        title: "Jurassic World: Das gefallene Königreich",
+        aliases: [
+          "Jurassic World: Das gefallene Königreich",
+          "Jurassic World: Fallen Kingdom"
+        ]
+      },
+      {
+        title: "Jurassic World: Ein neues Zeitalter",
+        aliases: [
+          "Jurassic World: Ein neues Zeitalter",
+          "Jurassic World Dominion"
+        ]
+      }
+    ]
+  },
+
+  {
+    name: "Bourne-Reihe",
+    movies: [
+      {
+        title: "Die Bourne Identität",
+        aliases: [
+          "Die Bourne Identität",
+          "The Bourne Identity"
+        ]
+      },
+      {
+        title: "Die Bourne Verschwörung",
+        aliases: [
+          "Die Bourne Verschwörung",
+          "The Bourne Supremacy"
+        ]
+      },
+      {
+        title: "Das Bourne Ultimatum",
+        aliases: [
+          "Das Bourne Ultimatum",
+          "The Bourne Ultimatum"
+        ]
+      },
+      {
+        title: "Das Bourne Vermächtnis",
+        aliases: [
+          "Das Bourne Vermächtnis",
+          "The Bourne Legacy"
+        ]
+      },
+      {
+        title: "Jason Bourne",
+        aliases: ["Jason Bourne"]
+      }
+    ]
+  },
+
+  {
+    name: "Final Destination",
+    movies: [
+      {
+        title: "Final Destination",
+        aliases: ["Final Destination"]
+      },
+      {
+        title: "Final Destination 2",
+        aliases: ["Final Destination 2"]
+      },
+      {
+        title: "Final Destination 3",
+        aliases: ["Final Destination 3"]
+      },
+      {
+        title: "Final Destination 4",
+        aliases: [
+          "Final Destination 4",
+          "The Final Destination"
+        ]
+      },
+      {
+        title: "Final Destination 5",
+        aliases: ["Final Destination 5"]
+      },
+      {
+        title: "Final Destination: Bloodlines",
+        aliases: [
+          "Final Destination: Bloodlines",
+          "Final Destination Bloodlines"
+        ]
+      }
+    ]
+  },
+
+  {
+    name: "Pacific Rim",
+    movies: [
+      {
+        title: "Pacific Rim",
+        aliases: ["Pacific Rim"]
+      },
+      {
+        title: "Pacific Rim: Uprising",
+        aliases: [
+          "Pacific Rim: Uprising",
+          "Pacific Rim Uprising"
+        ]
+      }
+    ]
+  },
+
+  {
+    name: "Bad Boys",
+    movies: [
+      {
+        title: "Bad Boys",
+        aliases: ["Bad Boys"]
+      },
+      {
+        title: "Bad Boys II",
+        aliases: [
+          "Bad Boys II",
+          "Bad Boys 2"
+        ]
+      },
+      {
+        title: "Bad Boys for Life",
+        aliases: ["Bad Boys for Life"]
+      },
+      {
+        title: "Bad Boys: Ride or Die",
+        aliases: [
+          "Bad Boys: Ride or Die",
+          "Bad Boys Ride or Die"
+        ]
+      }
+    ]
+  }
+];
+
+// =============================
+// MOVIE GAPS V3
+// Prüft fehlende Filme aus manuellen Filmreihen
+// =============================
+async function getMovieRowsForGapsV3() {
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT title, year
+      FROM movies
+      WHERE title IS NOT NULL
+      AND title <> ''
+      ORDER BY title ASC
+    `);
+
+    return result.rows || [];
+  }
+
+  return db.prepare(`
+    SELECT title, year
+    FROM movies
+    WHERE title IS NOT NULL
+    AND title <> ''
+    ORDER BY title ASC
+  `).all();
+}
+
+function normalizeMovieGapKeyV3(value = "") {
+  const text =
+    String(value || "")
+      .toLowerCase()
+      .replace(/\([0-9]{4}\)/g, "")
+      .replace(/&/g, "und")
+      .replace(/[^a-z0-9äöüß]+/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  return typeof makeKey === "function"
+    ? makeKey(text)
+    : text;
+}
+
+function movieGapAliasesV3(movie) {
+  if (typeof movie === "string") {
+    return [movie];
+  }
+
+  return [
+    movie.title,
+    ...(movie.aliases || [])
+  ]
+    .filter(Boolean)
+    .map((v) => String(v).trim())
+    .filter(Boolean);
+}
+
+async function buildMovieGapsDataV3() {
+  const rows =
+    await getMovieRowsForGapsV3();
+
+  const archiveKeys = new Set();
+
+  for (const row of rows) {
+    const title =
+      String(row.title || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (!title) {
+      continue;
+    }
+
+    archiveKeys.add(
+      normalizeMovieGapKeyV3(title)
+    );
+  }
+
+  const result = [];
+
+  for (const collection of MOVIE_SERIES_DEFINITIONS_V3) {
+    const present = [];
+    const missing = [];
+
+    for (const movie of collection.movies || []) {
+      const aliases =
+        movieGapAliasesV3(movie);
+
+      const mainTitle =
+        typeof movie === "string"
+          ? movie
+          : movie.title;
+
+      const exists =
+        aliases.some((alias) =>
+          archiveKeys.has(
+            normalizeMovieGapKeyV3(alias)
+          )
+        );
+
+      if (exists) {
+        present.push(mainTitle);
+      } else {
+        missing.push(mainTitle);
+      }
+    }
+
+    result.push({
+      name: collection.name,
+      total: collection.movies.length,
+      present,
+      missing,
+      complete: missing.length === 0
+    });
+  }
+
+  return result.sort((a, b) =>
+    a.name.localeCompare(b.name, "de", {
+      sensitivity: "base"
+    })
+  );
+}
+
+async function movieGapsCaptionV3() {
+  const collections =
+    await buildMovieGapsDataV3();
+
+  let incompleteText = "";
+  let completeText = "";
+
+  for (const item of collections) {
+    if (item.complete) {
+      completeText +=
+        `✅ ${item.name} — vollständig ${item.present.length}/${item.total}\n`;
+
+      continue;
+    }
+
+    incompleteText +=
+      `🎞 ${item.name}\n` +
+      `Vorhanden: ${item.present.length}/${item.total}\n`;
+
+    if (item.present.length) {
+      incompleteText +=
+        "Im Archiv:\n" +
+        item.present
+          .map((title) => `✅ ${title}`)
+          .join("\n") +
+        "\n";
+    }
+
+    if (item.missing.length) {
+      incompleteText +=
+        "Fehlend:\n" +
+        item.missing
+          .map((title) => `❌ ${title}`)
+          .join("\n") +
+        "\n";
+    }
+
+    incompleteText += "\n━━━━━━━━━━━━━━━━━━\n";
+  }
+
+  if (!incompleteText.trim()) {
+    incompleteText =
+      "✅ Alle gepflegten Filmreihen wirken nach aktueller Liste vollständig.\n\n";
+  }
+
+  if (!completeText.trim()) {
+    completeText =
+      "Noch keine vollständig erkannte Filmreihe.\n";
+  }
+
+  const text =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧩 FEHLENDE FILME & REIHEN\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "Automatische Übersicht über gepflegte Filmreihen und fehlende Filme.\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "⚠️ UNVOLLSTÄNDIGE FILMREIHEN\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    incompleteText + "\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "✅ VOLLSTÄNDIGE FILMREIHEN\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    completeText + "\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(text).slice(0, 4000);
+}
+
 async function ensureCommandCenters() {
   console.log(
     "🏛 Fixed Library Topics + Command Center + A–Z werden geprüft..."
@@ -13900,6 +14262,28 @@ try {
 } catch (err) {
   console.error(
     "⚠️ Film A–Z Index Update Fehler:",
+    err.message
+  );
+}
+
+// =============================
+// MOVIE GAPS TOPIC UPDATE
+// =============================
+try {
+  if (
+    typeof createOrUpdateFixedTopicHub === "function" &&
+    typeof movieGapsCaptionV3 === "function"
+  ) {
+    await createOrUpdateFixedTopicHub({
+      chatId: MOVIE_GROUP_ID,
+      topic: FIXED_LIBRARY_TOPICS.movieGaps,
+      type: FIXED_LIBRARY_TOPICS.movieGaps.movieType,
+      caption: await movieGapsCaptionV3()
+    });
+  }
+} catch (err) {
+  console.error(
+    "⚠️ Fehlende Filme & Reihen Update Fehler:",
     err.message
   );
 }
@@ -13976,7 +14360,8 @@ try {
 }
 
 console.log(
-  "✅ Fixed Library Topics + Movie/Series Command Center + A–Z Index fertig eingerichtet"
+  console.log(
+  "✅ Fixed Library Topics + Command Center + A–Z + Lückenübersichten fertig eingerichtet"
 );
 }
 
@@ -14184,214 +14569,6 @@ async function movieCommandCenterCaption() {
     "━━━━━━━━━━━━━━━━━━\n" +
     "@LibraryOfLegends"
   ).slice(0, 4000);
-}
-
-// =============================
-// SERIES COMMAND CENTER CAPTION V2
-// =============================
-async function seriesCommandCenterCaption() {
-  let seriesCount = 0;
-  let episodeCount = 0;
-  let universeSeriesCount = 0;
-  let incompleteCount = 0;
-  let masteredCount = 0;
-  let latest = [];
-  let trending = [];
-
-  if (pgPool) {
-    seriesCount = Number((await pgPool.query(`
-      SELECT COUNT(DISTINCT series_title) AS count
-      FROM series
-    `)).rows[0]?.count || 0);
-
-    episodeCount = Number((await pgPool.query(`
-      SELECT COUNT(*) AS count
-      FROM series
-    `)).rows[0]?.count || 0);
-
-    universeSeriesCount = Number((await pgPool.query(`
-      SELECT COUNT(DISTINCT universe) AS count
-      FROM series
-      WHERE universe IS NOT NULL
-    `)).rows[0]?.count || 0);
-
-    const latestResult = await pgPool.query(`
-      SELECT series_title, season, episode, episode_title
-      FROM series
-      ORDER BY created_at DESC
-      LIMIT 5
-    `);
-
-    latest = latestResult.rows;
-
-    const trendingResult = await pgPool.query(`
-      SELECT series_title, COUNT(*) AS count
-      FROM series
-      GROUP BY series_title
-      ORDER BY count DESC, series_title ASC
-      LIMIT 5
-    `);
-
-    trending = trendingResult.rows;
-  } else {
-    seriesCount = db.prepare(`
-      SELECT COUNT(DISTINCT series_title) AS count
-      FROM series
-    `).get()?.count || 0;
-
-    episodeCount = db.prepare(`
-      SELECT COUNT(*) AS count
-      FROM series
-    `).get()?.count || 0;
-
-    universeSeriesCount = db.prepare(`
-      SELECT COUNT(DISTINCT universe) AS count
-      FROM series
-      WHERE universe IS NOT NULL
-    `).get()?.count || 0;
-
-    latest = db.prepare(`
-      SELECT series_title, season, episode, episode_title
-      FROM series
-      ORDER BY created_at DESC
-      LIMIT 5
-    `).all();
-
-    trending = db.prepare(`
-      SELECT series_title, COUNT(*) AS count
-      FROM series
-      GROUP BY series_title
-      ORDER BY count DESC, series_title ASC
-      LIMIT 5
-    `).all();
-  }
-
-  // Serien auf Vollständigkeit prüfen
-  const allSeries = pgPool
-    ? (await pgPool.query(`
-        SELECT series_title, season, episode
-        FROM series
-        ORDER BY series_title ASC, season ASC, episode ASC
-      `)).rows
-    : db.prepare(`
-        SELECT series_title, season, episode
-        FROM series
-        ORDER BY series_title ASC, season ASC, episode ASC
-      `).all();
-
-  const grouped = {};
-
-  for (const row of allSeries) {
-    const title = row.series_title;
-    const season = Number(row.season || 0);
-    const episode = Number(row.episode || 0);
-
-    if (!title || !season || !episode) continue;
-
-    if (!grouped[title]) {
-      grouped[title] = {};
-    }
-
-    if (!grouped[title][season]) {
-      grouped[title][season] = [];
-    }
-
-    grouped[title][season].push(episode);
-  }
-
-  for (const title of Object.keys(grouped)) {
-    let isIncomplete = false;
-
-    for (const season of Object.keys(grouped[title])) {
-      const episodes = [...new Set(grouped[title][season])].sort((a, b) => a - b);
-      const maxEpisode = Math.max(...episodes);
-
-      for (let ep = 1; ep <= maxEpisode; ep++) {
-        if (!episodes.includes(ep)) {
-          isIncomplete = true;
-          break;
-        }
-      }
-
-      if (isIncomplete) break;
-    }
-
-    if (isIncomplete) {
-      incompleteCount++;
-    } else {
-      masteredCount++;
-    }
-  }
-
-  let latestText = "";
-
-  if (!latest.length) {
-    latestText = "Noch keine Folgen gespeichert.\n";
-  } else {
-    for (const s of latest) {
-      latestText +=
-        `• ${s.series_title} ` +
-        `S${String(s.season).padStart(2, "0")}` +
-        `E${String(s.episode).padStart(2, "0")}`;
-
-      if (s.episode_title) {
-        latestText += ` • ${s.episode_title}`;
-      }
-
-      latestText += "\n";
-    }
-  }
-
-  let trendingText = "";
-
-  if (!trending.length) {
-    trendingText = "Noch keine Trends verfügbar.\n";
-  } else {
-    for (const s of trending) {
-      trendingText += `• ${s.series_title} — ${s.count} Episode(n)\n`;
-    }
-  }
-
-  return cleanTelegramText(
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🎛 SERIES COMMAND CENTER\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-
-    "📁 PREMIUM SERIES ARCHIVE\n" +
-    "📺 AUTOMATED EPISODE SYSTEM\n" +
-    "🧠 SMART SERIES MANAGEMENT\n\n" +
-
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "📊 ARCHIV STATUS\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `📺 Serien: ${seriesCount}\n` +
-    `🎞 Episoden: ${episodeCount}\n` +
-    `🌌 Universes: ${universeSeriesCount}\n` +
-    `🧩 Unvollständig: ${incompleteCount}\n` +
-    `🏆 Vollständig: ${masteredCount}\n\n` +
-
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🆕 NEUE FOLGEN\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    latestText + "\n" +
-
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🔥 TRENDING SERIEN\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    trendingText + "\n" +
-
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🧭 NAVIGATION\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🌌 UNIVERSES\n" +
-    "📺 SERIES LIBRARY\n" +
-    "🔥 TRENDING\n" +
-    "🧩 INCOMPLETE\n" +
-    "🏆 MASTERED\n\n" +
-
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "@LibraryOfLegends"
-  );
 }
 
 // =============================
