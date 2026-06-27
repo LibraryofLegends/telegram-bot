@@ -439,6 +439,41 @@ async function getFullUserInfo(pgPool, telegramUserId) {
   };
 }
 
+async function removeUserAccess(pgPool, telegramUserId) {
+  const result = await pgPool.query(
+    `
+    UPDATE bot_users
+    SET
+      status = 'rejected',
+      role = 'member',
+      search_enabled = FALSE,
+      download_enabled = FALSE,
+      daily_movie_limit = 3,
+      daily_episode_limit = 3,
+      daily_season_limit = 1,
+      daily_series_limit = 0,
+      updated_at = NOW()
+    WHERE telegram_user_id = $1
+    RETURNING *;
+    `,
+    [telegramUserId]
+  );
+
+  const user = result.rows[0] || null;
+
+  if (!user) {
+    return {
+      ok: false,
+      message: `❌ User ${telegramUserId} wurde nicht gefunden.`
+    };
+  }
+
+  return {
+    ok: true,
+    user
+  };
+}
+
 module.exports = {
   isAdmin,
   upsertPendingUser,
@@ -452,4 +487,5 @@ module.exports = {
   setUserLimit,
   setUserRole,
   getFullUserInfo,
+  removeUserAccess,
 };
