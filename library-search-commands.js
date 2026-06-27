@@ -69,6 +69,7 @@ function buildSearchPatterns(query = "") {
   if (
     lower === "4k" ||
     lower.includes("4k") ||
+    lower === "uhd" ||
     lower.includes("uhd") ||
     lower.includes("2160") ||
     lower.includes("3840")
@@ -84,7 +85,8 @@ function buildSearchPatterns(query = "") {
   if (
     lower === "fhd" ||
     lower.includes("fhd") ||
-    lower.includes("1080")
+    lower.includes("1080") ||
+    lower.includes("1920")
   ) {
     terms.add("FHD");
     terms.add("1080p");
@@ -95,7 +97,8 @@ function buildSearchPatterns(query = "") {
   // HD Mapping
   if (
     lower === "hd" ||
-    lower.includes("720")
+    lower.includes("720") ||
+    lower.includes("1280")
   ) {
     terms.add("HD");
     terms.add("720p");
