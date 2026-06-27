@@ -16135,6 +16135,8 @@ if (msg.text) {
 // =============================
 // PUBLIC LIBRARY HOL
 // !hol movie ID
+// !hol serie ID staffel 1
+// !hol serie ID s1e1
 // =============================
 if (msg.text) {
   const handledHol = await handleLibraryHolCommands(accessBot, msg, pgPool);
