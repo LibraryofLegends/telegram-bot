@@ -14208,162 +14208,162 @@ ${completeText}
 
 async function ensureCommandCenters() {
   console.log(
-    "🏛 Fixed Library Topics + Command Center + A–Z werden geprüft..."
+    "🏛 Fixed Library Topics + Command Center + A–Z + Lückenübersichten werden geprüft..."
   );
 
   // =============================
-// FIXED ARCHIVE TOPICS
-// =============================
-if (typeof setupFixedLibraryTopics === "function") {
-  await setupFixedLibraryTopics();
-}
-
-// =============================
-// MOVIE COMMAND CENTER BEHALTEN
-// =============================
-await createOrGetTopic({
-  chatId: MOVIE_GROUP_ID,
-  name: "🎛 Movie Command Center",
-  type: "system_hub"
-});
-
-try {
-  if (
-    typeof createOrUpdateCommandCenter === "function" &&
-    typeof movieCommandCenterCaption === "function"
-  ) {
-    await createOrUpdateCommandCenter({
-      chatId: MOVIE_GROUP_ID,
-      topicName: "🎛 Movie Command Center",
-      caption: await movieCommandCenterCaption()
-    });
+  // FIXED ARCHIVE TOPICS
+  // =============================
+  if (typeof setupFixedLibraryTopics === "function") {
+    await setupFixedLibraryTopics();
   }
-} catch (err) {
-  console.error(
-    "⚠️ Movie Command Center Update Fehler:",
-    err.message
-  );
-}
 
-// =============================
-// MOVIE A–Z INDEX IN FESTEM START & SUCHE TOPIC
-// =============================
-try {
-  if (
-    typeof createOrUpdateFixedTopicHub === "function" &&
-    typeof movieAzIndexCaptionV3 === "function"
-  ) {
-    await createOrUpdateFixedTopicHub({
-      chatId: MOVIE_GROUP_ID,
-      topic: FIXED_LIBRARY_TOPICS.start,
-      type: FIXED_LIBRARY_TOPICS.start.movieType,
-      caption: await movieAzIndexCaptionV3()
-    });
+  // =============================
+  // MOVIE COMMAND CENTER BEHALTEN
+  // =============================
+  await createOrGetTopic({
+    chatId: MOVIE_GROUP_ID,
+    name: "🎛 Movie Command Center",
+    type: "system_hub"
+  });
+
+  try {
+    if (
+      typeof createOrUpdateCommandCenter === "function" &&
+      typeof movieCommandCenterCaption === "function"
+    ) {
+      await createOrUpdateCommandCenter({
+        chatId: MOVIE_GROUP_ID,
+        topicName: "🎛 Movie Command Center",
+        caption: await movieCommandCenterCaption()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Movie Command Center Update Fehler:",
+      err.message
+    );
   }
-} catch (err) {
-  console.error(
-    "⚠️ Film A–Z Index Update Fehler:",
-    err.message
-  );
-}
 
-// =============================
-// MOVIE GAPS TOPIC UPDATE
-// =============================
-try {
-  if (
-    typeof createOrUpdateFixedTopicHub === "function" &&
-    typeof movieGapsCaptionV3 === "function"
-  ) {
-    await createOrUpdateFixedTopicHub({
-      chatId: MOVIE_GROUP_ID,
-      topic: FIXED_LIBRARY_TOPICS.movieGaps,
-      type: FIXED_LIBRARY_TOPICS.movieGaps.movieType,
-      caption: await movieGapsCaptionV3()
-    });
+  // =============================
+  // MOVIE A–Z INDEX IN FESTEM START & SUCHE TOPIC
+  // =============================
+  try {
+    if (
+      typeof createOrUpdateFixedTopicHub === "function" &&
+      typeof movieAzIndexCaptionV3 === "function"
+    ) {
+      await createOrUpdateFixedTopicHub({
+        chatId: MOVIE_GROUP_ID,
+        topic: FIXED_LIBRARY_TOPICS.start,
+        type: FIXED_LIBRARY_TOPICS.start.movieType,
+        caption: await movieAzIndexCaptionV3()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Film A–Z Index Update Fehler:",
+      err.message
+    );
   }
-} catch (err) {
-  console.error(
-    "⚠️ Fehlende Filme & Reihen Update Fehler:",
-    err.message
-  );
-}
 
-// =============================
-// SERIES COMMAND CENTER BEHALTEN
-// =============================
-await createOrGetTopic({
-  chatId: SERIES_GROUP_ID,
-  name: "🎛 SERIES COMMAND CENTER",
-  type: "system_hub"
-});
-
-try {
-  if (
-    typeof createOrUpdateCommandCenter === "function" &&
-    typeof seriesCommandCenterCaptionV3 === "function"
-  ) {
-    await createOrUpdateCommandCenter({
-      chatId: SERIES_GROUP_ID,
-      topicName: "🎛 SERIES COMMAND CENTER",
-      caption: await seriesCommandCenterCaptionV3()
-    });
+  // =============================
+  // MOVIE GAPS TOPIC UPDATE
+  // =============================
+  try {
+    if (
+      typeof createOrUpdateFixedTopicHub === "function" &&
+      typeof movieGapsCaptionV3 === "function"
+    ) {
+      await createOrUpdateFixedTopicHub({
+        chatId: MOVIE_GROUP_ID,
+        topic: FIXED_LIBRARY_TOPICS.movieGaps,
+        type: FIXED_LIBRARY_TOPICS.movieGaps.movieType,
+        caption: await movieGapsCaptionV3()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Fehlende Filme & Reihen Update Fehler:",
+      err.message
+    );
   }
-} catch (err) {
-  console.error(
-    "⚠️ Series Command Center Update Fehler:",
-    err.message
-  );
-}
 
-// =============================
-// SERIES A–Z INDEX IN FESTEM START & SUCHE TOPIC
-// =============================
-try {
-  if (
-    typeof createOrUpdateFixedTopicHub === "function" &&
-    typeof seriesAzIndexCaptionV3 === "function"
-  ) {
-    await createOrUpdateFixedTopicHub({
-      chatId: SERIES_GROUP_ID,
-      topic: FIXED_LIBRARY_TOPICS.start,
-      type: FIXED_LIBRARY_TOPICS.start.seriesType,
-      caption: await seriesAzIndexCaptionV3()
-    });
+  // =============================
+  // SERIES COMMAND CENTER BEHALTEN
+  // =============================
+  await createOrGetTopic({
+    chatId: SERIES_GROUP_ID,
+    name: "🎛 SERIES COMMAND CENTER",
+    type: "system_hub"
+  });
+
+  try {
+    if (
+      typeof createOrUpdateCommandCenter === "function" &&
+      typeof seriesCommandCenterCaptionV3 === "function"
+    ) {
+      await createOrUpdateCommandCenter({
+        chatId: SERIES_GROUP_ID,
+        topicName: "🎛 SERIES COMMAND CENTER",
+        caption: await seriesCommandCenterCaptionV3()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Series Command Center Update Fehler:",
+      err.message
+    );
   }
-} catch (err) {
-  console.error(
-    "⚠️ Serien A–Z Index Update Fehler:",
-    err.message
-  );
-}
 
-// =============================
-// SERIES MISSING EPISODES TOPIC UPDATE
-// =============================
-try {
-  if (
-    typeof createOrUpdateFixedTopicHub === "function" &&
-    typeof seriesMissingEpisodesCaptionV3 === "function"
-  ) {
-    await createOrUpdateFixedTopicHub({
-      chatId: SERIES_GROUP_ID,
-      topic: FIXED_LIBRARY_TOPICS.seriesGaps,
-      type: FIXED_LIBRARY_TOPICS.seriesGaps.seriesType,
-      caption: await seriesMissingEpisodesCaptionV3()
-    });
+  // =============================
+  // SERIES A–Z INDEX IN FESTEM START & SUCHE TOPIC
+  // =============================
+  try {
+    if (
+      typeof createOrUpdateFixedTopicHub === "function" &&
+      typeof seriesAzIndexCaptionV3 === "function"
+    ) {
+      await createOrUpdateFixedTopicHub({
+        chatId: SERIES_GROUP_ID,
+        topic: FIXED_LIBRARY_TOPICS.start,
+        type: FIXED_LIBRARY_TOPICS.start.seriesType,
+        caption: await seriesAzIndexCaptionV3()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Serien A–Z Index Update Fehler:",
+      err.message
+    );
   }
-} catch (err) {
-  console.error(
-    "⚠️ Fehlende Episoden Update Fehler:",
-    err.message
-  );
-}
 
-console.log(
+  // =============================
+  // SERIES MISSING EPISODES TOPIC UPDATE
+  // =============================
+  try {
+    if (
+      typeof createOrUpdateFixedTopicHub === "function" &&
+      typeof seriesMissingEpisodesCaptionV3 === "function"
+    ) {
+      await createOrUpdateFixedTopicHub({
+        chatId: SERIES_GROUP_ID,
+        topic: FIXED_LIBRARY_TOPICS.seriesGaps,
+        type: FIXED_LIBRARY_TOPICS.seriesGaps.seriesType,
+        caption: await seriesMissingEpisodesCaptionV3()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Fehlende Episoden Update Fehler:",
+      err.message
+    );
+  }
+
   console.log(
-  "✅ Fixed Library Topics + Command Center + A–Z + Lückenübersichten fertig eingerichtet"
-);
+    "✅ Fixed Library Topics + Command Center + A–Z + Lückenübersichten fertig eingerichtet"
+  );
+}
 
 // =============================
 // MOVIE COMMAND CENTER CAPTION V2
