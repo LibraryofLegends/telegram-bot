@@ -15894,17 +15894,26 @@ async function refreshMainCommandCentersOnly() {
       caption: await movieCommandCenterCaption()
     });
   } catch (err) {
-    console.error("❌ Movie Command Center Update Fehler:", err.message);
+    console.error(
+      "❌ Movie Command Center Update Fehler:",
+      err.message
+    );
   }
 
   try {
     await createOrUpdateCommandCenter({
       chatId: SERIES_GROUP_ID,
       topicName: "🎛 SERIES COMMAND CENTER",
-      caption: await seriesCommandCenterCaption()
+      caption:
+        typeof seriesCommandCenterCaptionV3 === "function"
+          ? await seriesCommandCenterCaptionV3()
+          : await seriesCommandCenterCaption()
     });
   } catch (err) {
-    console.error("❌ Series Command Center Update Fehler:", err.message);
+    console.error(
+      "❌ Series Command Center Update Fehler:",
+      err.message
+    );
   }
 }
 
@@ -16264,6 +16273,74 @@ function extractRatingNumber(value = "") {
 }
 
 // =============================
+// LIBRARY REFRESH LOCK V3
+// verhindert mehrfach laufende /refreshlibrary Jobs
+// =============================
+let LIBRARY_REFRESH_RUNNING = false;
+let LIBRARY_REFRESH_STARTED_AT = 0;
+
+async function runLibraryRefreshJobV3(adminChatId = null) {
+  if (LIBRARY_REFRESH_RUNNING) {
+    if (adminChatId) {
+      await tg("sendMessage", {
+        chat_id: adminChatId,
+        text:
+          "⏳ Library V3 Refresh läuft bereits.\n\n" +
+          "Bitte warte, bis der aktuelle Durchlauf fertig ist."
+      });
+    }
+
+    return false;
+  }
+
+  LIBRARY_REFRESH_RUNNING = true;
+  LIBRARY_REFRESH_STARTED_AT = Date.now();
+
+  try {
+    console.log("🔄 Library V3 Hintergrund-Refresh gestartet");
+
+    if (typeof refreshLibraryIndexesAndGapsV3 === "function") {
+      await refreshLibraryIndexesAndGapsV3();
+    } else if (typeof refreshMainCommandCentersOnly === "function") {
+      await refreshMainCommandCentersOnly();
+    }
+
+    if (adminChatId) {
+      await tg("sendMessage", {
+        chat_id: adminChatId,
+        text:
+          "✅ Library V3 erfolgreich aktualisiert.\n\n" +
+          "📌 A–Z Verzeichnisse\n" +
+          "🧩 Lückenübersichten\n" +
+          "🎛 Command Center"
+      });
+    }
+
+    console.log("✅ Library V3 Hintergrund-Refresh fertig");
+
+    return true;
+  } catch (err) {
+    console.error(
+      "❌ Library V3 Hintergrund-Refresh Fehler:",
+      err.message
+    );
+
+    if (adminChatId) {
+      await tg("sendMessage", {
+        chat_id: adminChatId,
+        text:
+          "❌ Library V3 konnte nicht aktualisiert werden.\n\n" +
+          `Fehler: ${err.message}`
+      });
+    }
+
+    return false;
+  } finally {
+    LIBRARY_REFRESH_RUNNING = false;
+  }
+}
+
+// =============================
 // COMMAND HANDLER
 // =============================
 async function handleCommand(msg) {
@@ -16501,60 +16578,41 @@ if (
 
 // =============================
 // REFRESH LIBRARY V3
+// läuft im Hintergrund, damit Telegram den Befehl nicht mehrfach erneut sendet
 // =============================
 if (
-  text === "/refreshlibrary" ||
-  text === "/rebuildlibrary"
+  command === "/refreshlibrary" ||
+  command === "/rebuildlibrary"
 ) {
-  await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "🔄 Library V3 wird aktualisiert...\n\n" +
-      "🎬 Filme A–Z\n" +
-      "🧩 Fehlende Filme & Reihen\n" +
-      "📺 Serien A–Z\n" +
-      "🧩 Fehlende Episoden\n" +
-      "🎛 Command Center"
-  });
-
-  try {
-    if (typeof refreshLibraryIndexesAndGapsV3 === "function") {
-      await refreshLibraryIndexesAndGapsV3();
-
-      await tg("sendMessage", {
-        chat_id: msg.chat.id,
-        text:
-          "✅ Library V3 erfolgreich aktualisiert.\n\n" +
-          "📌 A–Z Verzeichnisse\n" +
-          "🧩 Lückenübersichten\n" +
-          "🎛 Command Center"
-      });
-
-      return;
-    }
-
+  if (LIBRARY_REFRESH_RUNNING) {
     await tg("sendMessage", {
       chat_id: msg.chat.id,
       text:
-        "⚠️ refreshLibraryIndexesAndGapsV3 ist nicht verfügbar."
-    });
-
-    return;
-  } catch (err) {
-    console.error(
-      "❌ /refreshlibrary Fehler:",
-      err.message
-    );
-
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "❌ Library V3 konnte nicht aktualisiert werden.\n\n" +
-        `Fehler: ${err.message}`
+        "⏳ Library V3 Refresh läuft bereits.\n\n" +
+        "Bitte warte, bis der aktuelle Durchlauf fertig ist."
     });
 
     return;
   }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "🔄 Library V3 Refresh wurde gestartet.\n\n" +
+      "Der Bot aktualisiert jetzt im Hintergrund:\n" +
+      "🎬 Filme A–Z\n" +
+      "🧩 Fehlende Filme & Reihen\n" +
+      "📺 Serien A–Z\n" +
+      "🧩 Fehlende Episoden\n" +
+      "🎛 Command Center\n\n" +
+      "Du bekommst eine Meldung, sobald alles fertig ist."
+  });
+
+  setTimeout(() => {
+    runLibraryRefreshJobV3(msg.chat.id);
+  }, 100);
+
+  return;
 }
 
 // =============================
