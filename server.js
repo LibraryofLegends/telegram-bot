@@ -16137,6 +16137,61 @@ app.get(`/setwebhook/${TOKEN}`, async (req, res) => {
 });
 
 // =============================
+// WEBHOOK RESET SIMPLE
+// iPhone-tauglich: ohne Token in der URL
+// =============================
+app.get("/setwebhook", async (req, res) => {
+  try {
+    const baseUrl =
+      process.env.PUBLIC_URL ||
+      process.env.RENDER_EXTERNAL_URL;
+
+    if (!baseUrl) {
+      return res.status(500).json({
+        ok: false,
+        error: "PUBLIC_URL oder RENDER_EXTERNAL_URL fehlt."
+      });
+    }
+
+    const cleanBaseUrl =
+      String(baseUrl).replace(/\/$/, "");
+
+    const webhookUrl =
+      `${cleanBaseUrl}/webhook/${TOKEN}`;
+
+    const result = await tg("setWebhook", {
+      url: webhookUrl,
+      allowed_updates: [
+        "message",
+        "edited_message",
+        "callback_query"
+      ]
+    });
+
+    res.json({
+      ok: true,
+      webhookUrl,
+      allowed_updates: [
+        "message",
+        "edited_message",
+        "callback_query"
+      ],
+      result
+    });
+  } catch (err) {
+    console.error(
+      "❌ setWebhook simple Fehler:",
+      err.response?.data || err.message
+    );
+
+    res.status(500).json({
+      ok: false,
+      error: err.response?.data || err.message
+    });
+  }
+});
+
+// =============================
 // UPDATE HANDLER
 // =============================
 async function handleUpdate(update) {
