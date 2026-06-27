@@ -20,15 +20,19 @@ function formatMovieLine(movie) {
     movie.library_id ||
     String(movie.id).padStart(4, "0");
 
-  const meta = [
-    shortValue(movie.resolution, null),
-    shortValue(movie.file_size, null),
-    shortValue(movie.runtime, null)
-  ].filter(Boolean).join(" · ");
+  const qualityLine = [
+    movie.quality,
+    movie.resolution,
+    movie.file_size,
+    movie.runtime
+  ]
+    .map((v) => String(v || "").trim())
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     `${number}. 🎬 ${movie.title || "Unbekannter Film"}${movie.year ? ` (${movie.year})` : ""}\n` +
-    `   ${meta || "Keine technischen Daten"}\n` +
+    `   ${qualityLine || "Keine technischen Daten"}\n` +
     `   !hol movie ${movie.id}`
   );
 }
