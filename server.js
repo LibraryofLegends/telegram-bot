@@ -13668,6 +13668,181 @@ async function createOrUpdateFixedTopicHub({
   return null;
 }
 
+// =============================
+// SERIES MISSING EPISODES V3
+// Prüft Lücken innerhalb bereits angefangener Staffeln
+// =============================
+async function getSeriesEpisodeRowsV3() {
+  if (pgPool) {
+    const result = await pgPool.query(`
+      SELECT series_title, season, episode, episode_title
+      FROM series
+      WHERE series_title IS NOT NULL
+      AND series_title <> ''
+      AND season IS NOT NULL
+      AND episode IS NOT NULL
+      ORDER BY series_title ASC, season ASC, episode ASC
+    `);
+
+    return result.rows || [];
+  }
+
+  return db.prepare(`
+    SELECT series_title, season, episode, episode_title
+    FROM series
+    WHERE series_title IS NOT NULL
+    AND series_title <> ''
+    AND season IS NOT NULL
+    AND episode IS NOT NULL
+    ORDER BY series_title ASC, season ASC, episode ASC
+  `).all();
+}
+
+async function buildSeriesMissingEpisodesDataV3() {
+  const rows =
+    await getSeriesEpisodeRowsV3();
+
+  const grouped = {};
+
+  for (const row of rows) {
+    const title =
+      String(row.series_title || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const season =
+      Number(row.season || 0);
+
+    const episode =
+      Number(row.episode || 0);
+
+    if (!title || !season || !episode) {
+      continue;
+    }
+
+    const titleKey =
+      typeof makeKey === "function"
+        ? makeKey(title)
+        : title.toLowerCase();
+
+    if (!grouped[titleKey]) {
+      grouped[titleKey] = {
+        title,
+        seasons: {}
+      };
+    }
+
+    if (!grouped[titleKey].seasons[season]) {
+      grouped[titleKey].seasons[season] = new Set();
+    }
+
+    grouped[titleKey].seasons[season].add(episode);
+  }
+
+  const missingSeries = [];
+
+  for (const item of Object.values(grouped)) {
+    const seasonBlocks = [];
+
+    for (const seasonKey of Object.keys(item.seasons)) {
+      const season =
+        Number(seasonKey);
+
+      const episodes =
+        [...item.seasons[season]]
+          .filter(Boolean)
+          .sort((a, b) => a - b);
+
+      if (!episodes.length) {
+        continue;
+      }
+
+      const maxEpisode =
+        Math.max(...episodes);
+
+      const missing = [];
+
+      for (let ep = 1; ep <= maxEpisode; ep++) {
+        if (!episodes.includes(ep)) {
+          missing.push(ep);
+        }
+      }
+
+      if (missing.length) {
+        seasonBlocks.push({
+          season,
+          available: episodes.length,
+          highestEpisode: maxEpisode,
+          missing
+        });
+      }
+    }
+
+    if (seasonBlocks.length) {
+      missingSeries.push({
+        title: item.title,
+        seasons: seasonBlocks.sort((a, b) => a.season - b.season)
+      });
+    }
+  }
+
+  return missingSeries.sort((a, b) =>
+    a.title.localeCompare(b.title, "de", {
+      sensitivity: "base"
+    })
+  );
+}
+
+async function seriesMissingEpisodesCaptionV3() {
+  const missingSeries =
+    await buildSeriesMissingEpisodesDataV3();
+
+  let body = "";
+
+  if (!missingSeries.length) {
+    body =
+      "✅ Aktuell wurden keine Lücken innerhalb gespeicherter Staffeln gefunden.\n\n" +
+      "Hinweis: Der Bot erkennt hier fehlende Episoden zwischen bereits vorhandenen Folgen.\n" +
+      "Beispiel: S01E01, S01E02, S01E04 → S01E03 wird als fehlend erkannt.\n\n";
+  } else {
+    for (const series of missingSeries) {
+      body += `📺 ${series.title}\n`;
+
+      for (const season of series.seasons) {
+        const seasonText =
+          String(season.season).padStart(2, "0");
+
+        const missingText =
+          season.missing
+            .map((ep) =>
+              `S${seasonText}E${String(ep).padStart(2, "0")}`
+            )
+            .join(", ");
+
+        body +=
+          `Staffel ${season.season}\n` +
+          `Vorhanden: ${season.available}/${season.highestEpisode}\n` +
+          `Fehlend: ${missingText}\n\n`;
+      }
+
+      body += "━━━━━━━━━━━━━━━━━━\n";
+    }
+  }
+
+  const text =
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🧩 FEHLENDE EPISODEN\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "Automatische Übersicht über Serien-Staffeln mit erkannten Episoden-Lücken.\n\n" +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    body +
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(text).slice(0, 4000);
+}
+
 async function ensureCommandCenters() {
   console.log(
     "🏛 Fixed Library Topics + Command Center + A–Z werden geprüft..."
@@ -13781,6 +13956,28 @@ try {
 console.log(
   "✅ Fixed Library Topics + Movie/Series Command Center + A–Z Index fertig eingerichtet"
 );
+}
+
+// =============================
+// SERIES MISSING EPISODES TOPIC UPDATE
+// =============================
+try {
+  if (
+    typeof createOrUpdateFixedTopicHub === "function" &&
+    typeof seriesMissingEpisodesCaptionV3 === "function"
+  ) {
+    await createOrUpdateFixedTopicHub({
+      chatId: SERIES_GROUP_ID,
+      topic: FIXED_LIBRARY_TOPICS.seriesGaps,
+      type: FIXED_LIBRARY_TOPICS.seriesGaps.seriesType,
+      caption: await seriesMissingEpisodesCaptionV3()
+    });
+  }
+} catch (err) {
+  console.error(
+    "⚠️ Fehlende Episoden Update Fehler:",
+    err.message
+  );
 }
 
 // =============================
