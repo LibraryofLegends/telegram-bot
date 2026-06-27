@@ -9,6 +9,7 @@ const {
   setUserLimit,
   setUserRole,
   getFullUserInfo,
+  removeUserAccess,
 } = require("./access-control");
 
 function getAdminNotifyChatIds() {
@@ -219,6 +220,65 @@ return true;
     await bot.sendMessage(chatId, `⛔ User wurde gesperrt.\n\nID: ${targetId}`, {
       reply_to_message_id: msg.message_id,
     });
+
+    return true;
+  }
+  
+    // User entfernen, aber nicht dauerhaft sperren
+  if (text.startsWith("/entfernen ")) {
+    if (!isAdmin(from.id)) {
+      await bot.sendMessage(chatId, "⛔ Nur Admins können User entfernen.", {
+        reply_to_message_id: msg.message_id,
+      });
+      return true;
+    }
+
+    const targetId = text.split(/\s+/)[1]?.trim();
+
+    if (!targetId || !/^\d+$/.test(targetId)) {
+      await bot.sendMessage(chatId, "❌ Nutzung:\n/entfernen USER_ID", {
+        reply_to_message_id: msg.message_id,
+      });
+      return true;
+    }
+
+    const removed = await removeUserAccess(pgPool, targetId);
+
+    if (!removed.ok) {
+      await bot.sendMessage(chatId, removed.message, {
+        reply_to_message_id: msg.message_id,
+      });
+      return true;
+    }
+
+    await bot.sendMessage(
+      chatId,
+      `✅ Zugriff entfernt.\n\n` +
+        `🆔 User: ${targetId}\n` +
+        `📌 Status: rejected\n` +
+        `🔎 Suche: ❌\n` +
+        `📦 Holen: ❌\n\n` +
+        `Der User ist nicht gesperrt und kann später wieder !freischaltung senden.`,
+      {
+        reply_to_message_id: msg.message_id,
+      }
+    );
+
+    try {
+      await bot.sendMessage(
+        targetId,
+        `ℹ️ Dein Zugriff auf den Bot wurde entfernt.\n\n` +
+          `Du wurdest nicht gesperrt.\n` +
+          `Wenn du erneut Zugriff möchtest, kannst du wieder schreiben:\n\n` +
+          `!freischaltung`
+      );
+    } catch (err) {
+      console.error(
+        "⚠️ Konnte entfernten User nicht benachrichtigen:",
+        targetId,
+        err.response?.data || err.message
+      );
+    }
 
     return true;
   }
