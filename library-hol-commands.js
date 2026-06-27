@@ -248,6 +248,12 @@ async function getMovieById(pgPool, movieId) {
 }
 
 async function resolveSeriesBase(pgPool, seriesRef) {
+  const numericRef = Number(seriesRef);
+
+  if (!Number.isInteger(numericRef)) {
+    return null;
+  }
+
   const result = await pgPool.query(
     `
     SELECT
@@ -256,15 +262,15 @@ async function resolveSeriesBase(pgPool, seriesRef) {
       series_title
     FROM series
     WHERE
-      series_library_id = $1
-      OR id = $1
+      series_library_id = $1::integer
+      OR id = $1::integer
     ORDER BY
-      CASE WHEN series_library_id = $1 THEN 0 ELSE 1 END,
+      CASE WHEN series_library_id = $1::integer THEN 0 ELSE 1 END,
       season ASC,
       episode ASC
     LIMIT 1;
     `,
-    [seriesRef]
+    [numericRef]
   );
 
   return result.rows[0] || null;
@@ -281,30 +287,30 @@ async function getEpisode(pgPool, seriesRef, season, episode) {
 
   if (base.series_library_id) {
     result = await pgPool.query(
-      `
-      SELECT
-        id,
-        series_title,
-        season,
-        episode,
-        episode_title,
-        genre,
-        rating,
-        overview,
-        file_name,
-        file_id,
-        telegram_message_id,
-        topic_id,
-        series_library_id
-      FROM series
-      WHERE
-        series_library_id = $1
-        AND season = $2
-        AND episode = $3
-      LIMIT 1;
-      `,
-      [base.series_library_id, season, episode]
-    );
+  `
+  SELECT
+    id,
+    series_title,
+    season,
+    episode,
+    episode_title,
+    genre,
+    rating,
+    overview,
+    file_name,
+    file_id,
+    telegram_message_id,
+    topic_id,
+    series_library_id
+  FROM series
+  WHERE
+    series_library_id = $1::integer
+    AND season = $2::integer
+    AND episode = $3::integer
+  LIMIT 1;
+  `,
+  [Number(base.series_library_id), Number(season), Number(episode)]
+);
   } else {
     result = await pgPool.query(
       `
@@ -350,29 +356,29 @@ async function getSeasonEpisodes(pgPool, seriesRef, season) {
 
   if (base.series_library_id) {
     result = await pgPool.query(
-      `
-      SELECT
-        id,
-        series_title,
-        season,
-        episode,
-        episode_title,
-        genre,
-        rating,
-        overview,
-        file_name,
-        file_id,
-        telegram_message_id,
-        topic_id,
-        series_library_id
-      FROM series
-      WHERE
-        series_library_id = $1
-        AND season = $2
-      ORDER BY episode ASC;
-      `,
-      [base.series_library_id, season]
-    );
+  `
+  SELECT
+    id,
+    series_title,
+    season,
+    episode,
+    episode_title,
+    genre,
+    rating,
+    overview,
+    file_name,
+    file_id,
+    telegram_message_id,
+    topic_id,
+    series_library_id
+  FROM series
+  WHERE
+    series_library_id = $1::integer
+    AND season = $2::integer
+  ORDER BY episode ASC;
+  `,
+  [Number(base.series_library_id), Number(season)]
+);
   } else {
     result = await pgPool.query(
       `
