@@ -13953,11 +13953,6 @@ try {
   );
 }
 
-console.log(
-  "✅ Fixed Library Topics + Movie/Series Command Center + A–Z Index fertig eingerichtet"
-);
-}
-
 // =============================
 // SERIES MISSING EPISODES TOPIC UPDATE
 // =============================
@@ -13978,6 +13973,11 @@ try {
     "⚠️ Fehlende Episoden Update Fehler:",
     err.message
   );
+}
+
+console.log(
+  "✅ Fixed Library Topics + Movie/Series Command Center + A–Z Index fertig eingerichtet"
+);
 }
 
 // =============================
