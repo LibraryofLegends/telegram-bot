@@ -14407,53 +14407,15 @@ async function ensureCommandCenters() {
 }
 
 // =============================
-// MOVIE COMMAND CENTER CAPTION V2
+// MOVIE COMMAND CENTER CAPTION V3 — COMPACT
 // =============================
 async function movieCommandCenterCaption() {
   let movieCount = 0;
-  let universeCount = 0;
   let collectionCount = 0;
+  let universeCount = 0;
   let hallOfFameCount = 0;
-  let knowledgeCount = 0;
   let newReleaseCount = 0;
   let totalBytes = 0;
-
-  let topicLines = "";
-
-  async function getTopicCount(topicName) {
-    if (pgPool) {
-      const topicKey = makeKey(`movie_category-${MOVIE_GROUP_ID}-${topicName}`);
-      const systemKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-${topicName}`);
-
-      const result = await pgPool.query(
-        `
-        SELECT COUNT(m.id) AS count
-        FROM movies m
-        LEFT JOIN topics t
-  ON m.topic_id = t.topic_id
-        WHERE t.unique_key = $1
-           OR t.unique_key = $2
-        `,
-        [topicKey, systemKey]
-      );
-
-      return Number(result.rows[0]?.count || 0);
-    }
-
-    const topicKey = makeKey(`movie_category-${MOVIE_GROUP_ID}-${topicName}`);
-    const systemKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-${topicName}`);
-
-    const row = db.prepare(`
-      SELECT COUNT(m.id) AS count
-      FROM movies m
-      LEFT JOIN topics t
-        ON m.topic_id = t.topic_id
-      WHERE t.unique_key = ?
-         OR t.unique_key = ?
-    `).get(topicKey, systemKey);
-
-    return Number(row?.count || 0);
-  }
 
   if (pgPool) {
     movieCount = Number((await pgPool.query(`
@@ -14461,18 +14423,18 @@ async function movieCommandCenterCaption() {
       FROM movies
     `)).rows[0]?.count || 0);
 
-    universeCount = Number((await pgPool.query(`
-      SELECT COUNT(DISTINCT universe) AS count
-      FROM movies
-      WHERE universe IS NOT NULL
-        AND TRIM(universe) <> ''
-    `)).rows[0]?.count || 0);
-
     collectionCount = Number((await pgPool.query(`
       SELECT COUNT(DISTINCT collection) AS count
       FROM movies
       WHERE collection IS NOT NULL
-        AND TRIM(collection) <> ''
+      AND TRIM(collection) <> ''
+    `)).rows[0]?.count || 0);
+
+    universeCount = Number((await pgPool.query(`
+      SELECT COUNT(DISTINCT universe) AS count
+      FROM movies
+      WHERE universe IS NOT NULL
+      AND TRIM(universe) <> ''
     `)).rows[0]?.count || 0);
 
     const ratingRows = (await pgPool.query(`
@@ -14484,41 +14446,45 @@ async function movieCommandCenterCaption() {
     hallOfFameCount =
       ratingRows.filter((m) => getRatingValue(m.rating) >= 8).length;
 
-    knowledgeCount = Number((await pgPool.query(`
+    newReleaseCount = Number((await pgPool.query(`
       SELECT COUNT(*) AS count
-      FROM knowledge
+      FROM movies
+      WHERE year ~ '^\\d{4}$'
+      AND year::int >= 2024
     `)).rows[0]?.count || 0);
 
-    newReleaseCount = Number((await pgPool.query(`
-  SELECT COUNT(*) AS count
-  FROM movies
-  WHERE year ~ '^\\d{4}$'
-    AND year::int >= 2024
-`)).rows[0]?.count || 0);
+    try {
+      totalBytes = Number((await pgPool.query(`
+        SELECT COALESCE(SUM(file_size_bytes), 0) AS total
+        FROM movies
+      `)).rows[0]?.total || 0);
+    } catch (err) {
+      console.error(
+        "⚠️ PG file_size_bytes fehlt oder konnte nicht gelesen werden:",
+        err.message
+      );
 
-    totalBytes = Number((await pgPool.query(`
-      SELECT COALESCE(SUM(file_size_bytes), 0) AS total
-      FROM movies
-    `)).rows[0]?.total || 0);
+      totalBytes = 0;
+    }
   } else {
-    movieCount = db.prepare(`
+    movieCount = Number(db.prepare(`
       SELECT COUNT(*) AS count
       FROM movies
-    `).get()?.count || 0;
+    `).get()?.count || 0);
 
-    universeCount = db.prepare(`
-      SELECT COUNT(DISTINCT universe) AS count
-      FROM movies
-      WHERE universe IS NOT NULL
-        AND TRIM(universe) <> ''
-    `).get()?.count || 0;
-
-    collectionCount = db.prepare(`
+    collectionCount = Number(db.prepare(`
       SELECT COUNT(DISTINCT collection) AS count
       FROM movies
       WHERE collection IS NOT NULL
-        AND TRIM(collection) <> ''
-    `).get()?.count || 0;
+      AND TRIM(collection) <> ''
+    `).get()?.count || 0);
+
+    universeCount = Number(db.prepare(`
+      SELECT COUNT(DISTINCT universe) AS count
+      FROM movies
+      WHERE universe IS NOT NULL
+      AND TRIM(universe) <> ''
+    `).get()?.count || 0);
 
     const ratingRows = db.prepare(`
       SELECT rating
@@ -14529,16 +14495,11 @@ async function movieCommandCenterCaption() {
     hallOfFameCount =
       ratingRows.filter((m) => getRatingValue(m.rating) >= 8).length;
 
-    knowledgeCount = db.prepare(`
-      SELECT COUNT(*) AS count
-      FROM knowledge
-    `).get()?.count || 0;
-
-    newReleaseCount = db.prepare(`
+    newReleaseCount = Number(db.prepare(`
       SELECT COUNT(*) AS count
       FROM movies
       WHERE CAST(NULLIF(year, '') AS INTEGER) >= 2024
-    `).get()?.count || 0;
+    `).get()?.count || 0);
 
     try {
       totalBytes = Number(db.prepare(`
@@ -14546,70 +14507,64 @@ async function movieCommandCenterCaption() {
         FROM movies
       `).get()?.total || 0);
     } catch (err) {
-      console.error("⚠️ SQLite file_size_bytes fehlt:", err.message);
+      console.error(
+        "⚠️ SQLite file_size_bytes fehlt oder konnte nicht gelesen werden:",
+        err.message
+      );
+
       totalBytes = 0;
     }
   }
 
-  for (const topicName of ALLOWED_MOVIE_TOPICS) {
-    const count = await getTopicCount(topicName);
-
-    topicLines +=
-      `${topicName}: ${count}\n`;
-  }
-
   const totalGB =
-    (totalBytes / 1024 / 1024 / 1024).toFixed(2);
+    totalBytes
+      ? (totalBytes / 1024 / 1024 / 1024).toFixed(2)
+      : "0.00";
 
-  return (
+  const text =
     "━━━━━━━━━━━━━━━━━━\n" +
-    "🎛 FILM-KOMMANDOZENTRUM\n" +
+    "🎛 MOVIE COMMAND CENTER\n" +
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
-    "📁 PREMIUM-FILMARCHIV\n" +
-    "🎬 AUTOMATISIERTES FILM-SYSTEM\n" +
-    "🧠 SMARTES FILM-MANAGEMENT\n\n" +
+    "🎬 FILM-ARCHIV\n" +
+    "PREMIUM MOVIE DATABASE\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    "📊 ARCHIV-STATUS\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    `🎬 Filme: ${movieCount}\n` +
-    `🎞 Filmreihen: ${collectionCount}\n` +
-    `🌌 Universen: ${universeCount}\n` +
-    `💾 Speicher: ${totalGB} GB\n` +
+    "📊 ARCHIV STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    `🎬 Filme im Archiv: ${movieCount}\n` +
+    `🎞 Filmreihen erkannt: ${collectionCount}\n` +
+    `🌌 Universen erkannt: ${universeCount}\n` +
     `🏆 Hall of Fame: ${hallOfFameCount}\n` +
-    `📚 Knowledge Files: ${knowledgeCount}\n` +
-    `🔥 Neuerscheinungen: ${newReleaseCount}\n\n` +
+    `🔥 Neuerscheinungen: ${newReleaseCount}\n` +
+    `💾 Speicher: ${totalGB} GB\n\n` +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    "📂 THEMEN-STATUS\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    topicLines + "\n" +
+    "🛡 SYSTEM STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "✅ Duplikatschutz aktiv\n" +
+    "♻️ Qualitätsupgrade aktiv\n" +
+    "📌 A–Z Index aktiv\n" +
+    "🧩 Reihen- & Lückenprüfung aktiv\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "🧭 NAVIGATION\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🔥 Neuerscheinungen\n" +
-    "🌌 Star Wars Universe\n" +
-    "🏰 Disney Universe\n" +
-    "🧬 Marvel Universe\n" +
-    "🦇 DC Universe\n" +
-    "🎞 Filmreihen\n" +
-    "🎬 Klassische Filme\n" +
-    "📼 Filme der 80er\n" +
-    "📀 Filme der 90er\n" +
-    "🎥 Filme der 2000er\n" +
-    "🚀 Neuere Filme\n" +
-    "🌍 Internationale Filme\n" +
-    "📚 Dokumentationen\n" +
-    "🎨 Animation\n" +
-    "🍿 Familienfilme\n" +
-    "🧸 Kinderfilme\n" +
-    "⛩ Anime\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "📌 Start & Suche — Filme A–Z\n" +
+    "💥 Action, Thriller & Sci-Fi\n" +
+    "🍿 Komödie, Drama & Familie\n" +
+    "👻 Horror, Mystery & Psycho\n" +
+    "📺 Klassiker & Nostalgie\n" +
+    "🧩 Fehlende Filme & Reihen\n" +
+    "💬 Mitglieder-Chat & Wünsche\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
-    "@LibraryOfLegends"
-  ).slice(0, 4000);
+    "@LibraryOfLegends";
+
+  return cleanTelegramText(text).slice(0, 4000);
 }
 
 // =============================
