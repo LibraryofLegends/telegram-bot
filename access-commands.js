@@ -51,14 +51,32 @@ async function notifyAdminsAboutAccessRequest(bot, user) {
     `👤 Name: ${name}\n` +
     `🔗 Username: ${username}\n` +
     `🆔 User-ID: ${user.id}\n\n` +
-    `Freigeben mit:\n` +
-    `/freigeben ${user.id}\n\n` +
-    `Sperren mit:\n` +
-    `/sperren ${user.id}`;
+    `Du kannst den User direkt per Button verwalten.`;
 
   for (const adminChatId of adminChatIds) {
     try {
-      await bot.sendMessage(adminChatId, message);
+      await bot.sendMessage(adminChatId, message, {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "✅ Freigeben",
+                callback_data: `access:approve:${user.id}`
+              },
+              {
+                text: "⛔ Sperren",
+                callback_data: `access:block:${user.id}`
+              }
+            ],
+            [
+              {
+                text: "🗑 Entfernen",
+                callback_data: `access:remove:${user.id}`
+              }
+            ]
+          ]
+        }
+      });
     } catch (err) {
       console.error(
         "❌ Admin-Benachrichtigung fehlgeschlagen:",
