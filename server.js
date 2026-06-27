@@ -11,6 +11,7 @@ const rssParser = new Parser();
 const { startUserbotImporter } = require("./userbot-importer");
 const { handleAccessCommands } = require("./access-commands");
 const { handleLibrarySearchCommands } = require("./library-search-commands");
+const { handleLibraryHolCommands } = require("./library-hol-commands");
 
 const app = express();
 
@@ -12923,6 +12924,22 @@ const accessBot = {
       text,
       ...options
     });
+  },
+
+  async sendVideo(chatId, video, options = {}) {
+    return tg("sendVideo", {
+      chat_id: chatId,
+      video,
+      ...options
+    });
+  },
+
+  async sendDocument(chatId, document, options = {}) {
+    return tg("sendDocument", {
+      chat_id: chatId,
+      document,
+      ...options
+    });
   }
 };
 
@@ -16113,6 +16130,15 @@ if (msg.text) {
 if (msg.text) {
   const handledSearch = await handleLibrarySearchCommands(accessBot, msg, pgPool);
   if (handledSearch) return;
+}
+
+// =============================
+// PUBLIC LIBRARY HOL
+// !hol movie ID
+// =============================
+if (msg.text) {
+  const handledHol = await handleLibraryHolCommands(accessBot, msg, pgPool);
+  if (handledHol) return;
 }
 
 if (userId !== ADMIN_ID) {
