@@ -16089,6 +16089,54 @@ app.post(`/webhook/${TOKEN}`, async (req, res) => {
 });
 
 // =============================
+// WEBHOOK RESET
+// Erlaubt auch callback_query für Inline-Buttons
+// =============================
+app.get(`/setwebhook/${TOKEN}`, async (req, res) => {
+  try {
+    const baseUrl =
+      process.env.PUBLIC_URL ||
+      process.env.RENDER_EXTERNAL_URL;
+
+    if (!baseUrl) {
+      return res.status(500).json({
+        ok: false,
+        error:
+          "PUBLIC_URL oder RENDER_EXTERNAL_URL fehlt. Setze PUBLIC_URL in Render."
+      });
+    }
+
+    const cleanBaseUrl =
+      String(baseUrl).replace(/\/$/, "");
+
+    const webhookUrl =
+      `${cleanBaseUrl}/webhook/${TOKEN}`;
+
+    const result = await tg("setWebhook", {
+      url: webhookUrl,
+      allowed_updates: [
+        "message",
+        "edited_message",
+        "callback_query"
+      ]
+    });
+
+    res.json({
+      ok: true,
+      webhookUrl,
+      result
+    });
+  } catch (err) {
+    console.error("❌ setWebhook Fehler:", err.response?.data || err.message);
+
+    res.status(500).json({
+      ok: false,
+      error: err.response?.data || err.message
+    });
+  }
+});
+
+// =============================
 // UPDATE HANDLER
 // =============================
 async function handleUpdate(update) {
