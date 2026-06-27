@@ -305,6 +305,11 @@ await pgPool.query(`
 `);
 
 await pgPool.query(`
+  ALTER TABLE bot_users
+  ADD COLUMN IF NOT EXISTS daily_episode_limit INTEGER NOT NULL DEFAULT 3;
+`);
+
+await pgPool.query(`
   CREATE TABLE IF NOT EXISTS bot_usage_logs (
     id BIGSERIAL PRIMARY KEY,
     telegram_user_id BIGINT NOT NULL,
