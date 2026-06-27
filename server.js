@@ -15970,6 +15970,7 @@ if (text === "/start" || text === "/admin") {
       "🧠 𝐑𝐄𝐏𝐀𝐈𝐑 & 𝐑𝐄𝐂𝐎𝐕𝐄𝐑𝐘\n\n" +
       "• /rebuildcommandcenters — Dashboards aktualisieren\n" +
       "• /setupgroups — feste Film- & Serien-Topics erstellen\n" +
+      "• /refreshlibrary — A–Z, Lücken & Command Center aktualisieren\n" +
       "• /cleartopicsdb\n" +
       "• /clearmoviesdb\n" +
       "• /resetpremiumtopic\n" +
@@ -16078,6 +16079,64 @@ if (
   });
 
   return;
+}
+
+// =============================
+// REFRESH LIBRARY V3
+// =============================
+if (
+  text === "/refreshlibrary" ||
+  text === "/rebuildlibrary"
+) {
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "🔄 Library V3 wird aktualisiert...\n\n" +
+      "🎬 Filme A–Z\n" +
+      "🧩 Fehlende Filme & Reihen\n" +
+      "📺 Serien A–Z\n" +
+      "🧩 Fehlende Episoden\n" +
+      "🎛 Command Center"
+  });
+
+  try {
+    if (typeof refreshLibraryIndexesAndGapsV3 === "function") {
+      await refreshLibraryIndexesAndGapsV3();
+
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "✅ Library V3 erfolgreich aktualisiert.\n\n" +
+          "📌 A–Z Verzeichnisse\n" +
+          "🧩 Lückenübersichten\n" +
+          "🎛 Command Center"
+      });
+
+      return;
+    }
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "⚠️ refreshLibraryIndexesAndGapsV3 ist nicht verfügbar."
+    });
+
+    return;
+  } catch (err) {
+    console.error(
+      "❌ /refreshlibrary Fehler:",
+      err.message
+    );
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "❌ Library V3 konnte nicht aktualisiert werden.\n\n" +
+        `Fehler: ${err.message}`
+    });
+
+    return;
+  }
 }
 
 // =============================
@@ -25094,6 +25153,150 @@ async function getMovieSeriesStatusForCaptionV3({
 }
 
 // =============================
+// LIBRARY INDEX + GAP REFRESH V3
+// Aktualisiert A–Z, Lücken-Topics und Command Center ohne neue Topics zu erzeugen
+// =============================
+async function refreshLibraryIndexesAndGapsV3() {
+  console.log(
+    "🔄 Library V3 Übersichten werden aktualisiert..."
+  );
+
+  // =============================
+  // MOVIE COMMAND CENTER
+  // =============================
+  try {
+    if (
+      typeof createOrUpdateCommandCenter === "function" &&
+      typeof movieCommandCenterCaption === "function"
+    ) {
+      await createOrUpdateCommandCenter({
+        chatId: MOVIE_GROUP_ID,
+        topicName: "🎛 Movie Command Center",
+        caption: await movieCommandCenterCaption()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Movie Command Center Refresh Fehler:",
+      err.message
+    );
+  }
+
+  // =============================
+  // MOVIE A–Z
+  // =============================
+  try {
+    if (
+      typeof createOrUpdateFixedTopicHub === "function" &&
+      typeof movieAzIndexCaptionV3 === "function"
+    ) {
+      await createOrUpdateFixedTopicHub({
+        chatId: MOVIE_GROUP_ID,
+        topic: FIXED_LIBRARY_TOPICS.start,
+        type: FIXED_LIBRARY_TOPICS.start.movieType,
+        caption: await movieAzIndexCaptionV3()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Film A–Z Refresh Fehler:",
+      err.message
+    );
+  }
+
+  // =============================
+  // MOVIE GAPS
+  // =============================
+  try {
+    if (
+      typeof createOrUpdateFixedTopicHub === "function" &&
+      typeof movieGapsCaptionV3 === "function"
+    ) {
+      await createOrUpdateFixedTopicHub({
+        chatId: MOVIE_GROUP_ID,
+        topic: FIXED_LIBRARY_TOPICS.movieGaps,
+        type: FIXED_LIBRARY_TOPICS.movieGaps.movieType,
+        caption: await movieGapsCaptionV3()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Fehlende Filme & Reihen Refresh Fehler:",
+      err.message
+    );
+  }
+
+  // =============================
+  // SERIES COMMAND CENTER
+  // =============================
+  try {
+    if (
+      typeof createOrUpdateCommandCenter === "function" &&
+      typeof seriesCommandCenterCaptionV3 === "function"
+    ) {
+      await createOrUpdateCommandCenter({
+        chatId: SERIES_GROUP_ID,
+        topicName: "🎛 SERIES COMMAND CENTER",
+        caption: await seriesCommandCenterCaptionV3()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Series Command Center Refresh Fehler:",
+      err.message
+    );
+  }
+
+  // =============================
+  // SERIES A–Z
+  // =============================
+  try {
+    if (
+      typeof createOrUpdateFixedTopicHub === "function" &&
+      typeof seriesAzIndexCaptionV3 === "function"
+    ) {
+      await createOrUpdateFixedTopicHub({
+        chatId: SERIES_GROUP_ID,
+        topic: FIXED_LIBRARY_TOPICS.start,
+        type: FIXED_LIBRARY_TOPICS.start.seriesType,
+        caption: await seriesAzIndexCaptionV3()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Serien A–Z Refresh Fehler:",
+      err.message
+    );
+  }
+
+  // =============================
+  // SERIES MISSING EPISODES
+  // =============================
+  try {
+    if (
+      typeof createOrUpdateFixedTopicHub === "function" &&
+      typeof seriesMissingEpisodesCaptionV3 === "function"
+    ) {
+      await createOrUpdateFixedTopicHub({
+        chatId: SERIES_GROUP_ID,
+        topic: FIXED_LIBRARY_TOPICS.seriesGaps,
+        type: FIXED_LIBRARY_TOPICS.seriesGaps.seriesType,
+        caption: await seriesMissingEpisodesCaptionV3()
+      });
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Fehlende Episoden Refresh Fehler:",
+      err.message
+    );
+  }
+
+  console.log(
+    "✅ Library V3 Übersichten aktualisiert"
+  );
+}
+
+// =============================
 // MOVIE UPLOAD PROCESSOR
 // =============================
 async function processMovieUpload({ msg, media, tmdb }) {
@@ -25497,13 +25700,17 @@ if (movieUpgrade?.existingMovie) {
   // REFRESH GLOBAL SYSTEMS
   // =============================
   try {
+  if (typeof refreshLibraryIndexesAndGapsV3 === "function") {
+    await refreshLibraryIndexesAndGapsV3();
+  } else if (typeof refreshMainCommandCentersOnly === "function") {
     await refreshMainCommandCentersOnly();
-  } catch (err) {
-    console.error(
-      "⚠️ Main Command Center Refresh Fehler:",
-      err.message
-    );
   }
+} catch (err) {
+  console.error(
+    "⚠️ Library V3 Refresh Fehler:",
+    err.message
+  );
+}
 
   logToDb(
     "movie_saved",
@@ -26287,12 +26494,14 @@ await tg("sendMessage", {
 });
 
 try {
-  if (typeof refreshMainCommandCentersOnly === "function") {
+  if (typeof refreshLibraryIndexesAndGapsV3 === "function") {
+    await refreshLibraryIndexesAndGapsV3();
+  } else if (typeof refreshMainCommandCentersOnly === "function") {
     await refreshMainCommandCentersOnly();
   }
 } catch (err) {
   console.error(
-    "⚠️ Main Command Center Refresh Fehler:",
+    "⚠️ Library V3 Refresh Fehler:",
     err.message
   );
 }
