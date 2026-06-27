@@ -73,11 +73,12 @@ async function handleAccessCommands(bot, msg, pgPool) {
     const user = access.user;
 
     const message =
-      `📊 Dein Tageslimit\n\n` +
-      `🎬 Filme: ${usage.movie}/${user.daily_movie_limit}\n` +
-      `📀 Staffeln: ${usage.season}/${user.daily_season_limit}\n` +
-      `📺 Ganze Serien: ${usage.series_all}/${user.daily_series_limit}\n\n` +
-      `🔎 Suche: unbegrenzt`;
+  `📊 Dein Tageslimit\n\n` +
+  `🎬 Filme: ${usage.movie}/${user.daily_movie_limit}\n` +
+  `📺 Einzelne Folgen: ${usage.episode}/${user.daily_movie_limit}\n` +
+  `💿 Staffeln: ${usage.season}/${user.daily_season_limit}\n` +
+  `🗂 Ganze Serien: ${usage.series_all}/${user.daily_series_limit}\n\n` +
+  `🔎 Suche: unbegrenzt`;
 
     await bot.sendMessage(chatId, message, {
       reply_to_message_id: msg.message_id,
