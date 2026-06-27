@@ -51,7 +51,41 @@ function formatSeriesLine(series) {
   );
 }
 
+function buildSearchPatterns(query = "") {
+  const raw = String(query || "").trim();
+  const lower = raw.toLowerCase();
+
+  const terms = new Set();
+
+  if (raw) {
+    terms.add(raw);
+  }
+
+  if (lower === "4k" || lower.includes("4k") || lower.includes("uhd")) {
+    terms.add("4K");
+    terms.add("UHD");
+    terms.add("2160p");
+    terms.add("2160");
+  }
+
+  if (lower === "fhd" || lower.includes("1080")) {
+    terms.add("FHD");
+    terms.add("1080p");
+    terms.add("1080");
+  }
+
+  if (lower === "hd" || lower.includes("720")) {
+    terms.add("HD");
+    terms.add("720p");
+    terms.add("720");
+  }
+
+  return Array.from(terms).map((term) => `%${term}%`);
+}
+
 async function searchMovies(pgPool, query) {
+  const patterns = buildSearchPatterns(query);
+
   const result = await pgPool.query(
     `
     SELECT
@@ -64,14 +98,25 @@ async function searchMovies(pgPool, query) {
       library_id,
       quality,
       resolution,
-      file_size
+      file_size,
+      source,
+      audio,
+      collection,
+      universe
     FROM movies
     WHERE
-      title ILIKE $1
-      OR file_name ILIKE $1
-      OR genre ILIKE $1
-      OR year ILIKE $1
-      OR library_id ILIKE $1
+      title ILIKE ANY($1)
+      OR file_name ILIKE ANY($1)
+      OR genre ILIKE ANY($1)
+      OR year ILIKE ANY($1)
+      OR library_id ILIKE ANY($1)
+      OR quality ILIKE ANY($1)
+      OR resolution ILIKE ANY($1)
+      OR file_size ILIKE ANY($1)
+      OR source ILIKE ANY($1)
+      OR audio ILIKE ANY($1)
+      OR collection ILIKE ANY($1)
+      OR universe ILIKE ANY($1)
     ORDER BY
       CASE
         WHEN LOWER(title) = LOWER($2) THEN 0
@@ -80,9 +125,9 @@ async function searchMovies(pgPool, query) {
       END,
       year NULLS LAST,
       title ASC
-    LIMIT 15;
+    LIMIT 20;
     `,
-    [`%${query}%`, query, `${query}%`]
+    [patterns, query, `${query}%`]
   );
 
   return result.rows || [];
