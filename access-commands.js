@@ -6,6 +6,9 @@ const {
   getBotUser,
   requireApprovedUser,
   getUsageToday,
+  setUserLimit,
+  setUserRole,
+  getFullUserInfo,
 } = require("./access-control");
 
 async function handleAccessCommands(bot, msg, pgPool) {
@@ -75,7 +78,7 @@ async function handleAccessCommands(bot, msg, pgPool) {
     const message =
   `📊 Dein Tageslimit\n\n` +
   `🎬 Filme: ${usage.movie}/${user.daily_movie_limit}\n` +
-  `📺 Einzelne Folgen: ${usage.episode}/${user.daily_movie_limit}\n` +
+  `📺 Einzelne Folgen: ${usage.episode}/${user.daily_episode_limit ?? user.daily_movie_limit}\n` +
   `💿 Staffeln: ${usage.season}/${user.daily_season_limit}\n` +
   `🗂 Ganze Serien: ${usage.series_all}/${user.daily_series_limit}\n\n` +
   `🔎 Suche: unbegrenzt`;
@@ -158,6 +161,178 @@ async function handleAccessCommands(bot, msg, pgPool) {
     await bot.sendMessage(chatId, `⛔ User wurde gesperrt.\n\nID: ${targetId}`, {
       reply_to_message_id: msg.message_id,
     });
+
+    return true;
+  }
+  
+    // User-Info anzeigen
+  if (text.startsWith("/userinfo ")) {
+    if (!isAdmin(from.id)) {
+      await bot.sendMessage(chatId, "⛔ Nur Admins können User-Infos abrufen.", {
+        reply_to_message_id: msg.message_id,
+      });
+      return true;
+    }
+
+    const targetId = text.split(/\s+/)[1]?.trim();
+
+    if (!targetId || !/^\d+$/.test(targetId)) {
+      await bot.sendMessage(chatId, "❌ Nutzung:\n/userinfo USER_ID", {
+        reply_to_message_id: msg.message_id,
+      });
+      return true;
+    }
+
+    const info = await getFullUserInfo(pgPool, targetId);
+
+    if (!info) {
+      await bot.sendMessage(chatId, `❌ User ${targetId} wurde nicht gefunden.`, {
+        reply_to_message_id: msg.message_id,
+      });
+      return true;
+    }
+
+    const user = info.user;
+    const usage = info.usage;
+
+    const name = [
+      user.first_name,
+      user.last_name
+    ].filter(Boolean).join(" ") || "—";
+
+    await bot.sendMessage(
+      chatId,
+      `👤 User-Info\n\n` +
+        `🆔 ID: ${user.telegram_user_id}\n` +
+        `👤 Name: ${name}\n` +
+        `🔗 Username: ${user.username ? "@" + user.username : "—"}\n\n` +
+        `📌 Status: ${user.status}\n` +
+        `🏷 Rolle: ${user.role}\n` +
+        `🔎 Suche: ${user.search_enabled ? "✅" : "❌"}\n` +
+        `📦 Holen: ${user.download_enabled ? "✅" : "❌"}\n\n` +
+        `📊 Nutzung heute\n` +
+        `🎬 Filme: ${usage.movie}/${user.daily_movie_limit}\n` +
+        `📺 Folgen: ${usage.episode}/${user.daily_episode_limit ?? user.daily_movie_limit}\n` +
+        `💿 Staffeln: ${usage.season}/${user.daily_season_limit}\n` +
+        `🗂 Serien: ${usage.series_all}/${user.daily_series_limit}`,
+      {
+        reply_to_message_id: msg.message_id,
+      }
+    );
+
+    return true;
+  }
+
+  // Limit setzen
+  if (text.startsWith("/setlimit ")) {
+    if (!isAdmin(from.id)) {
+      await bot.sendMessage(chatId, "⛔ Nur Admins können Limits ändern.", {
+        reply_to_message_id: msg.message_id,
+      });
+      return true;
+    }
+
+    const parts = text.trim().split(/\s+/);
+
+    const targetId = parts[1];
+    const limitType = parts[2];
+    const limitValue = parts[3];
+
+    if (!targetId || !limitType || limitValue === undefined || !/^\d+$/.test(targetId)) {
+      await bot.sendMessage(
+        chatId,
+        `❌ Nutzung:\n\n` +
+          `/setlimit USER_ID filme 3\n` +
+          `/setlimit USER_ID folgen 3\n` +
+          `/setlimit USER_ID staffeln 1\n` +
+          `/setlimit USER_ID serien 0`,
+        {
+          reply_to_message_id: msg.message_id,
+        }
+      );
+      return true;
+    }
+
+    const updated = await setUserLimit(
+      pgPool,
+      targetId,
+      limitType,
+      limitValue
+    );
+
+    if (!updated.ok) {
+      await bot.sendMessage(chatId, updated.message, {
+        reply_to_message_id: msg.message_id,
+      });
+      return true;
+    }
+
+    await bot.sendMessage(
+      chatId,
+      `✅ Limit aktualisiert.\n\n` +
+        `🆔 User: ${targetId}\n` +
+        `📌 Bereich: ${updated.label}\n` +
+        `📊 Neues Limit: ${updated.value}`,
+      {
+        reply_to_message_id: msg.message_id,
+      }
+    );
+
+    return true;
+  }
+
+  // Rolle setzen
+  if (text.startsWith("/setrole ")) {
+    if (!isAdmin(from.id)) {
+      await bot.sendMessage(chatId, "⛔ Nur Admins können Rollen ändern.", {
+        reply_to_message_id: msg.message_id,
+      });
+      return true;
+    }
+
+    const parts = text.trim().split(/\s+/);
+
+    const targetId = parts[1];
+    const role = parts[2];
+
+    if (!targetId || !role || !/^\d+$/.test(targetId)) {
+      await bot.sendMessage(
+        chatId,
+        `❌ Nutzung:\n\n` +
+          `/setrole USER_ID member\n` +
+          `/setrole USER_ID vip\n` +
+          `/setrole USER_ID admin`,
+        {
+          reply_to_message_id: msg.message_id,
+        }
+      );
+      return true;
+    }
+
+    const updated = await setUserRole(pgPool, targetId, role);
+
+    if (!updated.ok) {
+      await bot.sendMessage(chatId, updated.message, {
+        reply_to_message_id: msg.message_id,
+      });
+      return true;
+    }
+
+    const user = updated.user;
+
+    await bot.sendMessage(
+      chatId,
+      `✅ Rolle aktualisiert.\n\n` +
+        `🆔 User: ${targetId}\n` +
+        `🏷 Neue Rolle: ${user.role}\n\n` +
+        `🎬 Filme: ${user.daily_movie_limit}\n` +
+        `📺 Folgen: ${user.daily_episode_limit ?? user.daily_movie_limit}\n` +
+        `💿 Staffeln: ${user.daily_season_limit}\n` +
+        `🗂 Serien: ${user.daily_series_limit}`,
+      {
+        reply_to_message_id: msg.message_id,
+      }
+    );
 
     return true;
   }
