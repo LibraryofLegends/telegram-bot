@@ -504,6 +504,148 @@ async function removeUserAccess(pgPool, telegramUserId) {
   };
 }
 
+function normalizeUserStatus(status = "") {
+  const value = String(status || "").trim().toLowerCase();
+
+  if (["pending", "offen", "anfragen", "wartend"].includes(value)) {
+    return "pending";
+  }
+
+  if (["approved", "frei", "freigegeben", "aktiv"].includes(value)) {
+    return "approved";
+  }
+
+  if (["blocked", "gesperrt", "sperre"].includes(value)) {
+    return "blocked";
+  }
+
+  if (["rejected", "entfernt", "removed", "abgelehnt"].includes(value)) {
+    return "rejected";
+  }
+
+  if (["all", "alle", "gesamt"].includes(value)) {
+    return "all";
+  }
+
+  return null;
+}
+
+async function getUserStats(pgPool) {
+  const result = await pgPool.query(`
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+      COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
+      COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked,
+      COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected,
+
+      COUNT(*) FILTER (WHERE role = 'member')::int AS member,
+      COUNT(*) FILTER (WHERE role = 'vip')::int AS vip,
+      COUNT(*) FILTER (WHERE role = 'admin')::int AS admin
+    FROM bot_users;
+  `);
+
+  return result.rows[0] || {
+    total: 0,
+    pending: 0,
+    approved: 0,
+    blocked: 0,
+    rejected: 0,
+    member: 0,
+    vip: 0,
+    admin: 0
+  };
+}
+
+async function getUsersByStatus(pgPool, status = "pending", limit = 30) {
+  const cleanStatus = normalizeUserStatus(status);
+
+  if (!cleanStatus) {
+    return {
+      ok: false,
+      reason: "invalid_status",
+      users: []
+    };
+  }
+
+  const cleanLimit = Math.max(
+    1,
+    Math.min(Number(limit) || 30, 50)
+  );
+
+  let result;
+
+  if (cleanStatus === "all") {
+    result = await pgPool.query(
+      `
+      SELECT
+        telegram_user_id,
+        username,
+        first_name,
+        last_name,
+        status,
+        role,
+        search_enabled,
+        download_enabled,
+        daily_movie_limit,
+        daily_episode_limit,
+        daily_season_limit,
+        daily_series_limit,
+        requested_at,
+        approved_at,
+        updated_at
+      FROM bot_users
+      ORDER BY
+        CASE status
+          WHEN 'pending' THEN 0
+          WHEN 'approved' THEN 1
+          WHEN 'rejected' THEN 2
+          WHEN 'blocked' THEN 3
+          ELSE 4
+        END,
+        updated_at DESC NULLS LAST,
+        requested_at DESC NULLS LAST
+      LIMIT $1;
+      `,
+      [cleanLimit]
+    );
+  } else {
+    result = await pgPool.query(
+      `
+      SELECT
+        telegram_user_id,
+        username,
+        first_name,
+        last_name,
+        status,
+        role,
+        search_enabled,
+        download_enabled,
+        daily_movie_limit,
+        daily_episode_limit,
+        daily_season_limit,
+        daily_series_limit,
+        requested_at,
+        approved_at,
+        updated_at
+      FROM bot_users
+      WHERE status = $1
+      ORDER BY
+        updated_at DESC NULLS LAST,
+        requested_at DESC NULLS LAST
+      LIMIT $2;
+      `,
+      [cleanStatus, cleanLimit]
+    );
+  }
+
+  return {
+    ok: true,
+    status: cleanStatus,
+    users: result.rows || []
+  };
+}
+
 module.exports = {
   isAdmin,
   upsertPendingUser,
@@ -518,4 +660,6 @@ module.exports = {
   setUserRole,
   getFullUserInfo,
   removeUserAccess,
+  getUserStats,
+  getUsersByStatus,
 };
