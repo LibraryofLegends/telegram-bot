@@ -476,6 +476,184 @@ return true;
   return false;
 }
 
+async function handleAccessCallback(bot, callback, pgPool) {
+  const data = callback.data || "";
+
+  if (!data.startsWith("access:")) {
+    return false;
+  }
+
+  const from = callback.from;
+
+  if (!from || !isAdmin(from.id)) {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "⛔ Nur Admins dürfen das.",
+      show_alert: true
+    });
+    return true;
+  }
+
+  const parts = data.split(":");
+  const action = parts[1];
+  const targetId = parts[2];
+
+  if (!targetId || !/^\d+$/.test(targetId)) {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "❌ Ungültige User-ID.",
+      show_alert: true
+    });
+    return true;
+  }
+
+  const chatId = callback.message?.chat?.id;
+  const messageId = callback.message?.message_id;
+
+  if (action === "approve") {
+    const user = await approveUser(pgPool, targetId, from.id);
+
+    if (!user) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ User wurde nicht gefunden.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "✅ User freigegeben."
+    });
+
+    if (chatId && messageId) {
+      await bot.editMessageText(
+        chatId,
+        messageId,
+        `✅ Freischaltung erledigt.\n\n` +
+          `🆔 User: ${targetId}\n` +
+          `📌 Status: approved\n` +
+          `🔎 Suche: ✅\n` +
+          `📦 Holen: ✅`
+      );
+    }
+
+    try {
+      await bot.sendMessage(
+        targetId,
+        `✅ Du wurdest freigeschaltet.\n\n` +
+          `Du kannst jetzt suchen mit:\n` +
+          `!suche TITEL\n\n` +
+          `Dein Limit siehst du mit:\n` +
+          `!meinlimit`
+      );
+    } catch (err) {
+      console.error(
+        "⚠️ Konnte freigegebenen User nicht benachrichtigen:",
+        targetId,
+        err.response?.data || err.message
+      );
+    }
+
+    return true;
+  }
+
+  if (action === "block") {
+    const user = await blockUser(pgPool, targetId);
+
+    if (!user) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ User wurde nicht gefunden.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "⛔ User gesperrt."
+    });
+
+    if (chatId && messageId) {
+      await bot.editMessageText(
+        chatId,
+        messageId,
+        `⛔ User gesperrt.\n\n` +
+          `🆔 User: ${targetId}\n` +
+          `📌 Status: blocked\n` +
+          `🔎 Suche: ❌\n` +
+          `📦 Holen: ❌`
+      );
+    }
+
+    try {
+      await bot.sendMessage(
+        targetId,
+        `⛔ Deine Freischaltungs-Anfrage wurde abgelehnt.\n\n` +
+          `Dein Zugriff wurde gesperrt.`
+      );
+    } catch (err) {
+      console.error(
+        "⚠️ Konnte gesperrten User nicht benachrichtigen:",
+        targetId,
+        err.response?.data || err.message
+      );
+    }
+
+    return true;
+  }
+
+  if (action === "remove") {
+    const removed = await removeUserAccess(pgPool, targetId);
+
+    if (!removed.ok) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: removed.message || "❌ User wurde nicht gefunden.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🗑 Zugriff entfernt."
+    });
+
+    if (chatId && messageId) {
+      await bot.editMessageText(
+        chatId,
+        messageId,
+        `🗑 Zugriff entfernt.\n\n` +
+          `🆔 User: ${targetId}\n` +
+          `📌 Status: rejected\n` +
+          `🔎 Suche: ❌\n` +
+          `📦 Holen: ❌\n\n` +
+          `Der User kann später wieder !freischaltung senden.`
+      );
+    }
+
+    try {
+      await bot.sendMessage(
+        targetId,
+        `ℹ️ Dein Zugriff auf den Bot wurde entfernt.\n\n` +
+          `Du wurdest nicht dauerhaft gesperrt.\n` +
+          `Du kannst später erneut eine Anfrage senden mit:\n\n` +
+          `!freischaltung`
+      );
+    } catch (err) {
+      console.error(
+        "⚠️ Konnte entfernten User nicht benachrichtigen:",
+        targetId,
+        err.response?.data || err.message
+      );
+    }
+
+    return true;
+  }
+
+  await bot.answerCallbackQuery(callback.id, {
+    text: "❌ Unbekannte Aktion.",
+    show_alert: true
+  });
+
+  return true;
+}
+
 module.exports = {
   handleAccessCommands,
   handleAccessCallback,
