@@ -248,9 +248,9 @@ async function getMovieById(pgPool, movieId) {
 }
 
 async function resolveSeriesBase(pgPool, seriesRef) {
-  const numericRef = Number(seriesRef);
+  const refText = String(seriesRef || "").trim();
 
-  if (!Number.isInteger(numericRef)) {
+  if (!/^\d+$/.test(refText)) {
     return null;
   }
 
@@ -262,15 +262,15 @@ async function resolveSeriesBase(pgPool, seriesRef) {
       series_title
     FROM series
     WHERE
-      series_library_id = $1::integer
-      OR id = $1::integer
+      series_library_id::text = $1::text
+      OR id::text = $1::text
     ORDER BY
-      CASE WHEN series_library_id = $1::integer THEN 0 ELSE 1 END,
+      CASE WHEN series_library_id::text = $1::text THEN 0 ELSE 1 END,
       season ASC,
       episode ASC
     LIMIT 1;
     `,
-    [numericRef]
+    [refText]
   );
 
   return result.rows[0] || null;
@@ -287,30 +287,34 @@ async function getEpisode(pgPool, seriesRef, season, episode) {
 
   if (base.series_library_id) {
     result = await pgPool.query(
-  `
-  SELECT
-    id,
-    series_title,
-    season,
-    episode,
-    episode_title,
-    genre,
-    rating,
-    overview,
-    file_name,
-    file_id,
-    telegram_message_id,
-    topic_id,
-    series_library_id
-  FROM series
-  WHERE
-    series_library_id = $1::integer
-    AND season = $2::integer
-    AND episode = $3::integer
-  LIMIT 1;
-  `,
-  [Number(base.series_library_id), Number(season), Number(episode)]
-);
+      `
+      SELECT
+        id,
+        series_title,
+        season,
+        episode,
+        episode_title,
+        genre,
+        rating,
+        overview,
+        file_name,
+        file_id,
+        telegram_message_id,
+        topic_id,
+        series_library_id
+      FROM series
+      WHERE
+        series_library_id::text = $1::text
+        AND season::text = $2::text
+        AND episode::text = $3::text
+      LIMIT 1;
+      `,
+      [
+        String(base.series_library_id),
+        String(Number(season)),
+        String(Number(episode))
+      ]
+    );
   } else {
     result = await pgPool.query(
       `
@@ -331,11 +335,15 @@ async function getEpisode(pgPool, seriesRef, season, episode) {
       FROM series
       WHERE
         LOWER(series_title) = LOWER($1)
-        AND season = $2
-        AND episode = $3
+        AND season::text = $2::text
+        AND episode::text = $3::text
       LIMIT 1;
       `,
-      [base.series_title, season, episode]
+      [
+        base.series_title,
+        String(Number(season)),
+        String(Number(episode))
+      ]
     );
   }
 
@@ -356,29 +364,32 @@ async function getSeasonEpisodes(pgPool, seriesRef, season) {
 
   if (base.series_library_id) {
     result = await pgPool.query(
-  `
-  SELECT
-    id,
-    series_title,
-    season,
-    episode,
-    episode_title,
-    genre,
-    rating,
-    overview,
-    file_name,
-    file_id,
-    telegram_message_id,
-    topic_id,
-    series_library_id
-  FROM series
-  WHERE
-    series_library_id = $1::integer
-    AND season = $2::integer
-  ORDER BY episode ASC;
-  `,
-  [Number(base.series_library_id), Number(season)]
-);
+      `
+      SELECT
+        id,
+        series_title,
+        season,
+        episode,
+        episode_title,
+        genre,
+        rating,
+        overview,
+        file_name,
+        file_id,
+        telegram_message_id,
+        topic_id,
+        series_library_id
+      FROM series
+      WHERE
+        series_library_id::text = $1::text
+        AND season::text = $2::text
+      ORDER BY episode::integer ASC;
+      `,
+      [
+        String(base.series_library_id),
+        String(Number(season))
+      ]
+    );
   } else {
     result = await pgPool.query(
       `
@@ -399,10 +410,13 @@ async function getSeasonEpisodes(pgPool, seriesRef, season) {
       FROM series
       WHERE
         LOWER(series_title) = LOWER($1)
-        AND season = $2
-      ORDER BY episode ASC;
+        AND season::text = $2::text
+      ORDER BY episode::integer ASC;
       `,
-      [base.series_title, season]
+      [
+        base.series_title,
+        String(Number(season))
+      ]
     );
   }
 
