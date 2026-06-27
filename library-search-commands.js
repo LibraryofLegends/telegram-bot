@@ -37,21 +37,43 @@ function formatMovieLine(movie) {
   );
 }
 
+function pad2(value) {
+  return String(value || 0).padStart(2, "0");
+}
+
+function parseSeasonList(value = "") {
+  return String(value || "")
+    .split(",")
+    .map((v) => Number(String(v).trim()))
+    .filter((n) => Number.isInteger(n) && n > 0)
+    .sort((a, b) => a - b);
+}
+
 function formatSeriesLine(series) {
   const number =
+    series.series_ref ||
     series.series_library_id ||
     series.id;
 
-  const seasons =
-    series.seasons_count || 0;
+  const seasons = parseSeasonList(series.season_list);
+  const firstSeason = seasons[0] || series.first_season || 1;
 
-  const episodes =
-    series.episodes_count || 0;
+  const seasonLabel =
+    seasons.length
+      ? `Staffeln: ${seasons.map((s) => `S${pad2(s)}`).join(", ")}`
+      : "Staffeln: —";
+
+  const seasonCommands = seasons
+    .slice(0, 5)
+    .map((s) => `   !hol serie ${number} staffel ${s}`)
+    .join("\n");
 
   return (
     `${number}. 📺 ${series.series_title || "Unbekannte Serie"}\n` +
-    `   ${seasons} Staffel(n) · ${episodes} Folge(n)\n` +
-    `   !hol serie ${number} staffel 1`
+    `   ${series.seasons_count || 0} Staffel(n) · ${series.episodes_count || 0} Folge(n)\n` +
+    `   ${seasonLabel}\n\n` +
+    `   !hol serie ${number} s${firstSeason}e1\n` +
+    `${seasonCommands ? seasonCommands : `   !hol serie ${number} staffel ${firstSeason}`}`
   );
 }
 
@@ -160,26 +182,44 @@ async function searchMovies(pgPool, query) {
 }
 
 async function searchSeries(pgPool, query) {
+  const patterns = buildSearchPatterns(query);
+
   const result = await pgPool.query(
     `
     SELECT
       MIN(id) AS id,
-      series_library_id,
+      COALESCE(NULLIF(MAX(series_library_id::text), ''), MIN(id)::text) AS series_ref,
+      MAX(series_library_id::text) AS series_library_id,
       series_title,
       COUNT(*)::int AS episodes_count,
-      COUNT(DISTINCT season)::int AS seasons_count,
-      MIN(season)::int AS first_season,
-      MAX(season)::int AS last_season,
-      MIN(episode)::int AS first_episode,
-      MAX(episode)::int AS last_episode
+      COUNT(DISTINCT season::text)::int AS seasons_count,
+      MIN(
+        CASE
+          WHEN season::text ~ '^[0-9]+$'
+          THEN season::integer
+          ELSE NULL
+        END
+      ) AS first_season,
+      MAX(
+        CASE
+          WHEN season::text ~ '^[0-9]+$'
+          THEN season::integer
+          ELSE NULL
+        END
+      ) AS last_season,
+      STRING_AGG(
+        DISTINCT season::text,
+        ', ' ORDER BY season::text
+      ) AS season_list
     FROM series
     WHERE
-      series_title ILIKE $1
-      OR episode_title ILIKE $1
-      OR file_name ILIKE $1
-      OR genre ILIKE $1
+      series_title ILIKE ANY($1)
+      OR episode_title ILIKE ANY($1)
+      OR file_name ILIKE ANY($1)
+      OR genre ILIKE ANY($1)
+      OR series_library_id::text ILIKE ANY($1)
     GROUP BY
-      series_library_id,
+      COALESCE(NULLIF(series_library_id::text, ''), LOWER(series_title)),
       series_title
     ORDER BY
       CASE
@@ -190,7 +230,7 @@ async function searchSeries(pgPool, query) {
       series_title ASC
     LIMIT 10;
     `,
-    [`%${query}%`, query, `${query}%`]
+    [patterns, query, `${query}%`]
   );
 
   return result.rows || [];
