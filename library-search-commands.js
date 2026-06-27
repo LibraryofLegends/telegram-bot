@@ -63,17 +63,23 @@ function formatSeriesLine(series) {
       ? `Staffeln: ${seasons.map((s) => `S${pad2(s)}`).join(", ")}`
       : "Staffeln: —";
 
-  const seasonCommands = seasons
-    .slice(0, 5)
-    .map((s) => `   !hol serie ${number} staffel ${s}`)
-    .join("\n");
+  const visibleSeasons = seasons.slice(0, 6);
+
+const seasonCommands = visibleSeasons
+  .map((s) => `   !hol serie ${number} staffel ${s}`)
+  .join("\n");
+
+const moreSeasonsHint =
+  seasons.length > visibleSeasons.length
+    ? `\n   … weitere Staffeln vorhanden: ${seasons.slice(visibleSeasons.length).map((s) => `S${pad2(s)}`).join(", ")}`
+    : "";
 
   return (
     `${number}. 📺 ${series.series_title || "Unbekannte Serie"}\n` +
     `   ${series.seasons_count || 0} Staffel(n) · ${series.episodes_count || 0} Folge(n)\n` +
     `   ${seasonLabel}\n\n` +
     `   !hol serie ${number} s${firstSeason}e1\n` +
-    `${seasonCommands ? seasonCommands : `   !hol serie ${number} staffel ${firstSeason}`}`
+    `${seasonCommands ? seasonCommands + moreSeasonsHint : `   !hol serie ${number} staffel ${firstSeason}`}`
   );
 }
 
@@ -307,9 +313,9 @@ async function handleLibrarySearchCommands(bot, msg, pgPool) {
   }
 
   message +=
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🔎 Suche: unbegrenzt\n" +
-    "📦 Hol-Funktion folgt im nächsten Schritt.";
+  "━━━━━━━━━━━━━━━━━━\n" +
+  "🔎 Suche: unbegrenzt\n" +
+  "📦 Zum Holen einfach einen !hol-Code kopieren und senden.";
 
   await bot.sendMessage(chatId, message, {
     reply_to_message_id: msg.message_id
