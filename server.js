@@ -9881,6 +9881,21 @@ function movieCaption(tmdb = {}, extras = {}) {
     ]
       .filter(Boolean)
       .join(" ");
+      
+        const movieSeriesStatus =
+    extras.movieSeriesStatus || null;
+
+  let seriesLine = "";
+
+  if (movieSeriesStatus?.name) {
+    const statusText =
+      movieSeriesStatus.complete
+        ? `✅ vollständig ${movieSeriesStatus.presentCount}/${movieSeriesStatus.total}`
+        : `⚠️ ${movieSeriesStatus.presentCount}/${movieSeriesStatus.total} vorhanden`;
+
+    seriesLine =
+      `🎞 Reihe: ${movieSeriesStatus.name} · ${statusText}\n`;
+  }
 
   const resultText =
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -9894,6 +9909,7 @@ function movieCaption(tmdb = {}, extras = {}) {
     "━━━━━━━━━━━━━━━━━━\n" +
     `📦 ${mediaLine}\n` +
     "━━━━━━━━━━━━━━━━━━\n" +
+    seriesLine +
     `🗂 Archiv: ${archiveLine}\n` +
     "@LibraryOfLegends";
 
@@ -24924,6 +24940,160 @@ async function finalizeMovieQualityUpgradeV3({
 }
 
 // =============================
+// MOVIE SERIES STATUS FOR CAPTION V3
+// Zeigt im Film-Post kurz an, ob eine Filmreihe vollständig ist
+// =============================
+async function getMovieSeriesStatusForCaptionV3({
+  title,
+  collection,
+  collectionOrder = []
+}) {
+  const cleanTitle =
+    String(title || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const cleanCollection =
+    String(collection || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  if (!cleanTitle && !cleanCollection) {
+    return null;
+  }
+
+  const rows =
+    await getMovieRowsForGapsV3();
+
+  const archiveKeys = new Set();
+
+  for (const row of rows) {
+    const rowTitle =
+      String(row.title || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (rowTitle) {
+      archiveKeys.add(
+        normalizeMovieGapKeyV3(rowTitle)
+      );
+    }
+  }
+
+  // Wichtig:
+  // Der aktuell hochgeladene Film ist zu diesem Zeitpunkt oft noch nicht gespeichert.
+  // Deshalb zählen wir ihn für die Anzeige schon mit.
+  if (cleanTitle) {
+    archiveKeys.add(
+      normalizeMovieGapKeyV3(cleanTitle)
+    );
+  }
+
+  const collectionKey =
+    normalizeMovieGapKeyV3(cleanCollection);
+
+  const titleKey =
+    normalizeMovieGapKeyV3(cleanTitle);
+
+  let matchedDefinition = null;
+
+  if (Array.isArray(MOVIE_SERIES_DEFINITIONS_V3)) {
+    matchedDefinition =
+      MOVIE_SERIES_DEFINITIONS_V3.find((item) => {
+        const nameKey =
+          normalizeMovieGapKeyV3(item.name);
+
+        if (
+          collectionKey &&
+          (
+            collectionKey.includes(nameKey) ||
+            nameKey.includes(collectionKey)
+          )
+        ) {
+          return true;
+        }
+
+        return (item.movies || []).some((movie) => {
+          const aliases =
+            movieGapAliasesV3(movie);
+
+          return aliases.some((alias) =>
+            normalizeMovieGapKeyV3(alias) === titleKey
+          );
+        });
+      }) || null;
+  }
+
+  let movies = [];
+  let seriesName = cleanCollection;
+
+  if (matchedDefinition) {
+    seriesName =
+      matchedDefinition.name;
+
+    movies =
+      matchedDefinition.movies || [];
+  } else if (Array.isArray(collectionOrder) && collectionOrder.length > 1) {
+    movies =
+      collectionOrder
+        .map((movie) => ({
+          title:
+            movie.title ||
+            movie.name ||
+            "",
+          aliases: [
+            movie.title,
+            movie.name
+          ].filter(Boolean)
+        }))
+        .filter((movie) => movie.title);
+
+    seriesName =
+      cleanCollection || "Filmreihe";
+  }
+
+  if (!seriesName || !movies.length) {
+    return null;
+  }
+
+  const present = [];
+  const missing = [];
+
+  for (const movie of movies) {
+    const aliases =
+      movieGapAliasesV3(movie);
+
+    const mainTitle =
+      typeof movie === "string"
+        ? movie
+        : movie.title;
+
+    const exists =
+      aliases.some((alias) =>
+        archiveKeys.has(
+          normalizeMovieGapKeyV3(alias)
+        )
+      );
+
+    if (exists) {
+      present.push(mainTitle);
+    } else {
+      missing.push(mainTitle);
+    }
+  }
+
+  return {
+    name: seriesName,
+    total: movies.length,
+    present,
+    missing,
+    presentCount: present.length,
+    missingCount: missing.length,
+    complete: missing.length === 0
+  };
+}
+
+// =============================
 // MOVIE UPLOAD PROCESSOR
 // =============================
 async function processMovieUpload({ msg, media, tmdb }) {
@@ -25069,6 +25239,15 @@ async function processMovieUpload({ msg, media, tmdb }) {
     tmdb.collection ||
     detectCollection(tmdb.title) ||
     null;
+    
+      const movieSeriesStatus =
+    detectedCollection
+      ? await getMovieSeriesStatusForCaptionV3({
+          title: tmdb.title,
+          collection: detectedCollection,
+          collectionOrder: tmdb.collectionMovies || []
+        })
+      : null;
 
   const finalTopicName =
     getSmartMovieTopic({
@@ -25130,12 +25309,14 @@ const coverPost =
   // COPY ORIGINAL MEDIA WITH MOVIE CAPTION
   // =============================
   const captionExtras = {
-    ...extras,
+  ...extras,
 
-    topicName: finalTopicName,
+  topicName: finalTopicName,
 
-    universe:
-      universeData?.universeName || null,
+  movieSeriesStatus,
+
+  universe:
+    universeData?.universeName || null,
 
     universePhase:
       universeData?.phase || null,
