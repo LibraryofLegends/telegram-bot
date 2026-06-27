@@ -12931,13 +12931,6 @@ async function sendLocalPhoto({
   photoPath,
   caption
 }) {
-
-async function sendLocalPhoto({
-  chatId,
-  topicId,
-  photoPath,
-  caption
-}) {
   try {
     const FormData = require("form-data");
 
@@ -12959,33 +12952,29 @@ async function sendLocalPhoto({
     }
 
     for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await axios.post(
+          `${BASE_URL}/sendPhoto`,
+          form,
+          {
+            headers: form.getHeaders()
+          }
+        );
 
-  try {
+        return res.data.result;
+      } catch (err) {
+        console.error(
+          `❌ Local Banner Upload Fehler Versuch ${attempt}:`,
+          err.response?.data || err.message
+        );
 
-    const res = await axios.post(
-      `${BASE_URL}/sendPhoto`,
-      form,
-      {
-        headers: form.getHeaders()
+        if (attempt >= 3) {
+          return null;
+        }
+
+        await sleep(2000 * attempt);
       }
-    );
-
-    return res.data.result;
-
-  } catch (err) {
-
-    console.error(
-      `❌ Local Banner Upload Fehler Versuch ${attempt}:`,
-      err.response?.data || err.message
-    );
-
-    if (attempt >= 3) {
-      return null;
     }
-
-    await sleep(2000 * attempt);
-  }
-}
   } catch (err) {
     console.error(
       "❌ Local Banner Upload Fehler:",
