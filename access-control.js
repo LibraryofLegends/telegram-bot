@@ -188,11 +188,11 @@ async function canUseDownload(pgPool, telegramUserId, actionType) {
   const usage = await getUsageToday(pgPool, telegramUserId);
 
   const limits = {
-    movie: user.daily_movie_limit,
-    episode: user.daily_movie_limit,
-    season: user.daily_season_limit,
-    series_all: user.daily_series_limit,
-  };
+  movie: user.daily_movie_limit,
+  episode: user.daily_episode_limit ?? user.daily_movie_limit,
+  season: user.daily_season_limit,
+  series_all: user.daily_series_limit,
+};
 
   const limit = limits[actionType] ?? 0;
   const used = usage[actionType] ?? 0;
@@ -243,6 +243,202 @@ async function logUsage(pgPool, telegramUserId, actionType, itemId) {
   );
 }
 
+function normalizeLimitType(type = "") {
+  const value = String(type || "").trim().toLowerCase();
+
+  if (["film", "filme", "movie", "movies"].includes(value)) {
+    return {
+      column: "daily_movie_limit",
+      label: "Filme"
+    };
+  }
+
+  if (["folge", "folgen", "episode", "episodes"].includes(value)) {
+    return {
+      column: "daily_episode_limit",
+      label: "Einzelne Folgen"
+    };
+  }
+
+  if (["staffel", "staffeln", "season", "seasons"].includes(value)) {
+    return {
+      column: "daily_season_limit",
+      label: "Staffeln"
+    };
+  }
+
+  if (["serie", "serien", "series", "series_all", "alle"].includes(value)) {
+    return {
+      column: "daily_series_limit",
+      label: "Ganze Serien"
+    };
+  }
+
+  return null;
+}
+
+async function setUserLimit(pgPool, telegramUserId, limitType, limitValue) {
+  const normalized = normalizeLimitType(limitType);
+
+  if (!normalized) {
+    return {
+      ok: false,
+      reason: "invalid_limit_type",
+      message:
+        "❌ Unbekannter Limit-Typ.\n\n" +
+        "Erlaubt sind:\n" +
+        "filme, folgen, staffeln, serien"
+    };
+  }
+
+  const numericLimit = Number(limitValue);
+
+  if (!Number.isInteger(numericLimit) || numericLimit < 0 || numericLimit > 999) {
+    return {
+      ok: false,
+      reason: "invalid_limit_value",
+      message: "❌ Limit muss eine Zahl zwischen 0 und 999 sein."
+    };
+  }
+
+  const allowedColumns = [
+    "daily_movie_limit",
+    "daily_episode_limit",
+    "daily_season_limit",
+    "daily_series_limit"
+  ];
+
+  if (!allowedColumns.includes(normalized.column)) {
+    throw new Error("Unsafe limit column");
+  }
+
+  const result = await pgPool.query(
+    `
+    UPDATE bot_users
+    SET
+      ${normalized.column} = $2,
+      updated_at = NOW()
+    WHERE telegram_user_id = $1
+    RETURNING *;
+    `,
+    [telegramUserId, numericLimit]
+  );
+
+  const user = result.rows[0] || null;
+
+  if (!user) {
+    return {
+      ok: false,
+      reason: "user_not_found",
+      message:
+        `❌ User ${telegramUserId} wurde nicht gefunden.\n\n` +
+        `Der User muss zuerst !freischaltung senden.`
+    };
+  }
+
+  return {
+    ok: true,
+    user,
+    label: normalized.label,
+    value: numericLimit
+  };
+}
+
+async function setUserRole(pgPool, telegramUserId, role) {
+  const cleanRole = String(role || "").trim().toLowerCase();
+
+  const allowedRoles = ["member", "vip", "admin"];
+
+  if (!allowedRoles.includes(cleanRole)) {
+    return {
+      ok: false,
+      reason: "invalid_role",
+      message:
+        "❌ Ungültige Rolle.\n\n" +
+        "Erlaubt sind:\n" +
+        "member, vip, admin"
+    };
+  }
+
+  const roleDefaults = {
+    member: {
+      daily_movie_limit: 3,
+      daily_episode_limit: 3,
+      daily_season_limit: 1,
+      daily_series_limit: 0
+    },
+    vip: {
+      daily_movie_limit: 5,
+      daily_episode_limit: 5,
+      daily_season_limit: 2,
+      daily_series_limit: 0
+    },
+    admin: {
+      daily_movie_limit: 999,
+      daily_episode_limit: 999,
+      daily_season_limit: 999,
+      daily_series_limit: 999
+    }
+  };
+
+  const defaults = roleDefaults[cleanRole];
+
+  const result = await pgPool.query(
+    `
+    UPDATE bot_users
+    SET
+      role = $2,
+      daily_movie_limit = $3,
+      daily_episode_limit = $4,
+      daily_season_limit = $5,
+      daily_series_limit = $6,
+      updated_at = NOW()
+    WHERE telegram_user_id = $1
+    RETURNING *;
+    `,
+    [
+      telegramUserId,
+      cleanRole,
+      defaults.daily_movie_limit,
+      defaults.daily_episode_limit,
+      defaults.daily_season_limit,
+      defaults.daily_series_limit
+    ]
+  );
+
+  const user = result.rows[0] || null;
+
+  if (!user) {
+    return {
+      ok: false,
+      reason: "user_not_found",
+      message:
+        `❌ User ${telegramUserId} wurde nicht gefunden.\n\n` +
+        `Der User muss zuerst !freischaltung senden.`
+    };
+  }
+
+  return {
+    ok: true,
+    user
+  };
+}
+
+async function getFullUserInfo(pgPool, telegramUserId) {
+  const user = await getBotUser(pgPool, telegramUserId);
+
+  if (!user) {
+    return null;
+  }
+
+  const usage = await getUsageToday(pgPool, telegramUserId);
+
+  return {
+    user,
+    usage
+  };
+}
+
 module.exports = {
   isAdmin,
   upsertPendingUser,
@@ -253,4 +449,7 @@ module.exports = {
   getUsageToday,
   canUseDownload,
   logUsage,
+  setUserLimit,
+  setUserRole,
+  getFullUserInfo,
 };
