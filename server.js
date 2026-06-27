@@ -14136,71 +14136,72 @@ async function movieGapsCaptionV3() {
   const collections =
     await buildMovieGapsDataV3();
 
-  let incompleteText = "";
-  let completeText = "";
+  const incompleteParts = [];
+  const completeParts = [];
 
   for (const item of collections) {
     if (item.complete) {
-      completeText +=
-        `✅ ${item.name} — vollständig ${item.present.length}/${item.total}\n`;
+      completeParts.push(
+        `✅ ${item.name} — vollständig ${item.present.length}/${item.total}`
+      );
 
       continue;
     }
 
-    incompleteText +=
-      `🎞 ${item.name}\n` +
-      `Vorhanden: ${item.present.length}/${item.total}\n`;
+    const lines = [];
+
+    lines.push(`🎞 ${item.name}`);
+    lines.push(`Vorhanden: ${item.present.length}/${item.total}`);
 
     if (item.present.length) {
-      incompleteText +=
-        "Im Archiv:\n" +
-        item.present
-          .map((title) => `✅ ${title}`)
-          .join("\n") +
-        "\n";
+      lines.push("Im Archiv:");
+
+      for (const title of item.present) {
+        lines.push(`✅ ${title}`);
+      }
     }
 
     if (item.missing.length) {
-      incompleteText +=
-        "Fehlend:\n" +
-        item.missing
-          .map((title) => `❌ ${title}`)
-          .join("\n") +
-        "\n";
+      lines.push("Fehlend:");
+
+      for (const title of item.missing) {
+        lines.push(`❌ ${title}`);
+      }
     }
 
-    incompleteText += "\n━━━━━━━━━━━━━━━━━━\n";
+    incompleteParts.push(lines.join("\n"));
   }
 
-  if (!incompleteText.trim()) {
-    incompleteText =
-      "✅ Alle gepflegten Filmreihen wirken nach aktueller Liste vollständig.\n\n";
-  }
+  const incompleteText =
+    incompleteParts.length
+      ? incompleteParts.join("\n\n━━━━━━━━━━━━━━━━━━\n\n")
+      : "✅ Alle gepflegten Filmreihen wirken nach aktueller Liste vollständig.";
 
-  if (!completeText.trim()) {
-    completeText =
-      "Noch keine vollständig erkannte Filmreihe.\n";
-  }
+  const completeText =
+    completeParts.length
+      ? completeParts.join("\n")
+      : "Noch keine vollständig erkannte Filmreihe.";
 
-  const text =
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "🧩 FEHLENDE FILME & REIHEN\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
+  const text = `
+━━━━━━━━━━━━━━━━━━
+🧩 FEHLENDE FILME & REIHEN
+━━━━━━━━━━━━━━━━━━
 
-    "Automatische Übersicht über gepflegte Filmreihen und fehlende Filme.\n\n" +
+Automatische Übersicht über gepflegte Filmreihen und fehlende Filme.
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "⚠️ UNVOLLSTÄNDIGE FILMREIHEN\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    incompleteText + "\n" +
+━━━━━━━━━━━━━━━━━━
+⚠️ UNVOLLSTÄNDIGE FILMREIHEN
+━━━━━━━━━━━━━━━━━━
+${incompleteText}
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "✅ VOLLSTÄNDIGE FILMREIHEN\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    completeText + "\n" +
+━━━━━━━━━━━━━━━━━━
+✅ VOLLSTÄNDIGE FILMREIHEN
+━━━━━━━━━━━━━━━━━━
+${completeText}
 
-    "━━━━━━━━━━━━━━━━━━\n" +
-    "@LibraryOfLegends";
+━━━━━━━━━━━━━━━━━━
+@LibraryOfLegends
+`;
 
   return cleanTelegramText(text).slice(0, 4000);
 }
@@ -14363,7 +14364,6 @@ console.log(
   console.log(
   "✅ Fixed Library Topics + Command Center + A–Z + Lückenübersichten fertig eingerichtet"
 );
-}
 
 // =============================
 // MOVIE COMMAND CENTER CAPTION V2
