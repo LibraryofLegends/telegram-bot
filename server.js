@@ -7977,7 +7977,8 @@ function normalizeAllowedMovieTopic(topicName = "") {
 }
 
 // =============================
-// SMART MOVIE TOPIC ROUTING V3
+// SMART MOVIE TOPIC ROUTING V3.1
+// Familien-/Animationsfilme haben Vorrang vor Abenteuer
 // =============================
 function getSmartMovieTopic(tmdb = {}) {
   const title =
@@ -8015,6 +8016,7 @@ function getSmartMovieTopic(tmdb = {}) {
 
   // =============================
   // HORROR / MYSTERY / PSYCHO
+  // Hat Vorrang vor Thriller/Drama
   // =============================
   if (
     text.includes("horror") ||
@@ -8034,7 +8036,37 @@ function getSmartMovieTopic(tmdb = {}) {
   }
 
   // =============================
+  // FAMILIE / ANIMATION / KINDER
+  // Wichtig: vor Abenteuer/Action prüfen
+  // Beispiel: Toy Story, Minions, Disney, Pixar
+  // =============================
+  if (
+    text.includes("familie") ||
+    text.includes("family") ||
+    text.includes("animation") ||
+    text.includes("anime") ||
+    text.includes("kids") ||
+    text.includes("kinder") ||
+    text.includes("zeichentrick") ||
+    text.includes("pixar") ||
+    text.includes("disney") ||
+    text.includes("toy story") ||
+    text.includes("eiskönigin") ||
+    text.includes("frozen") ||
+    text.includes("minions") ||
+    text.includes("ich einfach unverbesserlich") ||
+    text.includes("lightyear") ||
+    text.includes("onward") ||
+    text.includes("sonic") ||
+    text.includes("pokemon") ||
+    text.includes("pokémon")
+  ) {
+    return FIXED_LIBRARY_TOPICS.drama.name;
+  }
+
+  // =============================
   // ACTION / THRILLER / SCI-FI
+  // Abenteuer landet nur hier, wenn es kein Familien-/Animationsfilm ist
   // =============================
   if (
     text.includes("action") ||
@@ -8064,7 +8096,7 @@ function getSmartMovieTopic(tmdb = {}) {
   }
 
   // =============================
-  // KOMÖDIE / DRAMA / FAMILIE
+  // KOMÖDIE / DRAMA / ROMANTIK
   // =============================
   if (
     text.includes("komödie") ||
@@ -8073,14 +8105,7 @@ function getSmartMovieTopic(tmdb = {}) {
     text.includes("drama") ||
     text.includes("romantik") ||
     text.includes("romance") ||
-    text.includes("liebe") ||
-    text.includes("familie") ||
-    text.includes("family") ||
-    text.includes("animation") ||
-    text.includes("anime") ||
-    text.includes("kids") ||
-    text.includes("kinder") ||
-    text.includes("zeichentrick")
+    text.includes("liebe")
   ) {
     return FIXED_LIBRARY_TOPICS.drama.name;
   }
