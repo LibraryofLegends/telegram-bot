@@ -13486,9 +13486,41 @@ async function getSeriesStatsV3() {
   };
 }
 
+// =============================
+// SERIES COMMAND CENTER V3 — COMPACT
+// =============================
 async function seriesCommandCenterCaptionV3() {
   const stats =
     await getSeriesStatsV3();
+
+  let missingSeriesCount = 0;
+  let missingSeasonCount = 0;
+  let missingEpisodeCount = 0;
+
+  try {
+    if (typeof buildSeriesMissingEpisodesDataV3 === "function") {
+      const missingData =
+        await buildSeriesMissingEpisodesDataV3();
+
+      missingSeriesCount =
+        missingData.length;
+
+      for (const series of missingData) {
+        missingSeasonCount +=
+          series.seasons?.length || 0;
+
+        for (const season of series.seasons || []) {
+          missingEpisodeCount +=
+            season.missing?.length || 0;
+        }
+      }
+    }
+  } catch (err) {
+    console.error(
+      "⚠️ Serien-Lückenstatus konnte nicht berechnet werden:",
+      err.message
+    );
+  }
 
   const text =
     "━━━━━━━━━━━━━━━━━━\n" +
@@ -13503,7 +13535,20 @@ async function seriesCommandCenterCaptionV3() {
     "━━━━━━━━━━━━━━━━━━\n\n" +
 
     `📺 Serien im Archiv: ${stats.seriesCount}\n` +
-    `🎞 Episoden gespeichert: ${stats.episodeCount}\n\n` +
+    `🎞 Episoden gespeichert: ${stats.episodeCount}\n` +
+    `🧩 Serien mit Lücken: ${missingSeriesCount}\n` +
+    `📀 Staffeln mit Lücken: ${missingSeasonCount}\n` +
+    `❌ Fehlende Episoden: ${missingEpisodeCount}\n\n` +
+
+    "━━━━━━━━━━━━━━━━━━\n" +
+    "🛡 SYSTEM STATUS\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+
+    "✅ Episoden-Duplikatschutz aktiv\n" +
+    "📌 A–Z Index aktiv\n" +
+    "🧩 Episoden-Lückenprüfung aktiv\n" +
+    "🎞 Staffel-Intro aktiv\n" +
+    "🧭 Feste Kategorie-Topics aktiv\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
     "🧭 NAVIGATION\n" +
@@ -13514,6 +13559,7 @@ async function seriesCommandCenterCaptionV3() {
     "🍿 Komödie, Drama & Familie\n" +
     "👻 Horror, Mystery & Psycho\n" +
     "📺 Klassiker & Nostalgie\n" +
+    "🧩 Fehlende Episoden\n" +
     "💬 Mitglieder-Chat & Wünsche\n\n" +
 
     "━━━━━━━━━━━━━━━━━━\n" +
