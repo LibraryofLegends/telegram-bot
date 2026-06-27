@@ -16072,8 +16072,9 @@ app.get("/", (req, res) => {
 
 // =============================
 // WEBHOOK ENDPOINT
+// Stabil ohne Token in der Route
 // =============================
-app.post(`/webhook/${TOKEN}`, async (req, res) => {
+app.post("/webhook", async (req, res) => {
   try {
     const update = req.body;
 
@@ -16110,7 +16111,7 @@ app.get(`/setwebhook/${TOKEN}`, async (req, res) => {
       String(baseUrl).replace(/\/$/, "");
 
     const webhookUrl =
-      `${cleanBaseUrl}/webhook/${TOKEN}`;
+      `${cleanBaseUrl}/webhook`;
 
     const result = await tg("setWebhook", {
       url: webhookUrl,
@@ -16157,7 +16158,7 @@ app.get("/setwebhook", async (req, res) => {
       String(baseUrl).replace(/\/$/, "");
 
     const webhookUrl =
-      `${cleanBaseUrl}/webhook/${TOKEN}`;
+      `${cleanBaseUrl}/webhook`;
 
     const result = await tg("setWebhook", {
       url: webhookUrl,
