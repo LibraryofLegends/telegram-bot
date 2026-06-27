@@ -9,7 +9,12 @@ const Parser = require("rss-parser");
 const rssParser = new Parser();
 
 const { startUserbotImporter } = require("./userbot-importer");
-const { handleAccessCommands } = require("./access-commands");
+
+const {
+  handleAccessCommands,
+  handleAccessCallback,
+} = require("./access-commands");
+
 const { handleLibrarySearchCommands } = require("./library-search-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 
@@ -12945,6 +12950,22 @@ const accessBot = {
       document,
       ...options
     });
+  },
+
+  async answerCallbackQuery(callbackQueryId, options = {}) {
+    return tg("answerCallbackQuery", {
+      callback_query_id: callbackQueryId,
+      ...options
+    });
+  },
+
+  async editMessageText(chatId, messageId, text, options = {}) {
+    return tg("editMessageText", {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      ...options
+    });
   }
 };
 
@@ -16073,7 +16094,7 @@ app.post(`/webhook/${TOKEN}`, async (req, res) => {
 async function handleUpdate(update) {
   const callback = update.callback_query;
 
-  // =============================
+    // =============================
   // BUTTON CALLBACKS
   // =============================
   if (callback) {
@@ -16082,10 +16103,34 @@ async function handleUpdate(update) {
     console.log("🔘 Button gedrückt:", callback.data);
     console.log("USER ID:", userId);
 
+    // =============================
+    // ACCESS ADMIN BUTTONS
+    // access:approve:USER_ID
+    // access:block:USER_ID
+    // access:remove:USER_ID
+    // =============================
+    const handledAccessCallback = await handleAccessCallback(
+      accessBot,
+      callback,
+      pgPool
+    );
+
+    if (handledAccessCallback) return;
+
+    // =============================
+    // OLD ADMIN BUTTONS
+    // =============================
     if (userId !== ADMIN_ID) {
       if (process.env.DEBUG === "true") {
         console.log("⛔ Button ignored - nicht Admin");
       }
+
+      await tg("answerCallbackQuery", {
+        callback_query_id: callback.id,
+        text: "⛔ Nur Admins dürfen das.",
+        show_alert: true
+      });
+
       return;
     }
 
