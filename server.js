@@ -13003,7 +13003,7 @@ const FIXED_LIBRARY_TOPICS = {
       "Horror, Mystery, Psycho, düstere Thriller und gruselige Inhalte."
   },
 
-  classic: {
+    classic: {
     name: "📺 Klassiker & Nostalgie",
     movieType: "movie_category",
     seriesType: "series_category",
@@ -13011,6 +13011,26 @@ const FIXED_LIBRARY_TOPICS = {
     pin: false,
     description:
       "Filme und Serien vor dem Jahr 2000."
+  },
+
+  movieGaps: {
+    name: "🧩 Fehlende Filme & Reihen",
+    movieType: "movie_gaps",
+    seriesType: null,
+    locked: true,
+    pin: false,
+    description:
+      "Übersicht über unvollständige Filmreihen und fehlende Filme im Archiv."
+  },
+
+  seriesGaps: {
+    name: "🧩 Fehlende Episoden",
+    movieType: null,
+    seriesType: "series_gaps",
+    locked: true,
+    pin: false,
+    description:
+      "Übersicht über unvollständige Serien, fehlende Staffeln und fehlende Episoden."
   },
 
   chat: {
@@ -13204,10 +13224,14 @@ async function setupFixedLibraryTopicsForChat({
   const result = [];
 
   for (const topic of Object.values(FIXED_LIBRARY_TOPICS)) {
-    const type =
+        const type =
       isSeriesGroup
         ? topic.seriesType
         : topic.movieType;
+
+    if (!type) {
+      continue;
+    }
 
     const topicId =
       await ensureFixedTopic({
