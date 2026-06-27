@@ -655,6 +655,82 @@ async function getSeasonEpisodes(pgPool, seriesRef, season) {
   };
 }
 
+async function getAllSeriesEpisodes(pgPool, seriesRef) {
+  const base = await resolveSeriesBase(pgPool, seriesRef);
+
+  if (!base) {
+    return {
+      base: null,
+      episodes: []
+    };
+  }
+
+  let result;
+
+  if (base.series_library_id) {
+    result = await pgPool.query(
+      `
+      SELECT
+        id,
+        series_title,
+        season,
+        episode,
+        episode_title,
+        genre,
+        rating,
+        overview,
+        file_name,
+        file_id,
+        telegram_message_id,
+        topic_id,
+        series_library_id
+      FROM series
+      WHERE
+        series_library_id::text = $1::text
+      ORDER BY
+        season::integer ASC,
+        episode::integer ASC;
+      `,
+      [
+        String(base.series_library_id)
+      ]
+    );
+  } else {
+    result = await pgPool.query(
+      `
+      SELECT
+        id,
+        series_title,
+        season,
+        episode,
+        episode_title,
+        genre,
+        rating,
+        overview,
+        file_name,
+        file_id,
+        telegram_message_id,
+        topic_id,
+        series_library_id
+      FROM series
+      WHERE
+        LOWER(series_title) = LOWER($1)
+      ORDER BY
+        season::integer ASC,
+        episode::integer ASC;
+      `,
+      [
+        base.series_title
+      ]
+    );
+  }
+
+  return {
+    base,
+    episodes: result.rows || []
+  };
+}
+
 async function sendMediaByFileId(bot, chatId, fileId, caption, replyToMessageId) {
   try {
     await bot.sendVideo(chatId, fileId, {
@@ -1015,14 +1091,152 @@ async function handleSeriesHelp(bot, msg, parsed) {
   return true;
 }
 
-async function handleSeriesAllBlocked(bot, msg) {
+async function handleSeriesAllHol(bot, msg, pgPool, parsed) {
+  const chatId = msg.chat.id;
+  const from = msg.from;
+
+  const limitCheck = await canUseDownload(pgPool, from.id, "series_all");
+
+  if (!limitCheck.ok) {
+    await bot.sendMessage(chatId, limitCheck.message, {
+      reply_to_message_id: msg.message_id
+    });
+    return true;
+  }
+
+  const { base, episodes } = await getAllSeriesEpisodes(
+    pgPool,
+    parsed.seriesRef
+  );
+
+  if (!base) {
+    await bot.sendMessage(
+      chatId,
+      `❌ Serie "${parsed.seriesRef}" wurde nicht gefunden.`,
+      {
+        reply_to_message_id: msg.message_id
+      }
+    );
+    return true;
+  }
+
+  if (!episodes.length) {
+    await bot.sendMessage(
+      chatId,
+      `❌ Keine Folgen gefunden.\n\n📺 ${base.series_title}`,
+      {
+        reply_to_message_id: msg.message_id
+      }
+    );
+    return true;
+  }
+
+  const maxSeriesAllEpisodes =
+    Number(process.env.MAX_SERIES_ALL_EPISODES || 30);
+
+  const isAdminUser =
+    limitCheck.user?.role === "admin";
+
+  if (!isAdminUser && episodes.length > maxSeriesAllEpisodes) {
+    const seasonRows = await pgPool.query(
+      `
+      SELECT
+        season::text AS season,
+        COUNT(*)::int AS episode_count
+      FROM series
+      WHERE
+        ${
+          base.series_library_id
+            ? "series_library_id::text = $1::text"
+            : "LOWER(series_title) = LOWER($1)"
+        }
+      GROUP BY season::text
+      ORDER BY season::integer ASC;
+      `,
+      [
+        base.series_library_id
+          ? String(base.series_library_id)
+          : base.series_title
+      ]
+    );
+
+    const seasonLines = seasonRows.rows
+      .map((row) => {
+        const seasonNumber = Number(row.season);
+        return `!hol serie ${parsed.seriesRef} staffel ${seasonNumber}`;
+      })
+      .join("\n");
+
+    await bot.sendMessage(
+      chatId,
+      `⚠️ Diese Serie ist zu groß für "alle".\n\n` +
+        `📺 ${base.series_title}\n` +
+        `🎞 Folgen: ${episodes.length}\n` +
+        `🚧 Maximum für automatische Komplettausgabe: ${maxSeriesAllEpisodes}\n\n` +
+        `Bitte nutze stattdessen staffelweise:\n\n` +
+        `${seasonLines}`,
+      {
+        reply_to_message_id: msg.message_id
+      }
+    );
+
+    return true;
+  }
+
   await bot.sendMessage(
-    msg.chat.id,
-    "⛔ Ganze Serien sind aktuell nicht automatisch freigegeben.\n\n" +
-      "Bitte nutze stattdessen:\n\n" +
-      "!hol serie ID staffel 1\n" +
-      "oder\n" +
-      "!hol serie ID s1e1",
+    chatId,
+    `📦 Komplette Serie wird vorbereitet:\n\n` +
+      `📺 ${base.series_title}\n` +
+      `🎞 Folgen: ${episodes.length}`,
+    {
+      reply_to_message_id: msg.message_id
+    }
+  );
+
+  let sentCount = 0;
+  let skippedCount = 0;
+  let failedCount = 0;
+
+  for (const ep of episodes) {
+    if (!ep.file_id) {
+      skippedCount += 1;
+      continue;
+    }
+
+    const sent = await sendMediaByFileId(
+      bot,
+      chatId,
+      ep.file_id,
+      buildEpisodeCaption(ep),
+      msg.message_id
+    );
+
+    if (sent.ok) {
+      sentCount += 1;
+    } else {
+      failedCount += 1;
+    }
+
+    await sleep(1200);
+  }
+
+  if (sentCount > 0) {
+    await logUsage(
+      pgPool,
+      from.id,
+      "series_all",
+      `${base.series_title}-ALL`
+    );
+  }
+
+  await bot.sendMessage(
+    chatId,
+    `✅ Serie abgeschlossen.\n\n` +
+      `📺 ${base.series_title}\n\n` +
+      `✅ Gesendet: ${sentCount}\n` +
+      `⚠️ Ohne file_id übersprungen: ${skippedCount}\n` +
+      `❌ Fehlgeschlagen: ${failedCount}\n\n` +
+      `📊 Tageslimit: ${limitCheck.remaining === "unbegrenzt" ? "unbegrenzt" : `${limitCheck.remaining - 1} Serie(n) übrig`}`,
     {
       reply_to_message_id: msg.message_id
     }
@@ -1060,8 +1274,8 @@ async function handleLibraryHolCommands(bot, msg, pgPool) {
   }
 
   if (parsed.type === "series_all") {
-    return await handleSeriesAllBlocked(bot, msg);
-  }
+  return await handleSeriesAllHol(bot, msg, pgPool, parsed);
+}
 
   return false;
 }
