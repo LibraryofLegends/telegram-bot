@@ -24646,6 +24646,259 @@ async function sendAdminPanel(chatId) {
 }
 
 // =============================
+// MOVIE QUALITY UPGRADE CHECK V3
+// =============================
+function llMovieQualityScoreV3(data = {}) {
+  const text =
+    [
+      data.fileName,
+      data.file_name,
+      data.quality,
+      data.resolution,
+      data.source,
+      data.videoCodec,
+      data.video_codec,
+      data.codec
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+  let score = 0;
+
+  // Auflösung
+  if (/2160|uhd|4k/.test(text)) {
+    score += 400;
+  } else if (/1080|fhd/.test(text)) {
+    score += 300;
+  } else if (/720|hd/.test(text)) {
+    score += 200;
+  } else if (/480|576|dvd|sd/.test(text)) {
+    score += 100;
+  }
+
+  // Quelle
+  if (/remux/.test(text)) {
+    score += 50;
+  } else if (/bluray|blu-ray|bdrip|brrip/.test(text)) {
+    score += 40;
+  } else if (/web-dl|webdl/.test(text)) {
+    score += 30;
+  } else if (/web|webrip/.test(text)) {
+    score += 20;
+  } else if (/hdtv/.test(text)) {
+    score += 10;
+  }
+
+  // Codec kleiner Bonus
+  if (/h265|hevc|x265/.test(text)) {
+    score += 8;
+  } else if (/h264|x264|avc/.test(text)) {
+    score += 5;
+  }
+
+  return score;
+}
+
+function llMovieQualityLabelV3(data = {}) {
+  const text =
+    [
+      data.fileName,
+      data.file_name,
+      data.quality,
+      data.resolution,
+      data.source,
+      data.videoCodec,
+      data.video_codec,
+      data.codec
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+  const parts = [];
+
+  if (/2160|uhd|4k/.test(text)) {
+    parts.push("UHD");
+  } else if (/1080|fhd/.test(text)) {
+    parts.push("FHD");
+  } else if (/720|hd/.test(text)) {
+    parts.push("HD");
+  } else if (/480|576|dvd|sd/.test(text)) {
+    parts.push("SD");
+  } else {
+    parts.push("Unbekannt");
+  }
+
+  if (/remux/.test(text)) {
+    parts.push("REMUX");
+  } else if (/bluray|blu-ray|bdrip|brrip/.test(text)) {
+    parts.push("BluRay");
+  } else if (/web-dl|webdl/.test(text)) {
+    parts.push("WEB-DL");
+  } else if (/web|webrip/.test(text)) {
+    parts.push("WEB");
+  }
+
+  if (/h265|hevc|x265/.test(text)) {
+    parts.push("H.265");
+  } else if (/h264|x264|avc/.test(text)) {
+    parts.push("H.264");
+  }
+
+  return parts.join(" · ");
+}
+
+function llCompareMovieQualityUpgradeV3({
+  existingMovie,
+  newFileName,
+  newExtras
+}) {
+  const oldData = {
+    fileName:
+      existingMovie?.file_name ||
+      existingMovie?.fileName ||
+      "",
+    quality:
+      existingMovie?.quality ||
+      "",
+    resolution:
+      existingMovie?.resolution ||
+      "",
+    source:
+      existingMovie?.source ||
+      "",
+    videoCodec:
+      existingMovie?.video_codec ||
+      existingMovie?.videoCodec ||
+      existingMovie?.codec ||
+      ""
+  };
+
+  const newData = {
+    fileName: newFileName,
+    file_name: newFileName,
+    quality:
+      newExtras?.quality ||
+      "",
+    resolution:
+      newExtras?.resolution ||
+      "",
+    source:
+      newExtras?.source ||
+      "",
+    videoCodec:
+      newExtras?.videoCodec ||
+      newExtras?.video_codec ||
+      newExtras?.codec ||
+      ""
+  };
+
+  const oldScore =
+    llMovieQualityScoreV3(oldData);
+
+  const newScore =
+    llMovieQualityScoreV3(newData);
+
+  return {
+    isUpgrade: newScore > oldScore,
+    oldScore,
+    newScore,
+    oldLabel: llMovieQualityLabelV3(oldData),
+    newLabel: llMovieQualityLabelV3(newData)
+  };
+}
+
+// =============================
+// MOVIE QUALITY UPGRADE FINALIZER V3
+// löscht alte Telegram-Nachricht und alten DB-Eintrag
+// erst NACHDEM die neue Datei erfolgreich kopiert wurde
+// =============================
+async function deleteTelegramMovieMessageSafeV3(existingMovie) {
+  const oldMessageId =
+    existingMovie?.telegram_message_id ||
+    existingMovie?.telegramMessageId ||
+    null;
+
+  if (!oldMessageId) {
+    console.log(
+      "ℹ️ Kein alter Telegram-Message-ID für Upgrade vorhanden."
+    );
+
+    return false;
+  }
+
+  try {
+    await tg("deleteMessage", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: Number(oldMessageId)
+    });
+
+    console.log(
+      "🗑 Alte Film-Nachricht gelöscht:",
+      oldMessageId
+    );
+
+    return true;
+  } catch (err) {
+    console.error(
+      "⚠️ Alte Film-Nachricht konnte nicht gelöscht werden:",
+      oldMessageId,
+      err.message
+    );
+
+    return false;
+  }
+}
+
+async function deleteMovieDbEntryByUniqueKeyV3(uniqueKey) {
+  if (!uniqueKey) {
+    return false;
+  }
+
+  if (pgPool) {
+    await pgPool.query(
+      `
+      DELETE FROM movies
+      WHERE unique_key = $1
+      `,
+      [uniqueKey]
+    );
+
+    return true;
+  }
+
+  db.prepare(`
+    DELETE FROM movies
+    WHERE unique_key = ?
+  `).run(uniqueKey);
+
+  return true;
+}
+
+async function finalizeMovieQualityUpgradeV3({
+  movieUpgrade,
+  uniqueKey
+}) {
+  if (!movieUpgrade?.existingMovie || !uniqueKey) {
+    return;
+  }
+
+  await deleteTelegramMovieMessageSafeV3(
+    movieUpgrade.existingMovie
+  );
+
+  await deleteMovieDbEntryByUniqueKeyV3(
+    uniqueKey
+  );
+
+  console.log(
+    "♻️ Alter Film-Datensatz für Upgrade entfernt:",
+    uniqueKey
+  );
+}
+
+// =============================
 // MOVIE UPLOAD PROCESSOR
 // =============================
 async function processMovieUpload({ msg, media, tmdb }) {
@@ -24660,21 +24913,62 @@ async function processMovieUpload({ msg, media, tmdb }) {
     msg.document?.file_id ||
     "";
 
-  if (await movieExists(media.uniqueKey)) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "⚠️ Film ist bereits gespeichert:\n\n" +
-        `🎬 ${media.title} ${media.year || ""}`
-    });
-
-    return;
-  }
-
-  const mediaExtras =
+    const mediaExtras =
     await Promise.resolve(
       getMediaExtras(fileName, msg)
     );
+
+  const existingMovie =
+    await movieExists(media.uniqueKey);
+
+  let movieUpgrade = null;
+
+  if (existingMovie) {
+    const qualityCheck =
+      llCompareMovieQualityUpgradeV3({
+        existingMovie,
+        newFileName: fileName,
+        newExtras: mediaExtras
+      });
+
+    if (!qualityCheck.isUpgrade) {
+      await tg("sendMessage", {
+        chat_id: msg.chat.id,
+        text:
+          "⚠️ Film ist bereits gespeichert:\n\n" +
+          `🎬 ${media.title} ${media.year || ""}\n\n` +
+          `📦 Archiv-Version: ${qualityCheck.oldLabel}\n` +
+          `📥 Neuer Upload: ${qualityCheck.newLabel}\n\n` +
+          "❌ Kein Qualitätsupgrade erkannt."
+      });
+
+      return;
+    }
+
+    movieUpgrade = {
+      existingMovie,
+      ...qualityCheck
+    };
+
+    await tg("sendMessage", {
+      chat_id: msg.chat.id,
+      text:
+        "♻️ Qualitätsupgrade erkannt:\n\n" +
+        `🎬 ${media.title} ${media.year || ""}\n\n` +
+        `📦 Archiv-Version: ${qualityCheck.oldLabel}\n` +
+        `📥 Neuer Upload: ${qualityCheck.newLabel}\n\n` +
+        "✅ Neue Version wird verarbeitet."
+    });
+
+    console.log("♻️ MOVIE QUALITY UPGRADE:", {
+      title: media.title,
+      year: media.year,
+      oldQuality: qualityCheck.oldLabel,
+      newQuality: qualityCheck.newLabel,
+      oldScore: qualityCheck.oldScore,
+      newScore: qualityCheck.newScore
+    });
+  }
 
   const libraryId =
     await makeLibraryCode(tmdb.genre);
@@ -24784,8 +25078,9 @@ async function processMovieUpload({ msg, media, tmdb }) {
   }
 
   // =============================
-  // POST COVER
-  // =============================
+// POST COVER
+// =============================
+const coverPost =
   await tg("sendPhoto", {
     chat_id: MOVIE_GROUP_ID,
     message_thread_id: topicId,
@@ -24837,14 +25132,38 @@ async function processMovieUpload({ msg, media, tmdb }) {
     });
 
   if (!copied?.message_id) {
-    await tg("sendMessage", {
-      chat_id: msg.chat.id,
-      text:
-        "⚠️ Cover wurde gepostet, aber Film konnte nicht kopiert werden."
-    });
-
-    return;
+  if (coverPost?.message_id) {
+    try {
+      await tg("deleteMessage", {
+        chat_id: MOVIE_GROUP_ID,
+        message_id: Number(coverPost.message_id)
+      });
+    } catch (err) {
+      console.error(
+        "⚠️ Neues Cover konnte nach Copy-Fehler nicht gelöscht werden:",
+        err.message
+      );
+    }
   }
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text:
+      "⚠️ Cover wurde gepostet, aber Film konnte nicht kopiert werden."
+  });
+
+  return;
+}
+
+// =============================
+// FINALIZE QUALITY UPGRADE
+// =============================
+if (movieUpgrade?.existingMovie) {
+  await finalizeMovieQualityUpgradeV3({
+    movieUpgrade,
+    uniqueKey: media.uniqueKey
+  });
+}
 
   // =============================
   // SAVE MOVIE
@@ -24934,18 +25253,27 @@ async function processMovieUpload({ msg, media, tmdb }) {
   // ADMIN CONFIRMATION
   // =============================
   await tg("sendMessage", {
-    chat_id: msg.chat.id,
-    text:
-      "✅ Film erfolgreich einsortiert:\n\n" +
-      `🎬 ${tmdb.title}\n` +
-      `🎭 Thema: ${finalTopicName}\n` +
-      (
-        detectedCollection
-          ? `🎞 Filmreihe: ${detectedCollection}\n`
-          : ""
-      ) +
-      `🏷 ${extras.libraryId}`
-  });
+  chat_id: msg.chat.id,
+  text:
+    (
+      movieUpgrade?.existingMovie
+        ? "♻️ Film erfolgreich aktualisiert:\n\n"
+        : "✅ Film erfolgreich einsortiert:\n\n"
+    ) +
+    `🎬 ${tmdb.title}\n` +
+    `🎭 Thema: ${finalTopicName}\n` +
+    (
+      detectedCollection
+        ? `🎞 Filmreihe: ${detectedCollection}\n`
+        : ""
+    ) +
+    (
+      movieUpgrade?.existingMovie
+        ? `📦 Alt: ${movieUpgrade.oldLabel}\n📥 Neu: ${movieUpgrade.newLabel}\n`
+        : ""
+    ) +
+    `🏷 ${extras.libraryId}`
+});
 
   // =============================
   // REFRESH GLOBAL SYSTEMS
