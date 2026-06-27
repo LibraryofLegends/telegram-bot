@@ -478,4 +478,5 @@ return true;
 
 module.exports = {
   handleAccessCommands,
+  handleAccessCallback,
 };
