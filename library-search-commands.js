@@ -61,23 +61,42 @@ function buildSearchPatterns(query = "") {
     terms.add(raw);
   }
 
-  if (lower === "4k" || lower.includes("4k") || lower.includes("uhd")) {
+  // 4K / UHD Mapping für deine Datenbank
+  if (
+    lower === "4k" ||
+    lower.includes("4k") ||
+    lower.includes("uhd") ||
+    lower.includes("2160") ||
+    lower.includes("3840")
+  ) {
     terms.add("4K");
     terms.add("UHD");
     terms.add("2160p");
     terms.add("2160");
+    terms.add("3840");
   }
 
-  if (lower === "fhd" || lower.includes("1080")) {
+  // Full HD Mapping
+  if (
+    lower === "fhd" ||
+    lower.includes("fhd") ||
+    lower.includes("1080")
+  ) {
     terms.add("FHD");
     terms.add("1080p");
     terms.add("1080");
+    terms.add("1920");
   }
 
-  if (lower === "hd" || lower.includes("720")) {
+  // HD Mapping
+  if (
+    lower === "hd" ||
+    lower.includes("720")
+  ) {
     terms.add("HD");
     terms.add("720p");
     terms.add("720");
+    terms.add("1280");
   }
 
   return Array.from(terms).map((term) => `%${term}%`);
