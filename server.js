@@ -10,6 +10,7 @@ const rssParser = new Parser();
 
 const { startUserbotImporter } = require("./userbot-importer");
 const { handleAccessCommands } = require("./access-commands");
+const { handleLibrarySearchCommands } = require("./library-search-commands");
 
 const app = express();
 
@@ -16103,6 +16104,15 @@ console.log(
 if (msg.text) {
   const handledAccess = await handleAccessCommands(accessBot, msg, pgPool);
   if (handledAccess) return;
+}
+
+// =============================
+// PUBLIC LIBRARY SEARCH
+// !suche TITEL
+// =============================
+if (msg.text) {
+  const handledSearch = await handleLibrarySearchCommands(accessBot, msg, pgPool);
+  if (handledSearch) return;
 }
 
 if (userId !== ADMIN_ID) {
