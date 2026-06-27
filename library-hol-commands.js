@@ -284,13 +284,95 @@ function buildEpisodeCaption(ep) {
   return lines.join("\n").slice(0, 1000);
 }
 
-async function getMovieById(pgPool, movieRef) {
+function isNumericMovieRef(value = "") {
+  return /^\d+$/.test(String(value || "").trim());
+}
+
+function isLibraryMovieRef(value = "") {
+  return /^LIB-[A-Z0-9]+-\d+$/i.test(String(value || "").trim());
+}
+
+async function getMovieCandidates(pgPool, movieRef) {
   const refText = String(movieRef || "").trim();
 
   if (!refText) {
-    return null;
+    return {
+      direct: false,
+      rows: []
+    };
   }
 
+  // Direkte Datenbank-ID: !hol 167 / !hol movie 167
+  if (isNumericMovieRef(refText)) {
+    const result = await pgPool.query(
+      `
+      SELECT
+        id,
+        title,
+        year,
+        genre,
+        rating,
+        runtime,
+        overview,
+        file_name,
+        file_id,
+        telegram_message_id,
+        topic_id,
+        library_id,
+        quality,
+        resolution,
+        file_size,
+        source,
+        audio
+      FROM movies
+      WHERE id::text = $1::text
+      LIMIT 1;
+      `,
+      [refText]
+    );
+
+    return {
+      direct: true,
+      rows: result.rows || []
+    };
+  }
+
+  // Direkter Library-Code: !hol LIB-ACT-0001
+  if (isLibraryMovieRef(refText)) {
+    const result = await pgPool.query(
+      `
+      SELECT
+        id,
+        title,
+        year,
+        genre,
+        rating,
+        runtime,
+        overview,
+        file_name,
+        file_id,
+        telegram_message_id,
+        topic_id,
+        library_id,
+        quality,
+        resolution,
+        file_size,
+        source,
+        audio
+      FROM movies
+      WHERE LOWER(library_id::text) = LOWER($1::text)
+      LIMIT 1;
+      `,
+      [refText]
+    );
+
+    return {
+      direct: true,
+      rows: result.rows || []
+    };
+  }
+
+  // Titel-Suche: !hol oblivion / !hol superman
   const result = await pgPool.query(
     `
     SELECT
@@ -313,30 +395,52 @@ async function getMovieById(pgPool, movieRef) {
       audio
     FROM movies
     WHERE
-      id::text = $1::text
-      OR library_id::text ILIKE $2
-      OR title ILIKE $2
-      OR file_name ILIKE $2
+      title ILIKE $1
+      OR file_name ILIKE $1
+      OR library_id::text ILIKE $1
     ORDER BY
       CASE
-        WHEN id::text = $1::text THEN 0
-        WHEN LOWER(library_id::text) = LOWER($1::text) THEN 1
-        WHEN LOWER(title) = LOWER($1::text) THEN 2
-        WHEN LOWER(title) LIKE LOWER($3) THEN 3
-        ELSE 4
+        WHEN LOWER(title) = LOWER($2) THEN 0
+        WHEN LOWER(title) LIKE LOWER($3) THEN 1
+        ELSE 2
       END,
       year NULLS LAST,
       title ASC
-    LIMIT 1;
+    LIMIT 10;
     `,
     [
-      refText,
       `%${refText}%`,
+      refText,
       `${refText}%`
     ]
   );
 
-  return result.rows[0] || null;
+  return {
+    direct: false,
+    rows: result.rows || []
+  };
+}
+
+function formatMovieChoiceLine(movie) {
+  const label =
+    movie.library_id ||
+    String(movie.id);
+
+  const meta = [
+    movie.quality,
+    movie.resolution,
+    movie.file_size,
+    movie.runtime
+  ]
+    .map((v) => String(v || "").trim())
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    `${label}. 🎬 ${movie.title || "Unbekannter Film"}${movie.year ? ` (${movie.year})` : ""}\n` +
+    `   ${meta || "Keine technischen Daten"}\n` +
+    `   !hol movie ${movie.id}`
+  );
 }
 
 async function resolveSeriesBase(pgPool, seriesRef) {
@@ -598,25 +702,49 @@ async function handleMovieHol(bot, msg, pgPool, parsed) {
   const chatId = msg.chat.id;
   const from = msg.from;
 
+  const movieRef = parsed.id;
+
+  const candidates = await getMovieCandidates(pgPool, movieRef);
+
+  if (!candidates.rows.length) {
+    await bot.sendMessage(
+      chatId,
+      `❌ Film/Code "${movieRef}" wurde nicht gefunden.`,
+      {
+        reply_to_message_id: msg.message_id
+      }
+    );
+    return true;
+  }
+
+  // Wenn Titel-Suche mehrere Treffer ergibt, nicht automatisch senden.
+  // Dadurch wird kein Tageslimit verbraucht.
+  if (!candidates.direct && candidates.rows.length > 1) {
+    const message =
+      `⚠️ Mehrere Treffer gefunden für:\n${movieRef}\n\n` +
+      candidates.rows.map(formatMovieChoiceLine).join("\n\n") +
+      "\n\n━━━━━━━━━━━━━━━━━━\n" +
+      "Bitte nutze den eindeutigen !hol-Code aus der Liste.";
+
+    await bot.sendMessage(
+      chatId,
+      message.slice(0, 3900),
+      {
+        reply_to_message_id: msg.message_id
+      }
+    );
+
+    return true;
+  }
+
+  const movie = candidates.rows[0];
+
   const limitCheck = await canUseDownload(pgPool, from.id, "movie");
 
   if (!limitCheck.ok) {
     await bot.sendMessage(chatId, limitCheck.message, {
       reply_to_message_id: msg.message_id
     });
-    return true;
-  }
-
-  const movie = await getMovieById(pgPool, parsed.id);
-
-  if (!movie) {
-    await bot.sendMessage(
-      chatId,
-          `❌ Film/Code "${parsed.id}" wurde nicht gefunden.`,
-      {
-        reply_to_message_id: msg.message_id
-      }
-    );
     return true;
   }
 
