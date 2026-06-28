@@ -10,6 +10,8 @@ const {
   setUserRole,
   getFullUserInfo,
   removeUserAccess,
+  getUserStats,
+  getUsersByStatus,
 } = require("./access-control");
 
 function getAdminNotifyChatIds() {
@@ -85,6 +87,63 @@ async function notifyAdminsAboutAccessRequest(bot, user) {
       );
     }
   }
+}
+
+function formatAccessUserName(user) {
+  const name = [
+    user.first_name,
+    user.last_name
+  ].filter(Boolean).join(" ");
+
+  if (name) return name;
+
+  if (user.username) return `@${user.username}`;
+
+  return "Unbekannt";
+}
+
+function formatAccessUserLine(user, index) {
+  const name = formatAccessUserName(user);
+
+  const username =
+    user.username
+      ? `@${user.username}`
+      : "—";
+
+  const searchIcon =
+    user.search_enabled
+      ? "✅"
+      : "❌";
+
+  const downloadIcon =
+    user.download_enabled
+      ? "✅"
+      : "❌";
+
+  return (
+    `${index}. 👤 ${name}\n` +
+    `   🔗 ${username}\n` +
+    `   🆔 ${user.telegram_user_id}\n` +
+    `   📌 ${user.status} · 🏷 ${user.role}\n` +
+    `   🔎 Suche: ${searchIcon} · 📦 Holen: ${downloadIcon}\n` +
+    `   ℹ️ /userinfo ${user.telegram_user_id}`
+  );
+}
+
+function formatUsersHeader(status, count) {
+  const labels = {
+    pending: "Offene Anfragen",
+    approved: "Freigeschaltete User",
+    rejected: "Entfernte User",
+    blocked: "Gesperrte User",
+    all: "Alle User"
+  };
+
+  return (
+    `👥 ${labels[status] || "User"}\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `Gefunden: ${count}\n\n`
+  );
 }
 
 async function handleAccessCommands(bot, msg, pgPool) {
@@ -297,6 +356,105 @@ return true;
         err.response?.data || err.message
       );
     }
+
+    return true;
+  }
+  
+    // User-Übersicht / User-Listen
+  if (text === "/users" || text.startsWith("/users ")) {
+    if (!isAdmin(from.id)) {
+      await bot.sendMessage(chatId, "⛔ Nur Admins können die User-Liste abrufen.", {
+        reply_to_message_id: msg.message_id,
+      });
+      return true;
+    }
+
+    const parts = text.trim().split(/\s+/);
+    const filter = parts[1];
+
+    if (!filter) {
+      const stats = await getUserStats(pgPool);
+
+      await bot.sendMessage(
+        chatId,
+        `👥 User-Übersicht\n` +
+          `━━━━━━━━━━━━━━━━━━\n\n` +
+          `📊 Gesamt: ${stats.total}\n\n` +
+          `🕓 Offen: ${stats.pending}\n` +
+          `✅ Freigeschaltet: ${stats.approved}\n` +
+          `🗑 Entfernt: ${stats.rejected}\n` +
+          `⛔ Gesperrt: ${stats.blocked}\n\n` +
+          `🏷 Rollen\n` +
+          `👤 Member: ${stats.member}\n` +
+          `⭐ VIP: ${stats.vip}\n` +
+          `🛡 Admin: ${stats.admin}\n\n` +
+          `━━━━━━━━━━━━━━━━━━\n` +
+          `Listen anzeigen:\n` +
+          `/users pending\n` +
+          `/users approved\n` +
+          `/users rejected\n` +
+          `/users blocked\n` +
+          `/users all`,
+        {
+          reply_to_message_id: msg.message_id,
+        }
+      );
+
+      return true;
+    }
+
+    const result = await getUsersByStatus(pgPool, filter, 30);
+
+    if (!result.ok) {
+      await bot.sendMessage(
+        chatId,
+        `❌ Unbekannter User-Filter.\n\n` +
+          `Erlaubt sind:\n` +
+          `/users pending\n` +
+          `/users approved\n` +
+          `/users rejected\n` +
+          `/users blocked\n` +
+          `/users all`,
+        {
+          reply_to_message_id: msg.message_id,
+        }
+      );
+
+      return true;
+    }
+
+    const users = result.users || [];
+
+    if (!users.length) {
+      await bot.sendMessage(
+        chatId,
+        formatUsersHeader(result.status, 0) +
+          `Keine Einträge vorhanden.`,
+        {
+          reply_to_message_id: msg.message_id,
+        }
+      );
+
+      return true;
+    }
+
+    const body = users
+      .map((user, index) => formatAccessUserLine(user, index + 1))
+      .join("\n\n");
+
+    const message =
+      formatUsersHeader(result.status, users.length) +
+      body +
+      `\n\n━━━━━━━━━━━━━━━━━━\n` +
+      `Maximal 30 Einträge pro Liste.`;
+
+    await bot.sendMessage(
+      chatId,
+      message.slice(0, 3900),
+      {
+        reply_to_message_id: msg.message_id,
+      }
+    );
 
     return true;
   }
