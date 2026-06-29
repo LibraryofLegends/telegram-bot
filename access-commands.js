@@ -295,6 +295,11 @@ function buildCommandListMessage(isAdminUser = false) {
     `!meinlimit\n` +
     `/meinlimit\n` +
     `→ Eigenes Tageslimit anzeigen\n\n` +
+    
+        `🔥 Neu im Archiv\n` +
+    `!neu\n` +
+    `/neu\n` +
+    `→ Zuletzt hinzugefügte Filme und Serien anzeigen\n\n` +
 
     `🔎 Suche\n` +
     `!suche TITEL\n` +
@@ -396,6 +401,39 @@ async function handleAccessCommands(bot, msg, pgPool) {
         reply_to_message_id: msg.message_id,
         reply_markup: buildPublicMenuKeyboard(isAdmin(from.id))
       }
+    );
+
+    return true;
+  }
+  
+    // Neu im Archiv anzeigen
+  if (
+    text === "/neu" ||
+    text === "!neu" ||
+    text === "/new" ||
+    text === "!new"
+  ) {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
+      await bot.sendMessage(
+        chatId,
+        `⛔ Du bist noch nicht freigeschaltet.\n\n` +
+          `Beantrage Zugriff mit:\n` +
+          `!freischaltung`,
+        {
+          reply_to_message_id: msg.message_id
+        }
+      );
+
+      return true;
+    }
+
+    await sendLatestLibraryMessage(
+      bot,
+      chatId,
+      msg.message_id,
+      pgPool
     );
 
     return true;
@@ -946,11 +984,17 @@ function buildPublicMenuKeyboard(isAdminUser = false) {
       }
     ],
     [
-      {
-        text: "📜 Befehle",
-        callback_data: "public:commands"
-      }
-    ]
+  {
+    text: "🔥 Neu im Archiv",
+    callback_data: "public:new"
+  }
+],
+[
+  {
+    text: "📜 Befehle",
+    callback_data: "public:commands"
+  }
+]
   ];
 
   if (isAdminUser) {
@@ -978,6 +1022,165 @@ function formatOwnLimitMessage(user, usage) {
   );
 }
 
+function formatLatestMovieLine(movie, index) {
+  const label =
+    movie.library_id ||
+    String(movie.id);
+
+  const meta = [
+    movie.quality,
+    movie.resolution,
+    movie.file_size,
+    movie.runtime
+  ]
+    .map((v) => String(v || "").trim())
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    `${index}. 🎬 ${movie.title || "Unbekannter Film"}${movie.year ? ` (${movie.year})` : ""}\n` +
+    `   ${label}\n` +
+    `   ${meta || "Keine technischen Daten"}\n` +
+    `   !hol movie ${movie.id}`
+  );
+}
+
+function parseLatestSeasonList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => Number(String(v).trim()))
+      .filter((n) => Number.isInteger(n) && n > 0)
+      .sort((a, b) => a - b);
+  }
+
+  return String(value || "")
+    .split(",")
+    .map((v) => Number(String(v).trim()))
+    .filter((n) => Number.isInteger(n) && n > 0)
+    .sort((a, b) => a - b);
+}
+
+function pad2(value) {
+  return String(value || 0).padStart(2, "0");
+}
+
+function formatLatestSeriesLine(series, index) {
+  const number =
+    series.series_ref ||
+    series.series_library_id ||
+    series.id;
+
+  const seasons =
+    parseLatestSeasonList(series.season_list);
+
+  const seasonText =
+    seasons.length
+      ? seasons.map((s) => `S${pad2(s)}`).join(", ")
+      : "—";
+
+  const firstSeason =
+    seasons[0] || 1;
+
+  return (
+    `${index}. 📺 ${series.series_title || "Unbekannte Serie"}\n` +
+    `   ${series.seasons_count || 0} Staffel(n) · ${series.episodes_count || 0} Folge(n)\n` +
+    `   Staffeln: ${seasonText}\n` +
+    `   !hol serie ${number} s${firstSeason}e1\n` +
+    `   !hol serie ${number} staffel ${firstSeason}`
+  );
+}
+
+async function getLatestLibraryItems(pgPool, limit = 10) {
+  const cleanLimit =
+    Math.max(1, Math.min(Number(limit) || 10, 20));
+
+  const moviesResult = await pgPool.query(
+    `
+    SELECT
+      id,
+      title,
+      year,
+      library_id,
+      quality,
+      resolution,
+      file_size,
+      runtime,
+      created_at
+    FROM movies
+    ORDER BY
+      created_at DESC NULLS LAST,
+      id DESC
+    LIMIT $1;
+    `,
+    [cleanLimit]
+  );
+
+  const seriesResult = await pgPool.query(
+    `
+    SELECT
+      MIN(id) AS id,
+      COALESCE(NULLIF(MAX(series_library_id::text), ''), MIN(id)::text) AS series_ref,
+      MAX(series_library_id::text) AS series_library_id,
+      series_title,
+      COUNT(*)::int AS episodes_count,
+      COUNT(DISTINCT season::text)::int AS seasons_count,
+      ARRAY_AGG(DISTINCT season::text) AS season_list,
+      MAX(created_at) AS latest_created_at
+    FROM series
+    GROUP BY
+      COALESCE(NULLIF(series_library_id::text, ''), LOWER(series_title)),
+      series_title
+    ORDER BY
+      latest_created_at DESC NULLS LAST,
+      MIN(id) DESC
+    LIMIT $1;
+    `,
+    [cleanLimit]
+  );
+
+  return {
+    movies: moviesResult.rows || [],
+    series: seriesResult.rows || []
+  };
+}
+
+function buildLatestLibraryMessage(latest) {
+  const movieLines =
+    latest.movies.length
+      ? latest.movies.map(formatLatestMovieLine).join("\n\n")
+      : "Keine neuen Filme gefunden.";
+
+  const seriesLines =
+    latest.series.length
+      ? latest.series.map(formatLatestSeriesLine).join("\n\n")
+      : "Keine neuen Serien gefunden.";
+
+  return (
+    `🔥 Neu im Archiv\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `🎬 Filme\n\n` +
+    movieLines +
+    `\n\n━━━━━━━━━━━━━━━━━━\n\n` +
+    `📺 Serien\n\n` +
+    seriesLines +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `🔎 Suche: unbegrenzt\n` +
+    `📦 Zum Holen einfach den !hol-Code kopieren.`
+  );
+}
+
+async function sendLatestLibraryMessage(bot, chatId, replyToMessageId, pgPool) {
+  const latest = await getLatestLibraryItems(pgPool, 10);
+
+  await bot.sendMessage(
+    chatId,
+    buildLatestLibraryMessage(latest).slice(0, 3900),
+    {
+      reply_to_message_id: replyToMessageId
+    }
+  );
+}
+
 async function handlePublicCallback(bot, callback, pgPool) {
   const data = callback.data || "";
 
@@ -998,6 +1201,31 @@ async function handlePublicCallback(bot, callback, pgPool) {
   }
 
   const action = data.split(":")[1];
+  
+    if (action === "new") {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Du bist noch nicht freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🔥 Neu im Archiv wird angezeigt."
+    });
+
+    await sendLatestLibraryMessage(
+      bot,
+      chatId,
+      messageId,
+      pgPool
+    );
+
+    return true;
+  }
 
   if (action === "commands") {
     await bot.answerCallbackQuery(callback.id, {
