@@ -462,6 +462,14 @@ function buildCommandListMessage(isAdminUser = false) {
       `/episodemismatch TITEL\n` +
       `→ Serienfolgen finden, bei denen DB-Folge und Dateiname nicht zusammenpassen\n\n` +
       
+            `🛠 Episoden-Reparatur\n` +
+      `/episodefix ID\n` +
+      `/episodefix ID file\n` +
+      `/episodefix ID file confirm\n` +
+      `/episodefix ID season 1 episode 3\n` +
+      `/episodefix ID season 1 episode 3 title Episodentitel\n` +
+      `→ Staffel/Folge sicher per Vorschau reparieren\n\n` +
+      
                   `🗑 Papierkorb / Bereinigung\n` +
       `/trashmovie ID\n` +
       `/trashmovie ID confirm\n` +
