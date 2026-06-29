@@ -227,7 +227,7 @@ async function getFavorites(pgPool, telegramUserId) {
 function formatFavoriteLine(item, index) {
   if (item.item_type === "movie") {
     return (
-      `${index}. 🎬 ${item.title || "Unbekannter Film"}${item.year ? ` (${item.year})` : ""}\n` +
+      `${index + 1}.  🎬 ${item.title || "Unbekannter Film"}${item.year ? ` (${item.year})` : ""}\n` +
       `   🆔 ${item.item_ref}\n` +
       `   !hol movie ${item.item_ref}`
     );
