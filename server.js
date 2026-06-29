@@ -17,6 +17,7 @@ const {
 
 const { handleLibrarySearchCommands } = require("./library-search-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
+const { handleFavoriteCommands } = require("./library-favorites-commands");
 
 const app = express();
 
@@ -16308,6 +16309,15 @@ if (msg.text) {
 if (msg.text) {
   const handledSearch = await handleLibrarySearchCommands(accessBot, msg, pgPool);
   if (handledSearch) return;
+}
+
+// =============================
+// PUBLIC FAVORITES / MERKLISTE
+// !merken, !merkliste, !vergessen
+// =============================
+if (msg.text) {
+  const handledFavorites = await handleFavoriteCommands(accessBot, msg, pgPool);
+  if (handledFavorites) return;
 }
 
 // =============================
