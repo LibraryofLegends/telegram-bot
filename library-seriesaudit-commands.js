@@ -65,6 +65,8 @@ function parseEpisodeFromFileName(fileName = "") {
 function extractFileClusterName(fileName = "") {
   let base = stripExtension(fileName)
     .replace(/@.+$/i, "")
+    .replace(/[_]+/g, " ")
+    .replace(/[.]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -77,7 +79,10 @@ function extractFileClusterName(fileName = "") {
     /\s*-\s*S\d{1,2}\s*E\d{1,3}\s*[-–—]\s*.+$/i,
     /\s*S\d{1,2}\s*E\d{1,3}\s*[-–—]\s*.+$/i,
     /\s*S\d{1,2}E\d{1,3}\s*[-–—]\s*.+$/i,
-    /\s*-\s*\d{1,2}x\d{1,3}\s*[-–—]\s*.+$/i
+    /\s*-\s*\d{1,2}x\d{1,3}\s*[-–—]\s*.+$/i,
+    /\s*\(?\d{4}\)?\s*\d{1,2}x\d{1,3}\s*[-–—]\s*.+$/i,
+    /\s*S\d{1,2}\s*E\d{1,3}\s+.+$/i,
+    /\s*S\d{1,2}E\d{1,3}\s+.+$/i
   ];
 
   for (const pattern of patterns) {
@@ -86,6 +91,7 @@ function extractFileClusterName(fileName = "") {
 
   base = base
     .replace(/\s*-\s*\(?\d{4}\)?\s*$/i, "")
+    .replace(/\s+\(?\d{4}\)?\s*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -145,10 +151,105 @@ async function getSeriesAuditRows(pgPool, query, limit = 500) {
   const cleanLimit =
     Math.max(1, Math.min(Number(limit) || 500, 2000));
 
+  // Wenn eine konkrete Episoden-ID eingegeben wird,
+  // laden wir automatisch die komplette Serien-Gruppe dieser Episode.
+  if (/^\d+$/.test(cleanQuery)) {
+    const baseResult = await pgPool.query(
+      `
+      SELECT
+        id,
+        series_title,
+        series_library_id
+      FROM series
+      WHERE id::text = $1::text
+      LIMIT 1;
+      `,
+      [cleanQuery]
+    );
+
+    const base =
+      baseResult.rows[0];
+
+    if (base) {
+      if (base.series_library_id) {
+        const groupResult = await pgPool.query(
+          `
+          SELECT
+            id,
+            series_library_id,
+            series_title,
+            season,
+            episode,
+            episode_title,
+            file_name,
+            created_at
+          FROM series
+          WHERE series_library_id::text = $1::text
+          ORDER BY
+            CASE
+              WHEN season::text ~ '^[0-9]+$'
+              THEN season::int
+              ELSE 999
+            END ASC,
+            CASE
+              WHEN episode::text ~ '^[0-9]+$'
+              THEN episode::int
+              ELSE 999
+            END ASC,
+            id ASC
+          LIMIT $2;
+          `,
+          [
+            String(base.series_library_id),
+            cleanLimit
+          ]
+        );
+
+        return groupResult.rows || [];
+      }
+
+      const titleResult = await pgPool.query(
+        `
+        SELECT
+          id,
+          series_library_id,
+          series_title,
+          season,
+          episode,
+          episode_title,
+          file_name,
+          created_at
+        FROM series
+        WHERE LOWER(series_title) = LOWER($1)
+        ORDER BY
+          CASE
+            WHEN season::text ~ '^[0-9]+$'
+            THEN season::int
+            ELSE 999
+          END ASC,
+          CASE
+            WHEN episode::text ~ '^[0-9]+$'
+            THEN episode::int
+            ELSE 999
+          END ASC,
+          id ASC
+        LIMIT $2;
+        `,
+        [
+          String(base.series_title || ""),
+          cleanLimit
+        ]
+      );
+
+      return titleResult.rows || [];
+    }
+  }
+
   const result = await pgPool.query(
     `
     SELECT
       id,
+      series_library_id,
       series_title,
       season,
       episode,
@@ -160,7 +261,6 @@ async function getSeriesAuditRows(pgPool, query, limit = 500) {
       series_title ILIKE $1
       OR episode_title ILIKE $1
       OR file_name ILIKE $1
-      OR id::text = $2::text
     ORDER BY
       series_title ASC,
       CASE
@@ -174,11 +274,10 @@ async function getSeriesAuditRows(pgPool, query, limit = 500) {
         ELSE 999
       END ASC,
       id ASC
-    LIMIT $3;
+    LIMIT $2;
     `,
     [
       `%${cleanQuery}%`,
-      cleanQuery,
       cleanLimit
     ]
   );
@@ -251,9 +350,30 @@ function buildSeriesAuditMessage(query, rows) {
       ? mismatches.slice(0, 20).map(formatAuditLine).join("\n\n")
       : "Keine offensichtlichen DB/Dateiname-Abweichungen gefunden.";
 
+    const libraryIds =
+    Array.from(
+      new Set(
+        rows
+          .map((row) => row.series_library_id)
+          .filter(Boolean)
+          .map(String)
+      )
+    );
+
+  const seriesTitles =
+    Array.from(
+      new Set(
+        rows
+          .map((row) => row.series_title)
+          .filter(Boolean)
+      )
+    );
+
   return (
     `🧭 Serien-Audit: ${query}\n` +
     `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Serientitel: ${seriesTitles.slice(0, 3).join(" / ") || "—"}\n` +
+    `Library-ID(s): ${libraryIds.join(", ") || "—"}\n` +
     `Gefundene Folgen: ${rows.length}\n` +
     `Abweichungen: ${mismatches.length}\n` +
     `Datei-Cluster: ${clusters.length}\n\n` +
