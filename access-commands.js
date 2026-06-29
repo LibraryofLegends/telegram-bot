@@ -300,6 +300,16 @@ function buildCommandListMessage(isAdminUser = false) {
     `!neu\n` +
     `/neu\n` +
     `→ Zuletzt hinzugefügte Filme und Serien anzeigen\n\n` +
+    
+        `⭐ Merkliste\n` +
+    `!merken movie ID\n` +
+    `!merken LIB-CODE\n` +
+    `!merken FILMTITEL\n` +
+    `!merken serie SERIENTITEL\n` +
+    `!merkliste\n` +
+    `!vergessen ID\n` +
+    `!merkliste leeren\n` +
+    `→ Persönliche Merkliste verwalten\n\n` +
 
     `🔎 Suche\n` +
     `!suche TITEL\n` +
@@ -991,6 +1001,12 @@ function buildPublicMenuKeyboard(isAdminUser = false) {
 ],
 [
   {
+    text: "⭐ Merkliste",
+    callback_data: "public:favorites"
+  }
+],
+[
+  {
     text: "📜 Befehle",
     callback_data: "public:commands"
   }
@@ -1222,6 +1238,30 @@ async function handlePublicCallback(bot, callback, pgPool) {
       chatId,
       messageId,
       pgPool
+    );
+
+    return true;
+  }
+  
+    if (action === "favorites") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "⭐ Merkliste"
+    });
+
+    await bot.sendMessage(
+      chatId,
+      `⭐ Merkliste\n\n` +
+        `Anzeigen:\n` +
+        `!merkliste\n\n` +
+        `Etwas merken:\n` +
+        `!merken movie 167\n` +
+        `!merken LIB-ACT-0001\n` +
+        `!merken tulsa king\n\n` +
+        `Entfernen:\n` +
+        `!vergessen ID`,
+      {
+        reply_to_message_id: messageId
+      }
     );
 
     return true;
