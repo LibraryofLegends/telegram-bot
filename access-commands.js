@@ -169,6 +169,46 @@ function buildUserManagementKeyboard(userId) {
       ],
       [
         {
+          text: "🎬 Filme +1",
+          callback_data: `access:limit:${id}:filme:1`
+        },
+        {
+          text: "🎬 Filme -1",
+          callback_data: `access:limit:${id}:filme:-1`
+        }
+      ],
+      [
+        {
+          text: "📺 Folgen +1",
+          callback_data: `access:limit:${id}:folgen:1`
+        },
+        {
+          text: "📺 Folgen -1",
+          callback_data: `access:limit:${id}:folgen:-1`
+        }
+      ],
+      [
+        {
+          text: "💿 Staffeln +1",
+          callback_data: `access:limit:${id}:staffeln:1`
+        },
+        {
+          text: "💿 Staffeln -1",
+          callback_data: `access:limit:${id}:staffeln:-1`
+        }
+      ],
+      [
+        {
+          text: "🗂 Serien +1",
+          callback_data: `access:limit:${id}:serien:1`
+        },
+        {
+          text: "🗂 Serien -1",
+          callback_data: `access:limit:${id}:serien:-1`
+        }
+      ],
+      [
+        {
           text: "🗑 Entfernen",
           callback_data: `access:remove:${id}`
         },
@@ -204,12 +244,156 @@ function formatFullUserInfoMessage(user, usage) {
   );
 }
 
+function getCurrentLimitValue(user, limitType) {
+  if (limitType === "filme") {
+    return Number(user.daily_movie_limit || 0);
+  }
+
+  if (limitType === "folgen") {
+    return Number(user.daily_episode_limit ?? user.daily_movie_limit ?? 0);
+  }
+
+  if (limitType === "staffeln") {
+    return Number(user.daily_season_limit || 0);
+  }
+
+  if (limitType === "serien") {
+    return Number(user.daily_series_limit || 0);
+  }
+
+  return null;
+}
+
+function getLimitLabel(limitType) {
+  const labels = {
+    filme: "Filme",
+    folgen: "Folgen",
+    staffeln: "Staffeln",
+    serien: "Ganze Serien"
+  };
+
+  return labels[limitType] || limitType;
+}
+
+function buildCommandListMessage(isAdminUser = false) {
+  let message =
+    `📜 Library of Legends Befehle\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+
+    `👤 Allgemein\n` +
+    `!id\n` +
+    `/id\n` +
+    `→ Eigene Telegram-ID anzeigen\n\n` +
+
+    `!freischaltung\n` +
+    `/freischaltung\n` +
+    `→ Zugriff beantragen\n\n` +
+
+    `!meinlimit\n` +
+    `/meinlimit\n` +
+    `→ Eigenes Tageslimit anzeigen\n\n` +
+
+    `🔎 Suche\n` +
+    `!suche TITEL\n` +
+    `→ Filme und Serien suchen\n\n` +
+
+    `Beispiele:\n` +
+    `!suche superman\n` +
+    `!suche tulsa\n` +
+    `!suche 4k\n\n` +
+
+    `📦 Holen\n` +
+    `!hol movie ID\n` +
+    `!hol LIB-CODE\n` +
+    `!hol FILMTITEL\n` +
+    `!hol serie ID s1e1\n` +
+    `!hol serie ID staffel 1\n` +
+    `!hol SERIENTITEL s1e1\n` +
+    `!hol SERIENTITEL staffel 1\n\n` +
+
+    `Beispiele:\n` +
+    `!hol movie 167\n` +
+    `!hol LIB-ACT-0001\n` +
+    `!hol oblivion\n` +
+    `!hol tulsa king s1e1\n` +
+    `!hol tulsa king staffel 1\n\n`;
+
+  if (isAdminUser) {
+    message +=
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `🛡 Admin-Befehle\n\n` +
+
+      `👥 User-Verwaltung\n` +
+      `/users\n` +
+      `/users pending\n` +
+      `/users approved\n` +
+      `/users rejected\n` +
+      `/users blocked\n` +
+      `/users all\n\n` +
+
+      `/userinfo USER_ID\n` +
+      `→ User anzeigen und per Buttons verwalten\n\n` +
+
+      `/freigeben USER_ID\n` +
+      `→ User freischalten\n\n` +
+
+      `/sperren USER_ID\n` +
+      `→ User dauerhaft sperren\n\n` +
+
+      `/entfernen USER_ID\n` +
+      `→ Zugriff entfernen, aber neue Anfrage erlauben\n\n` +
+
+      `🏷 Rollen\n` +
+      `/setrole USER_ID member\n` +
+      `/setrole USER_ID vip\n` +
+      `/setrole USER_ID admin\n\n` +
+
+      `📊 Limits\n` +
+      `/setlimit USER_ID filme 3\n` +
+      `/setlimit USER_ID folgen 3\n` +
+      `/setlimit USER_ID staffeln 1\n` +
+      `/setlimit USER_ID serien 0\n\n` +
+
+      `🎬 Film-/Serien-Admin\n` +
+      `/movies\n` +
+      `/series\n` +
+      `/search TITEL\n` +
+      `/editmovie Suchname | feld=wert\n` +
+      `/dashboard\n` +
+      `/stats\n\n` +
+
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `Tipp: Bei /userinfo kannst du Rollen und Limits direkt per Button ändern.`;
+  }
+
+  return message;
+}
+
 async function handleAccessCommands(bot, msg, pgPool) {
   const text = msg.text || "";
   const chatId = msg.chat.id;
   const from = msg.from;
 
   if (!from) return false;
+  
+    // Befehlsliste anzeigen
+  if (
+    text === "/befehle" ||
+    text === "!befehle" ||
+    text === "/hilfe" ||
+    text === "!hilfe" ||
+    text === "/adminhilfe"
+  ) {
+    await bot.sendMessage(
+      chatId,
+      buildCommandListMessage(isAdmin(from.id)),
+      {
+        reply_to_message_id: msg.message_id
+      }
+    );
+
+    return true;
+  }
 
   // Eigene Telegram-ID anzeigen
   if (text === "!id" || text === "/id") {
@@ -717,6 +901,86 @@ async function handleAccessCallback(bot, callback, pgPool) {
       text: "⚠️ Du kannst dich nicht selbst sperren oder entfernen.",
       show_alert: true
     });
+    return true;
+  }
+  
+    // Limit per Button ändern
+  if (action === "limit") {
+    const limitType = parts[3];
+    const delta = Number(parts[4]);
+
+    const allowedLimitTypes = [
+      "filme",
+      "folgen",
+      "staffeln",
+      "serien"
+    ];
+
+    if (!allowedLimitTypes.includes(limitType) || !Number.isInteger(delta)) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Ungültige Limit-Aktion.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    const infoBefore = await getFullUserInfo(pgPool, targetId);
+
+    if (!infoBefore) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ User wurde nicht gefunden.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    const currentValue = getCurrentLimitValue(infoBefore.user, limitType);
+
+    if (currentValue === null) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Limit-Typ nicht erkannt.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    const nextValue = Math.max(
+      0,
+      Math.min(999, currentValue + delta)
+    );
+
+    const updated = await setUserLimit(
+      pgPool,
+      targetId,
+      limitType,
+      nextValue
+    );
+
+    if (!updated.ok) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: updated.message || "❌ Limit konnte nicht geändert werden.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `✅ ${getLimitLabel(limitType)}: ${nextValue}`
+    });
+
+    const infoAfter = await getFullUserInfo(pgPool, targetId);
+
+    if (infoAfter && chatId && messageId) {
+      await bot.editMessageText(
+        chatId,
+        messageId,
+        formatFullUserInfoMessage(infoAfter.user, infoAfter.usage),
+        {
+          reply_markup: buildUserManagementKeyboard(targetId)
+        }
+      );
+    }
+
     return true;
   }
 
