@@ -268,13 +268,23 @@ async function getUhdMovies(pgPool, limit = 15) {
       created_at
     FROM movies
     WHERE
-      quality ILIKE '%UHD%'
-      OR quality ILIKE '%4K%'
-      OR resolution ILIKE '3840%'
-      OR resolution ILIKE '2160%'
-      OR file_name ILIKE '%2160p%'
-      OR file_name ILIKE '%uhd%'
-      OR file_name ILIKE '%4k%'
+      (
+        quality ILIKE '%UHD%'
+        OR quality ILIKE '%4K%'
+        OR resolution ILIKE '3840%'
+        OR resolution ILIKE '383%'
+        OR resolution ILIKE '2160%'
+        OR file_name ILIKE '%2160p%'
+        OR file_name ILIKE '%uhd%'
+        OR file_name ILIKE '%4k%'
+      )
+      AND NOT (
+        quality ILIKE '%FHD%'
+        OR quality ILIKE '%HD%'
+        OR resolution ILIKE '1920%'
+        OR resolution ILIKE '1280%'
+        OR resolution ILIKE '720%'
+      )
     ORDER BY
       created_at DESC NULLS LAST,
       year DESC NULLS LAST,
