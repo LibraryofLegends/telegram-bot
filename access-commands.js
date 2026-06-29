@@ -281,6 +281,9 @@ function buildCommandListMessage(isAdminUser = false) {
     `━━━━━━━━━━━━━━━━━━\n\n` +
 
     `👤 Allgemein\n` +
+        `/start\n` +
+    `/menu\n` +
+    `→ Startmenü anzeigen\n\n` +
     `!id\n` +
     `/id\n` +
     `→ Eigene Telegram-ID anzeigen\n\n` +
@@ -375,6 +378,28 @@ async function handleAccessCommands(bot, msg, pgPool) {
   const from = msg.from;
 
   if (!from) return false;
+  
+    // Startmenü anzeigen
+  // /start wird für normale User abgefangen.
+  // Admin-/start bleibt für dein altes Admin-System frei.
+  if (
+    text === "/menu" ||
+    text === "!menu" ||
+    (text === "/start" && !isAdmin(from.id))
+  ) {
+    const user = await getBotUser(pgPool, from.id);
+
+    await bot.sendMessage(
+      chatId,
+      buildPublicMenuMessage(user),
+      {
+        reply_to_message_id: msg.message_id,
+        reply_markup: buildPublicMenuKeyboard(isAdmin(from.id))
+      }
+    );
+
+    return true;
+  }
   
     // Befehlsliste anzeigen
   if (
@@ -860,8 +885,272 @@ return true;
   return false;
 }
 
+function formatPublicUserStatus(user) {
+  if (!user) {
+    return "nicht beantragt";
+  }
+
+  if (user.status === "approved") {
+    return "✅ freigeschaltet";
+  }
+
+  if (user.status === "pending") {
+    return "🕓 Anfrage offen";
+  }
+
+  if (user.status === "rejected") {
+    return "🗑 entfernt / neue Anfrage möglich";
+  }
+
+  if (user.status === "blocked") {
+    return "⛔ gesperrt";
+  }
+
+  return user.status || "unbekannt";
+}
+
+function buildPublicMenuMessage(user) {
+  return (
+    `🏛 Library of Legends\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Willkommen im Archiv-Menü.\n\n` +
+    `📌 Status: ${formatPublicUserStatus(user)}\n\n` +
+    `Nutze die Buttons unten oder schreibe direkt:\n\n` +
+    `🔎 !suche TITEL\n` +
+    `📦 !hol CODE\n` +
+    `📊 !meinlimit\n` +
+    `📜 /befehle`
+  );
+}
+
+function buildPublicMenuKeyboard(isAdminUser = false) {
+  const keyboard = [
+    [
+      {
+        text: "🔐 Freischaltung",
+        callback_data: "public:request"
+      },
+      {
+        text: "📊 Mein Limit",
+        callback_data: "public:limit"
+      }
+    ],
+    [
+      {
+        text: "🔎 Suche Hilfe",
+        callback_data: "public:searchhelp"
+      },
+      {
+        text: "📦 Hol Hilfe",
+        callback_data: "public:holhelp"
+      }
+    ],
+    [
+      {
+        text: "📜 Befehle",
+        callback_data: "public:commands"
+      }
+    ]
+  ];
+
+  if (isAdminUser) {
+    keyboard.push([
+      {
+        text: "🛡 Admin-Hilfe",
+        callback_data: "public:commands"
+      }
+    ]);
+  }
+
+  return {
+    inline_keyboard: keyboard
+  };
+}
+
+function formatOwnLimitMessage(user, usage) {
+  return (
+    `📊 Dein Tageslimit\n\n` +
+    `🎬 Filme: ${usage.movie}/${user.daily_movie_limit}\n` +
+    `📺 Einzelne Folgen: ${usage.episode}/${user.daily_episode_limit ?? user.daily_movie_limit}\n` +
+    `💿 Staffeln: ${usage.season}/${user.daily_season_limit}\n` +
+    `🗂 Ganze Serien: ${usage.series_all}/${user.daily_series_limit}\n\n` +
+    `🔎 Suche: unbegrenzt`
+  );
+}
+
+async function handlePublicCallback(bot, callback, pgPool) {
+  const data = callback.data || "";
+
+  if (!data.startsWith("public:")) {
+    return false;
+  }
+
+  const from = callback.from;
+  const chatId = callback.message?.chat?.id;
+  const messageId = callback.message?.message_id;
+
+  if (!from || !chatId) {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "❌ Ungültiger Button.",
+      show_alert: true
+    });
+    return true;
+  }
+
+  const action = data.split(":")[1];
+
+  if (action === "commands") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📜 Befehle werden angezeigt."
+    });
+
+    await bot.sendMessage(
+      chatId,
+      buildCommandListMessage(isAdmin(from.id)),
+      {
+        reply_to_message_id: messageId
+      }
+    );
+
+    return true;
+  }
+
+  if (action === "searchhelp") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🔎 Suche-Hilfe"
+    });
+
+    await bot.sendMessage(
+      chatId,
+      `🔎 Suche verwenden\n\n` +
+        `Nutze:\n` +
+        `!suche TITEL\n\n` +
+        `Beispiele:\n` +
+        `!suche superman\n` +
+        `!suche tulsa\n` +
+        `!suche 4k\n\n` +
+        `Die Suche ist unbegrenzt.`,
+      {
+        reply_to_message_id: messageId
+      }
+    );
+
+    return true;
+  }
+
+  if (action === "holhelp") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📦 Hol-Hilfe"
+    });
+
+    await bot.sendMessage(
+      chatId,
+      `📦 Medien holen\n\n` +
+        `Nutze einen eindeutigen Code aus der Suche.\n\n` +
+        `Beispiele:\n` +
+        `!hol movie 167\n` +
+        `!hol LIB-ACT-0001\n` +
+        `!hol oblivion\n` +
+        `!hol tulsa king s1e1\n` +
+        `!hol tulsa king staffel 1\n\n` +
+        `Bei mehreren Treffern zeigt der Bot eine Auswahl an.`,
+      {
+        reply_to_message_id: messageId
+      }
+    );
+
+    return true;
+  }
+
+  if (action === "limit") {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!user || user.status !== "approved") {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Du bist noch nicht freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    const usage = await getUsageToday(pgPool, from.id);
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📊 Limit wird angezeigt."
+    });
+
+    await bot.sendMessage(
+      chatId,
+      formatOwnLimitMessage(user, usage),
+      {
+        reply_to_message_id: messageId
+      }
+    );
+
+    return true;
+  }
+
+  if (action === "request") {
+    const existingUser = await getBotUser(pgPool, from.id);
+
+    if (existingUser?.status === "approved") {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "✅ Du bist bereits freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    if (existingUser?.status === "blocked") {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Dein Zugriff wurde gesperrt.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    if (existingUser?.status === "pending") {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "🕓 Deine Anfrage ist bereits offen.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    const user = await upsertPendingUser(pgPool, from);
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "✅ Anfrage gespeichert."
+    });
+
+    await bot.sendMessage(
+      chatId,
+      `✅ Freischaltungs-Anfrage wurde gespeichert.\n\n` +
+        `Ein Admin wurde benachrichtigt.`,
+      {
+        reply_to_message_id: messageId
+      }
+    );
+
+    await notifyAdminsAboutAccessRequest(bot, from);
+
+    return true;
+  }
+
+  await bot.answerCallbackQuery(callback.id, {
+    text: "❌ Unbekannte Aktion.",
+    show_alert: true
+  });
+
+  return true;
+}
+
 async function handleAccessCallback(bot, callback, pgPool) {
   const data = callback.data || "";
+
+  if (data.startsWith("public:")) {
+    return await handlePublicCallback(bot, callback, pgPool);
+  }
 
   if (!data.startsWith("access:")) {
     return false;
