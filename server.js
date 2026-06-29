@@ -139,6 +139,31 @@ await pgPool.query(`
 `);
 
 await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS deleted_library_items (
+    id BIGSERIAL PRIMARY KEY,
+
+    item_type TEXT NOT NULL,
+    item_ref TEXT NOT NULL,
+
+    title TEXT,
+    reason TEXT,
+
+    item_data JSONB NOT NULL,
+
+    deleted_by BIGINT,
+    deleted_at TIMESTAMPTZ DEFAULT NOW(),
+
+    restored_by BIGINT,
+    restored_at TIMESTAMPTZ
+  );
+`);
+
+await pgPool.query(`
+  CREATE INDEX IF NOT EXISTS idx_deleted_library_items_type_ref
+  ON deleted_library_items (item_type, item_ref);
+`);
+
+await pgPool.query(`
   CREATE INDEX IF NOT EXISTS idx_user_favorites_user
   ON user_favorites (telegram_user_id, created_at DESC);
 `);
