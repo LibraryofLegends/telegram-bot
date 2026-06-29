@@ -38,7 +38,7 @@ function formatMovieLine(movie, index) {
     .join(" · ");
 
   return (
-    `${index}. 🎬 ${movie.title || "Unbekannter Film"}${movie.year ? ` (${movie.year})` : ""}\n` +
+    `${index + 1}. 🎬 ${movie.title || "Unbekannter Film"}`
     `   🆔 ${label}\n` +
     `   ${meta || "Keine technischen Daten"}\n` +
     `   !hol movie ${movie.id}`
