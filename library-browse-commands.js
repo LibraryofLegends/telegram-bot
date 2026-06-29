@@ -90,7 +90,7 @@ function formatSeriesLine(series, index) {
       : "—";
 
   return (
-    `${index}. 📺 ${series.series_title || "Unbekannte Serie"}\n` +
+    `${index + 1}.  📺 ${series.series_title || "Unbekannte Serie"}\n` +
     `   ${series.seasons_count || 0} Staffel(n) · ${series.episodes_count || 0} Folge(n)\n` +
     `   Staffeln: ${seasonText}\n` +
     `   !hol serie ${number} s${firstSeason}e1\n` +
