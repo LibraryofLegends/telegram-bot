@@ -14,6 +14,8 @@ const {
   getUsersByStatus,
 } = require("./access-control");
 
+const { sendUserHistoryMessage } = require("./library-history-commands");
+
 function getAdminNotifyChatIds() {
   const notifyIds = String(process.env.ADMIN_NOTIFY_CHAT_ID || "")
     .split(",")
@@ -310,6 +312,12 @@ function buildCommandListMessage(isAdminUser = false) {
     `!vergessen ID\n` +
     `!merkliste leeren\n` +
     `→ Persönliche Merkliste verwalten\n\n` +
+    
+        `🕘 Verlauf\n` +
+    `!verlauf\n` +
+    `/verlauf\n` +
+    `/history\n` +
+    `→ Zuletzt geholte Inhalte anzeigen\n\n` +
 
     `🔎 Suche\n` +
     `!suche TITEL\n` +
@@ -365,6 +373,10 @@ function buildCommandListMessage(isAdminUser = false) {
       `/setrole USER_ID member\n` +
       `/setrole USER_ID vip\n` +
       `/setrole USER_ID admin\n\n` +
+      
+            `/usage USER_ID\n` +
+      `/userverlauf USER_ID\n` +
+      `→ Hol-Verlauf eines Users anzeigen\n\n` +
 
       `📊 Limits\n` +
       `/setlimit USER_ID filme 3\n` +
@@ -1003,6 +1015,10 @@ function buildPublicMenuKeyboard(isAdminUser = false) {
   {
     text: "⭐ Merkliste",
     callback_data: "public:favorites"
+  },
+  {
+    text: "🕘 Verlauf",
+    callback_data: "public:history"
   }
 ],
 [
@@ -1262,6 +1278,32 @@ async function handlePublicCallback(bot, callback, pgPool) {
       {
         reply_to_message_id: messageId
       }
+    );
+
+    return true;
+  }
+  
+    if (action === "history") {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Du bist noch nicht freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🕘 Verlauf wird angezeigt."
+    });
+
+    await sendUserHistoryMessage(
+      bot,
+      chatId,
+      messageId,
+      pgPool,
+      from.id
     );
 
     return true;
