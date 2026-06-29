@@ -15,6 +15,7 @@ const {
 } = require("./access-control");
 
 const { sendUserHistoryMessage } = require("./library-history-commands");
+const { sendPopularLibraryMessage } = require("./library-popular-commands");
 
 function getAdminNotifyChatIds() {
   const notifyIds = String(process.env.ADMIN_NOTIFY_CHAT_ID || "")
@@ -302,6 +303,13 @@ function buildCommandListMessage(isAdminUser = false) {
     `!neu\n` +
     `/neu\n` +
     `→ Zuletzt hinzugefügte Filme und Serien anzeigen\n\n` +
+    
+        `🏆 Beliebt\n` +
+    `!beliebt\n` +
+    `/beliebt\n` +
+    `!top\n` +
+    `/top\n` +
+    `→ Häufig geholte Filme und Serien anzeigen\n\n` +
     
         `⭐ Merkliste\n` +
     `!merken movie ID\n` +
@@ -1013,6 +1021,12 @@ function buildPublicMenuKeyboard(isAdminUser = false) {
 ],
 [
   {
+    text: "🏆 Beliebt",
+    callback_data: "public:popular"
+  }
+],
+[
+  {
     text: "⭐ Merkliste",
     callback_data: "public:favorites"
   },
@@ -1304,6 +1318,31 @@ async function handlePublicCallback(bot, callback, pgPool) {
       messageId,
       pgPool,
       from.id
+    );
+
+    return true;
+  }
+  
+    if (action === "popular") {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Du bist noch nicht freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🏆 Beliebt wird angezeigt."
+    });
+
+    await sendPopularLibraryMessage(
+      bot,
+      chatId,
+      messageId,
+      pgPool
     );
 
     return true;
