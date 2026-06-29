@@ -137,7 +137,7 @@ function formatPopularSeriesLine(series, index) {
     seasons[0] || 1;
 
   return (
-    `${index}. 📺 ${series.series_title || "Unbekannte Serie"}\n` +
+    `${index + 1}. 📺 ${series.series_title || "Unbekannte Serie"}\n` +
     `   🔥 ${series.hits}x Folge geholt\n` +
     `   Staffeln im Verlauf: ${seasonText}\n` +
     `   !hol serie ${number} s${firstSeason}e1\n` +
