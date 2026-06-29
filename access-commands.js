@@ -454,6 +454,14 @@ function buildCommandListMessage(isAdminUser = false) {
       `/wrongmovie TITEL\n` +
       `→ Serienfolgen finden, die versehentlich als Film gespeichert wurden\n\n` +
       
+            `🧪 Episoden-Abgleich\n` +
+      `/episodecheck\n` +
+      `/episodecheck TITEL\n` +
+      `/episodecheck ID\n` +
+      `/episodemismatch\n` +
+      `/episodemismatch TITEL\n` +
+      `→ Serienfolgen finden, bei denen DB-Folge und Dateiname nicht zusammenpassen\n\n` +
+      
                   `🗑 Papierkorb / Bereinigung\n` +
       `/trashmovie ID\n` +
       `/trashmovie ID confirm\n` +
