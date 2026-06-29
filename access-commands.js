@@ -19,6 +19,7 @@ const { sendPopularLibraryMessage } = require("./library-popular-commands");
 const { sendRandomLibraryMessage } = require("./library-random-commands");
 const { sendGenreListMessage } = require("./library-browse-commands");
 const { sendYearOverviewMessage } = require("./library-year-commands");
+const { sendAzOverviewMessage } = require("./library-az-commands");
 
 function getAdminNotifyChatIds() {
   const notifyIds = String(process.env.ADMIN_NOTIFY_CHAT_ID || "")
@@ -340,6 +341,15 @@ function buildCommandListMessage(isAdminUser = false) {
     `!2025\n` +
     `!90er\n` +
     `→ Nach Erscheinungsjahr oder Jahrzehnt stöbern\n\n` +
+    
+        `🔤 A–Z Browser\n` +
+    `!az\n` +
+    `!az a\n` +
+    `!az s\n` +
+    `!a\n` +
+    `!filme a\n` +
+    `!serien s\n` +
+    `→ Alphabetisch durch Filme und Serien stöbern\n\n` +
     
         `⭐ Merkliste\n` +
     `!merken movie ID\n` +
@@ -1073,6 +1083,12 @@ function buildPublicMenuKeyboard(isAdminUser = false) {
 ],
 [
   {
+    text: "🔤 A–Z",
+    callback_data: "public:az"
+  }
+],
+[
+  {
     text: "⭐ Merkliste",
     callback_data: "public:favorites"
   },
@@ -1461,6 +1477,31 @@ async function handlePublicCallback(bot, callback, pgPool) {
     });
 
     await sendYearOverviewMessage(
+      bot,
+      chatId,
+      messageId,
+      pgPool
+    );
+
+    return true;
+  }
+  
+    if (action === "az") {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Du bist noch nicht freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🔤 A–Z wird angezeigt."
+    });
+
+    await sendAzOverviewMessage(
       bot,
       chatId,
       messageId,
