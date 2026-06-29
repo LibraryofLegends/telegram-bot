@@ -453,6 +453,14 @@ function buildCommandListMessage(isAdminUser = false) {
       `/wrongmovie ID\n` +
       `/wrongmovie TITEL\n` +
       `→ Serienfolgen finden, die versehentlich als Film gespeichert wurden\n\n` +
+      
+            `🗑 Papierkorb / Bereinigung\n` +
+      `/trashmovie ID\n` +
+      `/trashmovie ID confirm\n` +
+      `/trashwrong ID confirm\n` +
+      `/trashlist\n` +
+      `/restoremovie PAPIERKORB_ID\n` +
+      `→ Filme sicher aus der aktiven Film-Tabelle entfernen und wiederherstellen\n\n` +
 
       `━━━━━━━━━━━━━━━━━━\n` +
       `Tipp: Bei /userinfo kannst du Rollen und Limits direkt per Button ändern.`;
