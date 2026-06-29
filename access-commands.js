@@ -446,6 +446,13 @@ function buildCommandListMessage(isAdminUser = false) {
       `/dupes series\n` +
       `/dupe TITEL\n` +
       `→ Mögliche doppelte Einträge finden\n\n` +
+      
+            `🧪 Fehlimport-Scanner\n` +
+      `/wrongimports\n` +
+      `/wrongmovies\n` +
+      `/wrongmovie ID\n` +
+      `/wrongmovie TITEL\n` +
+      `→ Serienfolgen finden, die versehentlich als Film gespeichert wurden\n\n` +
 
       `━━━━━━━━━━━━━━━━━━\n` +
       `Tipp: Bei /userinfo kannst du Rollen und Limits direkt per Button ändern.`;
