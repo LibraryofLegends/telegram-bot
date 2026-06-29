@@ -23,6 +23,7 @@ const { handleDupeCommands } = require("./library-dupe-commands");
 const { handleWrongImportCommands } = require("./library-wrongimport-commands");
 const { handleCleanupCommands } = require("./library-cleanup-commands");
 const { handleEpisodeCheckCommands } = require("./library-episodecheck-commands");
+const { handleEpisodeFixCommands } = require("./library-episodefix-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 const { handleFavoriteCommands } = require("./library-favorites-commands");
 const { handlePopularCommands } = require("./library-popular-commands");
@@ -16392,6 +16393,15 @@ if (msg.text) {
 if (msg.text) {
   const handledEpisodeCheck = await handleEpisodeCheckCommands(accessBot, msg, pgPool);
   if (handledEpisodeCheck) return;
+}
+
+// =============================
+// ADMIN EPISODE FIX
+// /episodefix ID file
+// =============================
+if (msg.text) {
+  const handledEpisodeFix = await handleEpisodeFixCommands(accessBot, msg, pgPool);
+  if (handledEpisodeFix) return;
 }
 
 // =============================
