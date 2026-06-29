@@ -16,6 +16,7 @@ const {
 
 const { sendUserHistoryMessage } = require("./library-history-commands");
 const { sendPopularLibraryMessage } = require("./library-popular-commands");
+const { sendRandomLibraryMessage } = require("./library-random-commands");
 
 function getAdminNotifyChatIds() {
   const notifyIds = String(process.env.ADMIN_NOTIFY_CHAT_ID || "")
@@ -310,6 +311,14 @@ function buildCommandListMessage(isAdminUser = false) {
     `!top\n` +
     `/top\n` +
     `→ Häufig geholte Filme und Serien anzeigen\n\n` +
+    
+        `🎲 Zufall\n` +
+    `!zufall\n` +
+    `/zufall\n` +
+    `!zufall film\n` +
+    `!zufall serie\n` +
+    `!zufall 4k\n` +
+    `→ Zufälligen Vorschlag anzeigen\n\n` +
     
         `⭐ Merkliste\n` +
     `!merken movie ID\n` +
@@ -1027,6 +1036,12 @@ function buildPublicMenuKeyboard(isAdminUser = false) {
 ],
 [
   {
+    text: "🎲 Zufall",
+    callback_data: "public:random"
+  }
+],
+[
+  {
     text: "⭐ Merkliste",
     callback_data: "public:favorites"
   },
@@ -1343,6 +1358,32 @@ async function handlePublicCallback(bot, callback, pgPool) {
       chatId,
       messageId,
       pgPool
+    );
+
+    return true;
+  }
+  
+    if (action === "random") {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Du bist noch nicht freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🎲 Zufall wird angezeigt."
+    });
+
+    await sendRandomLibraryMessage(
+      bot,
+      chatId,
+      messageId,
+      pgPool,
+      "mixed"
     );
 
     return true;
