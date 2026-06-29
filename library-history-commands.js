@@ -93,7 +93,7 @@ function formatHistoryLine(row, index) {
       row.item_id;
 
     return (
-      `${index + 1}.  🎬 ${movieTitle}${row.movie_year ? ` (${row.movie_year})` : ""}\n` +
+      `${index + 1}. 🎬 ${movieTitle}${row.movie_year ? ` (${row.movie_year})` : ""}\n` +
       `   🆔 ${label}\n` +
       `   🕘 ${date}\n` +
       `   !hol movie ${row.movie_db_id || row.item_id}`
@@ -117,7 +117,7 @@ function formatHistoryLine(row, index) {
       row.item_id;
 
     return (
-      `${index}. 📺 ${seriesTitle} S${pad2(season)}E${pad2(episode)}\n` +
+      `${index + 1}. 📺 ${seriesTitle} S${pad2(season)}E${pad2(episode)}\n` +
       `   ${row.episode_title ? `🎞 ${row.episode_title}\n` : ""}` +
       `   🕘 ${date}\n` +
       `   !hol serie ${seriesRef} s${season}e${episode}`
@@ -126,7 +126,7 @@ function formatHistoryLine(row, index) {
 
   if (row.action_type === "season") {
     return (
-      `${index}. 💿 Staffel geholt\n` +
+      `${index + 1}. 💿 Staffel geholt\n` +
       `   📺 ${row.item_id || "Unbekannt"}\n` +
       `   🕘 ${date}`
     );
@@ -134,14 +134,14 @@ function formatHistoryLine(row, index) {
 
   if (row.action_type === "series_all") {
     return (
-      `${index}. 🗂 Ganze Serie geholt\n` +
+      `${index + 1}. 🗂 Ganze Serie geholt\n` +
       `   📺 ${row.item_id || "Unbekannt"}\n` +
       `   🕘 ${date}`
     );
   }
 
   return (
-    `${index}. 📦 ${row.action_type}\n` +
+    `${index + 1}. 📦 ${row.action_type}\n` +
     `   🆔 ${row.item_id || "Unbekannt"}\n` +
     `   🕘 ${date}`
   );
