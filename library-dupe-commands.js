@@ -200,9 +200,9 @@ async function findSeriesDupesByTitle(pgPool, query) {
       season,
       episode,
       episode_title,
-      quality,
-      resolution,
-      file_size,
+      NULL::text AS quality,
+      NULL::text AS resolution,
+      NULL::text AS file_size,
       file_name,
       created_at
     FROM series
@@ -212,10 +212,16 @@ async function findSeriesDupesByTitle(pgPool, query) {
       OR file_name ILIKE $1
     ORDER BY
       series_title ASC,
-      season ASC,
-      episode ASC,
-      quality DESC NULLS LAST,
-      resolution DESC NULLS LAST,
+      CASE
+        WHEN season::text ~ '^[0-9]+$'
+        THEN season::int
+        ELSE 999
+      END ASC,
+      CASE
+        WHEN episode::text ~ '^[0-9]+$'
+        THEN episode::int
+        ELSE 999
+      END ASC,
       id ASC
     LIMIT 40;
     `,
