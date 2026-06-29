@@ -475,6 +475,11 @@ function buildCommandListMessage(isAdminUser = false) {
       `/seriesaudit ID\n` +
       `→ Serienfolgen nach Datei-Clustern und Nummerierungsfehlern prüfen\n\n` +
       
+            `📦 Serien-Cluster\n` +
+      `/seriesclusters ID\n` +
+      `/seriescluster ID CLUSTERNAME\n` +
+      `→ Gemischte Serienimporte nach Datei-Gruppen prüfen\n\n` +
+      
                   `🗑 Papierkorb / Bereinigung\n` +
       `/trashmovie ID\n` +
       `/trashmovie ID confirm\n` +
