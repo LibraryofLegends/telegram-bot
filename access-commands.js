@@ -439,6 +439,13 @@ function buildCommandListMessage(isAdminUser = false) {
       `/editmovie Suchname | feld=wert\n` +
       `/dashboard\n` +
       `/stats\n\n` +
+      
+            `🧹 Duplikat-Scanner\n` +
+      `/dupes\n` +
+      `/dupes movies\n` +
+      `/dupes series\n` +
+      `/dupe TITEL\n` +
+      `→ Mögliche doppelte Einträge finden\n\n` +
 
       `━━━━━━━━━━━━━━━━━━\n` +
       `Tipp: Bei /userinfo kannst du Rollen und Limits direkt per Button ändern.`;
