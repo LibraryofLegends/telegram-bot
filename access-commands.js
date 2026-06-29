@@ -517,7 +517,7 @@ return true;
     return true;
   }
   
-    // User-Info anzeigen
+      // User-Info anzeigen
   if (text.startsWith("/userinfo ")) {
     if (!isAdmin(from.id)) {
       await bot.sendMessage(chatId, "⛔ Nur Admins können User-Infos abrufen.", {
@@ -545,34 +545,14 @@ return true;
     }
 
     const user = info.user;
-const usage = info.usage;
+    const usage = info.usage;
 
-await bot.sendMessage(
-  chatId,
-  formatFullUserInfoMessage(user, usage),
-  {
-    reply_to_message_id: msg.message_id,
-    reply_markup: buildUserManagementKeyboard(user.telegram_user_id)
-  }
-);
-
-return true;
+    await bot.sendMessage(
       chatId,
-      `👤 User-Info\n\n` +
-        `🆔 ID: ${user.telegram_user_id}\n` +
-        `👤 Name: ${name}\n` +
-        `🔗 Username: ${user.username ? "@" + user.username : "—"}\n\n` +
-        `📌 Status: ${user.status}\n` +
-        `🏷 Rolle: ${user.role}\n` +
-        `🔎 Suche: ${user.search_enabled ? "✅" : "❌"}\n` +
-        `📦 Holen: ${user.download_enabled ? "✅" : "❌"}\n\n` +
-        `📊 Nutzung heute\n` +
-        `🎬 Filme: ${usage.movie}/${user.daily_movie_limit}\n` +
-        `📺 Folgen: ${usage.episode}/${user.daily_episode_limit ?? user.daily_movie_limit}\n` +
-        `💿 Staffeln: ${usage.season}/${user.daily_season_limit}\n` +
-        `🗂 Serien: ${usage.series_all}/${user.daily_series_limit}`,
+      formatFullUserInfoMessage(user, usage),
       {
         reply_to_message_id: msg.message_id,
+        reply_markup: buildUserManagementKeyboard(user.telegram_user_id)
       }
     );
 
