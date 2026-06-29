@@ -109,6 +109,30 @@ await pgPool.query(`
     created_at TIMESTAMP DEFAULT NOW()
   );
 `);
+
+await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS user_favorites (
+    id BIGSERIAL PRIMARY KEY,
+
+    telegram_user_id BIGINT NOT NULL,
+
+    item_type TEXT NOT NULL
+      CHECK (item_type IN ('movie', 'series')),
+
+    item_ref TEXT NOT NULL,
+    title TEXT,
+    year TEXT,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE (telegram_user_id, item_type, item_ref)
+  );
+`);
+
+await pgPool.query(`
+  CREATE INDEX IF NOT EXISTS idx_user_favorites_user
+  ON user_favorites (telegram_user_id, created_at DESC);
+`);
   
   await pgPool.query(`
   ALTER TABLE topics
