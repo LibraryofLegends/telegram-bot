@@ -17,6 +17,7 @@ const {
 const { sendUserHistoryMessage } = require("./library-history-commands");
 const { sendPopularLibraryMessage } = require("./library-popular-commands");
 const { sendRandomLibraryMessage } = require("./library-random-commands");
+const { sendGenreListMessage } = require("./library-browse-commands");
 
 function getAdminNotifyChatIds() {
   const notifyIds = String(process.env.ADMIN_NOTIFY_CHAT_ID || "")
@@ -319,6 +320,15 @@ function buildCommandListMessage(isAdminUser = false) {
     `!zufall serie\n` +
     `!zufall 4k\n` +
     `→ Zufälligen Vorschlag anzeigen\n\n` +
+    
+        `📂 Kategorien\n` +
+    `!kategorien\n` +
+    `/kategorien\n` +
+    `!genre action\n` +
+    `!filme action\n` +
+    `!serien drama\n` +
+    `!4k\n` +
+    `→ Nach Kategorien und Qualität stöbern\n\n` +
     
         `⭐ Merkliste\n` +
     `!merken movie ID\n` +
@@ -1042,6 +1052,12 @@ function buildPublicMenuKeyboard(isAdminUser = false) {
 ],
 [
   {
+    text: "📂 Kategorien",
+    callback_data: "public:genres"
+  }
+],
+[
+  {
     text: "⭐ Merkliste",
     callback_data: "public:favorites"
   },
@@ -1384,6 +1400,31 @@ async function handlePublicCallback(bot, callback, pgPool) {
       messageId,
       pgPool,
       "mixed"
+    );
+
+    return true;
+  }
+  
+    if (action === "genres") {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Du bist noch nicht freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📂 Kategorien werden angezeigt."
+    });
+
+    await sendGenreListMessage(
+      bot,
+      chatId,
+      messageId,
+      pgPool
     );
 
     return true;
