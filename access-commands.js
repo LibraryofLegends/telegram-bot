@@ -18,6 +18,7 @@ const { sendUserHistoryMessage } = require("./library-history-commands");
 const { sendPopularLibraryMessage } = require("./library-popular-commands");
 const { sendRandomLibraryMessage } = require("./library-random-commands");
 const { sendGenreListMessage } = require("./library-browse-commands");
+const { sendYearOverviewMessage } = require("./library-year-commands");
 
 function getAdminNotifyChatIds() {
   const notifyIds = String(process.env.ADMIN_NOTIFY_CHAT_ID || "")
@@ -329,6 +330,16 @@ function buildCommandListMessage(isAdminUser = false) {
     `!serien drama\n` +
     `!4k\n` +
     `→ Nach Kategorien und Qualität stöbern\n\n` +
+    
+        `📅 Jahre & Jahrzehnte\n` +
+    `!jahre\n` +
+    `!jahr 2025\n` +
+    `!jahr 1994\n` +
+    `!dekade 90er\n` +
+    `!dekade 2000er\n` +
+    `!2025\n` +
+    `!90er\n` +
+    `→ Nach Erscheinungsjahr oder Jahrzehnt stöbern\n\n` +
     
         `⭐ Merkliste\n` +
     `!merken movie ID\n` +
@@ -1054,6 +1065,10 @@ function buildPublicMenuKeyboard(isAdminUser = false) {
   {
     text: "📂 Kategorien",
     callback_data: "public:genres"
+  },
+  {
+    text: "📅 Jahre",
+    callback_data: "public:years"
   }
 ],
 [
@@ -1421,6 +1436,31 @@ async function handlePublicCallback(bot, callback, pgPool) {
     });
 
     await sendGenreListMessage(
+      bot,
+      chatId,
+      messageId,
+      pgPool
+    );
+
+    return true;
+  }
+  
+    if (action === "years") {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Du bist noch nicht freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📅 Jahre werden angezeigt."
+    });
+
+    await sendYearOverviewMessage(
       bot,
       chatId,
       messageId,
