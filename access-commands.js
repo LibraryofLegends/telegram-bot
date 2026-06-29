@@ -146,6 +146,64 @@ function formatUsersHeader(status, count) {
   );
 }
 
+function buildUserManagementKeyboard(userId) {
+  const id = String(userId);
+
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "⭐ VIP",
+          callback_data: `access:setrole:${id}:vip`
+        },
+        {
+          text: "👤 Member",
+          callback_data: `access:setrole:${id}:member`
+        }
+      ],
+      [
+        {
+          text: "🛡 Admin",
+          callback_data: `access:setrole:${id}:admin`
+        }
+      ],
+      [
+        {
+          text: "🗑 Entfernen",
+          callback_data: `access:remove:${id}`
+        },
+        {
+          text: "⛔ Sperren",
+          callback_data: `access:block:${id}`
+        }
+      ]
+    ]
+  };
+}
+
+function formatFullUserInfoMessage(user, usage) {
+  const name = [
+    user.first_name,
+    user.last_name
+  ].filter(Boolean).join(" ") || "—";
+
+  return (
+    `👤 User-Info\n\n` +
+    `🆔 ID: ${user.telegram_user_id}\n` +
+    `👤 Name: ${name}\n` +
+    `🔗 Username: ${user.username ? "@" + user.username : "—"}\n\n` +
+    `📌 Status: ${user.status}\n` +
+    `🏷 Rolle: ${user.role}\n` +
+    `🔎 Suche: ${user.search_enabled ? "✅" : "❌"}\n` +
+    `📦 Holen: ${user.download_enabled ? "✅" : "❌"}\n\n` +
+    `📊 Nutzung heute\n` +
+    `🎬 Filme: ${usage.movie}/${user.daily_movie_limit}\n` +
+    `📺 Folgen: ${usage.episode}/${user.daily_episode_limit ?? user.daily_movie_limit}\n` +
+    `💿 Staffeln: ${usage.season}/${user.daily_season_limit}\n` +
+    `🗂 Serien: ${usage.series_all}/${user.daily_series_limit}`
+  );
+}
+
 async function handleAccessCommands(bot, msg, pgPool) {
   const text = msg.text || "";
   const chatId = msg.chat.id;
@@ -487,14 +545,18 @@ return true;
     }
 
     const user = info.user;
-    const usage = info.usage;
+const usage = info.usage;
 
-    const name = [
-      user.first_name,
-      user.last_name
-    ].filter(Boolean).join(" ") || "—";
+await bot.sendMessage(
+  chatId,
+  formatFullUserInfoMessage(user, usage),
+  {
+    reply_to_message_id: msg.message_id,
+    reply_markup: buildUserManagementKeyboard(user.telegram_user_id)
+  }
+);
 
-    await bot.sendMessage(
+return true;
       chatId,
       `👤 User-Info\n\n` +
         `🆔 ID: ${user.telegram_user_id}\n` +
@@ -665,6 +727,76 @@ async function handleAccessCallback(bot, callback, pgPool) {
 
   const chatId = callback.message?.chat?.id;
   const messageId = callback.message?.message_id;
+  
+    // Selbstschutz: Admin soll sich nicht aus Versehen selbst sperren/entfernen
+  if (
+    String(targetId) === String(from.id) &&
+    (action === "block" || action === "remove")
+  ) {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "⚠️ Du kannst dich nicht selbst sperren oder entfernen.",
+      show_alert: true
+    });
+    return true;
+  }
+
+  // Rolle per Button ändern
+  if (action === "setrole") {
+    const role = parts[3];
+
+    if (!["member", "vip", "admin"].includes(role)) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Ungültige Rolle.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    const updated = await setUserRole(pgPool, targetId, role);
+
+    if (!updated.ok) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: updated.message || "❌ Rolle konnte nicht geändert werden.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `✅ Rolle geändert: ${role}`
+    });
+
+    const info = await getFullUserInfo(pgPool, targetId);
+
+    if (info && chatId && messageId) {
+      await bot.editMessageText(
+        chatId,
+        messageId,
+        formatFullUserInfoMessage(info.user, info.usage),
+        {
+          reply_markup: buildUserManagementKeyboard(targetId)
+        }
+      );
+    }
+
+    try {
+      await bot.sendMessage(
+        targetId,
+        `ℹ️ Deine Rolle wurde geändert.\n\n` +
+          `🏷 Neue Rolle: ${role}\n\n` +
+          `Dein aktuelles Limit siehst du mit:\n` +
+          `!meinlimit`
+      );
+    } catch (err) {
+      console.error(
+        "⚠️ Konnte User über Rollenänderung nicht benachrichtigen:",
+        targetId,
+        err.response?.data || err.message
+      );
+    }
+
+    return true;
+  }
 
   if (action === "approve") {
     const user = await approveUser(pgPool, targetId, from.id);
