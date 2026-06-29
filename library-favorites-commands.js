@@ -234,7 +234,7 @@ function formatFavoriteLine(item, index) {
   }
 
   return (
-    `${index}. 📺 ${item.title || "Unbekannte Serie"}\n` +
+    `${index + 1}.  📺 ${item.title || "Unbekannte Serie"}\n` +
     `   🆔 ${item.item_ref}\n` +
     `   !hol serie ${item.item_ref} s1e1\n` +
     `   !hol serie ${item.item_ref} staffel 1`
