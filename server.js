@@ -19,6 +19,7 @@ const { handleLibrarySearchCommands } = require("./library-search-commands");
 const { handleAzCommands } = require("./library-az-commands");
 const { handleBrowseCommands } = require("./library-browse-commands");
 const { handleYearCommands } = require("./library-year-commands");
+const { handleDupeCommands } = require("./library-dupe-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 const { handleFavoriteCommands } = require("./library-favorites-commands");
 const { handlePopularCommands } = require("./library-popular-commands");
@@ -16306,6 +16307,15 @@ console.log(
 if (msg.text) {
   const handledAccess = await handleAccessCommands(accessBot, msg, pgPool);
   if (handledAccess) return;
+}
+
+// =============================
+// ADMIN DUPLICATE SCANNER
+// /dupes, /dupe TITEL
+// =============================
+if (msg.text) {
+  const handledDupes = await handleDupeCommands(accessBot, msg, pgPool);
+  if (handledDupes) return;
 }
 
 // =============================
