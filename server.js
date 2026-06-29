@@ -17,6 +17,7 @@ const {
 
 const { handleLibrarySearchCommands } = require("./library-search-commands");
 const { handleBrowseCommands } = require("./library-browse-commands");
+const { handleYearCommands } = require("./library-year-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 const { handleFavoriteCommands } = require("./library-favorites-commands");
 const { handlePopularCommands } = require("./library-popular-commands");
@@ -16322,6 +16323,15 @@ if (msg.text) {
 if (msg.text) {
   const handledBrowse = await handleBrowseCommands(accessBot, msg, pgPool);
   if (handledBrowse) return;
+}
+
+// =============================
+// PUBLIC YEARS / JAHRE
+// !jahre, !jahr 2025, !dekade 90er
+// =============================
+if (msg.text) {
+  const handledYear = await handleYearCommands(accessBot, msg, pgPool);
+  if (handledYear) return;
 }
 
 // =============================
