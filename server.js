@@ -16,6 +16,7 @@ const {
 } = require("./access-commands");
 
 const { handleLibrarySearchCommands } = require("./library-search-commands");
+const { handleAzCommands } = require("./library-az-commands");
 const { handleBrowseCommands } = require("./library-browse-commands");
 const { handleYearCommands } = require("./library-year-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
@@ -16314,6 +16315,15 @@ if (msg.text) {
 if (msg.text) {
   const handledSearch = await handleLibrarySearchCommands(accessBot, msg, pgPool);
   if (handledSearch) return;
+}
+
+// =============================
+// PUBLIC A-Z BROWSER
+// !az, !az a, !a, !filme a, !serien s
+// =============================
+if (msg.text) {
+  const handledAz = await handleAzCommands(accessBot, msg, pgPool);
+  if (handledAz) return;
 }
 
 // =============================
