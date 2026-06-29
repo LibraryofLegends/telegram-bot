@@ -93,7 +93,7 @@ function formatHistoryLine(row, index) {
       row.item_id;
 
     return (
-      `${index}. 🎬 ${movieTitle}${row.movie_year ? ` (${row.movie_year})` : ""}\n` +
+      `${index + 1}.  🎬 ${movieTitle}${row.movie_year ? ` (${row.movie_year})` : ""}\n` +
       `   🆔 ${label}\n` +
       `   🕘 ${date}\n` +
       `   !hol movie ${row.movie_db_id || row.item_id}`
