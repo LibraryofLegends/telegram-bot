@@ -454,13 +454,20 @@ function buildCommandListMessage(isAdminUser = false) {
       `/wrongmovie TITEL\n` +
       `→ Serienfolgen finden, die versehentlich als Film gespeichert wurden\n\n` +
       
-            `🗑 Papierkorb / Bereinigung\n` +
+                  `🗑 Papierkorb / Bereinigung\n` +
       `/trashmovie ID\n` +
       `/trashmovie ID confirm\n` +
       `/trashwrong ID confirm\n` +
+      `/trashepisode ID\n` +
+      `/trashepisode ID confirm\n` +
+      `/trashdupemovie keep ID remove ID\n` +
+      `/trashdupemovie keep ID remove ID confirm\n` +
+      `/trashdupeepisode keep ID remove ID\n` +
+      `/trashdupeepisode keep ID remove ID confirm\n` +
       `/trashlist\n` +
       `/restoremovie PAPIERKORB_ID\n` +
-      `→ Filme sicher aus der aktiven Film-Tabelle entfernen und wiederherstellen\n\n` +
+      `/restoreepisode PAPIERKORB_ID\n` +
+      `→ Filme und Serienfolgen sicher entfernen und wiederherstellen\n\n` +
 
       `━━━━━━━━━━━━━━━━━━\n` +
       `Tipp: Bei /userinfo kannst du Rollen und Limits direkt per Button ändern.`;
