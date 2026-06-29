@@ -38,7 +38,7 @@ function formatMovieLine(movie, index) {
     .join(" · ");
 
   return (
-    `${index + 1}. 🎬 ${movie.title || "Unbekannter Film"}`
+    `${index + 1}. 🎬 ${movie.title || "Unbekannter Film"}${movie.year ? ` (${movie.year})` : ""}\n` +
     `   🆔 ${label}\n` +
     `   ${meta || "Keine technischen Daten"}\n` +
     `   !hol movie ${movie.id}`
@@ -65,7 +65,7 @@ function formatSeriesLine(series, index) {
       : "—";
 
   return (
-    `${index}. 📺 ${series.series_title || "Unbekannte Serie"}${series.release_year ? ` (${series.release_year})` : ""}\n` +
+    `${index + 1}. 📺 ${series.series_title || "Unbekannte Serie"}${series.release_year ? ` (${series.release_year})` : ""}\n` +
     `   ${series.seasons_count || 0} Staffel(n) · ${series.episodes_count || 0} Folge(n)\n` +
     `   Staffeln: ${seasonText}\n` +
     `   !hol serie ${number} s${firstSeason}e1\n` +
