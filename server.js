@@ -20,6 +20,7 @@ const { handleAzCommands } = require("./library-az-commands");
 const { handleBrowseCommands } = require("./library-browse-commands");
 const { handleYearCommands } = require("./library-year-commands");
 const { handleDupeCommands } = require("./library-dupe-commands");
+const { handleWrongImportCommands } = require("./library-wrongimport-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 const { handleFavoriteCommands } = require("./library-favorites-commands");
 const { handlePopularCommands } = require("./library-popular-commands");
@@ -16316,6 +16317,15 @@ if (msg.text) {
 if (msg.text) {
   const handledDupes = await handleDupeCommands(accessBot, msg, pgPool);
   if (handledDupes) return;
+}
+
+// =============================
+// ADMIN WRONG IMPORT SCANNER
+// /wrongimports, /wrongmovies, /wrongmovie TITEL
+// =============================
+if (msg.text) {
+  const handledWrongImports = await handleWrongImportCommands(accessBot, msg, pgPool);
+  if (handledWrongImports) return;
 }
 
 // =============================
