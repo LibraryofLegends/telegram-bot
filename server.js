@@ -16,6 +16,7 @@ const {
 } = require("./access-commands");
 
 const { handleLibrarySearchCommands } = require("./library-search-commands");
+const { handleBrowseCommands } = require("./library-browse-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 const { handleFavoriteCommands } = require("./library-favorites-commands");
 const { handlePopularCommands } = require("./library-popular-commands");
@@ -16312,6 +16313,15 @@ if (msg.text) {
 if (msg.text) {
   const handledSearch = await handleLibrarySearchCommands(accessBot, msg, pgPool);
   if (handledSearch) return;
+}
+
+// =============================
+// PUBLIC BROWSE / KATEGORIEN
+// !kategorien, !genre action, !filme action, !serien drama, !4k
+// =============================
+if (msg.text) {
+  const handledBrowse = await handleBrowseCommands(accessBot, msg, pgPool);
+  if (handledBrowse) return;
 }
 
 // =============================
