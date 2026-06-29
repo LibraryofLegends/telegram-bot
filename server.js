@@ -21,6 +21,7 @@ const { handleBrowseCommands } = require("./library-browse-commands");
 const { handleYearCommands } = require("./library-year-commands");
 const { handleDupeCommands } = require("./library-dupe-commands");
 const { handleWrongImportCommands } = require("./library-wrongimport-commands");
+const { handleCleanupCommands } = require("./library-cleanup-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 const { handleFavoriteCommands } = require("./library-favorites-commands");
 const { handlePopularCommands } = require("./library-popular-commands");
@@ -16351,6 +16352,15 @@ if (msg.text) {
 if (msg.text) {
   const handledWrongImports = await handleWrongImportCommands(accessBot, msg, pgPool);
   if (handledWrongImports) return;
+}
+
+// =============================
+// ADMIN CLEANUP / PAPERKORB
+// /trashmovie, /trashwrong, /trashlist, /restoremovie
+// =============================
+if (msg.text) {
+  const handledCleanup = await handleCleanupCommands(accessBot, msg, pgPool);
+  if (handledCleanup) return;
 }
 
 // =============================
