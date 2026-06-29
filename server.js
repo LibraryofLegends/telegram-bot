@@ -19,6 +19,7 @@ const { handleLibrarySearchCommands } = require("./library-search-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 const { handleFavoriteCommands } = require("./library-favorites-commands");
 const { handlePopularCommands } = require("./library-popular-commands");
+const { handleRandomCommands } = require("./library-random-commands");
 const { handleHistoryCommands } = require("./library-history-commands");
 
 const app = express();
@@ -16338,6 +16339,15 @@ if (msg.text) {
 if (msg.text) {
   const handledPopular = await handlePopularCommands(accessBot, msg, pgPool);
   if (handledPopular) return;
+}
+
+// =============================
+// PUBLIC RANDOM / ZUFALL
+// !zufall, !random, !vorschlag
+// =============================
+if (msg.text) {
+  const handledRandom = await handleRandomCommands(accessBot, msg, pgPool);
+  if (handledRandom) return;
 }
 
 // =============================
