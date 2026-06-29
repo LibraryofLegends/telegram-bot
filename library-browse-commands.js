@@ -303,7 +303,7 @@ function buildBrowseMessage({ query, mode, movies, series }) {
     `${title}\n` +
     `━━━━━━━━━━━━━━━━━━\n\n`;
 
-  if (mode !== "series") {
+  if (mode === "movies" || mode === "uhd") {
     message +=
       `🎬 Filme\n\n` +
       (
@@ -311,23 +311,43 @@ function buildBrowseMessage({ query, mode, movies, series }) {
           ? movies.map(formatMovieLine).join("\n\n")
           : "Keine Filme gefunden."
       ) +
-      `\n\n`;
+      `\n\n━━━━━━━━━━━━━━━━━━\n` +
+      `🔎 Mehr finden mit:\n` +
+      `!suche ${query}`;
+
+    return message;
   }
 
-  if (mode !== "movies" && mode !== "uhd") {
+  if (mode === "series") {
     message +=
-      `━━━━━━━━━━━━━━━━━━\n\n` +
       `📺 Serien\n\n` +
       (
         series.length
           ? series.map(formatSeriesLine).join("\n\n")
           : "Keine Serien gefunden."
       ) +
-      `\n\n`;
+      `\n\n━━━━━━━━━━━━━━━━━━\n` +
+      `🔎 Mehr finden mit:\n` +
+      `!suche ${query}`;
+
+    return message;
   }
 
   message +=
-    `━━━━━━━━━━━━━━━━━━\n` +
+    `🎬 Filme\n\n` +
+    (
+      movies.length
+        ? movies.map(formatMovieLine).join("\n\n")
+        : "Keine Filme gefunden."
+    ) +
+    `\n\n━━━━━━━━━━━━━━━━━━\n\n` +
+    `📺 Serien\n\n` +
+    (
+      series.length
+        ? series.map(formatSeriesLine).join("\n\n")
+        : "Keine Serien gefunden."
+    ) +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
     `🔎 Mehr finden mit:\n` +
     `!suche ${query}`;
 
