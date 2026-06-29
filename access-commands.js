@@ -470,6 +470,11 @@ function buildCommandListMessage(isAdminUser = false) {
       `/episodefix ID season 1 episode 3 title Episodentitel\n` +
       `→ Staffel/Folge sicher per Vorschau reparieren\n\n` +
       
+            `🧭 Serien-Audit\n` +
+      `/seriesaudit TITEL\n` +
+      `/seriesaudit ID\n` +
+      `→ Serienfolgen nach Datei-Clustern und Nummerierungsfehlern prüfen\n\n` +
+      
                   `🗑 Papierkorb / Bereinigung\n` +
       `/trashmovie ID\n` +
       `/trashmovie ID confirm\n` +
