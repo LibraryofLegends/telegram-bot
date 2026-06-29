@@ -24,6 +24,7 @@ const { handleWrongImportCommands } = require("./library-wrongimport-commands");
 const { handleCleanupCommands } = require("./library-cleanup-commands");
 const { handleEpisodeCheckCommands } = require("./library-episodecheck-commands");
 const { handleEpisodeFixCommands } = require("./library-episodefix-commands");
+const { handleSeriesAuditCommands } = require("./library-seriesaudit-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 const { handleFavoriteCommands } = require("./library-favorites-commands");
 const { handlePopularCommands } = require("./library-popular-commands");
@@ -16402,6 +16403,15 @@ if (msg.text) {
 if (msg.text) {
   const handledEpisodeFix = await handleEpisodeFixCommands(accessBot, msg, pgPool);
   if (handledEpisodeFix) return;
+}
+
+// =============================
+// ADMIN SERIES AUDIT
+// /seriesaudit TITEL
+// =============================
+if (msg.text) {
+  const handledSeriesAudit = await handleSeriesAuditCommands(accessBot, msg, pgPool);
+  if (handledSeriesAudit) return;
 }
 
 // =============================
