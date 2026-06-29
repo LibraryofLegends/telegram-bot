@@ -112,7 +112,7 @@ function formatPopularMovieLine(movie, index) {
     .join(" · ");
 
   return (
-    `${index}. 🎬 ${movie.title || "Unbekannter Film"}${movie.year ? ` (${movie.year})` : ""}\n` +
+    `${index + 1}. 🎬 ${movie.title || "Unbekannter Film"}`
     `   🔥 ${movie.hits}x geholt\n` +
     `   🆔 ${label}\n` +
     `   ${meta || "Keine technischen Daten"}\n` +
