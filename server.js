@@ -161,6 +161,27 @@ await pgPool.query(`
 `);
 
 await pgPool.query(`
+  CREATE TABLE IF NOT EXISTS library_edit_logs (
+    id BIGSERIAL PRIMARY KEY,
+
+    item_type TEXT NOT NULL,
+    item_ref TEXT NOT NULL,
+
+    action TEXT NOT NULL,
+    before_data JSONB,
+    after_data JSONB,
+
+    edited_by BIGINT,
+    edited_at TIMESTAMPTZ DEFAULT NOW()
+  );
+`);
+
+await pgPool.query(`
+  CREATE INDEX IF NOT EXISTS idx_library_edit_logs_item
+  ON library_edit_logs (item_type, item_ref, edited_at DESC);
+`);
+
+await pgPool.query(`
   CREATE INDEX IF NOT EXISTS idx_deleted_library_items_type_ref
   ON deleted_library_items (item_type, item_ref);
 `);
