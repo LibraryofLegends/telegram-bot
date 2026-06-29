@@ -22,6 +22,7 @@ const { handleYearCommands } = require("./library-year-commands");
 const { handleDupeCommands } = require("./library-dupe-commands");
 const { handleWrongImportCommands } = require("./library-wrongimport-commands");
 const { handleCleanupCommands } = require("./library-cleanup-commands");
+const { handleEpisodeCheckCommands } = require("./library-episodecheck-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 const { handleFavoriteCommands } = require("./library-favorites-commands");
 const { handlePopularCommands } = require("./library-popular-commands");
@@ -16361,6 +16362,15 @@ if (msg.text) {
 if (msg.text) {
   const handledCleanup = await handleCleanupCommands(accessBot, msg, pgPool);
   if (handledCleanup) return;
+}
+
+// =============================
+// ADMIN EPISODE CHECK
+// /episodecheck, /episodemismatch
+// =============================
+if (msg.text) {
+  const handledEpisodeCheck = await handleEpisodeCheckCommands(accessBot, msg, pgPool);
+  if (handledEpisodeCheck) return;
 }
 
 // =============================
