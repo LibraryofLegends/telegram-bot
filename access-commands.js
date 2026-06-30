@@ -480,6 +480,11 @@ function buildCommandListMessage(isAdminUser = false) {
       `/seriescluster ID CLUSTERNAME\n` +
       `→ Gemischte Serienimporte nach Datei-Gruppen prüfen\n\n` +
       
+            `📦 Serien-Split\n` +
+      `/seriessplit GRUPPE CLUSTER title NEUER TITEL\n` +
+      `/seriessplit GRUPPE CLUSTER title NEUER TITEL confirm\n` +
+      `→ Datei-Cluster aus falscher Seriengruppe in neue Library-Gruppe verschieben\n\n` +
+      
                   `🗑 Papierkorb / Bereinigung\n` +
       `/trashmovie ID\n` +
       `/trashmovie ID confirm\n` +
