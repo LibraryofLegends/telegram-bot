@@ -26,6 +26,7 @@ const { handleEpisodeCheckCommands } = require("./library-episodecheck-commands"
 const { handleEpisodeFixCommands } = require("./library-episodefix-commands");
 const { handleSeriesAuditCommands } = require("./library-seriesaudit-commands");
 const { handleSeriesClusterCommands } = require("./library-seriescluster-commands");
+const { handleSeriesSplitCommands } = require("./library-seriessplit-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 const { handleFavoriteCommands } = require("./library-favorites-commands");
 const { handlePopularCommands } = require("./library-popular-commands");
@@ -16422,6 +16423,15 @@ if (msg.text) {
 if (msg.text) {
   const handledSeriesCluster = await handleSeriesClusterCommands(accessBot, msg, pgPool);
   if (handledSeriesCluster) return;
+}
+
+// =============================
+// ADMIN SERIES SPLIT
+// /seriessplit ID CLUSTER title NEUER TITEL
+// =============================
+if (msg.text) {
+  const handledSeriesSplit = await handleSeriesSplitCommands(accessBot, msg, pgPool);
+  if (handledSeriesSplit) return;
 }
 
 // =============================
