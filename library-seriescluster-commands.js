@@ -33,29 +33,37 @@ function formatEpisodeCode(season, episode) {
 }
 
 function parseEpisodeFromFileName(fileName = "") {
-  const value = String(fileName || "").trim();
+  const original =
+    String(fileName || "").trim();
+
+  const value =
+    original
+      .replace(/[_]+/g, " ")
+      .replace(/[.]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
   if (!value) return null;
 
   let match =
-    value.match(/\bS(\d{1,2})\s*E(\d{1,3})\b/i) ||
-    value.match(/\bS(\d{1,2})E(\d{1,3})\b/i);
+    value.match(/(?:^|[^a-z0-9])S\s*(\d{1,2})\s*E\s*(\d{1,3})(?=$|[^a-z0-9])/i);
 
   if (match) {
     return {
       season: Number(match[1]),
       episode: Number(match[2]),
-      raw: match[0]
+      raw: match[0].trim()
     };
   }
 
-  match = value.match(/\b(\d{1,2})x(\d{1,3})\b/i);
+  match =
+    value.match(/(?:^|[^a-z0-9])(\d{1,2})\s*x\s*(\d{1,3})(?=$|[^a-z0-9])/i);
 
   if (match) {
     return {
       season: Number(match[1]),
       episode: Number(match[2]),
-      raw: match[0]
+      raw: match[0].trim()
     };
   }
 
