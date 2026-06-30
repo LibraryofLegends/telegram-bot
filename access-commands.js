@@ -20,6 +20,7 @@ const { sendRandomLibraryMessage } = require("./library-random-commands");
 const { sendGenreListMessage } = require("./library-browse-commands");
 const { sendYearOverviewMessage } = require("./library-year-commands");
 const { sendAzOverviewMessage } = require("./library-az-commands");
+const { handleLibraryHolCommands } = require("./library-hol-commands");
 
 function getAdminNotifyChatIds() {
   const notifyIds = String(process.env.ADMIN_NOTIFY_CHAT_ID || "")
@@ -2139,22 +2140,14 @@ function buildMovieMenuLine(movie, index) {
   return (
     `${index + 1}. 🎬 ${movie.title || "Unbekannter Film"}${movie.year ? ` (${movie.year})` : ""}\n` +
     `   🆔 ${label}\n` +
-    `   ${meta || "Keine technischen Daten"}\n` +
-    `   !hol movie ${movie.id}`
+    `   ${meta || "Keine technischen Daten"}`
   );
 }
 
 function buildSeriesMenuLine(series, index) {
-  const ref =
-    series.series_ref ||
-    series.series_library_id ||
-    series.id;
-
   return (
     `${index + 1}. 📺 ${series.series_title || "Unbekannte Serie"}\n` +
-    `   ${series.seasons_count || 0} Staffel(n) · ${series.episodes_count || 0} Folge(n)\n` +
-    `   !hol serie ${ref} s1e1\n` +
-    `   !hol serie ${ref} staffel 1`
+    `   ${series.seasons_count || 0} Staffel(n) · ${series.episodes_count || 0} Folge(n)`
   );
 }
 
@@ -2168,7 +2161,7 @@ function buildMovieListScreen(title, rows) {
         : "Keine Filme gefunden."
     ) +
     `\n\n━━━━━━━━━━━━━━━━━━\n` +
-    `Wähle einen Eintrag mit !hol oder kehre zurück ins Film-Regal.`
+    `Tippe unten auf einen Titel, um ihn zu holen.`
   );
 }
 
@@ -2182,7 +2175,7 @@ function buildSeriesListScreen(title, rows) {
         : "Keine Serien gefunden."
     ) +
     `\n\n━━━━━━━━━━━━━━━━━━\n` +
-    `Wähle eine Serie mit !hol oder kehre zurück ins Serien-Regal.`
+    `Tippe unten auf eine Serie, um S01E01 zu holen.`
   );
 }
 
@@ -2541,6 +2534,53 @@ function buildBackToYearKeyboard(type = "movies") {
         }
       ]
     ]
+  };
+}
+
+function buildMovieResultKeyboard(rows = [], backKeyboard) {
+  const keyboard = [];
+
+  for (const [index, movie] of rows.slice(0, 10).entries()) {
+    keyboard.push([
+      {
+        text: `▶️ ${index + 1}. ${shortenButtonText(movie.title || "Film", 34)}`,
+        callback_data: `public:hm_${movie.id}`
+      }
+    ]);
+  }
+
+  if (backKeyboard?.inline_keyboard?.length) {
+    keyboard.push(...backKeyboard.inline_keyboard);
+  }
+
+  return {
+    inline_keyboard: keyboard
+  };
+}
+
+function buildSeriesResultKeyboard(rows = [], backKeyboard) {
+  const keyboard = [];
+
+  for (const [index, series] of rows.slice(0, 10).entries()) {
+    const ref =
+      series.series_ref ||
+      series.series_library_id ||
+      series.id;
+
+    keyboard.push([
+      {
+        text: `▶️ ${index + 1}. ${shortenButtonText(series.series_title || "Serie", 34)}`,
+        callback_data: `public:hs_${ref}`
+      }
+    ]);
+  }
+
+  if (backKeyboard?.inline_keyboard?.length) {
+    keyboard.push(...backKeyboard.inline_keyboard);
+  }
+
+  return {
+    inline_keyboard: keyboard
   };
 }
 
@@ -3128,11 +3168,14 @@ async function handlePublicCallback(bot, callback, pgPool) {
       await getLatestMovieMenuRows(pgPool, 10);
 
     await editPublicScreenWithKeyboard(
-      bot,
-      callback,
-      buildMovieListScreen("▶️ Neue Filme", rows),
-      buildBackToShelfKeyboard("movies")
-    );
+  bot,
+  callback,
+  buildMovieListScreen("▶️ Neue Filme", rows),
+  buildMovieResultKeyboard(
+    rows,
+    buildBackToShelfKeyboard("movies")
+  )
+);
 
     return true;
   }
@@ -3149,11 +3192,14 @@ async function handlePublicCallback(bot, callback, pgPool) {
       await getUhdMovieMenuRows(pgPool, 10);
 
     await editPublicScreenWithKeyboard(
-      bot,
-      callback,
-      buildMovieListScreen("💎 4K / UHD Filme", rows),
-      buildBackToShelfKeyboard("movies")
-    );
+  bot,
+  callback,
+  buildMovieListScreen("💎 4K / UHD Filme", rows),
+  buildMovieResultKeyboard(
+    rows,
+    buildBackToShelfKeyboard("movies")
+  )
+);
 
     return true;
   }
@@ -3282,11 +3328,14 @@ async function handlePublicCallback(bot, callback, pgPool) {
       await getLatestSeriesMenuRows(pgPool, 10);
 
     await editPublicScreenWithKeyboard(
-      bot,
-      callback,
-      buildSeriesListScreen("▶️ Neue Serienbereiche", rows),
-      buildBackToShelfKeyboard("series")
-    );
+  bot,
+  callback,
+  buildSeriesListScreen("▶️ Neue Serienbereiche", rows),
+  buildSeriesResultKeyboard(
+    rows,
+    buildBackToShelfKeyboard("series")
+  )
+);
 
     return true;
   }
@@ -3439,11 +3488,14 @@ async function handlePublicCallback(bot, callback, pgPool) {
       await getMoviesByGenreButtonRows(pgPool, selected.genre, 10);
 
     await editPublicScreenWithKeyboard(
-      bot,
-      callback,
-      buildMovieListScreen(`📂 Filme: ${selected.genre}`, rows),
-      buildBackToCategoryKeyboard("movies")
-    );
+  bot,
+  callback,
+  buildMovieListScreen(`📂 Filme: ${selected.genre}`, rows),
+  buildMovieResultKeyboard(
+    rows,
+    buildBackToCategoryKeyboard("movies")
+  )
+);
 
     return true;
   }
@@ -3477,11 +3529,14 @@ async function handlePublicCallback(bot, callback, pgPool) {
       await getSeriesByGenreButtonRows(pgPool, selected.genre, 10);
 
     await editPublicScreenWithKeyboard(
-      bot,
-      callback,
-      buildSeriesListScreen(`📂 Serien: ${selected.genre}`, rows),
-      buildBackToCategoryKeyboard("series")
-    );
+  bot,
+  callback,
+  buildSeriesListScreen(`📂 Serien: ${selected.genre}`, rows),
+  buildSeriesResultKeyboard(
+    rows,
+    buildBackToCategoryKeyboard("series")
+  )
+);
 
     return true;
   }
@@ -3506,11 +3561,14 @@ async function handlePublicCallback(bot, callback, pgPool) {
       await getMoviesByAzButtonRows(pgPool, letter, 10);
 
     await editPublicScreenWithKeyboard(
-      bot,
-      callback,
-      buildMovieListScreen(`🔤 Filme: ${letter}`, rows),
-      buildBackToAzKeyboard("movies")
-    );
+  bot,
+  callback,
+  buildMovieListScreen(`🔤 Filme: ${letter}`, rows),
+  buildMovieResultKeyboard(
+    rows,
+    buildBackToAzKeyboard("movies")
+  )
+);
 
     return true;
   }
@@ -3535,11 +3593,14 @@ async function handlePublicCallback(bot, callback, pgPool) {
       await getSeriesByAzButtonRows(pgPool, letter, 10);
 
     await editPublicScreenWithKeyboard(
-      bot,
-      callback,
-      buildSeriesListScreen(`🔤 Serien: ${letter}`, rows),
-      buildBackToAzKeyboard("series")
-    );
+  bot,
+  callback,
+  buildSeriesListScreen(`🔤 Serien: ${letter}`, rows),
+  buildSeriesResultKeyboard(
+    rows,
+    buildBackToAzKeyboard("series")
+  )
+);
 
     return true;
   }
@@ -3559,11 +3620,14 @@ async function handlePublicCallback(bot, callback, pgPool) {
       await getMoviesByYearButtonRows(pgPool, year, 10);
 
     await editPublicScreenWithKeyboard(
-      bot,
-      callback,
-      buildMovieListScreen(`📅 Filme: ${year}`, rows),
-      buildBackToYearKeyboard("movies")
-    );
+  bot,
+  callback,
+  buildMovieListScreen(`📅 Filme: ${year}`, rows),
+  buildMovieResultKeyboard(
+    rows,
+    buildBackToYearKeyboard("movies")
+  )
+);
 
     return true;
   }
@@ -3583,10 +3647,87 @@ async function handlePublicCallback(bot, callback, pgPool) {
       await getSeriesByYearButtonRows(pgPool, year, 10);
 
     await editPublicScreenWithKeyboard(
+  bot,
+  callback,
+  buildSeriesListScreen(`📅 Serien: ${year}`, rows),
+  buildSeriesResultKeyboard(
+    rows,
+    buildBackToYearKeyboard("series")
+  )
+);
+
+    return true;
+  }
+  
+    // =============================
+  // DIRECT HOL BUTTONS
+  // hm = hol movie
+  // hs = hol series S01E01
+  // =============================
+
+  if (action.startsWith("hm_")) {
+    const movieId =
+      action.replace(/^hm_/, "").trim();
+
+    if (!movieId || !/^\d+$/.test(movieId)) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Film-ID ungültig.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🎬 Film wird geholt."
+    });
+
+    const fakeMsg = {
+      text: `!hol movie ${movieId}`,
+      chat: {
+        id: chatId
+      },
+      from,
+      message_id: messageId
+    };
+
+    await handleLibraryHolCommands(
       bot,
-      callback,
-      buildSeriesListScreen(`📅 Serien: ${year}`, rows),
-      buildBackToYearKeyboard("series")
+      fakeMsg,
+      pgPool
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("hs_")) {
+    const seriesRef =
+      action.replace(/^hs_/, "").trim();
+
+    if (!seriesRef) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Serien-ID ungültig.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📺 Serie wird geöffnet."
+    });
+
+    const fakeMsg = {
+      text: `!hol serie ${seriesRef} s1e1`,
+      chat: {
+        id: chatId
+      },
+      from,
+      message_id: messageId
+    };
+
+    await handleLibraryHolCommands(
+      bot,
+      fakeMsg,
+      pgPool
     );
 
     return true;
