@@ -1931,19 +1931,25 @@ async function getLatestSeriesMenuRows(pgPool, limit = 10) {
 async function getMovieGenreMenuRows(pgPool, limit = 20) {
   const result = await pgPool.query(
     `
+    WITH genre_parts AS (
+      SELECT
+        TRIM(part) AS genre
+      FROM movies,
+      regexp_split_to_table(COALESCE(genre, ''), '\\s*/\\s*') AS part
+      WHERE TRIM(part) <> ''
+    )
     SELECT
-      COALESCE(NULLIF(TRIM(genre), ''), 'Unbekannt') AS genre,
+      genre,
       COUNT(*)::int AS count
-    FROM movies
-    GROUP BY
-      COALESCE(NULLIF(TRIM(genre), ''), 'Unbekannt')
+    FROM genre_parts
+    GROUP BY genre
     ORDER BY
       count DESC,
       genre ASC
     LIMIT $1;
     `,
     [
-      Math.max(1, Math.min(Number(limit) || 20, 30))
+      Math.max(1, Math.min(Number(limit) || 20, 40))
     ]
   );
 
@@ -1953,21 +1959,28 @@ async function getMovieGenreMenuRows(pgPool, limit = 20) {
 async function getSeriesGenreMenuRows(pgPool, limit = 20) {
   const result = await pgPool.query(
     `
+    WITH genre_parts AS (
+      SELECT
+        COALESCE(series_library_id::text, LOWER(series_title)) AS series_key,
+        TRIM(part) AS genre
+      FROM series,
+      regexp_split_to_table(COALESCE(genre, ''), '\\s*/\\s*') AS part
+      WHERE series_title IS NOT NULL
+        AND TRIM(series_title) <> ''
+        AND TRIM(part) <> ''
+    )
     SELECT
-      COALESCE(NULLIF(TRIM(genre), ''), 'Unbekannt') AS genre,
-      COUNT(DISTINCT COALESCE(series_library_id::text, LOWER(series_title)))::int AS count
-    FROM series
-    WHERE series_title IS NOT NULL
-      AND TRIM(series_title) <> ''
-    GROUP BY
-      COALESCE(NULLIF(TRIM(genre), ''), 'Unbekannt')
+      genre,
+      COUNT(DISTINCT series_key)::int AS count
+    FROM genre_parts
+    GROUP BY genre
     ORDER BY
       count DESC,
       genre ASC
     LIMIT $1;
     `,
     [
-      Math.max(1, Math.min(Number(limit) || 20, 30))
+      Math.max(1, Math.min(Number(limit) || 20, 40))
     ]
   );
 
@@ -2174,19 +2187,13 @@ function buildSeriesListScreen(title, rows) {
 }
 
 function buildGenreScreen(title, rows, type = "movies") {
-  const command =
-    type === "series"
-      ? "!serien"
-      : "!filme";
-
   const lines =
     rows.length
-      ? rows.map((row, index) => {
+      ? rows.slice(0, 20).map((row, index) => {
           return (
-            `${index + 1}. ${row.genre || "Unbekannt"} · ${row.count}\n` +
-            `   ${command} ${row.genre || "Unbekannt"}`
+            `${index + 1}. ${row.genre || "Unbekannt"} · ${row.count}`
           );
-        }).join("\n\n")
+        }).join("\n")
       : "Keine Kategorien gefunden.";
 
   return (
@@ -2194,33 +2201,26 @@ function buildGenreScreen(title, rows, type = "movies") {
     `━━━━━━━━━━━━━━━━━━\n\n` +
     lines +
     `\n\n━━━━━━━━━━━━━━━━━━\n` +
-    `Beispiel:\n` +
-    `${command} action`
+    `Wähle unten eine Kategorie aus.`
   );
 }
 
 function buildYearScreen(title, rows, type = "movies") {
   const lines =
     rows.length
-      ? rows.map((row, index) => {
+      ? rows.slice(0, 20).map((row, index) => {
           return (
-            `${index + 1}. ${row.year} · ${row.count}\n` +
-            `   !jahr ${row.year}`
+            `${index + 1}. ${row.year} · ${row.count}`
           );
-        }).join("\n\n")
+        }).join("\n")
       : "Keine Jahre gefunden.";
-
-  const hint =
-    type === "series"
-      ? "Hinweis: Serien-Jahre können je nach Datenlage Startjahr oder Importjahr sein."
-      : "Nutze !jahr JAHR, um passende Titel zu öffnen.";
 
   return (
     `${title}\n` +
     `━━━━━━━━━━━━━━━━━━\n\n` +
     lines +
     `\n\n━━━━━━━━━━━━━━━━━━\n` +
-    hint
+    `Wähle unten ein Jahr aus.`
   );
 }
 
@@ -2247,11 +2247,6 @@ function buildAzScreen(title, rows, type = "movies") {
     counts.set(letter, (counts.get(letter) || 0) + 1);
   }
 
-  const command =
-    type === "series"
-      ? "!serien"
-      : "!filme";
-
   const lines =
     letters
       .map((letter) => {
@@ -2264,9 +2259,7 @@ function buildAzScreen(title, rows, type = "movies") {
     `━━━━━━━━━━━━━━━━━━\n\n` +
     lines +
     `\n\n━━━━━━━━━━━━━━━━━━\n` +
-    `Öffnen mit:\n` +
-    `${command} A\n` +
-    `${command} S`
+    `Wähle unten einen Buchstaben aus.`
   );
 }
 
@@ -2322,6 +2315,423 @@ function buildSeriesHolHelpText() {
     `Tipp:\n` +
     `Die Serien-ID findest du über Suche oder Serien A–Z.`
   );
+}
+
+function shortenButtonText(text = "", max = 28) {
+  const value =
+    String(text || "").trim();
+
+  if (value.length <= max) {
+    return value;
+  }
+
+  return value.slice(0, max - 1).trim() + "…";
+}
+
+function buildGenreButtonsKeyboard(type = "movies", rows = []) {
+  const prefix =
+    type === "series"
+      ? "gs"
+      : "gm";
+
+  const backShelf =
+    type === "series"
+      ? "public:series_shelf"
+      : "public:movies_shelf";
+
+  const buttons =
+    rows.slice(0, 20).map((row, index) => {
+      return {
+        text: `${index + 1}. ${shortenButtonText(row.genre || "Unbekannt", 24)}`,
+        callback_data: `public:${prefix}_${index}`
+      };
+    });
+
+  const keyboard = [];
+
+  for (let i = 0; i < buttons.length; i += 2) {
+    keyboard.push(buttons.slice(i, i + 2));
+  }
+
+  keyboard.push([
+    {
+      text: type === "series" ? "📺 Zurück zum Serien-Regal" : "🎬 Zurück zum Film-Regal",
+      callback_data: backShelf
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: "🏠 Startseite",
+      callback_data: "public:home"
+    }
+  ]);
+
+  return {
+    inline_keyboard: keyboard
+  };
+}
+
+function buildAzButtonsKeyboard(type = "movies") {
+  const prefix =
+    type === "series"
+      ? "as"
+      : "am";
+
+  const backShelf =
+    type === "series"
+      ? "public:series_shelf"
+      : "public:movies_shelf";
+
+  const letters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+  const keyboard = [];
+
+  for (let i = 0; i < letters.length; i += 6) {
+    keyboard.push(
+      letters.slice(i, i + 6).map((letter) => {
+        return {
+          text: letter,
+          callback_data: `public:${prefix}_${letter}`
+        };
+      })
+    );
+  }
+
+  keyboard.push([
+    {
+      text: "#",
+      callback_data: `public:${prefix}_HASH`
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: type === "series" ? "📺 Zurück zum Serien-Regal" : "🎬 Zurück zum Film-Regal",
+      callback_data: backShelf
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: "🏠 Startseite",
+      callback_data: "public:home"
+    }
+  ]);
+
+  return {
+    inline_keyboard: keyboard
+  };
+}
+
+function buildYearButtonsKeyboard(type = "movies", rows = []) {
+  const prefix =
+    type === "series"
+      ? "ys"
+      : "ym";
+
+  const backShelf =
+    type === "series"
+      ? "public:series_shelf"
+      : "public:movies_shelf";
+
+  const buttons =
+    rows.slice(0, 20).map((row) => {
+      return {
+        text: `${row.year} · ${row.count}`,
+        callback_data: `public:${prefix}_${row.year}`
+      };
+    });
+
+  const keyboard = [];
+
+  for (let i = 0; i < buttons.length; i += 2) {
+    keyboard.push(buttons.slice(i, i + 2));
+  }
+
+  keyboard.push([
+    {
+      text: type === "series" ? "📺 Zurück zum Serien-Regal" : "🎬 Zurück zum Film-Regal",
+      callback_data: backShelf
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: "🏠 Startseite",
+      callback_data: "public:home"
+    }
+  ]);
+
+  return {
+    inline_keyboard: keyboard
+  };
+}
+
+function buildBackToCategoryKeyboard(type = "movies") {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: type === "series" ? "📂 Zurück zu Serien-Kategorien" : "📂 Zurück zu Film-Kategorien",
+          callback_data: type === "series" ? "public:genres_series" : "public:genres_movies"
+        }
+      ],
+      [
+        {
+          text: type === "series" ? "📺 Zurück zum Serien-Regal" : "🎬 Zurück zum Film-Regal",
+          callback_data: type === "series" ? "public:series_shelf" : "public:movies_shelf"
+        }
+      ],
+      [
+        {
+          text: "🏠 Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
+function buildBackToAzKeyboard(type = "movies") {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: type === "series" ? "🔤 Zurück zu Serien A–Z" : "🔤 Zurück zu Filme A–Z",
+          callback_data: type === "series" ? "public:az_series" : "public:az_movies"
+        }
+      ],
+      [
+        {
+          text: type === "series" ? "📺 Zurück zum Serien-Regal" : "🎬 Zurück zum Film-Regal",
+          callback_data: type === "series" ? "public:series_shelf" : "public:movies_shelf"
+        }
+      ],
+      [
+        {
+          text: "🏠 Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
+function buildBackToYearKeyboard(type = "movies") {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: type === "series" ? "📅 Zurück zu Serien-Jahren" : "📅 Zurück zu Film-Jahren",
+          callback_data: type === "series" ? "public:years_series" : "public:years_movies"
+        }
+      ],
+      [
+        {
+          text: type === "series" ? "📺 Zurück zum Serien-Regal" : "🎬 Zurück zum Film-Regal",
+          callback_data: type === "series" ? "public:series_shelf" : "public:movies_shelf"
+        }
+      ],
+      [
+        {
+          text: "🏠 Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
+async function getMoviesByGenreButtonRows(pgPool, genre, limit = 10) {
+  const result = await pgPool.query(
+    `
+    SELECT
+      id,
+      title,
+      year,
+      library_id,
+      quality,
+      resolution,
+      file_size,
+      runtime,
+      created_at
+    FROM movies m
+    WHERE EXISTS (
+      SELECT 1
+      FROM regexp_split_to_table(COALESCE(m.genre, ''), '\\s*/\\s*') AS part
+      WHERE LOWER(TRIM(part)) = LOWER($1)
+    )
+    ORDER BY
+      created_at DESC NULLS LAST,
+      year DESC NULLS LAST,
+      title ASC
+    LIMIT $2;
+    `,
+    [
+      genre,
+      Math.max(1, Math.min(Number(limit) || 10, 20))
+    ]
+  );
+
+  return result.rows || [];
+}
+
+async function getSeriesByGenreButtonRows(pgPool, genre, limit = 10) {
+  const result = await pgPool.query(
+    `
+    SELECT
+      COALESCE(NULLIF(MAX(series_library_id::text), ''), MIN(id)::text) AS series_ref,
+      series_title,
+      COUNT(*)::int AS episodes_count,
+      COUNT(DISTINCT season::text)::int AS seasons_count,
+      MAX(created_at) AS latest_created_at
+    FROM series s
+    WHERE series_title IS NOT NULL
+      AND TRIM(series_title) <> ''
+      AND EXISTS (
+        SELECT 1
+        FROM regexp_split_to_table(COALESCE(s.genre, ''), '\\s*/\\s*') AS part
+        WHERE LOWER(TRIM(part)) = LOWER($1)
+      )
+    GROUP BY
+      COALESCE(series_library_id::text, LOWER(series_title)),
+      series_title
+    ORDER BY
+      latest_created_at DESC NULLS LAST,
+      series_title ASC
+    LIMIT $2;
+    `,
+    [
+      genre,
+      Math.max(1, Math.min(Number(limit) || 10, 20))
+    ]
+  );
+
+  return result.rows || [];
+}
+
+async function getMoviesByAzButtonRows(pgPool, letter, limit = 10) {
+  const result = await pgPool.query(`
+    SELECT
+      id,
+      title,
+      year,
+      library_id,
+      quality,
+      resolution,
+      file_size,
+      runtime,
+      created_at
+    FROM movies
+    WHERE title IS NOT NULL
+      AND TRIM(title) <> ''
+    ORDER BY
+      title ASC,
+      year ASC NULLS LAST,
+      id ASC;
+  `);
+
+  return (result.rows || [])
+    .filter((movie) => getAzLetterFromTitle(movie.title) === letter)
+    .slice(0, Math.max(1, Math.min(Number(limit) || 10, 20)));
+}
+
+async function getSeriesByAzButtonRows(pgPool, letter, limit = 10) {
+  const result = await pgPool.query(`
+    SELECT
+      COALESCE(NULLIF(MAX(series_library_id::text), ''), MIN(id)::text) AS series_ref,
+      series_title,
+      COUNT(*)::int AS episodes_count,
+      COUNT(DISTINCT season::text)::int AS seasons_count,
+      MAX(created_at) AS latest_created_at
+    FROM series
+    WHERE series_title IS NOT NULL
+      AND TRIM(series_title) <> ''
+    GROUP BY
+      COALESCE(series_library_id::text, LOWER(series_title)),
+      series_title
+    ORDER BY
+      series_title ASC;
+  `);
+
+  return (result.rows || [])
+    .filter((series) => getAzLetterFromTitle(series.series_title) === letter)
+    .slice(0, Math.max(1, Math.min(Number(limit) || 10, 20)));
+}
+
+async function getMoviesByYearButtonRows(pgPool, year, limit = 10) {
+  const result = await pgPool.query(
+    `
+    SELECT
+      id,
+      title,
+      year,
+      library_id,
+      quality,
+      resolution,
+      file_size,
+      runtime,
+      created_at
+    FROM movies
+    WHERE year::text = $1::text
+    ORDER BY
+      created_at DESC NULLS LAST,
+      title ASC
+    LIMIT $2;
+    `,
+    [
+      String(year),
+      Math.max(1, Math.min(Number(limit) || 10, 20))
+    ]
+  );
+
+  return result.rows || [];
+}
+
+async function getSeriesByYearButtonRows(pgPool, year, limit = 10) {
+  const result = await pgPool.query(
+    `
+    WITH grouped AS (
+      SELECT
+        COALESCE(
+          CASE
+            WHEN MAX(sl.first_air_date::text) ~ '^[0-9]{4}'
+            THEN LEFT(MAX(sl.first_air_date::text), 4)::int
+            ELSE NULL
+          END,
+          EXTRACT(YEAR FROM MIN(s.created_at))::int
+        ) AS year,
+        COALESCE(s.series_library_id::text, LOWER(s.series_title)) AS series_key,
+        COALESCE(NULLIF(MAX(s.series_library_id::text), ''), MIN(s.id)::text) AS series_ref,
+        MIN(s.series_title) AS series_title,
+        COUNT(*)::int AS episodes_count,
+        COUNT(DISTINCT s.season::text)::int AS seasons_count,
+        MAX(s.created_at) AS latest_created_at
+      FROM series s
+      LEFT JOIN series_library sl
+        ON s.series_library_id::text = sl.id::text
+      WHERE s.series_title IS NOT NULL
+        AND TRIM(s.series_title) <> ''
+      GROUP BY
+        COALESCE(s.series_library_id::text, LOWER(s.series_title))
+    )
+    SELECT *
+    FROM grouped
+    WHERE year::text = $1::text
+    ORDER BY
+      latest_created_at DESC NULLS LAST,
+      series_title ASC
+    LIMIT $2;
+    `,
+    [
+      String(year),
+      Math.max(1, Math.min(Number(limit) || 10, 20))
+    ]
+  );
+
+  return result.rows || [];
 }
 
 function buildPublicMenuKeyboard(isAdminUser = false, isApproved = true) {
@@ -2759,11 +3169,11 @@ async function handlePublicCallback(bot, callback, pgPool) {
     const rows =
       await getMovieAzMenuRows(pgPool);
 
-    await editPublicScreenWithKeyboard(
+        await editPublicScreenWithKeyboard(
       bot,
       callback,
       buildAzScreen("🔤 Filme A–Z", rows, "movies"),
-      buildBackToShelfKeyboard("movies")
+      buildAzButtonsKeyboard("movies")
     );
 
     return true;
@@ -2780,11 +3190,11 @@ async function handlePublicCallback(bot, callback, pgPool) {
     const rows =
       await getMovieGenreMenuRows(pgPool, 20);
 
-    await editPublicScreenWithKeyboard(
+        await editPublicScreenWithKeyboard(
       bot,
       callback,
       buildGenreScreen("📂 Film-Kategorien", rows, "movies"),
-      buildBackToShelfKeyboard("movies")
+      buildGenreButtonsKeyboard("movies", rows)
     );
 
     return true;
@@ -2801,11 +3211,11 @@ async function handlePublicCallback(bot, callback, pgPool) {
     const rows =
       await getMovieYearMenuRows(pgPool, 20);
 
-    await editPublicScreenWithKeyboard(
+        await editPublicScreenWithKeyboard(
       bot,
       callback,
       buildYearScreen("📅 Filme nach Jahren", rows, "movies"),
-      buildBackToShelfKeyboard("movies")
+      buildYearButtonsKeyboard("movies", rows)
     );
 
     return true;
@@ -2892,11 +3302,11 @@ async function handlePublicCallback(bot, callback, pgPool) {
     const rows =
       await getSeriesAzMenuRows(pgPool);
 
-    await editPublicScreenWithKeyboard(
+        await editPublicScreenWithKeyboard(
       bot,
       callback,
       buildAzScreen("🔤 Serien A–Z", rows, "series"),
-      buildBackToShelfKeyboard("series")
+      buildAzButtonsKeyboard("series")
     );
 
     return true;
@@ -2913,11 +3323,11 @@ async function handlePublicCallback(bot, callback, pgPool) {
     const rows =
       await getSeriesGenreMenuRows(pgPool, 20);
 
-    await editPublicScreenWithKeyboard(
+        await editPublicScreenWithKeyboard(
       bot,
       callback,
       buildGenreScreen("📂 Serien-Kategorien", rows, "series"),
-      buildBackToShelfKeyboard("series")
+      buildGenreButtonsKeyboard("series", rows)
     );
 
     return true;
@@ -2934,11 +3344,11 @@ async function handlePublicCallback(bot, callback, pgPool) {
     const rows =
       await getSeriesYearMenuRows(pgPool, 20);
 
-    await editPublicScreenWithKeyboard(
+        await editPublicScreenWithKeyboard(
       bot,
       callback,
       buildYearScreen("📅 Serien nach Jahren", rows, "series"),
-      buildBackToShelfKeyboard("series")
+      buildYearButtonsKeyboard("series", rows)
     );
 
     return true;
@@ -2988,6 +3398,195 @@ async function handlePublicCallback(bot, callback, pgPool) {
       callback,
       buildSeriesHolHelpText(),
       buildBackToShelfKeyboard("series")
+    );
+
+    return true;
+  }
+  
+    // =============================
+  // BUTTON DETAIL PAGES
+  // gm = genre movies, gs = genre series
+  // am = A-Z movies, as = A-Z series
+  // ym = year movies, ys = year series
+  // =============================
+
+  if (action.startsWith("gm_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const index =
+      Number(action.replace(/^gm_/, ""));
+
+    const genres =
+      await getMovieGenreMenuRows(pgPool, 20);
+
+    const selected =
+      genres[index];
+
+    if (!selected) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Kategorie nicht gefunden.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `📂 ${selected.genre}`
+    });
+
+    const rows =
+      await getMoviesByGenreButtonRows(pgPool, selected.genre, 10);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildMovieListScreen(`📂 Filme: ${selected.genre}`, rows),
+      buildBackToCategoryKeyboard("movies")
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("gs_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const index =
+      Number(action.replace(/^gs_/, ""));
+
+    const genres =
+      await getSeriesGenreMenuRows(pgPool, 20);
+
+    const selected =
+      genres[index];
+
+    if (!selected) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Kategorie nicht gefunden.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `📂 ${selected.genre}`
+    });
+
+    const rows =
+      await getSeriesByGenreButtonRows(pgPool, selected.genre, 10);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildSeriesListScreen(`📂 Serien: ${selected.genre}`, rows),
+      buildBackToCategoryKeyboard("series")
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("am_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const rawLetter =
+      action.replace(/^am_/, "");
+
+    const letter =
+      rawLetter === "HASH"
+        ? "#"
+        : rawLetter.toUpperCase();
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `🔤 Filme ${letter}`
+    });
+
+    const rows =
+      await getMoviesByAzButtonRows(pgPool, letter, 10);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildMovieListScreen(`🔤 Filme: ${letter}`, rows),
+      buildBackToAzKeyboard("movies")
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("as_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const rawLetter =
+      action.replace(/^as_/, "");
+
+    const letter =
+      rawLetter === "HASH"
+        ? "#"
+        : rawLetter.toUpperCase();
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `🔤 Serien ${letter}`
+    });
+
+    const rows =
+      await getSeriesByAzButtonRows(pgPool, letter, 10);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildSeriesListScreen(`🔤 Serien: ${letter}`, rows),
+      buildBackToAzKeyboard("series")
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("ym_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const year =
+      action.replace(/^ym_/, "");
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `📅 Filme ${year}`
+    });
+
+    const rows =
+      await getMoviesByYearButtonRows(pgPool, year, 10);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildMovieListScreen(`📅 Filme: ${year}`, rows),
+      buildBackToYearKeyboard("movies")
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("ys_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const year =
+      action.replace(/^ys_/, "");
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `📅 Serien ${year}`
+    });
+
+    const rows =
+      await getSeriesByYearButtonRows(pgPool, year, 10);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildSeriesListScreen(`📅 Serien: ${year}`, rows),
+      buildBackToYearKeyboard("series")
     );
 
     return true;
