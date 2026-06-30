@@ -485,6 +485,12 @@ function buildCommandListMessage(isAdminUser = false) {
       `/seriessplit GRUPPE CLUSTER title NEUER TITEL confirm\n` +
       `→ Datei-Cluster aus falscher Seriengruppe in neue Library-Gruppe verschieben\n\n` +
       
+            `🧰 Serien-Batch-Reparatur\n` +
+      `/seriesfixfromfile LIBRARY_ID\n` +
+      `/seriesfixfromfile LIBRARY_ID preview\n` +
+      `/seriesfixfromfile LIBRARY_ID confirm\n` +
+      `→ Staffel/Folge und Titel sicher aus Dateinamen übernehmen\n\n` +
+      
                   `🗑 Papierkorb / Bereinigung\n` +
       `/trashmovie ID\n` +
       `/trashmovie ID confirm\n` +
