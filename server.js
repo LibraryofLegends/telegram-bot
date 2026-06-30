@@ -27,6 +27,7 @@ const { handleEpisodeFixCommands } = require("./library-episodefix-commands");
 const { handleSeriesAuditCommands } = require("./library-seriesaudit-commands");
 const { handleSeriesClusterCommands } = require("./library-seriescluster-commands");
 const { handleSeriesSplitCommands } = require("./library-seriessplit-commands");
+const { handleSeriesFixFromFileCommands } = require("./library-seriesfixfromfile-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
 const { handleFavoriteCommands } = require("./library-favorites-commands");
 const { handlePopularCommands } = require("./library-popular-commands");
@@ -16432,6 +16433,15 @@ if (msg.text) {
 if (msg.text) {
   const handledSeriesSplit = await handleSeriesSplitCommands(accessBot, msg, pgPool);
   if (handledSeriesSplit) return;
+}
+
+// =============================
+// ADMIN SERIES FIX FROM FILE
+// /seriesfixfromfile ID preview/confirm
+// =============================
+if (msg.text) {
+  const handledSeriesFixFromFile = await handleSeriesFixFromFileCommands(accessBot, msg, pgPool);
+  if (handledSeriesFixFromFile) return;
 }
 
 // =============================
