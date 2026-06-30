@@ -1484,37 +1484,41 @@ function buildShelfKeyboard(type = "movies") {
       inline_keyboard: [
         [
           {
-            text: "🔤 Serien A–Z",
-            callback_data: "public:az"
+            text: "▶️ Neue Serien",
+            callback_data: "public:new_series"
           },
+          {
+            text: "🔤 Serien A–Z",
+            callback_data: "public:az_series"
+          }
+        ],
+        [
           {
             text: "📂 Serien-Kategorien",
-            callback_data: "public:genres"
-          }
-        ],
-        [
+            callback_data: "public:genres_series"
+          },
           {
             text: "📅 Serien nach Jahren",
-            callback_data: "public:years"
-          },
-          {
-            text: "🎲 Zufall",
-            callback_data: "public:random"
+            callback_data: "public:years_series"
           }
         ],
         [
+          {
+            text: "🎲 Serien-Zufall",
+            callback_data: "public:random_series"
+          },
           {
             text: "🔎 Serien suchen",
-            callback_data: "public:search_help"
-          },
-          {
-            text: "📦 Serie holen",
-            callback_data: "public:hol_help"
+            callback_data: "public:search_series_help"
           }
         ],
         [
           {
-            text: "🏠 Zurück zur Startseite",
+            text: "📦 Serie holen",
+            callback_data: "public:hol_series_help"
+          },
+          {
+            text: "🏠 Startseite",
             callback_data: "public:home"
           }
         ]
@@ -1527,46 +1531,46 @@ function buildShelfKeyboard(type = "movies") {
       [
         {
           text: "▶️ Neue Filme",
-          callback_data: "public:new"
+          callback_data: "public:new_movies"
         },
         {
           text: "💎 4K / UHD",
-          callback_data: "public:uhd_help"
+          callback_data: "public:uhd_movies"
         }
       ],
       [
         {
           text: "🔤 Filme A–Z",
-          callback_data: "public:az"
+          callback_data: "public:az_movies"
         },
         {
           text: "📂 Film-Kategorien",
-          callback_data: "public:genres"
+          callback_data: "public:genres_movies"
         }
       ],
       [
         {
           text: "📅 Filme nach Jahren",
-          callback_data: "public:years"
+          callback_data: "public:years_movies"
         },
         {
-          text: "🎲 Zufall",
-          callback_data: "public:random"
+          text: "🎲 Film-Zufall",
+          callback_data: "public:random_movies"
         }
       ],
       [
         {
           text: "🔎 Filme suchen",
-          callback_data: "public:search_help"
+          callback_data: "public:search_movies_help"
         },
         {
           text: "📦 Film holen",
-          callback_data: "public:hol_help"
+          callback_data: "public:hol_movies_help"
         }
       ],
       [
         {
-          text: "🏠 Zurück zur Startseite",
+          text: "🏠 Startseite",
           callback_data: "public:home"
         }
       ]
@@ -1768,6 +1772,555 @@ function buildSeriesShelfText(stats) {
     latestText +
     `\n\n━━━━━━━━━━━━━━━━━━\n` +
     `Nutze die Buttons unten, um durch Serien zu stöbern.`
+  );
+}
+
+function buildBackToShelfKeyboard(type = "movies") {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: type === "series" ? "📺 Zurück zum Serien-Regal" : "🎬 Zurück zum Film-Regal",
+          callback_data: type === "series" ? "public:series_shelf" : "public:movies_shelf"
+        }
+      ],
+      [
+        {
+          text: "🏠 Zurück zur Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
+async function ensurePublicCallbackAccess(bot, callback, pgPool) {
+  const from =
+    callback.from;
+
+  if (isAdmin(from.id)) {
+    return true;
+  }
+
+  const user =
+    await getBotUser(pgPool, from.id);
+
+  if (!user || user.status !== "approved") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "⛔ Du bist noch nicht freigeschaltet.",
+      show_alert: true
+    });
+
+    return false;
+  }
+
+  return true;
+}
+
+async function getLatestMovieMenuRows(pgPool, limit = 10) {
+  const result = await pgPool.query(
+    `
+    SELECT
+      id,
+      title,
+      year,
+      library_id,
+      quality,
+      resolution,
+      file_size,
+      runtime,
+      created_at
+    FROM (
+      SELECT DISTINCT ON (
+        LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')),
+        COALESCE(year::text, '')
+      )
+        id,
+        title,
+        year,
+        library_id,
+        quality,
+        resolution,
+        file_size,
+        runtime,
+        created_at
+      FROM movies
+      WHERE title IS NOT NULL
+        AND TRIM(title) <> ''
+      ORDER BY
+        LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')),
+        COALESCE(year::text, ''),
+        created_at DESC NULLS LAST,
+        id DESC
+    ) AS unique_movies
+    ORDER BY
+      created_at DESC NULLS LAST,
+      id DESC
+    LIMIT $1;
+    `,
+    [
+      Math.max(1, Math.min(Number(limit) || 10, 20))
+    ]
+  );
+
+  return result.rows || [];
+}
+
+async function getUhdMovieMenuRows(pgPool, limit = 10) {
+  const result = await pgPool.query(
+    `
+    SELECT
+      id,
+      title,
+      year,
+      library_id,
+      quality,
+      resolution,
+      file_size,
+      runtime,
+      created_at
+    FROM movies
+    WHERE
+      quality ILIKE '%UHD%'
+      OR quality ILIKE '%4K%'
+      OR resolution ILIKE '3840%'
+      OR resolution ILIKE '2160%'
+      OR file_name ILIKE '%2160p%'
+      OR file_name ILIKE '%uhd%'
+      OR file_name ILIKE '%4k%'
+    ORDER BY
+      created_at DESC NULLS LAST,
+      id DESC
+    LIMIT $1;
+    `,
+    [
+      Math.max(1, Math.min(Number(limit) || 10, 20))
+    ]
+  );
+
+  return result.rows || [];
+}
+
+async function getLatestSeriesMenuRows(pgPool, limit = 10) {
+  const result = await pgPool.query(
+    `
+    SELECT
+      COALESCE(NULLIF(MAX(series_library_id::text), ''), MIN(id)::text) AS series_ref,
+      series_title,
+      COUNT(*)::int AS episodes_count,
+      COUNT(DISTINCT season::text)::int AS seasons_count,
+      MAX(created_at) AS latest_created_at
+    FROM series
+    WHERE series_title IS NOT NULL
+      AND TRIM(series_title) <> ''
+    GROUP BY
+      COALESCE(series_library_id::text, LOWER(series_title)),
+      series_title
+    ORDER BY
+      latest_created_at DESC NULLS LAST
+    LIMIT $1;
+    `,
+    [
+      Math.max(1, Math.min(Number(limit) || 10, 20))
+    ]
+  );
+
+  return result.rows || [];
+}
+
+async function getMovieGenreMenuRows(pgPool, limit = 20) {
+  const result = await pgPool.query(
+    `
+    SELECT
+      COALESCE(NULLIF(TRIM(genre), ''), 'Unbekannt') AS genre,
+      COUNT(*)::int AS count
+    FROM movies
+    GROUP BY
+      COALESCE(NULLIF(TRIM(genre), ''), 'Unbekannt')
+    ORDER BY
+      count DESC,
+      genre ASC
+    LIMIT $1;
+    `,
+    [
+      Math.max(1, Math.min(Number(limit) || 20, 30))
+    ]
+  );
+
+  return result.rows || [];
+}
+
+async function getSeriesGenreMenuRows(pgPool, limit = 20) {
+  const result = await pgPool.query(
+    `
+    SELECT
+      COALESCE(NULLIF(TRIM(genre), ''), 'Unbekannt') AS genre,
+      COUNT(DISTINCT COALESCE(series_library_id::text, LOWER(series_title)))::int AS count
+    FROM series
+    WHERE series_title IS NOT NULL
+      AND TRIM(series_title) <> ''
+    GROUP BY
+      COALESCE(NULLIF(TRIM(genre), ''), 'Unbekannt')
+    ORDER BY
+      count DESC,
+      genre ASC
+    LIMIT $1;
+    `,
+    [
+      Math.max(1, Math.min(Number(limit) || 20, 30))
+    ]
+  );
+
+  return result.rows || [];
+}
+
+async function getMovieYearMenuRows(pgPool, limit = 20) {
+  const result = await pgPool.query(
+    `
+    SELECT
+      year,
+      COUNT(*)::int AS count
+    FROM movies
+    WHERE year IS NOT NULL
+    GROUP BY year
+    ORDER BY year DESC
+    LIMIT $1;
+    `,
+    [
+      Math.max(1, Math.min(Number(limit) || 20, 40))
+    ]
+  );
+
+  return result.rows || [];
+}
+
+async function getSeriesYearMenuRows(pgPool, limit = 20) {
+  try {
+    const result = await pgPool.query(
+      `
+      WITH grouped AS (
+        SELECT
+          COALESCE(
+            CASE
+              WHEN MAX(sl.first_air_date::text) ~ '^[0-9]{4}'
+              THEN LEFT(MAX(sl.first_air_date::text), 4)::int
+              ELSE NULL
+            END,
+            EXTRACT(YEAR FROM MIN(s.created_at))::int
+          ) AS year,
+          COALESCE(s.series_library_id::text, LOWER(s.series_title)) AS series_key
+        FROM series s
+        LEFT JOIN series_library sl
+          ON s.series_library_id::text = sl.id::text
+        WHERE s.series_title IS NOT NULL
+          AND TRIM(s.series_title) <> ''
+        GROUP BY
+          COALESCE(s.series_library_id::text, LOWER(s.series_title))
+      )
+      SELECT
+        year,
+        COUNT(*)::int AS count
+      FROM grouped
+      WHERE year IS NOT NULL
+      GROUP BY year
+      ORDER BY year DESC
+      LIMIT $1;
+      `,
+      [
+        Math.max(1, Math.min(Number(limit) || 20, 40))
+      ]
+    );
+
+    return result.rows || [];
+  } catch (err) {
+    console.warn("⚠️ Serien-Jahre konnten nicht über series_library gelesen werden:", err.message);
+
+    const fallback = await pgPool.query(
+      `
+      WITH grouped AS (
+        SELECT
+          EXTRACT(YEAR FROM MIN(created_at))::int AS year,
+          COALESCE(series_library_id::text, LOWER(series_title)) AS series_key
+        FROM series
+        WHERE series_title IS NOT NULL
+          AND TRIM(series_title) <> ''
+        GROUP BY
+          COALESCE(series_library_id::text, LOWER(series_title))
+      )
+      SELECT
+        year,
+        COUNT(*)::int AS count
+      FROM grouped
+      WHERE year IS NOT NULL
+      GROUP BY year
+      ORDER BY year DESC
+      LIMIT $1;
+      `,
+      [
+        Math.max(1, Math.min(Number(limit) || 20, 40))
+      ]
+    );
+
+    return fallback.rows || [];
+  }
+}
+
+async function getMovieAzMenuRows(pgPool) {
+  const result = await pgPool.query(`
+    SELECT title
+    FROM movies
+    WHERE title IS NOT NULL
+      AND TRIM(title) <> '';
+  `);
+
+  return result.rows || [];
+}
+
+async function getSeriesAzMenuRows(pgPool) {
+  const result = await pgPool.query(`
+    SELECT DISTINCT
+      series_title
+    FROM series
+    WHERE series_title IS NOT NULL
+      AND TRIM(series_title) <> '';
+  `);
+
+  return result.rows || [];
+}
+
+function getAzLetterFromTitle(title = "") {
+  const clean =
+    String(title || "")
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/^["'„“”‚‘’\\-–—:;,.!?()\\[\\]\\s]+/g, "")
+      .toUpperCase();
+
+  const first =
+    clean.charAt(0);
+
+  if (/^[A-Z]$/.test(first)) {
+    return first;
+  }
+
+  return "#";
+}
+
+function buildMovieMenuLine(movie, index) {
+  const label =
+    movie.library_id ||
+    movie.id;
+
+  const meta =
+    [
+      movie.quality,
+      movie.resolution,
+      movie.file_size,
+      movie.runtime
+    ]
+      .map((v) => String(v || "").trim())
+      .filter(Boolean)
+      .join(" · ");
+
+  return (
+    `${index + 1}. 🎬 ${movie.title || "Unbekannter Film"}${movie.year ? ` (${movie.year})` : ""}\n` +
+    `   🆔 ${label}\n` +
+    `   ${meta || "Keine technischen Daten"}\n` +
+    `   !hol movie ${movie.id}`
+  );
+}
+
+function buildSeriesMenuLine(series, index) {
+  const ref =
+    series.series_ref ||
+    series.series_library_id ||
+    series.id;
+
+  return (
+    `${index + 1}. 📺 ${series.series_title || "Unbekannte Serie"}\n` +
+    `   ${series.seasons_count || 0} Staffel(n) · ${series.episodes_count || 0} Folge(n)\n` +
+    `   !hol serie ${ref} s1e1\n` +
+    `   !hol serie ${ref} staffel 1`
+  );
+}
+
+function buildMovieListScreen(title, rows) {
+  return (
+    `${title}\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    (
+      rows.length
+        ? rows.map(buildMovieMenuLine).join("\n\n")
+        : "Keine Filme gefunden."
+    ) +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Wähle einen Eintrag mit !hol oder kehre zurück ins Film-Regal.`
+  );
+}
+
+function buildSeriesListScreen(title, rows) {
+  return (
+    `${title}\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    (
+      rows.length
+        ? rows.map(buildSeriesMenuLine).join("\n\n")
+        : "Keine Serien gefunden."
+    ) +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Wähle eine Serie mit !hol oder kehre zurück ins Serien-Regal.`
+  );
+}
+
+function buildGenreScreen(title, rows, type = "movies") {
+  const command =
+    type === "series"
+      ? "!serien"
+      : "!filme";
+
+  const lines =
+    rows.length
+      ? rows.map((row, index) => {
+          return (
+            `${index + 1}. ${row.genre || "Unbekannt"} · ${row.count}\n` +
+            `   ${command} ${row.genre || "Unbekannt"}`
+          );
+        }).join("\n\n")
+      : "Keine Kategorien gefunden.";
+
+  return (
+    `${title}\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    lines +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Beispiel:\n` +
+    `${command} action`
+  );
+}
+
+function buildYearScreen(title, rows, type = "movies") {
+  const lines =
+    rows.length
+      ? rows.map((row, index) => {
+          return (
+            `${index + 1}. ${row.year} · ${row.count}\n` +
+            `   !jahr ${row.year}`
+          );
+        }).join("\n\n")
+      : "Keine Jahre gefunden.";
+
+  const hint =
+    type === "series"
+      ? "Hinweis: Serien-Jahre können je nach Datenlage Startjahr oder Importjahr sein."
+      : "Nutze !jahr JAHR, um passende Titel zu öffnen.";
+
+  return (
+    `${title}\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    lines +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    hint
+  );
+}
+
+function buildAzScreen(title, rows, type = "movies") {
+  const letters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
+
+  const counts =
+    new Map();
+
+  for (const letter of letters) {
+    counts.set(letter, 0);
+  }
+
+  for (const row of rows) {
+    const titleValue =
+      type === "series"
+        ? row.series_title
+        : row.title;
+
+    const letter =
+      getAzLetterFromTitle(titleValue);
+
+    counts.set(letter, (counts.get(letter) || 0) + 1);
+  }
+
+  const command =
+    type === "series"
+      ? "!serien"
+      : "!filme";
+
+  const lines =
+    letters
+      .map((letter) => {
+        return `${letter} · ${counts.get(letter) || 0}`;
+      })
+      .join("\n");
+
+  return (
+    `${title}\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    lines +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Öffnen mit:\n` +
+    `${command} A\n` +
+    `${command} S`
+  );
+}
+
+function buildMovieSearchHelpText() {
+  return (
+    `🔎 Filme suchen\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Suche nach Filmtiteln, Jahren, Qualität oder Begriffen.\n\n` +
+    `Beispiele:\n` +
+    `!suche superman\n` +
+    `!suche 2025\n` +
+    `!suche 4k\n\n` +
+    `Tipp:\n` +
+    `Ein Teil des Titels reicht meistens.`
+  );
+}
+
+function buildSeriesSearchHelpText() {
+  return (
+    `🔎 Serien suchen\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Suche nach Seriennamen oder Episodenbegriffen.\n\n` +
+    `Beispiele:\n` +
+    `!suche hulk\n` +
+    `!suche star wars\n` +
+    `!suche tulsa\n\n` +
+    `Tipp:\n` +
+    `Nach der Suche kannst du einzelne Folgen oder ganze Staffeln holen.`
+  );
+}
+
+function buildMovieHolHelpText() {
+  return (
+    `📦 Film holen\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Nutze eine Film-ID oder einen Library-Code.\n\n` +
+    `Beispiele:\n` +
+    `!hol movie 123\n` +
+    `!hol LIB-ACT-0001\n` +
+    `!hol superman\n\n` +
+    `Die passenden IDs findest du über Suche, A–Z, Kategorien oder Jahre.`
+  );
+}
+
+function buildSeriesHolHelpText() {
+  return (
+    `📦 Serie holen\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Einzelne Folge:\n` +
+    `!hol serie 1691 s1e1\n\n` +
+    `Ganze Staffel:\n` +
+    `!hol serie 1691 staffel 1\n\n` +
+    `Tipp:\n` +
+    `Die Serien-ID findest du über Suche oder Serien A–Z.`
   );
 }
 
@@ -2144,6 +2697,297 @@ async function handlePublicCallback(bot, callback, pgPool) {
       callback,
       buildSeriesShelfText(stats),
       buildShelfKeyboard("series")
+    );
+
+    return true;
+  }
+  
+    // =============================
+  // MOVIE / SERIES SHELF SUBPAGES
+  // =============================
+
+  if (action === "new_movies") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "▶️ Neue Filme"
+    });
+
+    const rows =
+      await getLatestMovieMenuRows(pgPool, 10);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildMovieListScreen("▶️ Neue Filme", rows),
+      buildBackToShelfKeyboard("movies")
+    );
+
+    return true;
+  }
+
+  if (action === "uhd_movies") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "💎 4K / UHD"
+    });
+
+    const rows =
+      await getUhdMovieMenuRows(pgPool, 10);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildMovieListScreen("💎 4K / UHD Filme", rows),
+      buildBackToShelfKeyboard("movies")
+    );
+
+    return true;
+  }
+
+  if (action === "az_movies") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🔤 Filme A–Z"
+    });
+
+    const rows =
+      await getMovieAzMenuRows(pgPool);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildAzScreen("🔤 Filme A–Z", rows, "movies"),
+      buildBackToShelfKeyboard("movies")
+    );
+
+    return true;
+  }
+
+  if (action === "genres_movies") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📂 Film-Kategorien"
+    });
+
+    const rows =
+      await getMovieGenreMenuRows(pgPool, 20);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildGenreScreen("📂 Film-Kategorien", rows, "movies"),
+      buildBackToShelfKeyboard("movies")
+    );
+
+    return true;
+  }
+
+  if (action === "years_movies") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📅 Film-Jahre"
+    });
+
+    const rows =
+      await getMovieYearMenuRows(pgPool, 20);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildYearScreen("📅 Filme nach Jahren", rows, "movies"),
+      buildBackToShelfKeyboard("movies")
+    );
+
+    return true;
+  }
+
+  if (action === "random_movies") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🎲 Film-Zufall"
+    });
+
+    await sendRandomLibraryMessage(
+      bot,
+      chatId,
+      messageId,
+      pgPool,
+      "movie"
+    );
+
+    return true;
+  }
+
+  if (action === "search_movies_help") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🔎 Filme suchen"
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildMovieSearchHelpText(),
+      buildBackToShelfKeyboard("movies")
+    );
+
+    return true;
+  }
+
+  if (action === "hol_movies_help") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📦 Film holen"
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildMovieHolHelpText(),
+      buildBackToShelfKeyboard("movies")
+    );
+
+    return true;
+  }
+
+  if (action === "new_series") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "▶️ Neue Serien"
+    });
+
+    const rows =
+      await getLatestSeriesMenuRows(pgPool, 10);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildSeriesListScreen("▶️ Neue Serienbereiche", rows),
+      buildBackToShelfKeyboard("series")
+    );
+
+    return true;
+  }
+
+  if (action === "az_series") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🔤 Serien A–Z"
+    });
+
+    const rows =
+      await getSeriesAzMenuRows(pgPool);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildAzScreen("🔤 Serien A–Z", rows, "series"),
+      buildBackToShelfKeyboard("series")
+    );
+
+    return true;
+  }
+
+  if (action === "genres_series") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📂 Serien-Kategorien"
+    });
+
+    const rows =
+      await getSeriesGenreMenuRows(pgPool, 20);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildGenreScreen("📂 Serien-Kategorien", rows, "series"),
+      buildBackToShelfKeyboard("series")
+    );
+
+    return true;
+  }
+
+  if (action === "years_series") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📅 Serien-Jahre"
+    });
+
+    const rows =
+      await getSeriesYearMenuRows(pgPool, 20);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildYearScreen("📅 Serien nach Jahren", rows, "series"),
+      buildBackToShelfKeyboard("series")
+    );
+
+    return true;
+  }
+
+  if (action === "random_series") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🎲 Serien-Zufall"
+    });
+
+    await sendRandomLibraryMessage(
+      bot,
+      chatId,
+      messageId,
+      pgPool,
+      "series"
+    );
+
+    return true;
+  }
+
+  if (action === "search_series_help") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🔎 Serien suchen"
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildSeriesSearchHelpText(),
+      buildBackToShelfKeyboard("series")
+    );
+
+    return true;
+  }
+
+  if (action === "hol_series_help") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📦 Serie holen"
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildSeriesHolHelpText(),
+      buildBackToShelfKeyboard("series")
     );
 
     return true;
