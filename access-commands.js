@@ -520,23 +520,20 @@ async function handleAccessCommands(bot, msg, pgPool) {
 
   if (!from) return false;
   
-    // Startmenü anzeigen
+      // Streaming-Startmenü anzeigen
   // /start wird für normale User abgefangen.
   // Admin-/start bleibt für dein altes Admin-System frei.
   if (
     text === "/menu" ||
     text === "!menu" ||
+    text === "/home" ||
+    text === "!home" ||
     (text === "/start" && !isAdmin(from.id))
   ) {
-    const user = await getBotUser(pgPool, from.id);
-
-    await bot.sendMessage(
-      chatId,
-      buildPublicMenuMessage(user),
-      {
-        reply_to_message_id: msg.message_id,
-        reply_markup: buildPublicMenuKeyboard(isAdmin(from.id))
-      }
+    await sendNetflixHomeMenu(
+      bot,
+      msg,
+      pgPool
     );
 
     return true;
@@ -1097,91 +1094,490 @@ function buildPublicMenuMessage(user) {
   );
 }
 
-function buildPublicMenuKeyboard(isAdminUser = false) {
-  const keyboard = [
+function formatHomeCount(value) {
+  const number =
+    Number(value || 0);
+
+  if (!Number.isFinite(number)) {
+    return "0";
+  }
+
+  return number.toLocaleString("de-DE");
+}
+
+async function getNetflixHomeStats(pgPool) {
+  const stats = {
+    movies: 0,
+    series: 0,
+    episodes: 0,
+    uhd: 0,
+    latestMovies: [],
+    latestSeries: []
+  };
+
+  try {
+    const [
+      movieCount,
+      seriesCount,
+      episodeCount,
+      uhdCount,
+      latestMovies,
+      latestSeries
+    ] = await Promise.all([
+      pgPool.query(`
+        SELECT COUNT(*)::int AS count
+        FROM movies;
+      `),
+
+      pgPool.query(`
+        SELECT COUNT(DISTINCT COALESCE(series_library_id::text, LOWER(series_title)))::int AS count
+        FROM series
+        WHERE series_title IS NOT NULL
+          AND TRIM(series_title) <> '';
+      `),
+
+      pgPool.query(`
+        SELECT COUNT(*)::int AS count
+        FROM series;
+      `),
+
+      pgPool.query(`
+        SELECT COUNT(*)::int AS count
+        FROM movies
+        WHERE
+          quality ILIKE '%UHD%'
+          OR quality ILIKE '%4K%'
+          OR resolution ILIKE '3840%'
+          OR resolution ILIKE '2160%'
+          OR file_name ILIKE '%2160p%'
+          OR file_name ILIKE '%uhd%'
+          OR file_name ILIKE '%4k%';
+      `),
+
+      pgPool.query(`
+        SELECT
+          title,
+          year,
+          quality
+        FROM movies
+        ORDER BY
+          created_at DESC NULLS LAST,
+          id DESC
+        LIMIT 3;
+      `),
+
+      pgPool.query(`
+        SELECT
+          series_title,
+          COUNT(*)::int AS episodes_count,
+          MAX(created_at) AS latest_created_at
+        FROM series
+        WHERE series_title IS NOT NULL
+          AND TRIM(series_title) <> ''
+        GROUP BY
+          COALESCE(series_library_id::text, LOWER(series_title)),
+          series_title
+        ORDER BY
+          latest_created_at DESC NULLS LAST
+        LIMIT 3;
+      `)
+    ]);
+
+    stats.movies = movieCount.rows[0]?.count || 0;
+    stats.series = seriesCount.rows[0]?.count || 0;
+    stats.episodes = episodeCount.rows[0]?.count || 0;
+    stats.uhd = uhdCount.rows[0]?.count || 0;
+    stats.latestMovies = latestMovies.rows || [];
+    stats.latestSeries = latestSeries.rows || [];
+  } catch (err) {
+    console.warn("⚠️ Startmenü-Stats Fehler:", err.message);
+  }
+
+  return stats;
+}
+
+function buildLatestMovieHomeLine(movie, index) {
+  return (
+    `${index + 1}. 🎬 ${movie.title || "Unbekannter Film"}${movie.year ? ` (${movie.year})` : ""}` +
+    `${movie.quality ? ` · ${movie.quality}` : ""}`
+  );
+}
+
+function buildLatestSeriesHomeLine(series, index) {
+  return (
+    `${index + 1}. 📺 ${series.series_title || "Unbekannte Serie"}` +
+    `${series.episodes_count ? ` · ${series.episodes_count} Folge(n)` : ""}`
+  );
+}
+
+function buildNetflixHomeText({ statusText, isAdminUser, isApproved, stats }) {
+  const latestMovieText =
+    stats.latestMovies.length
+      ? stats.latestMovies.map(buildLatestMovieHomeLine).join("\n")
+      : "Noch keine Filme gefunden.";
+
+  const latestSeriesText =
+    stats.latestSeries.length
+      ? stats.latestSeries.map(buildLatestSeriesHomeLine).join("\n")
+      : "Noch keine Serien gefunden.";
+
+  const lockedHint =
+    !isApproved && !isAdminUser
+      ? (
+          `\n\n🔐 Freischaltung erforderlich\n` +
+          `Fordere Zugriff an, um das Archiv vollständig zu nutzen.\n` +
+          `Befehl: /freischaltung`
+        )
+      : "";
+
+  return (
+    `🏛 Library of Legends\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Streaming-Startseite\n` +
+    `📌 Status: ${statusText}\n\n` +
+
+    `🎞 Archiv-Übersicht\n` +
+    `🎬 Filme: ${formatHomeCount(stats.movies)}\n` +
+    `📺 Serien: ${formatHomeCount(stats.series)}\n` +
+    `🎞 Folgen: ${formatHomeCount(stats.episodes)}\n` +
+    `💎 4K / UHD: ${formatHomeCount(stats.uhd)}\n\n` +
+
+    `▶️ Neu im Archiv\n` +
+    latestMovieText +
+    `\n\n` +
+
+    `📺 Neue Serienbereiche\n` +
+    latestSeriesText +
+    `\n\n` +
+
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `Wähle unten ein Regal aus.${lockedHint}`
+  );
+}
+
+function buildBackHomeKeyboard() {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "🏠 Zurück zur Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
+function buildSearchHelpText() {
+  return (
+    `🔎 Suche im Archiv\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Du kannst nach Filmen, Serien, Jahren oder Begriffen suchen.\n\n` +
+    `Beispiele:\n` +
+    `!suche hulk\n` +
+    `!suche star wars\n` +
+    `!suche 2025\n` +
+    `!suche 4k\n\n` +
+    `Tipp:\n` +
+    `Wenn du den genauen Titel nicht kennst, reicht oft ein Teil des Namens.`
+  );
+}
+
+function buildHolHelpText() {
+  return (
+    `📦 Titel aus dem Archiv holen\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Nutze den Hol-Befehl, wenn du einen bestimmten Eintrag abrufen möchtest.\n\n` +
+    `Filme:\n` +
+    `!hol movie 123\n` +
+    `!hol LIB-ACT-0001\n\n` +
+    `Serien:\n` +
+    `!hol serie 1691 s1e1\n` +
+    `!hol serie 1691 staffel 1\n\n` +
+    `Tipp:\n` +
+    `Die passenden IDs findest du über Suche, A–Z, Kategorien oder Jahre.`
+  );
+}
+
+function buildUhdHelpText() {
+  return (
+    `💎 4K / UHD Regal\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Zeigt dir Filme mit 4K-, UHD- oder 2160p-Hinweisen.\n\n` +
+    `Befehl:\n` +
+    `!4k\n\n` +
+    `Alternativ:\n` +
+    `!uhd`
+  );
+}
+
+function buildAccessHelpText() {
+  return (
+    `✅ Freischaltung\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Um das Archiv vollständig nutzen zu können, fordere deine Freischaltung an.\n\n` +
+    `Befehl:\n` +
+    `/freischaltung\n\n` +
+    `Deine Telegram-ID kannst du mit diesem Button anzeigen lassen:\n` +
+    `🆔 Meine ID anzeigen`
+  );
+}
+
+function buildAdminHelpText() {
+  return (
+    `🛠 Admin-Zentrale\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Wichtige Admin-Bereiche:\n\n` +
+    `🧹 Scanner\n` +
+    `/dupes\n` +
+    `/wrongimports\n` +
+    `/episodecheck\n` +
+    `/seriesaudit TITEL\n\n` +
+    `🗑 Bereinigung\n` +
+    `/trashlist\n` +
+    `/trashmovie ID\n` +
+    `/trashepisode ID\n\n` +
+    `🛠 Reparatur\n` +
+    `/episodefix ID\n` +
+    `/seriesfixfromfile LIBRARY_ID preview\n\n` +
+    `📜 Alle Befehle:\n` +
+    `/befehle`
+  );
+}
+
+async function sendNetflixHomeMenu(bot, msg, pgPool) {
+  const chatId =
+    msg.chat.id;
+
+  const from =
+    msg.from;
+
+  const isAdminUser =
+    from?.id ? isAdmin(from.id) : false;
+
+  const user =
+    from?.id ? await getBotUser(pgPool, from.id) : null;
+
+  const isApproved =
+    isAdminUser || user?.status === "approved";
+
+  const statusText =
+    isAdminUser
+      ? "👑 Admin"
+      : user?.status === "approved"
+        ? "✅ freigeschaltet"
+        : user?.status === "pending"
+          ? "⏳ wartet auf Freigabe"
+          : user?.status === "blocked"
+            ? "⛔ gesperrt"
+            : "🔐 nicht freigeschaltet";
+
+  const stats =
+    await getNetflixHomeStats(pgPool);
+
+  await bot.sendMessage(
+    chatId,
+    buildNetflixHomeText({
+      statusText,
+      isAdminUser,
+      isApproved,
+      stats
+    }).slice(0, 3900),
+    {
+      reply_to_message_id: msg.message_id,
+      reply_markup: buildPublicMenuKeyboard(isAdminUser, isApproved)
+    }
+  );
+}
+
+async function editNetflixHomeMenu(bot, callback, pgPool) {
+  const chatId =
+    callback.message.chat.id;
+
+  const messageId =
+    callback.message.message_id;
+
+  const from =
+    callback.from;
+
+  const isAdminUser =
+    from?.id ? isAdmin(from.id) : false;
+
+  const user =
+    from?.id ? await getBotUser(pgPool, from.id) : null;
+
+  const isApproved =
+    isAdminUser || user?.status === "approved";
+
+  const statusText =
+    isAdminUser
+      ? "👑 Admin"
+      : user?.status === "approved"
+        ? "✅ freigeschaltet"
+        : user?.status === "pending"
+          ? "⏳ wartet auf Freigabe"
+          : user?.status === "blocked"
+            ? "⛔ gesperrt"
+            : "🔐 nicht freigeschaltet";
+
+  const stats =
+    await getNetflixHomeStats(pgPool);
+
+  const text =
+    buildNetflixHomeText({
+      statusText,
+      isAdminUser,
+      isApproved,
+      stats
+    }).slice(0, 3900);
+
+  const options = {
+    reply_markup: buildPublicMenuKeyboard(isAdminUser, isApproved)
+  };
+
+  try {
+    await bot.editMessageText(
+      chatId,
+      messageId,
+      text,
+      options
+    );
+  } catch (err) {
+    await bot.sendMessage(
+      chatId,
+      text,
+      options
+    );
+  }
+}
+
+async function editPublicInfoScreen(bot, callback, text) {
+  const chatId =
+    callback.message.chat.id;
+
+  const messageId =
+    callback.message.message_id;
+
+  const options = {
+    reply_markup: buildBackHomeKeyboard()
+  };
+
+  try {
+    await bot.editMessageText(
+      chatId,
+      messageId,
+      text.slice(0, 3900),
+      options
+    );
+  } catch (err) {
+    await bot.sendMessage(
+      chatId,
+      text.slice(0, 3900),
+      options
+    );
+  }
+}
+
+function buildPublicMenuKeyboard(isAdminUser = false, isApproved = true) {
+  if (!isApproved && !isAdminUser) {
+    return {
+      inline_keyboard: [
+        [
+          {
+            text: "✅ Freischaltung anfordern",
+            callback_data: "public:access_help"
+          }
+        ],
+        [
+          {
+            text: "🆔 Meine ID anzeigen",
+            callback_data: "public:id_help"
+          }
+        ],
+        [
+          {
+            text: "🔎 Suche Hilfe",
+            callback_data: "public:search_help"
+          }
+        ]
+      ]
+    };
+  }
+
+  const rows = [
     [
       {
-        text: "🔐 Freischaltung",
-        callback_data: "public:request"
+        text: "▶️ Neu im Archiv",
+        callback_data: "public:new"
       },
       {
-        text: "📊 Mein Limit",
-        callback_data: "public:limit"
+        text: "🔥 Beliebt",
+        callback_data: "public:popular"
       }
     ],
     [
       {
-        text: "🔎 Suche Hilfe",
-        callback_data: "public:searchhelp"
+        text: "🎲 Zufall",
+        callback_data: "public:random"
       },
       {
-        text: "📦 Hol Hilfe",
-        callback_data: "public:holhelp"
+        text: "🔤 A–Z",
+        callback_data: "public:az"
       }
     ],
     [
-  {
-    text: "🔥 Neu im Archiv",
-    callback_data: "public:new"
-  }
-],
-[
-  {
-    text: "🏆 Beliebt",
-    callback_data: "public:popular"
-  }
-],
-[
-  {
-    text: "🎲 Zufall",
-    callback_data: "public:random"
-  }
-],
-[
-  {
-    text: "📂 Kategorien",
-    callback_data: "public:genres"
-  },
-  {
-    text: "📅 Jahre",
-    callback_data: "public:years"
-  }
-],
-[
-  {
-    text: "🔤 A–Z",
-    callback_data: "public:az"
-  }
-],
-[
-  {
-    text: "⭐ Merkliste",
-    callback_data: "public:favorites"
-  },
-  {
-    text: "🕘 Verlauf",
-    callback_data: "public:history"
-  }
-],
-[
-  {
-    text: "📜 Befehle",
-    callback_data: "public:commands"
-  }
-]
+      {
+        text: "📂 Kategorien",
+        callback_data: "public:genres"
+      },
+      {
+        text: "📅 Jahre",
+        callback_data: "public:years"
+      }
+    ],
+    [
+      {
+        text: "💎 4K / UHD",
+        callback_data: "public:uhd_help"
+      },
+      {
+        text: "📦 Holen",
+        callback_data: "public:hol_help"
+      }
+    ],
+    [
+      {
+        text: "⭐ Merkliste",
+        callback_data: "public:favorites"
+      },
+      {
+        text: "🕘 Verlauf",
+        callback_data: "public:history"
+      }
+    ],
+    [
+      {
+        text: "🔎 Suche",
+        callback_data: "public:search_help"
+      },
+      {
+        text: "🏠 Startseite",
+        callback_data: "public:home"
+      }
+    ]
   ];
 
   if (isAdminUser) {
-    keyboard.push([
+    rows.push([
       {
-        text: "🛡 Admin-Hilfe",
-        callback_data: "public:commands"
+        text: "🛠 Admin-Zentrale",
+        callback_data: "public:admin_help"
       }
     ]);
   }
 
   return {
-    inline_keyboard: keyboard
+    inline_keyboard: rows
   };
 }
 
@@ -1375,8 +1771,118 @@ async function handlePublicCallback(bot, callback, pgPool) {
   }
 
   const action = data.split(":")[1];
-  
-    if (action === "new") {
+
+  // =============================
+  // NETFLIX HOME / INFO SCREENS
+  // =============================
+
+  if (action === "home") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🏠 Startseite"
+    });
+
+    await editNetflixHomeMenu(
+      bot,
+      callback,
+      pgPool
+    );
+
+    return true;
+  }
+
+  if (action === "search_help" || action === "searchhelp") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🔎 Suche"
+    });
+
+    await editPublicInfoScreen(
+      bot,
+      callback,
+      buildSearchHelpText()
+    );
+
+    return true;
+  }
+
+  if (action === "hol_help" || action === "holhelp") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📦 Holen"
+    });
+
+    await editPublicInfoScreen(
+      bot,
+      callback,
+      buildHolHelpText()
+    );
+
+    return true;
+  }
+
+  if (action === "uhd_help") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "💎 4K / UHD"
+    });
+
+    await editPublicInfoScreen(
+      bot,
+      callback,
+      buildUhdHelpText()
+    );
+
+    return true;
+  }
+
+  if (action === "access_help") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "✅ Freischaltung"
+    });
+
+    await editPublicInfoScreen(
+      bot,
+      callback,
+      buildAccessHelpText()
+    );
+
+    return true;
+  }
+
+  if (action === "id_help") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: `Deine Telegram-ID: ${from.id}`,
+      show_alert: true
+    });
+
+    return true;
+  }
+
+  if (action === "admin_help") {
+    if (!isAdmin(from.id)) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Nur Admins.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🛠 Admin-Zentrale"
+    });
+
+    await editPublicInfoScreen(
+      bot,
+      callback,
+      buildAdminHelpText()
+    );
+
+    return true;
+  }
+
+  // =============================
+  // STREAMING-BUTTONS
+  // =============================
+
+  if (action === "new") {
     const user = await getBotUser(pgPool, from.id);
 
     if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
@@ -1388,7 +1894,7 @@ async function handlePublicCallback(bot, callback, pgPool) {
     }
 
     await bot.answerCallbackQuery(callback.id, {
-      text: "🔥 Neu im Archiv wird angezeigt."
+      text: "▶️ Neu im Archiv wird angezeigt."
     });
 
     await sendLatestLibraryMessage(
@@ -1400,32 +1906,8 @@ async function handlePublicCallback(bot, callback, pgPool) {
 
     return true;
   }
-  
-    if (action === "favorites") {
-    await bot.answerCallbackQuery(callback.id, {
-      text: "⭐ Merkliste"
-    });
 
-    await bot.sendMessage(
-      chatId,
-      `⭐ Merkliste\n\n` +
-        `Anzeigen:\n` +
-        `!merkliste\n\n` +
-        `Etwas merken:\n` +
-        `!merken movie 167\n` +
-        `!merken LIB-ACT-0001\n` +
-        `!merken tulsa king\n\n` +
-        `Entfernen:\n` +
-        `!vergessen ID`,
-      {
-        reply_to_message_id: messageId
-      }
-    );
-
-    return true;
-  }
-  
-    if (action === "history") {
+  if (action === "popular") {
     const user = await getBotUser(pgPool, from.id);
 
     if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
@@ -1437,33 +1919,7 @@ async function handlePublicCallback(bot, callback, pgPool) {
     }
 
     await bot.answerCallbackQuery(callback.id, {
-      text: "🕘 Verlauf wird angezeigt."
-    });
-
-    await sendUserHistoryMessage(
-      bot,
-      chatId,
-      messageId,
-      pgPool,
-      from.id
-    );
-
-    return true;
-  }
-  
-    if (action === "popular") {
-    const user = await getBotUser(pgPool, from.id);
-
-    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
-      await bot.answerCallbackQuery(callback.id, {
-        text: "⛔ Du bist noch nicht freigeschaltet.",
-        show_alert: true
-      });
-      return true;
-    }
-
-    await bot.answerCallbackQuery(callback.id, {
-      text: "🏆 Beliebt wird angezeigt."
+      text: "🔥 Beliebt wird angezeigt."
     });
 
     await sendPopularLibraryMessage(
@@ -1475,8 +1931,8 @@ async function handlePublicCallback(bot, callback, pgPool) {
 
     return true;
   }
-  
-    if (action === "random") {
+
+  if (action === "random") {
     const user = await getBotUser(pgPool, from.id);
 
     if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
@@ -1501,8 +1957,8 @@ async function handlePublicCallback(bot, callback, pgPool) {
 
     return true;
   }
-  
-    if (action === "genres") {
+
+  if (action === "genres") {
     const user = await getBotUser(pgPool, from.id);
 
     if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
@@ -1526,8 +1982,8 @@ async function handlePublicCallback(bot, callback, pgPool) {
 
     return true;
   }
-  
-    if (action === "years") {
+
+  if (action === "years") {
     const user = await getBotUser(pgPool, from.id);
 
     if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
@@ -1551,8 +2007,8 @@ async function handlePublicCallback(bot, callback, pgPool) {
 
     return true;
   }
-  
-    if (action === "az") {
+
+  if (action === "az") {
     const user = await getBotUser(pgPool, from.id);
 
     if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
@@ -1577,14 +2033,26 @@ async function handlePublicCallback(bot, callback, pgPool) {
     return true;
   }
 
-  if (action === "commands") {
+  // =============================
+  // FAVORITES / HISTORY / LIMIT
+  // =============================
+
+  if (action === "favorites") {
     await bot.answerCallbackQuery(callback.id, {
-      text: "📜 Befehle werden angezeigt."
+      text: "⭐ Merkliste"
     });
 
     await bot.sendMessage(
       chatId,
-      buildCommandListMessage(isAdmin(from.id)),
+      `⭐ Merkliste\n\n` +
+        `Anzeigen:\n` +
+        `!merkliste\n\n` +
+        `Etwas merken:\n` +
+        `!merken movie 167\n` +
+        `!merken LIB-ACT-0001\n` +
+        `!merken tulsa king\n\n` +
+        `Entfernen:\n` +
+        `!vergessen ID`,
       {
         reply_to_message_id: messageId
       }
@@ -1593,48 +2061,27 @@ async function handlePublicCallback(bot, callback, pgPool) {
     return true;
   }
 
-  if (action === "searchhelp") {
+  if (action === "history") {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Du bist noch nicht freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
     await bot.answerCallbackQuery(callback.id, {
-      text: "🔎 Suche-Hilfe"
+      text: "🕘 Verlauf wird angezeigt."
     });
 
-    await bot.sendMessage(
+    await sendUserHistoryMessage(
+      bot,
       chatId,
-      `🔎 Suche verwenden\n\n` +
-        `Nutze:\n` +
-        `!suche TITEL\n\n` +
-        `Beispiele:\n` +
-        `!suche superman\n` +
-        `!suche tulsa\n` +
-        `!suche 4k\n\n` +
-        `Die Suche ist unbegrenzt.`,
-      {
-        reply_to_message_id: messageId
-      }
-    );
-
-    return true;
-  }
-
-  if (action === "holhelp") {
-    await bot.answerCallbackQuery(callback.id, {
-      text: "📦 Hol-Hilfe"
-    });
-
-    await bot.sendMessage(
-      chatId,
-      `📦 Medien holen\n\n` +
-        `Nutze einen eindeutigen Code aus der Suche.\n\n` +
-        `Beispiele:\n` +
-        `!hol movie 167\n` +
-        `!hol LIB-ACT-0001\n` +
-        `!hol oblivion\n` +
-        `!hol tulsa king s1e1\n` +
-        `!hol tulsa king staffel 1\n\n` +
-        `Bei mehreren Treffern zeigt der Bot eine Auswahl an.`,
-      {
-        reply_to_message_id: messageId
-      }
+      messageId,
+      pgPool,
+      from.id
     );
 
     return true;
@@ -1660,6 +2107,26 @@ async function handlePublicCallback(bot, callback, pgPool) {
     await bot.sendMessage(
       chatId,
       formatOwnLimitMessage(user, usage),
+      {
+        reply_to_message_id: messageId
+      }
+    );
+
+    return true;
+  }
+
+  // =============================
+  // OLD BUTTON COMPATIBILITY
+  // =============================
+
+  if (action === "commands") {
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📜 Befehle werden angezeigt."
+    });
+
+    await bot.sendMessage(
+      chatId,
+      buildCommandListMessage(isAdmin(from.id)),
       {
         reply_to_message_id: messageId
       }
@@ -1695,7 +2162,7 @@ async function handlePublicCallback(bot, callback, pgPool) {
       return true;
     }
 
-    const user = await upsertPendingUser(pgPool, from);
+    await upsertPendingUser(pgPool, from);
 
     await bot.answerCallbackQuery(callback.id, {
       text: "✅ Anfrage gespeichert."
