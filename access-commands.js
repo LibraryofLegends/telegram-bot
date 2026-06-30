@@ -1478,6 +1478,299 @@ async function editPublicInfoScreen(bot, callback, text) {
   }
 }
 
+function buildShelfKeyboard(type = "movies") {
+  if (type === "series") {
+    return {
+      inline_keyboard: [
+        [
+          {
+            text: "🔤 Serien A–Z",
+            callback_data: "public:az"
+          },
+          {
+            text: "📂 Serien-Kategorien",
+            callback_data: "public:genres"
+          }
+        ],
+        [
+          {
+            text: "📅 Serien nach Jahren",
+            callback_data: "public:years"
+          },
+          {
+            text: "🎲 Zufall",
+            callback_data: "public:random"
+          }
+        ],
+        [
+          {
+            text: "🔎 Serien suchen",
+            callback_data: "public:search_help"
+          },
+          {
+            text: "📦 Serie holen",
+            callback_data: "public:hol_help"
+          }
+        ],
+        [
+          {
+            text: "🏠 Zurück zur Startseite",
+            callback_data: "public:home"
+          }
+        ]
+      ]
+    };
+  }
+
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "▶️ Neue Filme",
+          callback_data: "public:new"
+        },
+        {
+          text: "💎 4K / UHD",
+          callback_data: "public:uhd_help"
+        }
+      ],
+      [
+        {
+          text: "🔤 Filme A–Z",
+          callback_data: "public:az"
+        },
+        {
+          text: "📂 Film-Kategorien",
+          callback_data: "public:genres"
+        }
+      ],
+      [
+        {
+          text: "📅 Filme nach Jahren",
+          callback_data: "public:years"
+        },
+        {
+          text: "🎲 Zufall",
+          callback_data: "public:random"
+        }
+      ],
+      [
+        {
+          text: "🔎 Filme suchen",
+          callback_data: "public:search_help"
+        },
+        {
+          text: "📦 Film holen",
+          callback_data: "public:hol_help"
+        }
+      ],
+      [
+        {
+          text: "🏠 Zurück zur Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
+async function editPublicScreenWithKeyboard(bot, callback, text, replyMarkup) {
+  const chatId =
+    callback.message.chat.id;
+
+  const messageId =
+    callback.message.message_id;
+
+  const options = {
+    reply_markup: replyMarkup
+  };
+
+  try {
+    await bot.editMessageText(
+      chatId,
+      messageId,
+      text.slice(0, 3900),
+      options
+    );
+  } catch (err) {
+    await bot.sendMessage(
+      chatId,
+      text.slice(0, 3900),
+      options
+    );
+  }
+}
+
+async function getMovieShelfStats(pgPool) {
+  const stats = {
+    movies: 0,
+    uhd: 0,
+    latest: []
+  };
+
+  try {
+    const [movieCount, uhdCount, latestMovies] = await Promise.all([
+      pgPool.query(`
+        SELECT COUNT(*)::int AS count
+        FROM movies;
+      `),
+
+      pgPool.query(`
+        SELECT COUNT(*)::int AS count
+        FROM movies
+        WHERE
+          quality ILIKE '%UHD%'
+          OR quality ILIKE '%4K%'
+          OR resolution ILIKE '3840%'
+          OR resolution ILIKE '2160%'
+          OR file_name ILIKE '%2160p%'
+          OR file_name ILIKE '%uhd%'
+          OR file_name ILIKE '%4k%';
+      `),
+
+      pgPool.query(`
+        SELECT
+          title,
+          year,
+          quality
+        FROM (
+          SELECT DISTINCT ON (
+            LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')),
+            COALESCE(year::text, '')
+          )
+            id,
+            title,
+            year,
+            quality,
+            created_at
+          FROM movies
+          WHERE title IS NOT NULL
+            AND TRIM(title) <> ''
+          ORDER BY
+            LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')),
+            COALESCE(year::text, ''),
+            created_at DESC NULLS LAST,
+            id DESC
+        ) AS unique_movies
+        ORDER BY
+          created_at DESC NULLS LAST,
+          id DESC
+        LIMIT 5;
+      `)
+    ]);
+
+    stats.movies = movieCount.rows[0]?.count || 0;
+    stats.uhd = uhdCount.rows[0]?.count || 0;
+    stats.latest = latestMovies.rows || [];
+  } catch (err) {
+    console.warn("⚠️ Film-Regal Fehler:", err.message);
+  }
+
+  return stats;
+}
+
+async function getSeriesShelfStats(pgPool) {
+  const stats = {
+    series: 0,
+    episodes: 0,
+    latest: []
+  };
+
+  try {
+    const [seriesCount, episodeCount, latestSeries] = await Promise.all([
+      pgPool.query(`
+        SELECT COUNT(DISTINCT COALESCE(series_library_id::text, LOWER(series_title)))::int AS count
+        FROM series
+        WHERE series_title IS NOT NULL
+          AND TRIM(series_title) <> '';
+      `),
+
+      pgPool.query(`
+        SELECT COUNT(*)::int AS count
+        FROM series;
+      `),
+
+      pgPool.query(`
+        SELECT
+          series_title,
+          COUNT(*)::int AS episodes_count,
+          COUNT(DISTINCT season::text)::int AS seasons_count,
+          MAX(created_at) AS latest_created_at
+        FROM series
+        WHERE series_title IS NOT NULL
+          AND TRIM(series_title) <> ''
+        GROUP BY
+          COALESCE(series_library_id::text, LOWER(series_title)),
+          series_title
+        ORDER BY
+          latest_created_at DESC NULLS LAST
+        LIMIT 5;
+      `)
+    ]);
+
+    stats.series = seriesCount.rows[0]?.count || 0;
+    stats.episodes = episodeCount.rows[0]?.count || 0;
+    stats.latest = latestSeries.rows || [];
+  } catch (err) {
+    console.warn("⚠️ Serien-Regal Fehler:", err.message);
+  }
+
+  return stats;
+}
+
+function formatMovieShelfLine(movie, index) {
+  return (
+    `${index + 1}. 🎬 ${movie.title || "Unbekannter Film"}${movie.year ? ` (${movie.year})` : ""}` +
+    `${movie.quality ? ` · ${movie.quality}` : ""}`
+  );
+}
+
+function formatSeriesShelfLine(series, index) {
+  return (
+    `${index + 1}. 📺 ${series.series_title || "Unbekannte Serie"}` +
+    ` · ${series.seasons_count || 0} Staffel(n)` +
+    ` · ${series.episodes_count || 0} Folge(n)`
+  );
+}
+
+function buildMovieShelfText(stats) {
+  const latestText =
+    stats.latest.length
+      ? stats.latest.map(formatMovieShelfLine).join("\n")
+      : "Noch keine Filme gefunden.";
+
+  return (
+    `🎬 Film-Regal\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Dein Kino-Bereich im Archiv.\n\n` +
+    `🎞 Filme gesamt: ${formatHomeCount(stats.movies)}\n` +
+    `💎 4K / UHD: ${formatHomeCount(stats.uhd)}\n\n` +
+    `▶️ Neue Filme\n` +
+    latestText +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Nutze die Buttons unten, um durch Filme zu stöbern.`
+  );
+}
+
+function buildSeriesShelfText(stats) {
+  const latestText =
+    stats.latest.length
+      ? stats.latest.map(formatSeriesShelfLine).join("\n")
+      : "Noch keine Serien gefunden.";
+
+  return (
+    `📺 Serien-Regal\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Dein Serien-Bereich im Archiv.\n\n` +
+    `📺 Serien gesamt: ${formatHomeCount(stats.series)}\n` +
+    `🎞 Folgen gesamt: ${formatHomeCount(stats.episodes)}\n\n` +
+    `▶️ Neue Serienbereiche\n` +
+    latestText +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Nutze die Buttons unten, um durch Serien zu stöbern.`
+  );
+}
+
 function buildPublicMenuKeyboard(isAdminUser = false, isApproved = true) {
   if (!isApproved && !isAdminUser) {
     return {
@@ -1505,6 +1798,16 @@ function buildPublicMenuKeyboard(isAdminUser = false, isApproved = true) {
   }
 
   const rows = [
+    [
+      {
+        text: "🎬 Filme",
+        callback_data: "public:movies_shelf"
+      },
+      {
+        text: "📺 Serien",
+        callback_data: "public:series_shelf"
+      }
+    ],
     [
       {
         text: "▶️ Neu im Archiv",
@@ -1785,6 +2088,62 @@ async function handlePublicCallback(bot, callback, pgPool) {
       bot,
       callback,
       pgPool
+    );
+
+    return true;
+  }
+  
+    if (action === "movies_shelf") {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Du bist noch nicht freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🎬 Film-Regal"
+    });
+
+    const stats =
+      await getMovieShelfStats(pgPool);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildMovieShelfText(stats),
+      buildShelfKeyboard("movies")
+    );
+
+    return true;
+  }
+
+  if (action === "series_shelf") {
+    const user = await getBotUser(pgPool, from.id);
+
+    if (!isAdmin(from.id) && (!user || user.status !== "approved")) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Du bist noch nicht freigeschaltet.",
+        show_alert: true
+      });
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "📺 Serien-Regal"
+    });
+
+    const stats =
+      await getSeriesShelfStats(pgPool);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildSeriesShelfText(stats),
+      buildShelfKeyboard("series")
     );
 
     return true;
