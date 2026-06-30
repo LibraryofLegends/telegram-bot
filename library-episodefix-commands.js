@@ -42,12 +42,17 @@ function stripExtension(fileName = "") {
 
 function extractTitleFromFileName(fileName = "") {
   const base =
-    stripExtension(fileName);
+    stripExtension(fileName)
+      .replace(/[_]+/g, " ")
+      .replace(/[.]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
   const patterns = [
-    /\bS\d{1,2}\s*E\d{1,3}\s*[-–—]\s*(.+)$/i,
-    /\bS\d{1,2}E\d{1,3}\s*[-–—]\s*(.+)$/i,
-    /\b\d{1,2}x\d{1,3}\s*[-–—]\s*(.+)$/i
+    /S\s*\d{1,2}\s*E\s*\d{1,3}\s*[-–—]\s*(.+)$/i,
+    /S\d{1,2}E\d{1,3}\s*[-–—]\s*(.+)$/i,
+    /\d{1,2}\s*x\s*\d{1,3}\s*[-–—]\s*(.+)$/i,
+    /\d{1,2}\s*x\s*\d{1,3}\s+(.+)$/i
   ];
 
   for (const pattern of patterns) {
