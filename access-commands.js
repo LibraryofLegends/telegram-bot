@@ -4430,6 +4430,190 @@ async function getCollectionSeriesRows(pgPool, collection, limit = 8) {
   return result.rows || [];
 }
 
+async function getCollectionMoviePage(pgPool, collection, page = 1) {
+  const patterns =
+    buildCollectionPatterns(collection);
+
+  const safePage =
+    normalizePage(page);
+
+  const offset =
+    getPageOffset(safePage);
+
+  const totalResult = await pgPool.query(
+    `
+    WITH unique_movies AS (
+      SELECT DISTINCT ON (
+        LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')),
+        COALESCE(year::text, '')
+      )
+        id
+      FROM movies
+      WHERE title IS NOT NULL
+        AND TRIM(title) <> ''
+        AND LOWER(
+          COALESCE(title, '') || ' ' ||
+          COALESCE(file_name, '') || ' ' ||
+          COALESCE(genre, '')
+        ) LIKE ANY($1::text[])
+      ORDER BY
+        LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')),
+        COALESCE(year::text, ''),
+        created_at DESC NULLS LAST,
+        id DESC
+    )
+    SELECT COUNT(*)::int AS count
+    FROM unique_movies;
+    `,
+    [
+      patterns
+    ]
+  );
+
+  const rowsResult = await pgPool.query(
+    `
+    SELECT
+      id,
+      title,
+      year,
+      library_id,
+      quality,
+      resolution,
+      file_size,
+      runtime,
+      created_at
+    FROM (
+      SELECT DISTINCT ON (
+        LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')),
+        COALESCE(year::text, '')
+      )
+        id,
+        title,
+        year,
+        library_id,
+        quality,
+        resolution,
+        file_size,
+        runtime,
+        created_at
+      FROM movies
+      WHERE title IS NOT NULL
+        AND TRIM(title) <> ''
+        AND LOWER(
+          COALESCE(title, '') || ' ' ||
+          COALESCE(file_name, '') || ' ' ||
+          COALESCE(genre, '')
+        ) LIKE ANY($1::text[])
+      ORDER BY
+        LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')),
+        COALESCE(year::text, ''),
+        created_at DESC NULLS LAST,
+        id DESC
+    ) AS unique_movies
+    ORDER BY
+      year ASC NULLS LAST,
+      title ASC
+    LIMIT $2 OFFSET $3;
+    `,
+    [
+      patterns,
+      MENU_PAGE_SIZE,
+      offset
+    ]
+  );
+
+  const pageInfo =
+    buildPageInfo(
+      safePage,
+      totalResult.rows[0]?.count || 0,
+      `colmv_${collection.id}`
+    );
+
+  return {
+    rows: rowsResult.rows || [],
+    pageInfo
+  };
+}
+
+async function getCollectionSeriesPage(pgPool, collection, page = 1) {
+  const patterns =
+    buildCollectionPatterns(collection);
+
+  const safePage =
+    normalizePage(page);
+
+  const offset =
+    getPageOffset(safePage);
+
+  const totalResult = await pgPool.query(
+    `
+    WITH grouped AS (
+      SELECT
+        COALESCE(series_library_id::text, LOWER(series_title)) AS series_key
+      FROM series
+      WHERE series_title IS NOT NULL
+        AND TRIM(series_title) <> ''
+        AND LOWER(
+          COALESCE(series_title, '') || ' ' ||
+          COALESCE(episode_title, '') || ' ' ||
+          COALESCE(file_name, '') || ' ' ||
+          COALESCE(genre, '')
+        ) LIKE ANY($1::text[])
+      GROUP BY
+        COALESCE(series_library_id::text, LOWER(series_title))
+    )
+    SELECT COUNT(*)::int AS count
+    FROM grouped;
+    `,
+    [
+      patterns
+    ]
+  );
+
+  const rowsResult = await pgPool.query(
+    `
+    SELECT
+      COALESCE(NULLIF(MAX(series_library_id::text), ''), MIN(id)::text) AS series_ref,
+      series_title,
+      COUNT(*)::int AS episodes_count,
+      COUNT(DISTINCT season::text)::int AS seasons_count,
+      MAX(created_at) AS latest_created_at
+    FROM series
+    WHERE series_title IS NOT NULL
+      AND TRIM(series_title) <> ''
+      AND LOWER(
+        COALESCE(series_title, '') || ' ' ||
+        COALESCE(episode_title, '') || ' ' ||
+        COALESCE(file_name, '') || ' ' ||
+        COALESCE(genre, '')
+      ) LIKE ANY($1::text[])
+    GROUP BY
+      COALESCE(series_library_id::text, LOWER(series_title)),
+      series_title
+    ORDER BY
+      series_title ASC
+    LIMIT $2 OFFSET $3;
+    `,
+    [
+      patterns,
+      MENU_PAGE_SIZE,
+      offset
+    ]
+  );
+
+  const pageInfo =
+    buildPageInfo(
+      safePage,
+      totalResult.rows[0]?.count || 0,
+      `colsr_${collection.id}`
+    );
+
+  return {
+    rows: rowsResult.rows || [],
+    pageInfo
+  };
+}
+
 function buildCollectionsShelfText(rows = []) {
   const lines =
     rows.length
@@ -4512,10 +4696,49 @@ function buildCollectionDetailText(collection, movies = [], series = []) {
   );
 }
 
+function buildBackToCollectionKeyboard(collectionId) {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "🏛 Zurück zur Sammlung",
+          callback_data: `public:col_${collectionId}`
+        }
+      ],
+      [
+        {
+          text: "🏛 Alle Sammlungen",
+          callback_data: "public:collections_shelf"
+        }
+      ],
+      [
+        {
+          text: "🏠 Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
 function buildCollectionDetailKeyboard(collection, movies = [], series = []) {
   const keyboard = [];
 
-  for (const [index, movie] of movies.slice(0, 8).entries()) {
+  keyboard.push([
+    {
+      text: "🎬 Alle Filme anzeigen",
+      callback_data: `public:colmv_${collection.id}_1`
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: "📺 Alle Serien anzeigen",
+      callback_data: `public:colsr_${collection.id}_1`
+    }
+  ]);
+
+  for (const [index, movie] of movies.slice(0, 6).entries()) {
     keyboard.push([
       {
         text: `🎬 ${index + 1}. ${shortenButtonText(movie.title || "Film", 34)}`,
@@ -4524,7 +4747,7 @@ function buildCollectionDetailKeyboard(collection, movies = [], series = []) {
     ]);
   }
 
-  for (const [index, item] of series.slice(0, 8).entries()) {
+  for (const [index, item] of series.slice(0, 6).entries()) {
     const ref =
       item.series_ref ||
       item.series_library_id ||
@@ -5132,6 +5355,112 @@ async function handlePublicCallback(bot, callback, pgPool) {
       callback,
       buildCollectionDetailText(collection, movies, series).slice(0, 3900),
       buildCollectionDetailKeyboard(collection, movies, series)
+    );
+
+    return true;
+  }
+  
+    // =============================
+  // COLLECTION DETAIL PAGES
+  // colmv = collection movies
+  // colsr = collection series
+  // =============================
+
+  if (action.startsWith("colmv_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const parts =
+      action.split("_");
+
+    const collectionId =
+      parts[1];
+
+    const page =
+      normalizePage(parts[2] || 1);
+
+    const collection =
+      getCollectionDefinition(collectionId);
+
+    if (!collection) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Sammlung nicht gefunden.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    const result =
+      await getCollectionMoviePage(pgPool, collection, page);
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `${collection.emoji} ${collection.title} · Filme · Seite ${result.pageInfo.page}`
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildMovieListScreen(
+        `${collection.emoji} ${collection.title} · Filme`,
+        result.rows,
+        result.pageInfo
+      ),
+      buildMovieResultKeyboard(
+        result.rows,
+        buildBackToCollectionKeyboard(collection.id),
+        result.pageInfo
+      )
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("colsr_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const parts =
+      action.split("_");
+
+    const collectionId =
+      parts[1];
+
+    const page =
+      normalizePage(parts[2] || 1);
+
+    const collection =
+      getCollectionDefinition(collectionId);
+
+    if (!collection) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Sammlung nicht gefunden.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    const result =
+      await getCollectionSeriesPage(pgPool, collection, page);
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `${collection.emoji} ${collection.title} · Serien · Seite ${result.pageInfo.page}`
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildSeriesListScreen(
+        `${collection.emoji} ${collection.title} · Serien`,
+        result.rows,
+        result.pageInfo
+      ),
+      buildSeriesResultKeyboard(
+        result.rows,
+        buildBackToCollectionKeyboard(collection.id),
+        result.pageInfo
+      )
     );
 
     return true;
