@@ -3872,15 +3872,25 @@ function buildPublicMenuKeyboard(isAdminUser = false, isApproved = true) {
       }
     ],
     [
-      {
-        text: "💎 4K / UHD",
-        callback_data: "public:uhd_help"
-      },
-      {
-        text: "📦 Holen",
-        callback_data: "public:hol_help"
-      }
-    ],
+  {
+    text: "💎 4K / UHD",
+    callback_data: "public:uhd_help"
+  },
+  {
+    text: "🏛 Sammlungen",
+    callback_data: "public:collections_shelf"
+  }
+],
+[
+  {
+    text: "📦 Holen",
+    callback_data: "public:hol_help"
+  },
+  {
+    text: "🔎 Suche",
+    callback_data: "public:search_help"
+  }
+],
     [
       {
         text: "⭐ Merkliste",
@@ -4087,6 +4097,466 @@ async function sendLatestLibraryMessage(bot, chatId, replyToMessageId, pgPool) {
   );
 }
 
+const COLLECTION_DEFINITIONS = [
+  {
+    id: "marvel",
+    emoji: "🦸",
+    title: "Marvel",
+    keywords: [
+      "marvel",
+      "avengers",
+      "iron man",
+      "captain america",
+      "thor",
+      "hulk",
+      "spider-man",
+      "spiderman",
+      "ant-man",
+      "black panther",
+      "doctor strange",
+      "guardians"
+    ]
+  },
+  {
+    id: "starwars",
+    emoji: "⭐",
+    title: "Star Wars",
+    keywords: [
+      "star wars",
+      "ahsoka",
+      "andor",
+      "mandalorian",
+      "boba fett",
+      "jedi",
+      "sith",
+      "maul",
+      "rebels",
+      "clone wars"
+    ]
+  },
+  {
+    id: "disney",
+    emoji: "🏰",
+    title: "Disney",
+    keywords: [
+      "disney",
+      "toy story",
+      "pixar",
+      "frozen",
+      "eiskönigin",
+      "lion king",
+      "könig der löwen",
+      "moana",
+      "vaiana",
+      "aladdin",
+      "mulan",
+      "lilo",
+      "stitch"
+    ]
+  },
+  {
+    id: "harrypotter",
+    emoji: "🧙",
+    title: "Harry Potter",
+    keywords: [
+      "harry potter",
+      "fantastic beasts",
+      "phantastische tierwesen",
+      "hogwarts",
+      "dumbledore",
+      "grindelwald"
+    ]
+  },
+  {
+    id: "jurassic",
+    emoji: "🦖",
+    title: "Jurassic Universe",
+    keywords: [
+      "jurassic",
+      "jurassic park",
+      "jurassic world"
+    ]
+  },
+  {
+    id: "fast",
+    emoji: "🚗",
+    title: "Fast & Furious",
+    keywords: [
+      "fast furious",
+      "fast & furious",
+      "fast and furious",
+      "tokyo drift",
+      "hobbs",
+      "shaw"
+    ]
+  },
+  {
+    id: "budspencer",
+    emoji: "👊",
+    title: "Bud Spencer & Terence Hill",
+    keywords: [
+      "bud spencer",
+      "terence hill",
+      "plattfuß",
+      "vier fäuste",
+      "zwei himmelhunde",
+      "trinity",
+      "mücke",
+      "banane"
+    ]
+  },
+  {
+    id: "horror",
+    emoji: "👻",
+    title: "Horror-Reihen",
+    keywords: [
+      "scream",
+      "halloween",
+      "freitag der 13",
+      "friday the 13th",
+      "final destination",
+      "conjuring",
+      "annabelle",
+      "insidious",
+      "saw",
+      "evil dead"
+    ]
+  },
+  {
+    id: "scifi",
+    emoji: "🤖",
+    title: "Sci-Fi & Fantasy",
+    keywords: [
+      "sci-fi",
+      "science fiction",
+      "fantasy",
+      "star trek",
+      "alien",
+      "predator",
+      "terminator",
+      "matrix",
+      "dune",
+      "godzilla"
+    ]
+  },
+  {
+    id: "animation",
+    emoji: "🎨",
+    title: "Animation & Anime",
+    keywords: [
+      "animation",
+      "anime",
+      "zeichentrick",
+      "cartoon",
+      "pixar",
+      "dreamworks",
+      "scooby",
+      "darkwing",
+      "dragonball",
+      "naruto"
+    ]
+  }
+];
+
+function getCollectionDefinition(collectionId) {
+  return COLLECTION_DEFINITIONS.find((collection) => collection.id === collectionId) || null;
+}
+
+function buildCollectionPatterns(collection) {
+  return collection.keywords.map((keyword) => `%${String(keyword || "").toLowerCase()}%`);
+}
+
+async function getCollectionCounts(pgPool, collection) {
+  const patterns =
+    buildCollectionPatterns(collection);
+
+  const [moviesResult, seriesResult] = await Promise.all([
+    pgPool.query(
+      `
+      SELECT COUNT(*)::int AS count
+      FROM movies
+      WHERE LOWER(
+        COALESCE(title, '') || ' ' ||
+        COALESCE(file_name, '') || ' ' ||
+        COALESCE(genre, '')
+      ) LIKE ANY($1::text[]);
+      `,
+      [
+        patterns
+      ]
+    ),
+
+    pgPool.query(
+      `
+      WITH grouped AS (
+        SELECT
+          COALESCE(series_library_id::text, LOWER(series_title)) AS series_key
+        FROM series
+        WHERE series_title IS NOT NULL
+          AND TRIM(series_title) <> ''
+          AND LOWER(
+            COALESCE(series_title, '') || ' ' ||
+            COALESCE(episode_title, '') || ' ' ||
+            COALESCE(file_name, '') || ' ' ||
+            COALESCE(genre, '')
+          ) LIKE ANY($1::text[])
+        GROUP BY
+          COALESCE(series_library_id::text, LOWER(series_title))
+      )
+      SELECT COUNT(*)::int AS count
+      FROM grouped;
+      `,
+      [
+        patterns
+      ]
+    )
+  ]);
+
+  return {
+    movies: moviesResult.rows[0]?.count || 0,
+    series: seriesResult.rows[0]?.count || 0
+  };
+}
+
+async function getCollectionsOverview(pgPool) {
+  const rows = [];
+
+  for (const collection of COLLECTION_DEFINITIONS) {
+    const counts =
+      await getCollectionCounts(pgPool, collection);
+
+    rows.push({
+      ...collection,
+      movies: counts.movies,
+      series: counts.series
+    });
+  }
+
+  return rows;
+}
+
+async function getCollectionMovieRows(pgPool, collection, limit = 8) {
+  const patterns =
+    buildCollectionPatterns(collection);
+
+  const result = await pgPool.query(
+    `
+    SELECT
+      id,
+      title,
+      year,
+      library_id,
+      quality,
+      resolution,
+      file_size,
+      runtime,
+      created_at
+    FROM (
+      SELECT DISTINCT ON (
+        LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')),
+        COALESCE(year::text, '')
+      )
+        id,
+        title,
+        year,
+        library_id,
+        quality,
+        resolution,
+        file_size,
+        runtime,
+        created_at
+      FROM movies
+      WHERE title IS NOT NULL
+        AND TRIM(title) <> ''
+        AND LOWER(
+          COALESCE(title, '') || ' ' ||
+          COALESCE(file_name, '') || ' ' ||
+          COALESCE(genre, '')
+        ) LIKE ANY($1::text[])
+      ORDER BY
+        LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')),
+        COALESCE(year::text, ''),
+        created_at DESC NULLS LAST,
+        id DESC
+    ) AS unique_movies
+    ORDER BY
+      year ASC NULLS LAST,
+      title ASC
+    LIMIT $2;
+    `,
+    [
+      patterns,
+      Math.max(1, Math.min(Number(limit) || 8, 15))
+    ]
+  );
+
+  return result.rows || [];
+}
+
+async function getCollectionSeriesRows(pgPool, collection, limit = 8) {
+  const patterns =
+    buildCollectionPatterns(collection);
+
+  const result = await pgPool.query(
+    `
+    SELECT
+      COALESCE(NULLIF(MAX(series_library_id::text), ''), MIN(id)::text) AS series_ref,
+      series_title,
+      COUNT(*)::int AS episodes_count,
+      COUNT(DISTINCT season::text)::int AS seasons_count,
+      MAX(created_at) AS latest_created_at
+    FROM series
+    WHERE series_title IS NOT NULL
+      AND TRIM(series_title) <> ''
+      AND LOWER(
+        COALESCE(series_title, '') || ' ' ||
+        COALESCE(episode_title, '') || ' ' ||
+        COALESCE(file_name, '') || ' ' ||
+        COALESCE(genre, '')
+      ) LIKE ANY($1::text[])
+    GROUP BY
+      COALESCE(series_library_id::text, LOWER(series_title)),
+      series_title
+    ORDER BY
+      series_title ASC
+    LIMIT $2;
+    `,
+    [
+      patterns,
+      Math.max(1, Math.min(Number(limit) || 8, 15))
+    ]
+  );
+
+  return result.rows || [];
+}
+
+function buildCollectionsShelfText(rows = []) {
+  const lines =
+    rows.length
+      ? rows.map((collection, index) => {
+          const parts = [];
+
+          if (collection.movies) {
+            parts.push(`🎬 ${collection.movies}`);
+          }
+
+          if (collection.series) {
+            parts.push(`📺 ${collection.series}`);
+          }
+
+          return (
+            `${index + 1}. ${collection.emoji} ${collection.title}\n` +
+            `   ${parts.length ? parts.join(" · ") : "Keine Treffer"}`
+          );
+        }).join("\n\n")
+      : "Keine Sammlungen gefunden.";
+
+  return (
+    `🏛 Sammlungen & Universen\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Legendäre Reihen, Franchises und Themenwelten.\n\n` +
+    lines +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Wähle unten eine Sammlung aus.`
+  );
+}
+
+function buildCollectionsShelfKeyboard(rows = []) {
+  const keyboard = [];
+
+  const buttons =
+    rows.map((collection) => {
+      return {
+        text: `${collection.emoji} ${shortenButtonText(collection.title, 26)}`,
+        callback_data: `public:col_${collection.id}`
+      };
+    });
+
+  for (let i = 0; i < buttons.length; i += 2) {
+    keyboard.push(buttons.slice(i, i + 2));
+  }
+
+  keyboard.push([
+    {
+      text: "🏠 Zurück zur Startseite",
+      callback_data: "public:home"
+    }
+  ]);
+
+  return {
+    inline_keyboard: keyboard
+  };
+}
+
+function buildCollectionDetailText(collection, movies = [], series = []) {
+  const movieText =
+    movies.length
+      ? movies.map(buildMovieMenuLine).join("\n\n")
+      : "Keine Filme gefunden.";
+
+  const seriesText =
+    series.length
+      ? series.map(buildSeriesMenuLine).join("\n\n")
+      : "Keine Serien gefunden.";
+
+  return (
+    `${collection.emoji} ${collection.title}\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `🎬 Filme\n\n` +
+    movieText +
+    `\n\n━━━━━━━━━━━━━━━━━━\n\n` +
+    `📺 Serien\n\n` +
+    seriesText +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Tippe unten auf einen Titel oder gehe zurück zu den Sammlungen.`
+  );
+}
+
+function buildCollectionDetailKeyboard(collection, movies = [], series = []) {
+  const keyboard = [];
+
+  for (const [index, movie] of movies.slice(0, 8).entries()) {
+    keyboard.push([
+      {
+        text: `🎬 ${index + 1}. ${shortenButtonText(movie.title || "Film", 34)}`,
+        callback_data: `public:hm_${movie.id}`
+      }
+    ]);
+  }
+
+  for (const [index, item] of series.slice(0, 8).entries()) {
+    const ref =
+      item.series_ref ||
+      item.series_library_id ||
+      item.id;
+
+    keyboard.push([
+      {
+        text: `📺 ${index + 1}. ${shortenButtonText(item.series_title || "Serie", 34)}`,
+        callback_data: `public:sd_${ref}`
+      }
+    ]);
+  }
+
+  keyboard.push([
+    {
+      text: "🏛 Zurück zu Sammlungen",
+      callback_data: "public:collections_shelf"
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: "🏠 Startseite",
+      callback_data: "public:home"
+    }
+  ]);
+
+  return {
+    inline_keyboard: keyboard
+  };
+}
+
 async function handlePublicCallback(bot, callback, pgPool) {
   const data = callback.data || "";
 
@@ -4177,6 +4647,69 @@ async function handlePublicCallback(bot, callback, pgPool) {
       callback,
       buildSeriesShelfText(stats),
       buildShelfKeyboard("series")
+    );
+
+    return true;
+  }
+  
+    // =============================
+  // COLLECTIONS / UNIVERSES
+  // =============================
+
+  if (action === "collections_shelf") {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: "🏛 Sammlungen"
+    });
+
+    const rows =
+      await getCollectionsOverview(pgPool);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildCollectionsShelfText(rows),
+      buildCollectionsShelfKeyboard(rows)
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("col_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const collectionId =
+      action.replace(/^col_/, "").trim();
+
+    const collection =
+      getCollectionDefinition(collectionId);
+
+    if (!collection) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Sammlung nicht gefunden.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `${collection.emoji} ${collection.title}`
+    });
+
+    const [movies, series] = await Promise.all([
+      getCollectionMovieRows(pgPool, collection, 8),
+      getCollectionSeriesRows(pgPool, collection, 8)
+    ]);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildCollectionDetailText(collection, movies, series).slice(0, 3900),
+      buildCollectionDetailKeyboard(collection, movies, series)
     );
 
     return true;
