@@ -4557,6 +4557,428 @@ function buildCollectionDetailKeyboard(collection, movies = [], series = []) {
   };
 }
 
+async function safeAdminCount(pgPool, sql, params = []) {
+  try {
+    const result =
+      await pgPool.query(sql, params);
+
+    return Number(result.rows[0]?.count || 0);
+  } catch (err) {
+    console.error("❌ Admin count error:", err.message);
+    return null;
+  }
+}
+
+function formatAdminCount(value) {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+
+  return Number(value || 0).toLocaleString("de-DE");
+}
+
+async function getAdminDashboardStats(pgPool) {
+  const [
+    movies,
+    series,
+    episodes,
+    uhdMovies,
+    movieDupeGroups,
+    seriesDupeGroups,
+    possibleWrongMovies,
+    trashItems,
+    usersTotal,
+    usersApproved,
+    usersPending,
+    usersBlocked,
+    usageToday
+  ] = await Promise.all([
+    safeAdminCount(
+      pgPool,
+      `
+      SELECT COUNT(*)::int AS count
+      FROM movies;
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      WITH grouped AS (
+        SELECT
+          COALESCE(series_library_id::text, LOWER(series_title)) AS series_key
+        FROM series
+        WHERE series_title IS NOT NULL
+          AND TRIM(series_title) <> ''
+        GROUP BY
+          COALESCE(series_library_id::text, LOWER(series_title))
+      )
+      SELECT COUNT(*)::int AS count
+      FROM grouped;
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      SELECT COUNT(*)::int AS count
+      FROM series;
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      SELECT COUNT(*)::int AS count
+      FROM movies
+      WHERE
+        quality ILIKE '%UHD%'
+        OR quality ILIKE '%4K%'
+        OR resolution ILIKE '3840%'
+        OR resolution ILIKE '2160%'
+        OR file_name ILIKE '%2160p%'
+        OR file_name ILIKE '%uhd%'
+        OR file_name ILIKE '%4k%';
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      WITH duplicate_groups AS (
+        SELECT
+          LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')) AS normalized_title,
+          COALESCE(year::text, '') AS movie_year,
+          COUNT(*)::int AS amount
+        FROM movies
+        WHERE title IS NOT NULL
+          AND TRIM(title) <> ''
+        GROUP BY
+          LOWER(REGEXP_REPLACE(TRIM(title), '\\s+', ' ', 'g')),
+          COALESCE(year::text, '')
+        HAVING COUNT(*) > 1
+      )
+      SELECT COUNT(*)::int AS count
+      FROM duplicate_groups;
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      WITH duplicate_groups AS (
+        SELECT
+          COALESCE(series_library_id::text, LOWER(series_title)) AS series_key,
+          season::text AS season,
+          episode::text AS episode,
+          COUNT(*)::int AS amount
+        FROM series
+        WHERE series_title IS NOT NULL
+          AND TRIM(series_title) <> ''
+          AND season IS NOT NULL
+          AND episode IS NOT NULL
+        GROUP BY
+          COALESCE(series_library_id::text, LOWER(series_title)),
+          season::text,
+          episode::text
+        HAVING COUNT(*) > 1
+      )
+      SELECT COUNT(*)::int AS count
+      FROM duplicate_groups;
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      SELECT COUNT(*)::int AS count
+      FROM movies
+      WHERE
+        file_name ~* '(s[0-9]{1,2}e[0-9]{1,2})'
+        OR file_name ~* '([0-9]{1,2}x[0-9]{1,2})'
+        OR title ~* '(s[0-9]{1,2}e[0-9]{1,2})'
+        OR title ~* '([0-9]{1,2}x[0-9]{1,2})';
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      SELECT COUNT(*)::int AS count
+      FROM deleted_library_items;
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      SELECT COUNT(*)::int AS count
+      FROM bot_users;
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      SELECT COUNT(*)::int AS count
+      FROM bot_users
+      WHERE status = 'approved';
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      SELECT COUNT(*)::int AS count
+      FROM bot_users
+      WHERE status = 'pending';
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      SELECT COUNT(*)::int AS count
+      FROM bot_users
+      WHERE status = 'blocked';
+      `
+    ),
+
+    safeAdminCount(
+      pgPool,
+      `
+      SELECT COUNT(*)::int AS count
+      FROM bot_usage_logs
+      WHERE created_at::date = CURRENT_DATE;
+      `
+    )
+  ]);
+
+  return {
+    movies,
+    series,
+    episodes,
+    uhdMovies,
+    movieDupeGroups,
+    seriesDupeGroups,
+    possibleWrongMovies,
+    trashItems,
+    usersTotal,
+    usersApproved,
+    usersPending,
+    usersBlocked,
+    usageToday
+  };
+}
+
+function buildAdminDashboardText(stats) {
+  return (
+    `🛠 Admin-Dashboard\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Archiv-Status\n\n` +
+    `🎬 Filme: ${formatAdminCount(stats.movies)}\n` +
+    `📺 Serien: ${formatAdminCount(stats.series)}\n` +
+    `🎞 Folgen: ${formatAdminCount(stats.episodes)}\n` +
+    `💎 4K / UHD: ${formatAdminCount(stats.uhdMovies)}\n\n` +
+    `Qualitätskontrolle\n\n` +
+    `🧹 Film-Duplikatgruppen: ${formatAdminCount(stats.movieDupeGroups)}\n` +
+    `🧩 Serien-Duplikatgruppen: ${formatAdminCount(stats.seriesDupeGroups)}\n` +
+    `⚠️ Mögliche Fehlimporte: ${formatAdminCount(stats.possibleWrongMovies)}\n` +
+    `🗑 Papierkorb: ${formatAdminCount(stats.trashItems)}\n\n` +
+    `User & Nutzung\n\n` +
+    `👥 User gesamt: ${formatAdminCount(stats.usersTotal)}\n` +
+    `✅ Freigeschaltet: ${formatAdminCount(stats.usersApproved)}\n` +
+    `🕓 Offen: ${formatAdminCount(stats.usersPending)}\n` +
+    `⛔ Gesperrt: ${formatAdminCount(stats.usersBlocked)}\n` +
+    `📦 Heute geholt: ${formatAdminCount(stats.usageToday)}\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `Wähle unten einen Admin-Bereich aus.`
+  );
+}
+
+function buildAdminDashboardKeyboard() {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "🔁 Aktualisieren",
+          callback_data: "public:admin_dashboard"
+        }
+      ],
+      [
+        {
+          text: "🧹 Duplikate",
+          callback_data: "public:admin_dupes"
+        },
+        {
+          text: "⚠️ Fehlimporte",
+          callback_data: "public:admin_wrong"
+        }
+      ],
+      [
+        {
+          text: "🗑 Papierkorb",
+          callback_data: "public:admin_trash"
+        },
+        {
+          text: "👥 User",
+          callback_data: "public:admin_users"
+        }
+      ],
+      [
+        {
+          text: "📊 Nutzung",
+          callback_data: "public:admin_usage"
+        },
+        {
+          text: "🧪 System",
+          callback_data: "public:admin_system"
+        }
+      ],
+      [
+        {
+          text: "🏠 Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
+function buildBackToAdminKeyboard() {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "🛠 Zurück zum Admin-Dashboard",
+          callback_data: "public:admin_dashboard"
+        }
+      ],
+      [
+        {
+          text: "🏠 Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
+function buildAdminDupesText(stats) {
+  return (
+    `🧹 Duplikat-Zentrale\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Aktueller Stand:\n\n` +
+    `🎬 Film-Duplikatgruppen: ${formatAdminCount(stats.movieDupeGroups)}\n` +
+    `🧩 Serien-Duplikatgruppen: ${formatAdminCount(stats.seriesDupeGroups)}\n\n` +
+    `Befehle:\n\n` +
+    `/dupes\n` +
+    `/dupes movies\n` +
+    `/dupes series\n` +
+    `/dupe TITEL\n\n` +
+    `Bereinigung:\n\n` +
+    `/trashdupemovie keep ID remove ID\n` +
+    `/trashdupemovie keep ID remove ID confirm\n\n` +
+    `/trashdupeepisode keep ID remove ID\n` +
+    `/trashdupeepisode keep ID remove ID confirm`
+  );
+}
+
+function buildAdminWrongText(stats) {
+  return (
+    `⚠️ Fehlimport-Zentrale\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Mögliche Fehlimporte in movies:\n\n` +
+    `🎬 Verdächtige Filme: ${formatAdminCount(stats.possibleWrongMovies)}\n\n` +
+    `Befehle:\n\n` +
+    `/wrongimports\n` +
+    `/wrongmovies\n` +
+    `/wrongmovie ID\n` +
+    `/wrongmovie TITEL\n\n` +
+    `Entfernen:\n\n` +
+    `/trashwrong ID confirm\n\n` +
+    `Hinweis:\n` +
+    `Verdächtig sind Filme, deren Dateiname wie eine Serienfolge aussieht.`
+  );
+}
+
+function buildAdminTrashText(stats) {
+  return (
+    `🗑 Papierkorb\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Aktueller Stand:\n\n` +
+    `🗑 Einträge im Papierkorb: ${formatAdminCount(stats.trashItems)}\n\n` +
+    `Befehle:\n\n` +
+    `/trashlist\n` +
+    `/trashmovie ID confirm\n` +
+    `/trashepisode ID confirm\n\n` +
+    `Wiederherstellen:\n\n` +
+    `/restoremovie ID\n` +
+    `/restoreepisode ID`
+  );
+}
+
+function buildAdminUsersText(stats) {
+  return (
+    `👥 User-Zentrale\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Aktueller Stand:\n\n` +
+    `👥 User gesamt: ${formatAdminCount(stats.usersTotal)}\n` +
+    `✅ Freigeschaltet: ${formatAdminCount(stats.usersApproved)}\n` +
+    `🕓 Offen: ${formatAdminCount(stats.usersPending)}\n` +
+    `⛔ Gesperrt: ${formatAdminCount(stats.usersBlocked)}\n\n` +
+    `Befehle:\n\n` +
+    `/users\n` +
+    `/users pending\n` +
+    `/users approved\n` +
+    `/users blocked\n\n` +
+    `User verwalten:\n\n` +
+    `/userinfo USER_ID\n` +
+    `/freigeben USER_ID\n` +
+    `/sperren USER_ID\n` +
+    `/entfernen USER_ID`
+  );
+}
+
+function buildAdminUsageText(stats) {
+  return (
+    `📊 Nutzung\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Heute:\n\n` +
+    `📦 Hol-Vorgänge: ${formatAdminCount(stats.usageToday)}\n\n` +
+    `Befehle:\n\n` +
+    `/usage USER_ID\n` +
+    `/userverlauf USER_ID\n\n` +
+    `User-Limits:\n\n` +
+    `/setlimit USER_ID filme 5\n` +
+    `/setlimit USER_ID folgen 10\n` +
+    `/setlimit USER_ID staffeln 2\n` +
+    `/setrole USER_ID member\n` +
+    `/setrole USER_ID vip`
+  );
+}
+
+function buildAdminSystemText(stats) {
+  return (
+    `🧪 System\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Archiv:\n\n` +
+    `🎬 Filme: ${formatAdminCount(stats.movies)}\n` +
+    `📺 Serien: ${formatAdminCount(stats.series)}\n` +
+    `🎞 Folgen: ${formatAdminCount(stats.episodes)}\n\n` +
+    `Wichtige Befehle:\n\n` +
+    `/dashboard\n` +
+    `/pgstats\n` +
+    `/queue\n\n` +
+    `Rebuild / Reparatur:\n\n` +
+    `/rebuildmovieindex\n` +
+    `/rebuildcollections\n` +
+    `/repairmovies\n` +
+    `/seriesaudit TITEL\n` +
+    `/seriesclusters ID`
+  );
+}
+
 async function handlePublicCallback(bot, callback, pgPool) {
   const data = callback.data || "";
 
@@ -5894,7 +6316,7 @@ await editPublicScreenWithKeyboard(
     return true;
   }
 
-  if (action === "admin_help") {
+    if (action === "admin_help" || action === "admin_dashboard") {
     if (!isAdmin(from.id)) {
       await bot.answerCallbackQuery(callback.id, {
         text: "⛔ Nur Admins.",
@@ -5905,13 +6327,87 @@ await editPublicScreenWithKeyboard(
     }
 
     await bot.answerCallbackQuery(callback.id, {
-      text: "🛠 Admin-Zentrale"
+      text: "🛠 Admin-Dashboard"
     });
 
-    await editPublicInfoScreen(
+    const stats =
+      await getAdminDashboardStats(pgPool);
+
+    await editPublicScreenWithKeyboard(
       bot,
       callback,
-      buildAdminHelpText()
+      buildAdminDashboardText(stats),
+      buildAdminDashboardKeyboard()
+    );
+
+    return true;
+  }
+  
+    if (
+    action === "admin_dupes" ||
+    action === "admin_wrong" ||
+    action === "admin_trash" ||
+    action === "admin_users" ||
+    action === "admin_usage" ||
+    action === "admin_system"
+  ) {
+    if (!isAdmin(from.id)) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Nur Admins.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    const stats =
+      await getAdminDashboardStats(pgPool);
+
+    let text =
+      buildAdminDashboardText(stats);
+
+    let title =
+      "🛠 Admin";
+
+    if (action === "admin_dupes") {
+      text = buildAdminDupesText(stats);
+      title = "🧹 Duplikate";
+    }
+
+    if (action === "admin_wrong") {
+      text = buildAdminWrongText(stats);
+      title = "⚠️ Fehlimporte";
+    }
+
+    if (action === "admin_trash") {
+      text = buildAdminTrashText(stats);
+      title = "🗑 Papierkorb";
+    }
+
+    if (action === "admin_users") {
+      text = buildAdminUsersText(stats);
+      title = "👥 User";
+    }
+
+    if (action === "admin_usage") {
+      text = buildAdminUsageText(stats);
+      title = "📊 Nutzung";
+    }
+
+    if (action === "admin_system") {
+      text = buildAdminSystemText(stats);
+      title = "🧪 System";
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: title
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      text.slice(0, 3900),
+      buildBackToAdminKeyboard()
     );
 
     return true;
