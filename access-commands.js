@@ -21,6 +21,7 @@ const { sendGenreListMessage } = require("./library-browse-commands");
 const { sendYearOverviewMessage } = require("./library-year-commands");
 const { sendAzOverviewMessage } = require("./library-az-commands");
 const { handleLibraryHolCommands } = require("./library-hol-commands");
+const { handleCleanupCommands } = require("./library-cleanup-commands");
 
 function getAdminNotifyChatIds() {
   const notifyIds = String(process.env.ADMIN_NOTIFY_CHAT_ID || "")
@@ -5125,6 +5126,252 @@ function buildAdminWrongText(stats) {
   );
 }
 
+async function getAdminWrongMovieRows(pgPool, limit = 10) {
+  const cleanLimit =
+    Math.max(1, Math.min(Number(limit) || 10, 20));
+
+  const result = await pgPool.query(
+    `
+    SELECT
+      id,
+      title,
+      year,
+      library_id,
+      quality,
+      resolution,
+      file_size,
+      runtime,
+      file_name,
+      created_at
+    FROM movies
+    WHERE
+      file_name ~* '(s[0-9]{1,2}e[0-9]{1,2})'
+      OR file_name ~* '([0-9]{1,2}x[0-9]{1,2})'
+      OR title ~* '(s[0-9]{1,2}e[0-9]{1,2})'
+      OR title ~* '([0-9]{1,2}x[0-9]{1,2})'
+    ORDER BY
+      created_at DESC NULLS LAST,
+      id DESC
+    LIMIT $1;
+    `,
+    [
+      cleanLimit
+    ]
+  );
+
+  return result.rows || [];
+}
+
+function buildAdminWrongLiveText(rows = []) {
+  const lines =
+    rows.length
+      ? rows.map((movie, index) => {
+          const meta =
+            [
+              movie.quality,
+              movie.resolution,
+              movie.file_size,
+              movie.runtime ? `${movie.runtime} Min.` : ""
+            ]
+              .map((v) => String(v || "").trim())
+              .filter(Boolean)
+              .join(" · ");
+
+          return (
+            `${index + 1}. 🎬 ${movie.title || "Unbekannter Titel"}${movie.year ? ` (${movie.year})` : ""}\n` +
+            `   🆔 Movie-ID: ${movie.id}\n` +
+            `   🏷 ${movie.library_id || "Keine Library-ID"}\n` +
+            `   ${meta || "Keine technischen Daten"}\n` +
+            `   📁 ${shortenButtonText(movie.file_name || "Keine Datei", 70)}`
+          );
+        }).join("\n\n")
+      : "Keine verdächtigen Fehlimporte gefunden.";
+
+  return (
+    `⚠️ Fehlimporte · Live-Liste\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Verdächtig sind Filme, deren Dateiname wie eine Serienfolge aussieht.\n\n` +
+    lines +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Nutze unten die Buttons zum Prüfen oder Entfernen.`
+  );
+}
+
+function buildAdminWrongLiveKeyboard(rows = []) {
+  const keyboard = [];
+
+  for (const movie of rows.slice(0, 10)) {
+    keyboard.push([
+      {
+        text: `🔎 Prüfen ${movie.id}`,
+        callback_data: `public:adm_wrong_check_${movie.id}`
+      },
+      {
+        text: `🗑 Entfernen ${movie.id}`,
+        callback_data: `public:adm_wrong_ask_${movie.id}`
+      }
+    ]);
+  }
+
+  keyboard.push([
+    {
+      text: "🔁 Aktualisieren",
+      callback_data: "public:admin_wrong"
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: "🛠 Zurück zum Admin-Dashboard",
+      callback_data: "public:admin_dashboard"
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: "🏠 Startseite",
+      callback_data: "public:home"
+    }
+  ]);
+
+  return {
+    inline_keyboard: keyboard
+  };
+}
+
+async function getAdminWrongMovieById(pgPool, movieId) {
+  const result = await pgPool.query(
+    `
+    SELECT
+      id,
+      title,
+      year,
+      library_id,
+      quality,
+      resolution,
+      file_size,
+      runtime,
+      genre,
+      file_name,
+      created_at
+    FROM movies
+    WHERE id::text = $1::text
+    LIMIT 1;
+    `,
+    [
+      String(movieId)
+    ]
+  );
+
+  return result.rows[0] || null;
+}
+
+function buildAdminWrongCheckText(movie) {
+  if (!movie) {
+    return (
+      `⚠️ Fehlimport prüfen\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `Eintrag nicht gefunden.`
+    );
+  }
+
+  return (
+    `⚠️ Fehlimport prüfen\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `🎬 Titel:\n` +
+    `${movie.title || "Unbekannt"}${movie.year ? ` (${movie.year})` : ""}\n\n` +
+    `🆔 Movie-ID:\n` +
+    `${movie.id}\n\n` +
+    `🏷 Library-ID:\n` +
+    `${movie.library_id || "—"}\n\n` +
+    `📂 Genre:\n` +
+    `${movie.genre || "—"}\n\n` +
+    `🔥 Qualität:\n` +
+    `${movie.quality || "—"} · ${movie.resolution || "—"} · ${movie.file_size || "—"}\n\n` +
+    `📁 Datei:\n` +
+    `${movie.file_name || "—"}\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `Wenn das wirklich eine Serienfolge ist, kannst du sie in den Papierkorb verschieben.`
+  );
+}
+
+function buildAdminWrongCheckKeyboard(movieId) {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "🗑 Entfernen vorbereiten",
+          callback_data: `public:adm_wrong_ask_${movieId}`
+        }
+      ],
+      [
+        {
+          text: "⚠️ Zurück zu Fehlimporten",
+          callback_data: "public:admin_wrong"
+        }
+      ],
+      [
+        {
+          text: "🛠 Admin-Dashboard",
+          callback_data: "public:admin_dashboard"
+        }
+      ],
+      [
+        {
+          text: "🏠 Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
+function buildAdminWrongConfirmText(movie) {
+  if (!movie) {
+    return (
+      `🗑 Fehlimport entfernen\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `Eintrag nicht gefunden.`
+    );
+  }
+
+  return (
+    `🗑 Fehlimport entfernen?\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Dieser Eintrag wird nicht endgültig gelöscht, sondern in deinen Papierkorb verschoben.\n\n` +
+    `🎬 ${movie.title || "Unbekannt"}${movie.year ? ` (${movie.year})` : ""}\n` +
+    `🆔 Movie-ID: ${movie.id}\n` +
+    `📁 ${movie.file_name || "—"}\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `Bitte nur bestätigen, wenn es wirklich ein Fehlimport ist.`
+  );
+}
+
+function buildAdminWrongConfirmKeyboard(movieId) {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "✅ Ja, entfernen",
+          callback_data: `public:adm_wrong_confirm_${movieId}`
+        }
+      ],
+      [
+        {
+          text: "❌ Abbrechen",
+          callback_data: "public:admin_wrong"
+        }
+      ],
+      [
+        {
+          text: "🛠 Admin-Dashboard",
+          callback_data: "public:admin_dashboard"
+        }
+      ]
+    ]
+  };
+}
+
 function buildAdminTrashText(stats) {
   return (
     `🗑 Papierkorb\n` +
@@ -6704,9 +6951,22 @@ await editPublicScreenWithKeyboard(
     }
 
     if (action === "admin_wrong") {
-      text = buildAdminWrongText(stats);
-      title = "⚠️ Fehlimporte";
-    }
+  const rows =
+    await getAdminWrongMovieRows(pgPool, 10);
+
+  await bot.answerCallbackQuery(callback.id, {
+    text: "⚠️ Fehlimporte"
+  });
+
+  await editPublicScreenWithKeyboard(
+    bot,
+    callback,
+    buildAdminWrongLiveText(rows).slice(0, 3900),
+    buildAdminWrongLiveKeyboard(rows)
+  );
+
+  return true;
+}
 
     if (action === "admin_trash") {
       text = buildAdminTrashText(stats);
@@ -6737,6 +6997,115 @@ await editPublicScreenWithKeyboard(
       callback,
       text.slice(0, 3900),
       buildBackToAdminKeyboard()
+    );
+
+    return true;
+  }
+  
+    // =============================
+  // ADMIN WRONG IMPORT ACTIONS
+  // =============================
+
+  if (action.startsWith("adm_wrong_check_")) {
+    if (!isAdmin(from.id)) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Nur Admins.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    const movieId =
+      action.replace(/^adm_wrong_check_/, "").trim();
+
+    const movie =
+      await getAdminWrongMovieById(pgPool, movieId);
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `🔎 Prüfen ${movieId}`
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildAdminWrongCheckText(movie).slice(0, 3900),
+      buildAdminWrongCheckKeyboard(movieId)
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("adm_wrong_ask_")) {
+    if (!isAdmin(from.id)) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Nur Admins.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    const movieId =
+      action.replace(/^adm_wrong_ask_/, "").trim();
+
+    const movie =
+      await getAdminWrongMovieById(pgPool, movieId);
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `🗑 Entfernen ${movieId}`
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildAdminWrongConfirmText(movie).slice(0, 3900),
+      buildAdminWrongConfirmKeyboard(movieId)
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("adm_wrong_confirm_")) {
+    if (!isAdmin(from.id)) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Nur Admins.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    const movieId =
+      action.replace(/^adm_wrong_confirm_/, "").trim();
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `🗑 Wird entfernt: ${movieId}`
+    });
+
+    const fakeMsg = {
+      text: `/trashwrong ${movieId} confirm`,
+      chat: {
+        id: chatId
+      },
+      from,
+      message_id: messageId
+    };
+
+    await handleCleanupCommands(
+      bot,
+      fakeMsg,
+      pgPool
+    );
+
+    const rows =
+      await getAdminWrongMovieRows(pgPool, 10);
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildAdminWrongLiveText(rows).slice(0, 3900),
+      buildAdminWrongLiveKeyboard(rows)
     );
 
     return true;
