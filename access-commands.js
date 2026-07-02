@@ -14,6 +14,11 @@ const {
   getUsersByStatus,
 } = require("./access-control");
 
+const {
+  getMaintenanceMode,
+  buildMaintenanceMessage,
+} = require("./maintenance-commands");
+
 const { sendUserHistoryMessage } = require("./library-history-commands");
 const { sendPopularLibraryMessage } = require("./library-popular-commands");
 const { sendRandomLibraryMessage } = require("./library-random-commands");
@@ -5469,6 +5474,36 @@ async function handlePublicCallback(bot, callback, pgPool) {
   }
 
   const action = data.split(":")[1];
+  
+    if (!isAdmin(from.id)) {
+    const maintenanceActive =
+      await getMaintenanceMode(pgPool);
+
+    if (maintenanceActive) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "🛠 Archiv wird gerade überarbeitet.",
+        show_alert: true
+      });
+
+      await editPublicScreenWithKeyboard(
+        bot,
+        callback,
+        buildMaintenanceMessage(),
+        {
+          inline_keyboard: [
+            [
+              {
+                text: "🏠 Startseite",
+                callback_data: "public:home"
+              }
+            ]
+          ]
+        }
+      );
+
+      return true;
+    }
+  }
 
   // =============================
   // NETFLIX HOME / INFO SCREENS
