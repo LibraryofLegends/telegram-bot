@@ -2,6 +2,23 @@ const {
   isAdmin,
 } = require("./access-control");
 
+const {
+  getMaintenanceMode,
+} = require("./maintenance-commands");
+
+const RESET_CONFIRM_PHRASE =
+  "ICH WILL DAS ARCHIV ZURUECKSETZEN";
+
+const RESET_TABLES = [
+  "user_favorites",
+  "deleted_library_items",
+  "library_edit_logs",
+  "movies",
+  "series",
+  "series_library",
+  "topics",
+];
+
 async function safeResetCount(pgPool, sql, params = []) {
   try {
     const result =
@@ -20,6 +37,24 @@ function formatResetCount(value) {
   }
 
   return Number(value || 0).toLocaleString("de-DE");
+}
+
+async function tableExists(pgPool, tableName) {
+  const result = await pgPool.query(
+    `
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = $1
+    ) AS exists;
+    `,
+    [
+      tableName
+    ]
+  );
+
+  return result.rows[0]?.exists === true;
 }
 
 async function getResetPreviewStats(pgPool) {
@@ -201,9 +236,102 @@ function buildResetPreviewText(stats) {
     `🛠 Adminrechte bleiben über deine Admin-ID erhalten.\n\n` +
 
     `━━━━━━━━━━━━━━━━━━\n` +
-    `Nächster Schritt später:\n` +
+    `Echter Reset nur mit:\n\n` +
+    `/maintenance on\n` +
+    `/resetarchive confirm ${RESET_CONFIRM_PHRASE}`
+  );
+}
+
+function buildResetHelpText() {
+  return (
+    `🧨 Archiv-Reset\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Verfügbare Befehle:\n\n` +
+    `/resetpreview\n` +
     `/resetarchive preview\n\n` +
-    `Erst danach bauen wir einen echten Confirm-Befehl.`
+    `Echter Reset:\n\n` +
+    `/maintenance on\n` +
+    `/resetarchive confirm ${RESET_CONFIRM_PHRASE}\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `Der echte Reset ist absichtlich gesichert und funktioniert nur im Wartungsmodus.`
+  );
+}
+
+function buildResetBlockedText(reason) {
+  return (
+    `🧨 Archiv-Reset blockiert\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `${reason}\n\n` +
+    `Sichere Reihenfolge:\n\n` +
+    `1. /resetarchive preview\n` +
+    `2. /maintenance on\n` +
+    `3. /resetarchive confirm ${RESET_CONFIRM_PHRASE}`
+  );
+}
+
+async function runArchiveReset(pgPool) {
+  const before =
+    await getResetPreviewStats(pgPool);
+
+  const truncated = [];
+  const skipped = [];
+
+  for (const tableName of RESET_TABLES) {
+    const exists =
+      await tableExists(pgPool, tableName);
+
+    if (!exists) {
+      skipped.push(tableName);
+      continue;
+    }
+
+    await pgPool.query(
+      `TRUNCATE TABLE ${tableName} RESTART IDENTITY CASCADE;`
+    );
+
+    truncated.push(tableName);
+  }
+
+  const after =
+    await getResetPreviewStats(pgPool);
+
+  return {
+    before,
+    after,
+    truncated,
+    skipped
+  };
+}
+
+function buildResetDoneText(result) {
+  return (
+    `✅ Archiv-Reset abgeschlossen\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Geleerte Tabellen:\n\n` +
+    (
+      result.truncated.length
+        ? result.truncated.map((name) => `• ${name}`).join("\n")
+        : "Keine Tabellen geleert."
+    ) +
+    `\n\n` +
+    (
+      result.skipped.length
+        ? `Nicht gefunden / übersprungen:\n${result.skipped.map((name) => `• ${name}`).join("\n")}\n\n`
+        : ""
+    ) +
+    `Vorher:\n\n` +
+    `🎬 Filme: ${formatResetCount(result.before.movies)}\n` +
+    `📺 Serienbereiche: ${formatResetCount(result.before.seriesGroups)}\n` +
+    `🎞 Folgen: ${formatResetCount(result.before.seriesEpisodes)}\n` +
+    `🏷 Topics: ${formatResetCount(result.before.topics)}\n\n` +
+    `Nachher:\n\n` +
+    `🎬 Filme: ${formatResetCount(result.after.movies)}\n` +
+    `📺 Serienbereiche: ${formatResetCount(result.after.seriesGroups)}\n` +
+    `🎞 Folgen: ${formatResetCount(result.after.seriesEpisodes)}\n` +
+    `🏷 Topics: ${formatResetCount(result.after.topics)}\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `Wartungsmodus bitte erst ausschalten, wenn der Neuaufbau bereit ist:\n\n` +
+    `/maintenance off`
   );
 }
 
@@ -224,7 +352,32 @@ async function handleResetCommands(bot, msg, pgPool) {
     return false;
   }
 
-  const isResetPreviewCommand =
+  const isResetCommand =
+    lower.startsWith("/resetpreview") ||
+    lower.startsWith("!resetpreview") ||
+    lower.startsWith("/reset preview") ||
+    lower.startsWith("!reset preview") ||
+    lower.startsWith("/resetarchive") ||
+    lower.startsWith("!resetarchive") ||
+    lower.startsWith("/neuaufbau");
+
+  if (!isResetCommand) {
+    return false;
+  }
+
+  if (!isAdmin(from.id)) {
+    await bot.sendMessage(
+      chatId,
+      "⛔ Nur Admins können Reset-Befehle nutzen.",
+      {
+        reply_to_message_id: msg.message_id
+      }
+    );
+
+    return true;
+  }
+
+  const isPreview =
     lower === "/resetpreview" ||
     lower === "!resetpreview" ||
     lower === "/reset preview" ||
@@ -234,14 +387,13 @@ async function handleResetCommands(bot, msg, pgPool) {
     lower === "/neuaufbau preview" ||
     lower === "!neuaufbau preview";
 
-  if (!isResetPreviewCommand) {
-    return false;
-  }
+  if (isPreview) {
+    const stats =
+      await getResetPreviewStats(pgPool);
 
-  if (!isAdmin(from.id)) {
     await bot.sendMessage(
       chatId,
-      "⛔ Nur Admins können die Reset-Vorschau sehen.",
+      buildResetPreviewText(stats).slice(0, 3900),
       {
         reply_to_message_id: msg.message_id
       }
@@ -250,12 +402,73 @@ async function handleResetCommands(bot, msg, pgPool) {
     return true;
   }
 
-  const stats =
-    await getResetPreviewStats(pgPool);
+  const exactConfirmCommand =
+    `/resetarchive confirm ${RESET_CONFIRM_PHRASE}`.toLowerCase();
+
+  const exactConfirmBangCommand =
+    `!resetarchive confirm ${RESET_CONFIRM_PHRASE}`.toLowerCase();
+
+  const isExactConfirm =
+    lower === exactConfirmCommand ||
+    lower === exactConfirmBangCommand;
+
+  if (lower.startsWith("/resetarchive confirm") || lower.startsWith("!resetarchive confirm")) {
+    if (!isExactConfirm) {
+      await bot.sendMessage(
+        chatId,
+        buildResetBlockedText(
+          `Der Confirm-Satz stimmt nicht exakt.\n\nErwartet:\n/resetarchive confirm ${RESET_CONFIRM_PHRASE}`
+        ),
+        {
+          reply_to_message_id: msg.message_id
+        }
+      );
+
+      return true;
+    }
+
+    const maintenanceActive =
+      await getMaintenanceMode(pgPool);
+
+    if (!maintenanceActive) {
+      await bot.sendMessage(
+        chatId,
+        buildResetBlockedText(
+          `Der Wartungsmodus ist AUS.\n\nAktiviere zuerst:\n/maintenance on`
+        ),
+        {
+          reply_to_message_id: msg.message_id
+        }
+      );
+
+      return true;
+    }
+
+    await bot.sendMessage(
+      chatId,
+      `🧨 Archiv-Reset startet jetzt.\n\nBitte warten...`,
+      {
+        reply_to_message_id: msg.message_id
+      }
+    );
+
+    const result =
+      await runArchiveReset(pgPool);
+
+    await bot.sendMessage(
+      chatId,
+      buildResetDoneText(result).slice(0, 3900),
+      {
+        reply_to_message_id: msg.message_id
+      }
+    );
+
+    return true;
+  }
 
   await bot.sendMessage(
     chatId,
-    buildResetPreviewText(stats).slice(0, 3900),
+    buildResetHelpText(),
     {
       reply_to_message_id: msg.message_id
     }
