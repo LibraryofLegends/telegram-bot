@@ -19,6 +19,11 @@ const {
   buildMaintenanceMessage,
 } = require("./maintenance-commands");
 
+const {
+  getResetPreviewStats,
+  buildResetPreviewText,
+} = require("./reset-commands");
+
 const { sendUserHistoryMessage } = require("./library-history-commands");
 const { sendPopularLibraryMessage } = require("./library-popular-commands");
 const { sendRandomLibraryMessage } = require("./library-random-commands");
@@ -5066,6 +5071,16 @@ function buildAdminDashboardKeyboard() {
       ],
       [
         {
+          text: "🛠 Wartung",
+          callback_data: "public:admin_maintenance"
+        },
+        {
+          text: "🧨 Reset",
+          callback_data: "public:admin_reset"
+        }
+      ],
+      [
+        {
           text: "🏠 Startseite",
           callback_data: "public:home"
         }
@@ -5454,6 +5469,101 @@ function buildAdminSystemText(stats) {
   );
 }
 
+function buildAdminMaintenanceText(isActive) {
+  return (
+    `🛠 Wartung\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Aktueller Status:\n\n` +
+    (
+      isActive
+        ? `🛠 Wartungsmodus ist AKTIV.\n\nNormale User können das Archiv aktuell nicht nutzen.`
+        : `✅ Wartungsmodus ist AUS.\n\nFreigeschaltete User können das Archiv nutzen.`
+    ) +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Befehle:\n\n` +
+    `/maintenance on\n` +
+    `/maintenance off\n` +
+    `/maintenance status\n\n` +
+    `Deutsch:\n\n` +
+    `/wartung an\n` +
+    `/wartung aus\n` +
+    `/wartung status`
+  );
+}
+
+function buildAdminResetInfoText(stats) {
+  return (
+    buildResetPreviewText(stats) +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Sicherer Ablauf:\n\n` +
+    `1. /resetarchive preview\n` +
+    `2. /maintenance on\n` +
+    `3. /resetarchive confirm ICH WILL DAS ARCHIV ZURUECKSETZEN`
+  );
+}
+
+function buildAdminMaintenanceKeyboard(isActive) {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: isActive ? "✅ Wartung ausschalten" : "🛠 Wartung einschalten",
+          callback_data: isActive ? "public:admin_maintenance_off" : "public:admin_maintenance_on"
+        }
+      ],
+      [
+        {
+          text: "🔁 Aktualisieren",
+          callback_data: "public:admin_maintenance"
+        }
+      ],
+      [
+        {
+          text: "🛠 Zurück zum Admin-Dashboard",
+          callback_data: "public:admin_dashboard"
+        }
+      ],
+      [
+        {
+          text: "🏠 Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
+function buildAdminResetKeyboard() {
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: "🔁 Reset-Preview aktualisieren",
+          callback_data: "public:admin_reset"
+        }
+      ],
+      [
+        {
+          text: "🛠 Wartung öffnen",
+          callback_data: "public:admin_maintenance"
+        }
+      ],
+      [
+        {
+          text: "🛠 Zurück zum Admin-Dashboard",
+          callback_data: "public:admin_dashboard"
+        }
+      ],
+      [
+        {
+          text: "🏠 Startseite",
+          callback_data: "public:home"
+        }
+      ]
+    ]
+  };
+}
+
 async function handlePublicCallback(bot, callback, pgPool) {
   const data = callback.data || "";
 
@@ -5574,6 +5684,43 @@ async function handlePublicCallback(bot, callback, pgPool) {
       callback,
       buildSeriesShelfText(stats),
       buildShelfKeyboard("series")
+    );
+
+    return true;
+  }
+  
+    // =============================
+  // ADMIN MAINTENANCE BUTTONS
+  // =============================
+
+  if (action === "admin_maintenance_on" || action === "admin_maintenance_off") {
+    if (!isAdmin(from.id)) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "⛔ Nur Admins.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    const enable =
+      action === "admin_maintenance_on";
+
+    const {
+      setMaintenanceMode,
+    } = require("./maintenance-commands");
+
+    await setMaintenanceMode(pgPool, enable);
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: enable ? "🛠 Wartung aktiviert" : "✅ Wartung deaktiviert"
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildAdminMaintenanceText(enable).slice(0, 3900),
+      buildAdminMaintenanceKeyboard(enable)
     );
 
     return true;
@@ -6955,13 +7102,15 @@ await editPublicScreenWithKeyboard(
   }
   
     if (
-    action === "admin_dupes" ||
-    action === "admin_wrong" ||
-    action === "admin_trash" ||
-    action === "admin_users" ||
-    action === "admin_usage" ||
-    action === "admin_system"
-  ) {
+  action === "admin_dupes" ||
+  action === "admin_wrong" ||
+  action === "admin_trash" ||
+  action === "admin_users" ||
+  action === "admin_usage" ||
+  action === "admin_system" ||
+  action === "admin_maintenance" ||
+  action === "admin_reset"
+) {
     if (!isAdmin(from.id)) {
       await bot.answerCallbackQuery(callback.id, {
         text: "⛔ Nur Admins.",
@@ -7002,6 +7151,42 @@ await editPublicScreenWithKeyboard(
 
   return true;
 }
+
+    if (action === "admin_maintenance") {
+      const active =
+        await getMaintenanceMode(pgPool);
+
+      await bot.answerCallbackQuery(callback.id, {
+        text: active ? "🛠 Wartung aktiv" : "✅ Wartung aus"
+      });
+
+      await editPublicScreenWithKeyboard(
+        bot,
+        callback,
+        buildAdminMaintenanceText(active).slice(0, 3900),
+        buildAdminMaintenanceKeyboard(active)
+      );
+
+      return true;
+    }
+
+    if (action === "admin_reset") {
+      const resetStats =
+        await getResetPreviewStats(pgPool);
+
+      await bot.answerCallbackQuery(callback.id, {
+        text: "🧨 Reset-Preview"
+      });
+
+      await editPublicScreenWithKeyboard(
+        bot,
+        callback,
+        buildAdminResetInfoText(resetStats).slice(0, 3900),
+        buildAdminResetKeyboard()
+      );
+
+      return true;
+    }
 
     if (action === "admin_trash") {
       text = buildAdminTrashText(stats);
