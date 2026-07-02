@@ -2621,8 +2621,8 @@ function buildSeriesResultKeyboard(rows = [], backKeyboard, pagination = null) {
 
     keyboard.push([
       {
-        text: `▶️ ${index + 1}. ${shortenButtonText(series.series_title || "Serie", 34)}`,
-        callback_data: `public:hs_${ref}`
+        text: `📺 ${index + 1}. ${shortenButtonText(series.series_title || "Serie", 34)}`,
+        callback_data: `public:sd_${ref}`
       }
     ]);
   }
@@ -2632,6 +2632,420 @@ function buildSeriesResultKeyboard(rows = [], backKeyboard, pagination = null) {
   if (backKeyboard?.inline_keyboard?.length) {
     keyboard.push(...backKeyboard.inline_keyboard);
   }
+
+  return {
+    inline_keyboard: keyboard
+  };
+}
+
+async function getSeriesDetailRows(pgPool, seriesRef, limit = 1000) {
+  const ref =
+    String(seriesRef || "").trim();
+
+  if (!ref) {
+    return [];
+  }
+
+  const cleanLimit =
+    Math.max(1, Math.min(Number(limit) || 1000, 3000));
+
+  if (/^\d+$/.test(ref)) {
+    const byLibraryResult = await pgPool.query(
+      `
+      SELECT
+        id,
+        series_library_id,
+        series_title,
+        season,
+        episode,
+        episode_title,
+        file_name,
+        created_at
+      FROM series
+      WHERE series_library_id::text = $1::text
+      ORDER BY
+        CASE
+          WHEN season::text ~ '^[0-9]+$'
+          THEN season::int
+          ELSE 999
+        END ASC,
+        CASE
+          WHEN episode::text ~ '^[0-9]+$'
+          THEN episode::int
+          ELSE 999
+        END ASC,
+        id ASC
+      LIMIT $2;
+      `,
+      [
+        ref,
+        cleanLimit
+      ]
+    );
+
+    if ((byLibraryResult.rows || []).length) {
+      return byLibraryResult.rows || [];
+    }
+
+    const baseResult = await pgPool.query(
+      `
+      SELECT
+        id,
+        series_library_id,
+        series_title
+      FROM series
+      WHERE id::text = $1::text
+      LIMIT 1;
+      `,
+      [
+        ref
+      ]
+    );
+
+    const base =
+      baseResult.rows[0];
+
+    if (base?.series_library_id) {
+      const groupResult = await pgPool.query(
+        `
+        SELECT
+          id,
+          series_library_id,
+          series_title,
+          season,
+          episode,
+          episode_title,
+          file_name,
+          created_at
+        FROM series
+        WHERE series_library_id::text = $1::text
+        ORDER BY
+          CASE
+            WHEN season::text ~ '^[0-9]+$'
+            THEN season::int
+            ELSE 999
+          END ASC,
+          CASE
+            WHEN episode::text ~ '^[0-9]+$'
+            THEN episode::int
+            ELSE 999
+          END ASC,
+          id ASC
+        LIMIT $2;
+        `,
+        [
+          String(base.series_library_id),
+          cleanLimit
+        ]
+      );
+
+      return groupResult.rows || [];
+    }
+
+    if (base?.series_title) {
+      const titleResult = await pgPool.query(
+        `
+        SELECT
+          id,
+          series_library_id,
+          series_title,
+          season,
+          episode,
+          episode_title,
+          file_name,
+          created_at
+        FROM series
+        WHERE LOWER(series_title) = LOWER($1)
+        ORDER BY
+          CASE
+            WHEN season::text ~ '^[0-9]+$'
+            THEN season::int
+            ELSE 999
+          END ASC,
+          CASE
+            WHEN episode::text ~ '^[0-9]+$'
+            THEN episode::int
+            ELSE 999
+          END ASC,
+          id ASC
+        LIMIT $2;
+        `,
+        [
+          String(base.series_title),
+          cleanLimit
+        ]
+      );
+
+      return titleResult.rows || [];
+    }
+  }
+
+  const titleResult = await pgPool.query(
+    `
+    SELECT
+      id,
+      series_library_id,
+      series_title,
+      season,
+      episode,
+      episode_title,
+      file_name,
+      created_at
+    FROM series
+    WHERE series_title ILIKE $1
+    ORDER BY
+      CASE
+        WHEN season::text ~ '^[0-9]+$'
+        THEN season::int
+        ELSE 999
+      END ASC,
+      CASE
+        WHEN episode::text ~ '^[0-9]+$'
+        THEN episode::int
+        ELSE 999
+      END ASC,
+      id ASC
+    LIMIT $2;
+    `,
+    [
+      `%${ref}%`,
+      cleanLimit
+    ]
+  );
+
+  return titleResult.rows || [];
+}
+
+function getSeriesDetailSummary(rows = [], fallbackRef = "") {
+  const seasons =
+    Array.from(
+      new Set(
+        rows
+          .map((row) => Number(row.season || 0))
+          .filter((season) => Number.isInteger(season) && season > 0)
+      )
+    ).sort((a, b) => a - b);
+
+  const firstRow =
+    rows[0] || null;
+
+  const firstEpisode =
+    rows
+      .slice()
+      .sort((a, b) => {
+        const seasonA = Number(a.season || 999);
+        const seasonB = Number(b.season || 999);
+        const episodeA = Number(a.episode || 999);
+        const episodeB = Number(b.episode || 999);
+
+        return seasonA - seasonB || episodeA - episodeB || Number(a.id || 0) - Number(b.id || 0);
+      })[0] || null;
+
+  const ref =
+    firstRow?.series_library_id ||
+    fallbackRef ||
+    firstRow?.id;
+
+  return {
+    ref,
+    title: firstRow?.series_title || "Unbekannte Serie",
+    seasons,
+    seasonsCount: seasons.length,
+    episodesCount: rows.length,
+    firstSeason: Number(firstEpisode?.season || seasons[0] || 1),
+    firstEpisode: Number(firstEpisode?.episode || 1)
+  };
+}
+
+function buildSeriesDetailText(summary) {
+  const seasonText =
+    summary.seasons.length
+      ? summary.seasons.map((season) => `S${pad2(season)}`).join(", ")
+      : "—";
+
+  return (
+    `📺 ${summary.title}\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    `Serien-Detailseite\n\n` +
+    `📀 Staffeln: ${summary.seasonsCount}\n` +
+    `🎞 Folgen: ${summary.episodesCount}\n` +
+    `🆔 Serien-ID: ${summary.ref}\n\n` +
+    `Verfügbare Staffeln:\n` +
+    `${seasonText}\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `Wähle unten eine Staffel oder starte direkt mit der ersten Folge.`
+  );
+}
+
+function buildSeriesDetailKeyboard(summary) {
+  const keyboard = [];
+
+  keyboard.push([
+    {
+      text: `▶️ Erste Folge S${pad2(summary.firstSeason)}E${pad2(summary.firstEpisode)}`,
+      callback_data: `public:he_${summary.ref}_${summary.firstSeason}_${summary.firstEpisode}`
+    }
+  ]);
+
+  const seasonButtons =
+    summary.seasons.map((season) => {
+      return {
+        text: `📀 Staffel ${season}`,
+        callback_data: `public:sl_${summary.ref}_${season}_1`
+      };
+    });
+
+  for (let i = 0; i < seasonButtons.length; i += 2) {
+    keyboard.push(seasonButtons.slice(i, i + 2));
+  }
+
+  keyboard.push([
+    {
+      text: "📺 Zurück zum Serien-Regal",
+      callback_data: "public:series_shelf"
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: "🏠 Startseite",
+      callback_data: "public:home"
+    }
+  ]);
+
+  return {
+    inline_keyboard: keyboard
+  };
+}
+
+function getSeasonRowsFromSeriesRows(rows = [], season) {
+  const wantedSeason =
+    Number(season || 0);
+
+  return rows
+    .filter((row) => Number(row.season || 0) === wantedSeason)
+    .sort((a, b) => {
+      return Number(a.episode || 0) - Number(b.episode || 0) || Number(a.id || 0) - Number(b.id || 0);
+    });
+}
+
+function buildSeasonPage(rows = [], page = 1) {
+  const safePage =
+    normalizePage(page);
+
+  const total =
+    rows.length;
+
+  const totalPages =
+    Math.max(1, Math.ceil(total / MENU_PAGE_SIZE));
+
+  const finalPage =
+    Math.min(safePage, totalPages);
+
+  const start =
+    (finalPage - 1) * MENU_PAGE_SIZE;
+
+  return {
+    rows: rows.slice(start, start + MENU_PAGE_SIZE),
+    pageInfo: {
+      page: finalPage,
+      total,
+      totalPages,
+      pageSize: MENU_PAGE_SIZE
+    }
+  };
+}
+
+function buildSeasonEpisodeLine(row, index) {
+  return (
+    `${index + 1}. S${pad2(row.season)}E${pad2(row.episode)} · ${row.episode_title || "Ohne Titel"}`
+  );
+}
+
+function buildSeasonDetailText(summary, season, pageRows, pageInfo) {
+  return (
+    `📀 ${summary.title} · Staffel ${season}` +
+    (
+      pageInfo.totalPages > 1
+        ? ` · Seite ${pageInfo.page}/${pageInfo.totalPages}`
+        : ""
+    ) +
+    `\n` +
+    `━━━━━━━━━━━━━━━━━━\n\n` +
+    (
+      pageRows.length
+        ? pageRows.map(buildSeasonEpisodeLine).join("\n")
+        : "Keine Folgen gefunden."
+    ) +
+    `\n\n━━━━━━━━━━━━━━━━━━\n` +
+    `Tippe unten auf eine Folge oder hole die ganze Staffel.`
+  );
+}
+
+function buildSeasonDetailKeyboard(summary, season, pageRows, pageInfo) {
+  const keyboard = [];
+
+  for (const row of pageRows) {
+    keyboard.push([
+      {
+        text: `▶️ S${pad2(row.season)}E${pad2(row.episode)} ${shortenButtonText(row.episode_title || "Folge", 28)}`,
+        callback_data: `public:he_${summary.ref}_${Number(row.season)}_${Number(row.episode)}`
+      }
+    ]);
+  }
+
+  if (pageInfo.totalPages > 1) {
+    const paginationRow = [];
+
+    if (pageInfo.page > 1) {
+      paginationRow.push({
+        text: "⬅️ Zurück",
+        callback_data: `public:sl_${summary.ref}_${season}_${pageInfo.page - 1}`
+      });
+    }
+
+    paginationRow.push({
+      text: `Seite ${pageInfo.page}/${pageInfo.totalPages}`,
+      callback_data: "public:noop"
+    });
+
+    if (pageInfo.page < pageInfo.totalPages) {
+      paginationRow.push({
+        text: "Weiter ➡️",
+        callback_data: `public:sl_${summary.ref}_${season}_${pageInfo.page + 1}`
+      });
+    }
+
+    keyboard.push(paginationRow);
+  }
+
+  keyboard.push([
+    {
+      text: `💿 Staffel ${season} holen`,
+      callback_data: `public:hst_${summary.ref}_${season}`
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: "📺 Zurück zur Serie",
+      callback_data: `public:sd_${summary.ref}`
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: "📺 Zurück zum Serien-Regal",
+      callback_data: "public:series_shelf"
+    }
+  ]);
+
+  keyboard.push([
+    {
+      text: "🏠 Startseite",
+      callback_data: "public:home"
+    }
+  ]);
 
   return {
     inline_keyboard: keyboard
@@ -4608,6 +5022,202 @@ await editPublicScreenWithKeyboard(
     result.pageInfo
   )
 );
+
+    return true;
+  }
+  
+    // =============================
+  // SERIES DETAIL / SEASON PAGES
+  // sd = series detail
+  // sl = season list
+  // he = hol episode
+  // hst = hol season
+  // =============================
+
+  if (action.startsWith("sd_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const seriesRef =
+      action.replace(/^sd_/, "").trim();
+
+    const rows =
+      await getSeriesDetailRows(pgPool, seriesRef, 1000);
+
+    if (!rows.length) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Serie nicht gefunden.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    const summary =
+      getSeriesDetailSummary(rows, seriesRef);
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `📺 ${summary.title}`
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildSeriesDetailText(summary),
+      buildSeriesDetailKeyboard(summary)
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("sl_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const parts =
+      action.split("_");
+
+    const seriesRef =
+      parts[1];
+
+    const season =
+      Number(parts[2] || 1);
+
+    const page =
+      normalizePage(parts[3] || 1);
+
+    const rows =
+      await getSeriesDetailRows(pgPool, seriesRef, 1000);
+
+    if (!rows.length) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Serie nicht gefunden.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    const summary =
+      getSeriesDetailSummary(rows, seriesRef);
+
+    const seasonRows =
+      getSeasonRowsFromSeriesRows(rows, season);
+
+    const pageResult =
+      buildSeasonPage(seasonRows, page);
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `📀 Staffel ${season} · Seite ${pageResult.pageInfo.page}`
+    });
+
+    await editPublicScreenWithKeyboard(
+      bot,
+      callback,
+      buildSeasonDetailText(
+        summary,
+        season,
+        pageResult.rows,
+        pageResult.pageInfo
+      ),
+      buildSeasonDetailKeyboard(
+        summary,
+        season,
+        pageResult.rows,
+        pageResult.pageInfo
+      )
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("he_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const parts =
+      action.split("_");
+
+    const seriesRef =
+      parts[1];
+
+    const season =
+      Number(parts[2] || 1);
+
+    const episode =
+      Number(parts[3] || 1);
+
+    if (!seriesRef || !season || !episode) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Folge ungültig.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `📺 S${pad2(season)}E${pad2(episode)} wird geholt.`
+    });
+
+    const fakeMsg = {
+      text: `!hol serie ${seriesRef} s${season}e${episode}`,
+      chat: {
+        id: chatId
+      },
+      from,
+      message_id: messageId
+    };
+
+    await handleLibraryHolCommands(
+      bot,
+      fakeMsg,
+      pgPool
+    );
+
+    return true;
+  }
+
+  if (action.startsWith("hst_")) {
+    const allowed = await ensurePublicCallbackAccess(bot, callback, pgPool);
+    if (!allowed) return true;
+
+    const parts =
+      action.split("_");
+
+    const seriesRef =
+      parts[1];
+
+    const season =
+      Number(parts[2] || 1);
+
+    if (!seriesRef || !season) {
+      await bot.answerCallbackQuery(callback.id, {
+        text: "❌ Staffel ungültig.",
+        show_alert: true
+      });
+
+      return true;
+    }
+
+    await bot.answerCallbackQuery(callback.id, {
+      text: `💿 Staffel ${season} wird geholt.`
+    });
+
+    const fakeMsg = {
+      text: `!hol serie ${seriesRef} staffel ${season}`,
+      chat: {
+        id: chatId
+      },
+      from,
+      message_id: messageId
+    };
+
+    await handleLibraryHolCommands(
+      bot,
+      fakeMsg,
+      pgPool
+    );
 
     return true;
   }
