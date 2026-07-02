@@ -20,6 +20,10 @@ const {
   handleMaintenanceCommands,
 } = require("./maintenance-commands");
 
+const {
+  handleResetCommands,
+} = require("./reset-commands");
+
 const { handleLibrarySearchCommands } = require("./library-search-commands");
 const { handleAzCommands } = require("./library-az-commands");
 const { handleBrowseCommands } = require("./library-browse-commands");
@@ -16372,6 +16376,14 @@ if (msg.text) {
     await handleMaintenanceCommands(accessBot, msg, pgPool);
 
   if (handledMaintenance) return;
+}
+
+// Reset-Preview
+if (msg.text) {
+  const handledReset =
+    await handleResetCommands(accessBot, msg, pgPool);
+
+  if (handledReset) return;
 }
 
 // Wartungsmodus blockiert normale User
