@@ -15,6 +15,11 @@ const {
   handleAccessCallback,
 } = require("./access-commands");
 
+const {
+  isMaintenanceBlocked,
+  handleMaintenanceCommands,
+} = require("./maintenance-commands");
+
 const { handleLibrarySearchCommands } = require("./library-search-commands");
 const { handleAzCommands } = require("./library-az-commands");
 const { handleBrowseCommands } = require("./library-browse-commands");
@@ -16360,6 +16365,22 @@ console.log(
   "CHAT TITLE:",
   msg.chat?.title
 );
+
+// Wartungsmodus-Kommandos
+if (msg.text) {
+  const handledMaintenance =
+    await handleMaintenanceCommands(accessBot, msg, pgPool);
+
+  if (handledMaintenance) return;
+}
+
+// Wartungsmodus blockiert normale User
+if (msg.text) {
+  const blockedByMaintenance =
+    await isMaintenanceBlocked(accessBot, msg, pgPool);
+
+  if (blockedByMaintenance) return;
+}
 
 // =============================
 // ACCESS COMMANDS
