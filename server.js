@@ -181,6 +181,14 @@ await pgPool.query(`
   );
 `);
 
+  await pgPool.query(`
+    CREATE TABLE IF NOT EXISTS bot_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
 await pgPool.query(`
   CREATE INDEX IF NOT EXISTS idx_library_edit_logs_item
   ON library_edit_logs (item_type, item_ref, edited_at DESC);
