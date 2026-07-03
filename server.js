@@ -4104,38 +4104,273 @@ async function getOrCreateMovieBucketTopic(tmdb = {}) {
   };
 }
 
-function detectCollection(title = "") {
-  const t = String(title || "").toLowerCase();
+function normalizeCollectionMatchText(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/\+/g, " plus ")
+    .replace(/[:;,.!?()[\]{}'"`´’‘“”]/g, " ")
+    .replace(/[-_/\\]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  if (t.includes("james bond") || t.includes("007")) {
-    return "James Bond Filmreihe";
+function collectionMatchIncludes(text, aliases = []) {
+  const normalizedText =
+    normalizeCollectionMatchText(text);
+
+  return aliases.some((alias) => {
+    const normalizedAlias =
+      normalizeCollectionMatchText(alias);
+
+    return (
+      normalizedAlias &&
+      normalizedText.includes(normalizedAlias)
+    );
+  });
+}
+
+const MOVIE_COLLECTION_ALIASES_V2 = [
+  {
+    collection: "Superman",
+    aliases: [
+      "superman",
+      "superman the movie",
+      "superman der film",
+      "superman ii",
+      "superman iii",
+      "superman iv",
+      "superman returns",
+      "man of steel",
+      "batman v superman",
+      "batman vs superman",
+      "superman red son",
+      "superman man of tomorrow",
+      "death of superman",
+      "reign of the supermen",
+      "all star superman"
+    ]
+  },
+  {
+    collection: "Batman",
+    aliases: [
+      "batman",
+      "dark knight",
+      "the batman",
+      "batman begins",
+      "batman forever",
+      "batman returns",
+      "batman robin",
+      "mask of the phantasm"
+    ]
+  },
+  {
+    collection: "Bad Boys",
+    aliases: [
+      "bad boys",
+      "bad boys ii",
+      "bad boys 2",
+      "bad boys for life",
+      "bad boys ride or die"
+    ]
+  },
+  {
+    collection: "Bourne-Reihe",
+    aliases: [
+      "bourne",
+      "bourne identitat",
+      "bourne verschworung",
+      "bourne ultimatum",
+      "bourne vermachtnis",
+      "jason bourne",
+      "bourne legacy"
+    ]
+  },
+  {
+    collection: "Final Destination",
+    aliases: [
+      "final destination",
+      "bloodlines"
+    ]
+  },
+  {
+    collection: "Jurassic Universe",
+    aliases: [
+      "jurassic park",
+      "jurassic world",
+      "vergessene welt jurassic park",
+      "lost world jurassic park",
+      "gefallene konigreich",
+      "fallen kingdom",
+      "neues zeitalter",
+      "dominion"
+    ]
+  },
+  {
+    collection: "Pacific Rim",
+    aliases: [
+      "pacific rim",
+      "pacific rim uprising"
+    ]
+  },
+  {
+    collection: "Fast & Furious",
+    aliases: [
+      "fast furious",
+      "fast and furious",
+      "fast five",
+      "fast x",
+      "tokyo drift",
+      "hobbs shaw"
+    ]
+  },
+  {
+    collection: "Mission: Impossible",
+    aliases: [
+      "mission impossible",
+      "phantom protokoll",
+      "ghost protocol",
+      "rogue nation",
+      "fallout",
+      "dead reckoning"
+    ]
+  },
+  {
+    collection: "Harry Potter",
+    aliases: [
+      "harry potter",
+      "fantastic beasts",
+      "phantastische tierwesen",
+      "hogwarts"
+    ]
+  },
+  {
+    collection: "Matrix",
+    aliases: [
+      "matrix",
+      "matrix reloaded",
+      "matrix revolutions",
+      "matrix resurrections"
+    ]
+  },
+  {
+    collection: "Terminator",
+    aliases: [
+      "terminator",
+      "judgment day",
+      "tag der abrechnung",
+      "rise of the machines",
+      "salvation",
+      "genisys",
+      "dark fate"
+    ]
+  },
+  {
+    collection: "Transformers",
+    aliases: [
+      "transformers",
+      "bumblebee",
+      "rise of the beasts",
+      "aufstieg der bestien"
+    ]
+  },
+  {
+    collection: "Planet der Affen",
+    aliases: [
+      "planet der affen",
+      "planet of the apes",
+      "prevolution",
+      "revolution",
+      "survival",
+      "kingdom of the planet of the apes"
+    ]
+  },
+  {
+    collection: "Marvel",
+    aliases: [
+      "marvel",
+      "avengers",
+      "iron man",
+      "captain america",
+      "thor",
+      "hulk",
+      "black panther",
+      "doctor strange",
+      "guardians of the galaxy",
+      "ant man",
+      "ant-man"
+    ]
+  },
+  {
+    collection: "Spider-Man",
+    aliases: [
+      "spider man",
+      "spider-man",
+      "spiderman",
+      "venom",
+      "morbius",
+      "no way home",
+      "far from home",
+      "homecoming",
+      "across the spider verse",
+      "into the spider verse"
+    ]
+  },
+  {
+    collection: "X-Men",
+    aliases: [
+      "x men",
+      "x-men",
+      "wolverine",
+      "logan",
+      "deadpool",
+      "new mutants"
+    ]
+  },
+  {
+    collection: "Star Wars",
+    aliases: [
+      "star wars",
+      "krieg der sterne",
+      "jedi",
+      "sith",
+      "rogue one",
+      "solo a star wars story"
+    ]
+  },
+  {
+    collection: "Star Trek",
+    aliases: [
+      "star trek",
+      "enterprise",
+      "into darkness",
+      "beyond"
+    ]
+  }
+];
+
+function detectCollection(title = "", extras = {}) {
+  const combined =
+    [
+      title,
+      extras.title,
+      extras.fileName,
+      extras.file_name,
+      extras.collection,
+      extras.universe
+    ]
+      .map((value) => String(value || ""))
+      .join(" ");
+
+  for (const entry of MOVIE_COLLECTION_ALIASES_V2) {
+    if (collectionMatchIncludes(combined, entry.aliases)) {
+      return entry.collection;
+    }
   }
 
-  if (t.includes("jurassic")) {
-    return "Jurassic Park Filmreihe";
-  }
-
-  if (t.includes("fast") || t.includes("furious")) {
-    return "Fast & Furious Filmreihe";
-  }
-
-  if (t.includes("mission impossible")) {
-    return "Mission: Impossible Filmreihe";
-  }
-
-  if (t.includes("bourne")) {
-    return "Bourne Filmreihe";
-  }
-
-  if (t.includes("john wick")) {
-    return "John Wick Filmreihe";
-  }
-
-  if (t.includes("final destination")) {
-    return "Final Destination Filmreihe";
-  }
-
-  return "";
+  return null;
 }
 
 // =============================
@@ -9426,15 +9661,92 @@ function isHallOfFameMovie(rating = "") {
 }
 
 function getMovieDossierHeader(tmdb = {}, extras = {}) {
-  const text = `${tmdb.collection || ""} ${extras.universe || ""} ${tmdb.title || ""}`
+  const text = `${tmdb.collection || ""} ${extras.collection || ""} ${extras.universe || ""} ${tmdb.title || ""} ${extras.fileName || ""}`
     .toLowerCase();
 
-  if (text.includes("james bond")) return "███ BOND DOSSIER ███";
-  if (text.includes("marvel")) return "███ MARVEL DOSSIER ███";
-  if (text.includes("star wars")) return "███ GALACTIC DOSSIER ███";
-  if (text.includes("jurassic")) return "███ JURASSIC DOSSIER ███";
-  if (text.includes("fast") || text.includes("furious")) return "███ FAST SAGA DOSSIER ███";
-  if (text.includes("mission impossible")) return "███ IMF DOSSIER ███";
+  if (text.includes("superman") || text.includes("man of steel") || text.includes("batman v superman")) {
+    return "███ SUPERMAN DOSSIER ███";
+  }
+
+  if (text.includes("batman")) {
+    return "███ BATMAN DOSSIER ███";
+  }
+
+  if (text.includes("dc") || text.includes("justice league") || text.includes("suicide squad")) {
+    return "███ DC DOSSIER ███";
+  }
+
+  if (text.includes("james bond") || text.includes("007")) {
+    return "███ BOND DOSSIER ███";
+  }
+
+  if (text.includes("marvel") || text.includes("avengers") || text.includes("iron man") || text.includes("captain america") || text.includes("thor")) {
+    return "███ MARVEL DOSSIER ███";
+  }
+
+  if (text.includes("x-men") || text.includes("x men") || text.includes("wolverine") || text.includes("deadpool")) {
+    return "███ X-MEN DOSSIER ███";
+  }
+
+  if (text.includes("spider-man") || text.includes("spiderman") || text.includes("venom")) {
+    return "███ SPIDER-VERSE DOSSIER ███";
+  }
+
+  if (text.includes("star wars")) {
+    return "███ GALACTIC DOSSIER ███";
+  }
+
+  if (text.includes("star trek")) {
+    return "███ STARFLEET DOSSIER ███";
+  }
+
+  if (text.includes("jurassic")) {
+    return "███ JURASSIC DOSSIER ███";
+  }
+
+  if (text.includes("fast") || text.includes("furious")) {
+    return "███ FAST SAGA DOSSIER ███";
+  }
+
+  if (text.includes("mission impossible")) {
+    return "███ IMF DOSSIER ███";
+  }
+
+  if (text.includes("bourne")) {
+    return "███ BOURNE DOSSIER ███";
+  }
+
+  if (text.includes("final destination")) {
+    return "███ FINAL DESTINATION DOSSIER ███";
+  }
+
+  if (text.includes("bad boys")) {
+    return "███ BAD BOYS DOSSIER ███";
+  }
+
+  if (text.includes("pacific rim")) {
+    return "███ PACIFIC RIM DOSSIER ███";
+  }
+
+  if (text.includes("harry potter") || text.includes("fantastic beasts") || text.includes("phantastische tierwesen")) {
+    return "███ WIZARDING WORLD DOSSIER ███";
+  }
+
+  if (text.includes("matrix")) {
+    return "███ MATRIX DOSSIER ███";
+  }
+
+  if (text.includes("terminator")) {
+    return "███ TERMINATOR DOSSIER ███";
+  }
+
+  if (text.includes("transformers")) {
+    return "███ TRANSFORMERS DOSSIER ███";
+  }
+
+  if (text.includes("planet der affen") || text.includes("planet of the apes")) {
+    return "███ APES DOSSIER ███";
+  }
 
   return "███ LEGENDS DOSSIER ███";
 }
@@ -9445,6 +9757,19 @@ function getMovieDossierHeader(tmdb = {}, extras = {}) {
 function getCollectionCode(collection = "") {
   const key = makeKey(collection);
 
+  if (key.includes("superman")) return "SUP";
+  if (key.includes("batman")) return "BAT";
+  if (key.includes("dc")) return "DC";
+  if (key.includes("james-bond") || key.includes("007")) return "BOND";
+
+  if (key.includes("marvel")) return "MCU";
+  if (key.includes("avengers")) return "AVG";
+  if (key.includes("x-men") || key.includes("x-men") || key.includes("wolverine") || key.includes("deadpool")) return "XMEN";
+  if (key.includes("spider-man") || key.includes("spiderman") || key.includes("venom")) return "SPDR";
+
+  if (key.includes("star-wars")) return "SW";
+  if (key.includes("star-trek")) return "ST";
+
   if (key.includes("fast")) return "FAST";
   if (key.includes("john-wick")) return "WICK";
   if (key.includes("hangover")) return "HANG";
@@ -9453,13 +9778,19 @@ function getCollectionCode(collection = "") {
   if (key.includes("final-destination")) return "FD";
   if (key.includes("jurassic")) return "JURA";
   if (key.includes("harry-potter")) return "HP";
+  if (key.includes("fantastic-beasts") || key.includes("phantastische-tierwesen")) return "FB";
   if (key.includes("terminator")) return "TERM";
   if (key.includes("matrix")) return "MTRX";
+  if (key.includes("bad-boys")) return "BAD";
+  if (key.includes("pacific-rim")) return "PAC";
+  if (key.includes("transformers")) return "TRF";
+  if (key.includes("planet-der-affen") || key.includes("planet-of-the-apes")) return "APES";
 
   const short =
     String(collection || "SAGA")
       .replace(/filmreihe/gi, "")
       .replace(/collection/gi, "")
+      .replace(/reihe/gi, "")
       .split(/\s+/)
       .filter(Boolean)
       .map((word) => word[0])
@@ -9589,10 +9920,14 @@ function buildSagaIndex(index = 1, total = 1, collection = "") {
 
 function collectionSagaCaption(tmdb = {}, extras = {}) {
   const collection =
-    tmdb.collection ||
-    extras.collection ||
-    detectCollection(tmdb.title) ||
-    "Saga Collection";
+  detectCollection(tmdb.title, {
+    ...extras,
+    collection: tmdb.collection || extras.collection,
+    fileName: extras.fileName || extras.file_name || extras.file || ""
+  }) ||
+  tmdb.collection ||
+  extras.collection ||
+  "Saga Collection";
 
   const info =
     getCollectionEntryInfo(tmdb, extras);
@@ -14637,22 +14972,111 @@ async function seriesMissingEpisodesCaptionV3() {
 // =============================
 const MOVIE_SERIES_DEFINITIONS_V3 = [
   {
+    name: "Superman",
+    movies: [
+      {
+        title: "Superman",
+        year: 1978,
+        aliases: [
+          "Superman",
+          "Superman The Movie",
+          "Superman Der Film"
+        ]
+      },
+      {
+        title: "Superman II",
+        year: 1980,
+        aliases: [
+          "Superman II",
+          "Superman 2",
+          "Superman II Allein gegen alle"
+        ]
+      },
+      {
+        title: "Superman III",
+        year: 1983,
+        aliases: [
+          "Superman III",
+          "Superman 3"
+        ]
+      },
+      {
+        title: "Superman IV",
+        year: 1987,
+        aliases: [
+          "Superman IV",
+          "Superman 4",
+          "Superman IV Die Welt am Abgrund"
+        ]
+      },
+      {
+        title: "Superman Returns",
+        year: 2006,
+        aliases: [
+          "Superman Returns"
+        ]
+      },
+      {
+        title: "Man of Steel",
+        year: 2013,
+        aliases: [
+          "Man of Steel",
+          "Superman Man of Steel"
+        ]
+      },
+      {
+        title: "Batman v Superman: Dawn of Justice",
+        year: 2016,
+        aliases: [
+          "Batman v Superman",
+          "Batman vs Superman",
+          "Batman v Superman Dawn of Justice",
+          "Dawn of Justice"
+        ]
+      },
+      {
+        title: "Superman: Red Son",
+        year: 2020,
+        aliases: [
+          "Superman Red Son",
+          "Superman: Red Son"
+        ]
+      },
+      {
+        title: "Superman: Man of Tomorrow",
+        year: 2020,
+        aliases: [
+          "Superman Man of Tomorrow",
+          "Superman: Man of Tomorrow"
+        ]
+      }
+    ]
+  },
+
+  {
     name: "Jurassic Universe",
     movies: [
       {
         title: "Jurassic Park",
-        aliases: ["Jurassic Park"]
+        year: 1993,
+        aliases: [
+          "Jurassic Park"
+        ]
       },
       {
         title: "Vergessene Welt: Jurassic Park",
+        year: 1997,
         aliases: [
+          "Vergessene Welt Jurassic Park",
           "Vergessene Welt: Jurassic Park",
+          "The Lost World Jurassic Park",
           "The Lost World: Jurassic Park",
           "Jurassic Park 2"
         ]
       },
       {
         title: "Jurassic Park III",
+        year: 2001,
         aliases: [
           "Jurassic Park III",
           "Jurassic Park 3"
@@ -14660,18 +15084,26 @@ const MOVIE_SERIES_DEFINITIONS_V3 = [
       },
       {
         title: "Jurassic World",
-        aliases: ["Jurassic World"]
+        year: 2015,
+        aliases: [
+          "Jurassic World"
+        ]
       },
       {
         title: "Jurassic World: Das gefallene Königreich",
+        year: 2018,
         aliases: [
+          "Jurassic World Das gefallene Königreich",
           "Jurassic World: Das gefallene Königreich",
+          "Jurassic World Fallen Kingdom",
           "Jurassic World: Fallen Kingdom"
         ]
       },
       {
         title: "Jurassic World: Ein neues Zeitalter",
+        year: 2022,
         aliases: [
+          "Jurassic World Ein neues Zeitalter",
           "Jurassic World: Ein neues Zeitalter",
           "Jurassic World Dominion"
         ]
@@ -14684,35 +15116,49 @@ const MOVIE_SERIES_DEFINITIONS_V3 = [
     movies: [
       {
         title: "Die Bourne Identität",
+        year: 2002,
         aliases: [
           "Die Bourne Identität",
-          "The Bourne Identity"
+          "Die Bourne Identitaet",
+          "The Bourne Identity",
+          "Bourne Identity"
         ]
       },
       {
         title: "Die Bourne Verschwörung",
+        year: 2004,
         aliases: [
           "Die Bourne Verschwörung",
-          "The Bourne Supremacy"
+          "Die Bourne Verschwoerung",
+          "The Bourne Supremacy",
+          "Bourne Supremacy"
         ]
       },
       {
         title: "Das Bourne Ultimatum",
+        year: 2007,
         aliases: [
           "Das Bourne Ultimatum",
-          "The Bourne Ultimatum"
+          "The Bourne Ultimatum",
+          "Bourne Ultimatum"
         ]
       },
       {
         title: "Das Bourne Vermächtnis",
+        year: 2012,
         aliases: [
           "Das Bourne Vermächtnis",
-          "The Bourne Legacy"
+          "Das Bourne Vermaechtnis",
+          "The Bourne Legacy",
+          "Bourne Legacy"
         ]
       },
       {
         title: "Jason Bourne",
-        aliases: ["Jason Bourne"]
+        year: 2016,
+        aliases: [
+          "Jason Bourne"
+        ]
       }
     ]
   },
@@ -14722,18 +15168,28 @@ const MOVIE_SERIES_DEFINITIONS_V3 = [
     movies: [
       {
         title: "Final Destination",
-        aliases: ["Final Destination"]
+        year: 2000,
+        aliases: [
+          "Final Destination"
+        ]
       },
       {
         title: "Final Destination 2",
-        aliases: ["Final Destination 2"]
+        year: 2003,
+        aliases: [
+          "Final Destination 2"
+        ]
       },
       {
         title: "Final Destination 3",
-        aliases: ["Final Destination 3"]
+        year: 2006,
+        aliases: [
+          "Final Destination 3"
+        ]
       },
       {
         title: "Final Destination 4",
+        year: 2009,
         aliases: [
           "Final Destination 4",
           "The Final Destination"
@@ -14741,13 +15197,16 @@ const MOVIE_SERIES_DEFINITIONS_V3 = [
       },
       {
         title: "Final Destination 5",
-        aliases: ["Final Destination 5"]
+        year: 2011,
+        aliases: [
+          "Final Destination 5"
+        ]
       },
       {
         title: "Final Destination: Bloodlines",
         aliases: [
-          "Final Destination: Bloodlines",
-          "Final Destination Bloodlines"
+          "Final Destination Bloodlines",
+          "Final Destination: Bloodlines"
         ]
       }
     ]
@@ -14758,13 +15217,17 @@ const MOVIE_SERIES_DEFINITIONS_V3 = [
     movies: [
       {
         title: "Pacific Rim",
-        aliases: ["Pacific Rim"]
+        year: 2013,
+        aliases: [
+          "Pacific Rim"
+        ]
       },
       {
         title: "Pacific Rim: Uprising",
+        year: 2018,
         aliases: [
-          "Pacific Rim: Uprising",
-          "Pacific Rim Uprising"
+          "Pacific Rim Uprising",
+          "Pacific Rim: Uprising"
         ]
       }
     ]
@@ -14775,10 +15238,14 @@ const MOVIE_SERIES_DEFINITIONS_V3 = [
     movies: [
       {
         title: "Bad Boys",
-        aliases: ["Bad Boys"]
+        year: 1995,
+        aliases: [
+          "Bad Boys"
+        ]
       },
       {
         title: "Bad Boys II",
+        year: 2003,
         aliases: [
           "Bad Boys II",
           "Bad Boys 2"
@@ -14786,13 +15253,17 @@ const MOVIE_SERIES_DEFINITIONS_V3 = [
       },
       {
         title: "Bad Boys for Life",
-        aliases: ["Bad Boys for Life"]
+        year: 2020,
+        aliases: [
+          "Bad Boys for Life"
+        ]
       },
       {
         title: "Bad Boys: Ride or Die",
+        year: 2024,
         aliases: [
-          "Bad Boys: Ride or Die",
-          "Bad Boys Ride or Die"
+          "Bad Boys Ride or Die",
+          "Bad Boys: Ride or Die"
         ]
       }
     ]
@@ -14806,38 +15277,201 @@ const MOVIE_SERIES_DEFINITIONS_V3 = [
 async function getMovieRowsForGapsV3() {
   if (pgPool) {
     const result = await pgPool.query(`
-      SELECT title, year
+      SELECT
+        id,
+        title,
+        year,
+        library_id,
+        file_name
       FROM movies
       WHERE title IS NOT NULL
-      AND title <> ''
-      ORDER BY title ASC
+        AND title <> ''
+      ORDER BY title ASC;
     `);
 
     return result.rows || [];
   }
 
   return db.prepare(`
-    SELECT title, year
+    SELECT
+      id,
+      title,
+      year,
+      library_id,
+      file_name
     FROM movies
     WHERE title IS NOT NULL
-    AND title <> ''
+      AND title <> ''
     ORDER BY title ASC
   `).all();
 }
 
-function normalizeMovieGapKeyV3(value = "") {
-  const text =
-    String(value || "")
-      .toLowerCase()
-      .replace(/\([0-9]{4}\)/g, "")
-      .replace(/&/g, "und")
-      .replace(/[^a-z0-9äöüß]+/gi, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+function normalizeMovieGapTextV3(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .replace(/&/g, " and ")
+    .replace(/\+/g, " plus ")
+    .replace(/\bii\b/g, " 2 ")
+    .replace(/\biii\b/g, " 3 ")
+    .replace(/\biv\b/g, " 4 ")
+    .replace(/\bv\b/g, " 5 ")
+    .replace(/[:;,.!?()[\]{}'"`´’‘“”]/g, " ")
+    .replace(/[-_/\\]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  return typeof makeKey === "function"
-    ? makeKey(text)
-    : text;
+function buildMovieGapSearchTextV3(movie = {}) {
+  return normalizeMovieGapTextV3(
+    [
+      movie.title,
+      movie.file_name,
+      movie.library_id
+    ]
+      .map((value) => String(value || ""))
+      .join(" ")
+  );
+}
+
+function yearMatchesMovieGapV3(row = {}, expected = {}) {
+  if (!expected.year) {
+    return true;
+  }
+
+  if (!row.year) {
+    return true;
+  }
+
+  return String(row.year) === String(expected.year);
+}
+
+function aliasMatchesMovieGapV3(searchText = "", alias = "") {
+  const normalizedAlias =
+    normalizeMovieGapTextV3(alias);
+
+  if (!normalizedAlias) {
+    return false;
+  }
+
+  if (searchText === normalizedAlias) {
+    return true;
+  }
+
+  if (searchText.includes(` ${normalizedAlias} `)) {
+    return true;
+  }
+
+  if (searchText.startsWith(`${normalizedAlias} `)) {
+    return true;
+  }
+
+  if (searchText.endsWith(` ${normalizedAlias}`)) {
+    return true;
+  }
+
+  return searchText.includes(normalizedAlias);
+}
+
+function findMovieForGapV3(rows = [], expectedMovie = {}) {
+  const aliases =
+    [
+      expectedMovie.title,
+      ...(expectedMovie.aliases || [])
+    ]
+      .map((alias) => String(alias || "").trim())
+      .filter(Boolean);
+
+  for (const row of rows) {
+    if (!yearMatchesMovieGapV3(row, expectedMovie)) {
+      continue;
+    }
+
+    const searchText =
+      ` ${buildMovieGapSearchTextV3(row)} `;
+
+    for (const alias of aliases) {
+      if (aliasMatchesMovieGapV3(searchText, alias)) {
+        return row;
+      }
+    }
+  }
+
+  return null;
+}
+
+function analyzeMovieSeriesGapsV3(rows = []) {
+  return MOVIE_SERIES_DEFINITIONS_V3.map((series) => {
+    const checkedMovies =
+      series.movies.map((movie) => {
+        const found =
+          findMovieForGapV3(rows, movie);
+
+        return {
+          ...movie,
+          found,
+          isPresent: Boolean(found)
+        };
+      });
+
+    const present =
+      checkedMovies.filter((movie) => movie.isPresent);
+
+    const missing =
+      checkedMovies.filter((movie) => !movie.isPresent);
+
+    return {
+      name: series.name,
+      total: checkedMovies.length,
+      presentCount: present.length,
+      missingCount: missing.length,
+      movies: checkedMovies,
+      present,
+      missing,
+      isComplete: missing.length === 0
+    };
+  });
+}
+
+function normalizeMovieGapKeyV3(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\([0-9]{4}\)/g, " ")
+    .replace(/\biv\b/g, " 4 ")
+    .replace(/\biii\b/g, " 3 ")
+    .replace(/\bii\b/g, " 2 ")
+    .replace(/\bvs\b/g, " v ")
+    .replace(/\bversus\b/g, " v ")
+    .replace(/&/g, " and ")
+    .replace(/\+/g, " plus ")
+    .replace(/[:;,.!?()[\]{}'"`´’‘“”]/g, " ")
+    .replace(/[-_/\\]+/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function compactMovieGapKeyV3(value = "") {
+  return normalizeMovieGapKeyV3(value)
+    .replace(/\s+/g, "");
+}
+
+function stripMovieGapArticlesV3(value = "") {
+  return normalizeMovieGapKeyV3(value)
+    .replace(/\b(the|der|die|das|ein|eine|a|an)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function movieGapAliasesV3(movie) {
@@ -14854,51 +15488,168 @@ function movieGapAliasesV3(movie) {
     .filter(Boolean);
 }
 
-async function buildMovieGapsDataV3() {
-  const rows =
-    await getMovieRowsForGapsV3();
+function buildMovieGapSearchTextV3(row = {}) {
+  return normalizeMovieGapKeyV3(
+    [
+      row.title,
+      row.file_name,
+      row.library_id
+    ]
+      .map((value) => String(value || ""))
+      .join(" ")
+  );
+}
 
-  const archiveKeys = new Set();
+function extractYearsFromMovieGapRowV3(row = {}) {
+  const raw =
+    [
+      row.title,
+      row.file_name,
+      row.library_id,
+      row.year
+    ]
+      .map((value) => String(value || ""))
+      .join(" ");
 
-  for (const row of rows) {
-    const title =
-      String(row.title || "")
-        .replace(/\s+/g, " ")
-        .trim();
+  const matches =
+    raw.match(/\b(19[0-9]{2}|20[0-9]{2})\b/g);
 
-    if (!title) {
+  return matches || [];
+}
+
+function yearMatchesMovieGapV3(row = {}, expectedMovie = {}) {
+  if (!expectedMovie.year) {
+    return true;
+  }
+
+  const expectedYear =
+    String(expectedMovie.year);
+
+  if (row.year) {
+    return String(row.year) === expectedYear;
+  }
+
+  const years =
+    extractYearsFromMovieGapRowV3(row);
+
+  if (years.length) {
+    return years.includes(expectedYear);
+  }
+
+  return true;
+}
+
+function aliasMatchesMovieGapV3(searchText = "", alias = "") {
+  const normalizedAlias =
+    normalizeMovieGapKeyV3(alias);
+
+  const strippedAlias =
+    stripMovieGapArticlesV3(alias);
+
+  const compactSearch =
+    compactMovieGapKeyV3(searchText);
+
+  const compactAlias =
+    compactMovieGapKeyV3(alias);
+
+  const variants =
+    [
+      normalizedAlias,
+      strippedAlias
+    ]
+      .filter(Boolean);
+
+  for (const variant of variants) {
+    if (!variant) {
       continue;
     }
 
-    archiveKeys.add(
-      normalizeMovieGapKeyV3(title)
-    );
+    const paddedSearch =
+      ` ${searchText} `;
+
+    if (paddedSearch.includes(` ${variant} `)) {
+      return true;
+    }
+
+    if (searchText.startsWith(`${variant} `)) {
+      return true;
+    }
+
+    if (searchText.endsWith(` ${variant}`)) {
+      return true;
+    }
+
+    if (searchText.includes(variant)) {
+      return true;
+    }
   }
+
+  if (
+    compactAlias &&
+    compactAlias.length >= 5 &&
+    compactSearch.includes(compactAlias)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function findMovieForGapV3(rows = [], expectedMovie = {}) {
+  const aliases =
+    movieGapAliasesV3(expectedMovie);
+
+  for (const row of rows) {
+    if (!yearMatchesMovieGapV3(row, expectedMovie)) {
+      continue;
+    }
+
+    const searchText =
+      buildMovieGapSearchTextV3(row);
+
+    if (!searchText) {
+      continue;
+    }
+
+    for (const alias of aliases) {
+      if (aliasMatchesMovieGapV3(searchText, alias)) {
+        return row;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function buildMovieGapsDataV3() {
+  const rows =
+    await getMovieRowsForGapsV3();
 
   const result = [];
 
   for (const collection of MOVIE_SERIES_DEFINITIONS_V3) {
     const present = [];
     const missing = [];
+    const matches = [];
 
     for (const movie of collection.movies || []) {
-      const aliases =
-        movieGapAliasesV3(movie);
-
       const mainTitle =
         typeof movie === "string"
           ? movie
           : movie.title;
 
-      const exists =
-        aliases.some((alias) =>
-          archiveKeys.has(
-            normalizeMovieGapKeyV3(alias)
-          )
-        );
+      const found =
+        findMovieForGapV3(rows, movie);
 
-      if (exists) {
+      if (found) {
         present.push(mainTitle);
+
+        matches.push({
+          expected: mainTitle,
+          foundTitle: found.title,
+          foundYear: found.year,
+          foundId: found.id
+        });
       } else {
         missing.push(mainTitle);
       }
@@ -14909,6 +15660,7 @@ async function buildMovieGapsDataV3() {
       total: collection.movies.length,
       present,
       missing,
+      matches,
       complete: missing.length === 0
     });
   }
