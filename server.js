@@ -7,6 +7,7 @@ const path = require("path");
 const { Pool } = require("pg");
 const Parser = require("rss-parser");
 const rssParser = new Parser();
+const os = require("os");
 
 const { startUserbotImporter } = require("./userbot-importer");
 
@@ -8267,7 +8268,431 @@ function parseManualMovieCaption(caption = "") {
   };
 }
 
-function parseMedia(fileName = "") {
+// ━━━━━━━━━━━━━━━━━━
+// 🎵 MUSIC ARCHIVE HELPERS
+// ━━━━━━━━━━━━━━━━━━
+
+const MUSIC_EXTENSIONS = [
+  ".mp3",
+  ".flac",
+  ".m4a",
+  ".aac",
+  ".ogg",
+  ".opus",
+  ".wav",
+  ".wma",
+  ".alac",
+  ".aiff"
+];
+
+const MUSIC_MIME_TYPES = [
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/flac",
+  "audio/mp4",
+  "audio/aac",
+  "audio/ogg",
+  "audio/opus",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/x-ms-wma",
+  "audio/aiff"
+];
+
+function isMusicFileName(fileName = "") {
+  const lower = String(fileName || "").toLowerCase();
+  return MUSIC_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+function isMusicMimeType(mimeType = "") {
+  const lower = String(mimeType || "").toLowerCase();
+  return MUSIC_MIME_TYPES.includes(lower) || lower.startsWith("audio/");
+}
+
+function detectMusicMedia({ fileName = "", mimeType = "", audio = null } = {}) {
+  return Boolean(
+    audio ||
+    isMusicFileName(fileName) ||
+    isMusicMimeType(mimeType)
+  );
+}
+
+function cleanMusicText(value = "") {
+  return String(value || "")
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+    .replace(/\b(official|video|audio|lyrics|remaster(ed)?|explicit|clean)\b/gi, "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/\([^\)]*\)/g, "")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseMusicFileName(fileName = "") {
+  const base = cleanMusicText(fileName);
+
+  let artist = "";
+  let title = "";
+
+  if (base.includes(" - ")) {
+    const parts = base.split(" - ").map((v) => v.trim()).filter(Boolean);
+    artist = parts[0] || "";
+    title = parts.slice(1).join(" - ") || "";
+  } else if (base.includes(" – ")) {
+    const parts = base.split(" – ").map((v) => v.trim()).filter(Boolean);
+    artist = parts[0] || "";
+    title = parts.slice(1).join(" – ") || "";
+  } else {
+    title = base;
+  }
+
+  return {
+    artist,
+    title
+  };
+}
+
+function normalizeMusicUniqueKey(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9äöüß]+/gi, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .trim();
+}
+
+function formatMusicDuration(seconds) {
+  const total = Number(seconds || 0);
+  if (!total || Number.isNaN(total)) return "Unbekannt";
+
+  const mins = Math.floor(total / 60);
+  const secs = Math.round(total % 60);
+
+  return `${mins}:${String(secs).padStart(2, "0")} Min.`;
+}
+
+function formatMusicBitrate(value) {
+  const bitrate = Number(value || 0);
+  if (!bitrate || Number.isNaN(bitrate)) return "Unbekannt";
+  return `${Math.round(bitrate / 1000)} kbps`;
+}
+
+function formatMusicSampleRate(value) {
+  const sampleRate = Number(value || 0);
+  if (!sampleRate || Number.isNaN(sampleRate)) return "Unbekannt";
+  return `${sampleRate} Hz`;
+}
+
+function formatMusicFileSize(bytes) {
+  const size = Number(bytes || 0);
+  if (!size || Number.isNaN(size)) return "Unbekannt";
+
+  const units = ["B", "KB", "MB", "GB"];
+  let value = size;
+  let unit = 0;
+
+  while (value >= 1024 && unit < units.length - 1) {
+    value = value / 1024;
+    unit++;
+  }
+
+  return `${value.toFixed(unit === 0 ? 0 : 2)} ${units[unit]}`;
+}
+
+function makeMusicTag(value = "") {
+  return String(value || "")
+    .replace(/[^a-zA-Z0-9äöüÄÖÜß]+/g, "")
+    .trim();
+}
+
+function detectMusicQuality(track = {}) {
+  const codec = String(track.codec || "").toLowerCase();
+  const bitrate = Number(track.bitrate || 0);
+  const format = String(track.format || "").toLowerCase();
+
+  if (format.includes("flac") || codec.includes("flac")) return "Lossless";
+  if (format.includes("alac") || codec.includes("alac")) return "Lossless";
+  if (bitrate >= 320000) return "High Quality";
+  if (bitrate >= 192000) return "Standard Quality";
+  if (bitrate > 0) return "Low / Medium Quality";
+
+  return "Unbekannt";
+}
+
+async function readMusicMetadataFromFile(filePath) {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) {
+      return {};
+    }
+
+    const { parseFile } = await import("music-metadata");
+
+    const metadata = await parseFile(filePath, {
+      duration: true,
+      skipCovers: true
+    });
+
+    const common = metadata.common || {};
+    const format = metadata.format || {};
+
+    return {
+      artist:
+        common.artist ||
+        (Array.isArray(common.artists) ? common.artists.join(", ") : "") ||
+        "",
+      title: common.title || "",
+      album: common.album || "",
+      year: common.year ? String(common.year) : "",
+      genre: Array.isArray(common.genre) ? common.genre.join(", ") : common.genre || "",
+      track_no: common.track?.no ? String(common.track.no) : "",
+      duration: format.duration ? Math.round(format.duration) : null,
+      codec: format.codec || "",
+      bitrate: format.bitrate || null,
+      sample_rate: format.sampleRate || null,
+      channels: format.numberOfChannels || null,
+      format: format.container || format.codec || ""
+    };
+  } catch (error) {
+    console.error("❌ Musik-Metadaten konnten nicht gelesen werden:", error.message);
+    return {};
+  }
+}
+
+function mergeMusicMetadata({ telegramAudio = {}, document = {}, fileMetadata = {} }) {
+  const fileName =
+    telegramAudio.file_name ||
+    document.file_name ||
+    document.fileName ||
+    "";
+
+  const parsedName = parseMusicFileName(fileName);
+
+  const artist =
+    fileMetadata.artist ||
+    telegramAudio.performer ||
+    parsedName.artist ||
+    "Unbekannter Künstler";
+
+  const title =
+    fileMetadata.title ||
+    telegramAudio.title ||
+    parsedName.title ||
+    fileName ||
+    "Unbekannter Titel";
+
+  const track = {
+    artist,
+    title,
+    album: fileMetadata.album || "",
+    year: fileMetadata.year || "",
+    genre: fileMetadata.genre || "",
+    track_no: fileMetadata.track_no || "",
+    duration:
+      fileMetadata.duration ||
+      telegramAudio.duration ||
+      null,
+    codec: fileMetadata.codec || "",
+    bitrate: fileMetadata.bitrate || null,
+    sample_rate: fileMetadata.sample_rate || null,
+    channels: fileMetadata.channels || null,
+    format:
+      fileMetadata.format ||
+      document.mime_type ||
+      telegramAudio.mime_type ||
+      "",
+    file_name: fileName,
+    file_id:
+      telegramAudio.file_id ||
+      document.file_id ||
+      "",
+    file_unique_id:
+      telegramAudio.file_unique_id ||
+      document.file_unique_id ||
+      "",
+    file_size:
+      telegramAudio.file_size ||
+      document.file_size ||
+      null
+  };
+
+  track.quality = detectMusicQuality(track);
+
+  track.unique_key = normalizeMusicUniqueKey(
+    `${track.artist}-${track.title}-${track.album || ""}-${track.duration || ""}`
+  );
+
+  return track;
+}
+
+function buildMusicCaption(track = {}) {
+  const artistTag = makeMusicTag(track.artist);
+  const genreTag = makeMusicTag(track.genre);
+
+  return `███ MUSIC ARCHIVE ███
+
+━━━━━━━━━━━━━━━━━━
+🎵 TRACK IMPORT
+━━━━━━━━━━━━━━━━━━
+🎤 Künstler: ${track.artist || "Unbekannt"}
+🎶 Titel: ${track.title || "Unbekannt"}
+💿 Album: ${track.album || "Unbekannt"}
+📅 Jahr: ${track.year || "Unbekannt"}
+🏷 Genre: ${track.genre || "Unbekannt"}
+
+━━━━━━━━━━━━━━━━━━
+📊 AUDIO-INFOS
+━━━━━━━━━━━━━━━━━━
+⏱ Dauer: ${formatMusicDuration(track.duration)}
+🎧 Codec: ${track.codec || "Unbekannt"}
+🔥 Qualität: ${track.quality || "Unbekannt"}
+🔊 Bitrate: ${formatMusicBitrate(track.bitrate)}
+🎼 Sample Rate: ${formatMusicSampleRate(track.sample_rate)}
+🔈 Kanäle: ${track.channels || "Unbekannt"}
+📁 Format: ${track.format || "Unbekannt"}
+
+━━━━━━━━━━━━━━━━━━
+📂 DATEI
+━━━━━━━━━━━━━━━━━━
+📄 Datei: ${track.file_name || "Unbekannt"}
+💾 Größe: ${formatMusicFileSize(track.file_size)}
+
+━━━━━━━━━━━━━━━━━━
+📖 ARCHIV-HINWEIS
+━━━━━━━━━━━━━━━━━━
+Dieser Track wurde automatisch erkannt, technisch analysiert und im Musikarchiv gespeichert.
+
+━━━━━━━━━━━━━━━━━━
+🛰 MUSIK ARCHIVIERT ✅
+━━━━━━━━━━━━━━━━━━
+#Music #Musik${artistTag ? `\n#${artistTag}` : ""}${genreTag ? `\n#${genreTag}` : ""}
+
+@LibraryOfLegends`;
+}
+
+async function saveMusicTrack(track) {
+  if (!pgPool) {
+    console.log("⚠️ Kein pgPool vorhanden, Musik-Track wird nicht in Postgres gespeichert.");
+    return null;
+  }
+
+  const sql = `
+    INSERT INTO music_tracks (
+      artist,
+      title,
+      album,
+      year,
+      genre,
+      track_no,
+      duration,
+      codec,
+      bitrate,
+      sample_rate,
+      channels,
+      format,
+      quality,
+      file_name,
+      file_id,
+      file_unique_id,
+      file_size,
+      unique_key
+    )
+    VALUES (
+      $1, $2, $3, $4, $5, $6,
+      $7, $8, $9, $10, $11, $12,
+      $13, $14, $15, $16, $17, $18
+    )
+    ON CONFLICT (unique_key) DO UPDATE SET
+      file_id = EXCLUDED.file_id,
+      file_unique_id = EXCLUDED.file_unique_id,
+      file_size = EXCLUDED.file_size
+    RETURNING *;
+  `;
+
+  const values = [
+    track.artist,
+    track.title,
+    track.album,
+    track.year,
+    track.genre,
+    track.track_no,
+    track.duration,
+    track.codec,
+    track.bitrate,
+    track.sample_rate,
+    track.channels,
+    track.format,
+    track.quality,
+    track.file_name,
+    track.file_id,
+    track.file_unique_id,
+    track.file_size,
+    track.unique_key
+  ];
+
+  const result = await pgPool.query(sql, values);
+  return result.rows[0];
+}
+
+async function handleMusicImport({ msg, localFilePath = null }) {
+  const telegramAudio = msg.audio || {};
+  const document = msg.document || {};
+
+  let fileMetadata = {};
+
+  if (localFilePath) {
+    fileMetadata = await readMusicMetadataFromFile(localFilePath);
+  }
+
+  const track = mergeMusicMetadata({
+    telegramAudio,
+    document,
+    fileMetadata
+  });
+
+  const savedTrack = await saveMusicTrack(track);
+  const caption = buildMusicCaption(savedTrack || track);
+
+  return {
+    type: "music",
+    track: savedTrack || track,
+    caption
+  };
+}
+
+function parseMedia(fileName = "", mimeType = "") {
+  // =============================
+  // 🎵 MUSIC CHECK — MUSS VOR SERIE/FILM KOMMEN
+  // =============================
+  if (
+    detectMusicMedia({
+      fileName,
+      mimeType
+    })
+  ) {
+    const parsedMusic = parseMusicFileName(fileName);
+
+    const artist =
+      parsedMusic.artist ||
+      "Unbekannter Künstler";
+
+    const title =
+      parsedMusic.title ||
+      cleanMusicText(fileName) ||
+      "Unbekannter Titel";
+
+    return {
+      type: "music",
+      isMusic: true,
+      artist,
+      title,
+      uniqueKey: normalizeMusicUniqueKey(`${artist}-${title}`)
+    };
+  }
+
+  // =============================
+  // 📺 SERIES CHECK
+  // =============================
   const series = detectSeries(fileName);
 
   if (series.isSeries) {
@@ -8282,6 +8707,9 @@ function parseMedia(fileName = "") {
     };
   }
 
+  // =============================
+  // 🎬 MOVIE CHECK
+  // =============================
   const movie = detectMovie(fileName);
   const uniqueKey = makeKey(`${movie.title}-${movie.year || "unknown"}`);
 
@@ -28087,10 +28515,16 @@ const manualSeries =
     msg.caption || ""
   );
 
+const mimeType =
+  msg.audio?.mime_type ||
+  msg.document?.mime_type ||
+  msg.video?.mime_type ||
+  "";
+
 const media =
   manualMovie ||
   manualSeries ||
-  parseMedia(fileName);
+  parseMedia(fileName, mimeType);
 
 console.log("🧠 Parsed:", media);
 
@@ -28098,11 +28532,33 @@ if (!media || !media.type) {
   await tg("sendMessage", {
     chat_id: msg.chat.id,
     text:
-      "❌ Datei konnte nicht erkannt werden.\n\n" +
-      `📁 ${fileName}\n\n` +
-      "Erwartet wird z.B.:\n" +
-      "🎬 Film.Name.2024.mp4\n" +
-      "📺 Serie.Name.S01E01.mp4"
+  "❌ Datei konnte nicht erkannt werden.\n\n" +
+  `📁 ${fileName}\n\n` +
+  "Erwartet wird z.B.:\n" +
+  "🎬 Film.Name.2024.mp4\n" +
+  "📺 Serie.Name.S01E01.mp4\n" +
+  "🎵 Künstler - Titel.mp3"
+  });
+
+  return;
+}
+
+if (media.type === "music") {
+  const musicImport = await handleMusicImport({
+    msg,
+    localFilePath: null
+  });
+
+  console.log(
+    "🎵 Musik erkannt:",
+    musicImport.track.artist,
+    "-",
+    musicImport.track.title
+  );
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: musicImport.caption
   });
 
   return;
