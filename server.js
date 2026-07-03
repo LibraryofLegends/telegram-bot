@@ -8329,26 +8329,66 @@ function cleanMusicText(value = "") {
 }
 
 function parseMusicFileName(fileName = "") {
-  const base = cleanMusicText(fileName);
+  const cleaned = String(fileName || "")
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
   let artist = "";
   let title = "";
+  let album = "";
+  let track_no = "";
 
-  if (base.includes(" - ")) {
-    const parts = base.split(" - ").map((v) => v.trim()).filter(Boolean);
+  // Standard: Künstler - Titel.mp3
+  if (cleaned.includes(" - ")) {
+    const parts = cleaned.split(" - ").map((v) => v.trim()).filter(Boolean);
+
     artist = parts[0] || "";
     title = parts.slice(1).join(" - ") || "";
-  } else if (base.includes(" – ")) {
-    const parts = base.split(" – ").map((v) => v.trim()).filter(Boolean);
-    artist = parts[0] || "";
-    title = parts.slice(1).join(" – ") || "";
-  } else {
-    title = base;
+
+    return {
+      artist,
+      title,
+      album,
+      track_no
+    };
   }
+
+  // Beispiel:
+  // Thomas Anders Sings Modern Talking Magic The Best 06 Love Society
+  const trackMatch = cleaned.match(/^(.+?)\s+(\d{1,2})\s+(.+)$/);
+
+  if (trackMatch) {
+    const beforeTrack = trackMatch[1].trim();
+    track_no = trackMatch[2].padStart(2, "0");
+    title = trackMatch[3].trim();
+
+    // Spezialfall: Künstler + Album mit "Sings"
+    const singsMatch = beforeTrack.match(/^(.+?)\s+(Sings\s+.+)$/i);
+
+    if (singsMatch) {
+      artist = singsMatch[1].trim();
+      album = singsMatch[2].trim();
+    } else {
+      artist = beforeTrack;
+    }
+
+    return {
+      artist,
+      title,
+      album,
+      track_no
+    };
+  }
+
+  title = cleaned;
 
   return {
     artist,
-    title
+    title,
+    album,
+    track_no
   };
 }
 
@@ -8484,32 +8524,64 @@ function mergeMusicMetadata({ telegramAudio = {}, document = {}, fileMetadata = 
   const track = {
     artist,
     title,
-    album: fileMetadata.album || "",
-    year: fileMetadata.year || "",
-    genre: fileMetadata.genre || "",
-    track_no: fileMetadata.track_no || "",
+
+    album:
+      fileMetadata.album ||
+      parsedName.album ||
+      "",
+
+    year:
+      fileMetadata.year ||
+      "",
+
+    genre:
+      fileMetadata.genre ||
+      "",
+
+    track_no:
+      fileMetadata.track_no ||
+      parsedName.track_no ||
+      "",
+
     duration:
       fileMetadata.duration ||
       telegramAudio.duration ||
       null,
-    codec: fileMetadata.codec || "",
-    bitrate: fileMetadata.bitrate || null,
-    sample_rate: fileMetadata.sample_rate || null,
-    channels: fileMetadata.channels || null,
+
+    codec:
+      fileMetadata.codec ||
+      "",
+
+    bitrate:
+      fileMetadata.bitrate ||
+      null,
+
+    sample_rate:
+      fileMetadata.sample_rate ||
+      null,
+
+    channels:
+      fileMetadata.channels ||
+      null,
+
     format:
       fileMetadata.format ||
       document.mime_type ||
       telegramAudio.mime_type ||
       "",
+
     file_name: fileName,
+
     file_id:
       telegramAudio.file_id ||
       document.file_id ||
       "",
+
     file_unique_id:
       telegramAudio.file_unique_id ||
       document.file_unique_id ||
       "",
+
     file_size:
       telegramAudio.file_size ||
       document.file_size ||
@@ -8519,7 +8591,7 @@ function mergeMusicMetadata({ telegramAudio = {}, document = {}, fileMetadata = 
   track.quality = detectMusicQuality(track);
 
   track.unique_key = normalizeMusicUniqueKey(
-    `${track.artist}-${track.title}-${track.album || ""}-${track.duration || ""}`
+    `${track.artist}-${track.title}-${track.album || ""}-${track.track_no || ""}-${track.duration || ""}`
   );
 
   return track;
@@ -8537,6 +8609,7 @@ function buildMusicCaption(track = {}) {
 🎤 Künstler: ${track.artist || "Unbekannt"}
 🎶 Titel: ${track.title || "Unbekannt"}
 💿 Album: ${track.album || "Unbekannt"}
+🔢 Track: ${track.track_no || "Unbekannt"}
 📅 Jahr: ${track.year || "Unbekannt"}
 🏷 Genre: ${track.genre || "Unbekannt"}
 
