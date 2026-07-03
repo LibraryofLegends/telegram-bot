@@ -17860,25 +17860,31 @@ if (userId !== ADMIN_ID) {
     }
   }
 
-  // =============================
-  // MEDIA UPLOAD QUEUE
-  // =============================
-  if (msg.video || msg.document) {
-    console.log("🎥 Video/Datei erkannt");
+  //// =============================
+// MEDIA UPLOAD QUEUE
+// =============================
+if (msg.video || msg.document || msg.audio) {
+  console.log("🎥🎵 Video/Datei/Audio erkannt");
 
-    await enqueueUpload(
-  async () => {
-    await handleUpload(msg);
-  },
-  msg.document?.file_name ||
-  msg.video?.file_name ||
-  "Unbekannte Datei"
-);
+  const queueLabel =
+    msg.document?.file_name ||
+    msg.video?.file_name ||
+    msg.audio?.file_name ||
+    `${msg.audio?.performer || "Unbekannter Künstler"} - ${msg.audio?.title || "Unbekannter Titel"}` ||
+    "Unbekannte Datei";
 
-    return;
-  }
+  await enqueueUpload(
+    async () => {
+      await handleUpload(msg);
+    },
+    queueLabel
+  );
 
-  console.log("⚠️ Unbekannter Nachrichtentyp");
+  return;
+}
+
+console.log("⚠️ Unbekannter Nachrichtentyp");
+console.log("🔍 Message Keys:", Object.keys(msg || {}));
 }
 
 // =============================
@@ -28472,25 +28478,53 @@ async function createSeriesIntroIfFirstEpisode({
 // =============================
 async function handleUpload(msg) {
 
+  const audioFallbackName =
+    msg.audio
+      ? `${msg.audio.performer || "Unbekannter Künstler"} - ${msg.audio.title || "Unbekannter Titel"}.mp3`
+      : "";
+
   const fileName =
     msg.document?.file_name ||
     msg.video?.file_name ||
+    msg.audio?.file_name ||
+    audioFallbackName ||
     msg.caption ||
     "Unbekannte Datei";
 
   const fileId =
     msg.video?.file_id ||
     msg.document?.file_id ||
+    msg.audio?.file_id ||
+    "";
+
+  const fileUniqueId =
+    msg.video?.file_unique_id ||
+    msg.document?.file_unique_id ||
+    msg.audio?.file_unique_id ||
+    "";
+
+  const fileSize =
+    msg.video?.file_size ||
+    msg.document?.file_size ||
+    msg.audio?.file_size ||
+    0;
+
+  const mimeType =
+    msg.video?.mime_type ||
+    msg.document?.mime_type ||
+    msg.audio?.mime_type ||
     "";
 
   console.log("🚀 HANDLE UPLOAD TRIGGERED");
   console.log("📁 Datei:", fileName);
+  console.log("🧾 MIME:", mimeType);
+  console.log("💾 Größe:", fileSize);
 
   // =============================
 // DUPLICATE SHIELD
 // =============================
 const uploadKey =
-  `${fileName}-${fileId}`;
+  `${fileName}-${fileUniqueId || fileId}`;
 
 if (ACTIVE_UPLOADS.has(uploadKey)) {
   console.log(
@@ -28514,12 +28548,6 @@ const manualSeries =
   parseManualSeriesCommand(
     msg.caption || ""
   );
-
-const mimeType =
-  msg.audio?.mime_type ||
-  msg.document?.mime_type ||
-  msg.video?.mime_type ||
-  "";
 
 const media =
   manualMovie ||
