@@ -13902,6 +13902,17 @@ async function refreshPagedAzIndexV3({
         })
       );
 
+  console.log(
+    "🔤 A–Z Rebuild:",
+    indexType,
+    "Topic:",
+    topic.name,
+    "Topic-ID:",
+    topicId,
+    "Buchstaben:",
+    letters.join(", ")
+  );
+
   const activeKeys =
     new Set();
 
@@ -13940,7 +13951,37 @@ async function refreshPagedAzIndexV3({
       const existingPage =
         await getAzIndexPageV3(indexKey);
 
-      if (existingPage?.message_id) {
+      const existingIsSameTopic =
+        existingPage?.message_id &&
+        Number(existingPage.topic_id) === Number(topicId);
+
+      if (existingPage?.message_id && !existingIsSameTopic) {
+        console.log(
+          "♻️ A–Z Seite liegt in altem/falschem Topic und wird neu erstellt:",
+          indexKey,
+          "alt topic:",
+          existingPage.topic_id,
+          "neu topic:",
+          topicId
+        );
+
+        try {
+          await tg("deleteMessage", {
+            chat_id: chatId,
+            message_id: Number(existingPage.message_id)
+          });
+        } catch (err) {
+          console.error(
+            "⚠️ Alte A–Z Seite konnte nicht gelöscht werden:",
+            indexKey,
+            err.message
+          );
+        }
+
+        await deleteAzIndexPageV3(indexKey);
+      }
+
+      if (existingIsSameTopic) {
         try {
           await tg("editMessageText", {
             chat_id: chatId,
@@ -13948,42 +13989,78 @@ async function refreshPagedAzIndexV3({
             text
           });
 
+          console.log(
+            "✅ A–Z Seite editiert:",
+            letter,
+            pageNumber,
+            "Message:",
+            existingPage.message_id
+          );
+
           continue;
         } catch (err) {
           const msg =
             String(err.message || "").toLowerCase();
 
           if (msg.includes("message is not modified")) {
+            console.log(
+              "ℹ️ A–Z Seite unverändert:",
+              letter,
+              pageNumber
+            );
+
             continue;
           }
 
           console.error(
-            "⚠️ A–Z Seite konnte nicht editiert werden:",
+            "⚠️ A–Z Seite konnte nicht editiert werden, wird neu gesendet:",
             indexKey,
             err.message
           );
+
+          await deleteAzIndexPageV3(indexKey);
         }
       }
 
-      const sent =
-        await tg("sendMessage", {
-          chat_id: chatId,
-          message_thread_id: Number(topicId),
-          text
-        });
+      try {
+        const sent =
+          await tg("sendMessage", {
+            chat_id: chatId,
+            message_thread_id: Number(topicId),
+            text
+          });
 
-      if (sent?.message_id) {
-        await saveAzIndexPageV3({
+        if (sent?.message_id) {
+          await saveAzIndexPageV3({
+            indexKey,
+            indexType,
+            chatId,
+            topicId,
+            letter,
+            page: pageNumber,
+            messageId: sent.message_id
+          });
+
+          console.log(
+            "✅ A–Z Seite gesendet:",
+            letter,
+            pageNumber,
+            "Message:",
+            sent.message_id
+          );
+
+          await sleep(400);
+        }
+      } catch (err) {
+        console.error(
+          "❌ A–Z Seite konnte nicht gesendet werden:",
           indexKey,
-          indexType,
-          chatId,
-          topicId,
+          "Letter:",
           letter,
-          page: pageNumber,
-          messageId: sent.message_id
-        });
-
-        await sleep(400);
+          "Page:",
+          pageNumber,
+          err.message
+        );
       }
     }
   }
