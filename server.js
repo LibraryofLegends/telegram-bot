@@ -23998,7 +23998,6 @@ if (command === "/rebuildcollections") {
   return;
 
   let collections = [];
-  let collections = [];
 
   if (pgPool) {
     const result = await pgPool.query(`
