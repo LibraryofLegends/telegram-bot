@@ -7638,37 +7638,104 @@ async function createOrUpdateCollectionHub(tmdb, topicId) {
     }
   }
 
-  const hub = await tg("sendMessage", {
+  let hub = await tg("sendMessage", {
   chat_id: MOVIE_GROUP_ID,
   message_thread_id: Number(topicId),
   text: hubText,
   parse_mode: "HTML"
 });
 
-  if (hub?.message_id) {
-    saveCollectionHubMessageId(
-      tmdb.collectionId,
-      hub.message_id
-    );
+const sendError =
+  hub?.error?.description ||
+  hub?.description ||
+  "";
 
-    try {
-      await tg("pinChatMessage", {
-        chat_id: MOVIE_GROUP_ID,
-        message_id: hub.message_id,
-        disable_notification: true
-      });
-    } catch (err) {
-      console.error(
-        "⚠️ Collection Hub Pin Fehler:",
-        err.message
-      );
-    }
+if (sendError.includes("message thread not found")) {
 
-    console.log("✅ Collection Hub erstellt:", tmdb.collection);
+  console.log(
+    "♻️ Topic existiert nicht mehr:",
+    tmdb.collection
+  );
+
+  const newTopicId =
+  await recreateTopic({
+      chatId: MOVIE_GROUP_ID,
+      name: tmdb.collection,
+      type: "collection"
+    });
+
+  if (!newTopicId) {
+    return null;
   }
 
-  return hub;
+  if (pgPool) {
+
+    await pgPool.query(
+      `
+      UPDATE collections
+      SET topic_id = $1,
+          hub_message_id = NULL
+      WHERE tmdb_collection_id = $2
+      `,
+      [
+        newTopicId,
+        tmdb.collectionId
+      ]
+    );
+
+  } else {
+
+    db.prepare(`
+      UPDATE collections
+      SET topic_id = ?,
+          hub_message_id = NULL
+      WHERE tmdb_collection_id = ?
+    `).run(
+      newTopicId,
+      tmdb.collectionId
+    );
+
+  }
+
+  hub = await tg("sendMessage", {
+    chat_id: MOVIE_GROUP_ID,
+    message_thread_id: Number(newTopicId),
+    text: hubText,
+    parse_mode: "HTML"
+  });
 }
+
+if (hub?.message_id) {
+
+  await saveCollectionHubMessageId(
+    tmdb.collectionId,
+    hub.message_id
+  );
+
+  try {
+
+    await tg("pinChatMessage", {
+      chat_id: MOVIE_GROUP_ID,
+      message_id: hub.message_id,
+      disable_notification: true
+    });
+
+  } catch (err) {
+
+    console.error(
+      "⚠️ Collection Hub Pin Fehler:",
+      err.message
+    );
+
+  }
+
+  console.log(
+    "✅ Collection Hub erstellt:",
+    tmdb.collection
+  );
+}
+
+return hub;
 
 // =============================
 // PARSER / ERKENNUNG
@@ -14039,6 +14106,63 @@ async function createOrGetTopic({ chatId, name, type }) {
   }
 
   console.log("✅ Thema erstellt:", name, topic.message_thread_id);
+
+  return topic.message_thread_id;
+}
+
+// =============================
+// RECREATE TELEGRAM TOPIC
+// Erzwingt ein neues Topic
+// =============================
+async function recreateTopic({ chatId, name, type }) {
+
+  const uniqueKey =
+    makeKey(`${type}-${chatId}-${name}`);
+
+  const topic = await tg("createForumTopic", {
+    chat_id: chatId,
+    name
+  });
+
+  if (!topic?.message_thread_id) {
+    console.error(
+      "❌ Neues Topic konnte nicht erstellt werden:",
+      name
+    );
+    return null;
+  }
+
+  if (pgPool) {
+
+    await pgPool.query(
+      `
+      UPDATE topics
+      SET topic_id = $1
+      WHERE unique_key = $2
+      `,
+      [
+        topic.message_thread_id,
+        uniqueKey
+      ]
+    );
+
+  } else {
+
+    saveTopic({
+      name,
+      type,
+      chatId,
+      topicId: topic.message_thread_id,
+      uniqueKey
+    });
+
+  }
+
+  console.log(
+    "♻️ Topic neu erstellt:",
+    name,
+    topic.message_thread_id
+  );
 
   return topic.message_thread_id;
 }
