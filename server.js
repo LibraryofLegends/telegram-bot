@@ -7736,6 +7736,7 @@ if (hub?.message_id) {
 }
 
 return hub;
+}
 
 // =============================
 // PARSER / ERKENNUNG
