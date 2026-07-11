@@ -7602,10 +7602,25 @@ async function createOrUpdateMovieIndexHub() {
 }
 
 async function createOrUpdateCollectionHub(tmdb, topicId) {
+
+  console.log("━━━━━━━━━━━━━━━━━━");
+  console.log("COLLECTION START");
+  console.log("Collection:", tmdb.collection);
+  console.log("Collection ID:", tmdb.collectionId);
+
   if (!tmdb.collection || !tmdb.collectionId) return null;
 
   const collection = await getCollectionById(tmdb.collectionId);
-  if (!collection) return null;
+
+console.log(
+  "DB:",
+  {
+    topic: collection?.topic_id,
+    hub: collection?.hub_message_id
+  }
+);
+
+if (!collection) return null;
 
   const hubText = await collectionHubCaption(tmdb.collection);
 
@@ -7638,7 +7653,12 @@ async function createOrUpdateCollectionHub(tmdb, topicId) {
     }
   }
 
-  let hub = await tg("sendMessage", {
+  console.log(
+  "➡️ SENDMESSAGE:",
+  tmdb.collection
+);
+
+let hub = await tg("sendMessage", {
   chat_id: MOVIE_GROUP_ID,
   message_thread_id: Number(topicId),
   text: hubText,
