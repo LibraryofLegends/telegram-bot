@@ -14061,8 +14061,51 @@ async function createOrGetTopic({ chatId, name, type }) {
   }
 
   if (existingTopic?.topic_id) {
+
+  const test = await tg("sendChatAction", {
+    chat_id: chatId,
+    message_thread_id: Number(existingTopic.topic_id),
+    action: "typing"
+  });
+
+  const error =
+    test?.error?.description ||
+    test?.description ||
+    "";
+
+  if (!error.includes("message thread not found")) {
     return Number(existingTopic.topic_id);
   }
+
+  console.log(
+    "♻️ Defektes Topic erkannt:",
+    name
+  );
+
+  if (pgPool) {
+
+    await pgPool.query(
+      `
+      DELETE FROM topics
+      WHERE unique_key=$1
+      `,
+      [uniqueKey]
+    );
+
+  } else {
+
+    db.prepare(`
+      DELETE FROM topics
+      WHERE unique_key=?
+    `).run(uniqueKey);
+
+  }
+
+}
+
+await sleep(
+  400 + Math.floor(Math.random() * 400)
+);
 
   const topic = await tg("createForumTopic", {
     chat_id: chatId,
