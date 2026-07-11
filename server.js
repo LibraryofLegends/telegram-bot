@@ -23989,6 +23989,15 @@ if (command === "/search") {
 // REBUILD COLLECTION HUBS
 // =============================
 if (command === "/rebuildcollections") {
+
+  await tg("sendMessage", {
+    chat_id: msg.chat.id,
+    text: "⛔ /rebuildcollections wurde vorübergehend deaktiviert."
+  });
+
+  return;
+
+  let collections = [];
   let collections = [];
 
   if (pgPool) {
