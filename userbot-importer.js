@@ -886,6 +886,15 @@ status TEXT DEFAULT 'active',
 
 `);
 
+await pgPool.query(`
+CREATE TABLE IF NOT EXISTS logs (
+    id BIGSERIAL PRIMARY KEY,
+    type TEXT NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+`);
+
 // =========================================================
 // Filme
 // =========================================================
