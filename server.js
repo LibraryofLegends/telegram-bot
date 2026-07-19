@@ -11,7 +11,6 @@ const {
 
 const {
   normalizeReleaseText,
-  detectQuality,
   detectSource,
   detectCodec,
   detectAudioLanguage,
