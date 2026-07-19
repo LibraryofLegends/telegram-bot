@@ -76,17 +76,16 @@ app.use(express.json({ limit: "50mb" }));
 // =============================
 // ENV VARIABLEN
 // =============================
-const TOKEN = process.env.TOKEN;
-const TMDB_KEY = process.env.TMDB_KEY;
-const OMDB_KEY = process.env.OMDB_KEY || "";
-
-const MOVIE_GROUP_ID = process.env.MOVIE_GROUP_ID;
-const SERIES_GROUP_ID = process.env.SERIES_GROUP_ID;
-
-const ADMIN_ID = String(process.env.ADMIN_ID || "");
-const BOT_USERNAME = process.env.BOT_USERNAME || "";
-
-const BASE_URL = `https://api.telegram.org/bot${TOKEN}`;
+const {
+    TOKEN,
+    TMDB_KEY,
+    OMDB_KEY,
+    MOVIE_GROUP_ID,
+    SERIES_GROUP_ID,
+    ADMIN_ID,
+    BOT_USERNAME,
+    BASE_URL
+} = require("./config/env");
 
 // =============================
 // IMPORT QUEUES
