@@ -6,6 +6,12 @@ const { NewMessage } = require("telegram/events");
 const { Pool } = require("pg");
 const fetch = global.fetch;
 
+const {
+    cleanReleaseText,
+    cleanEpisodeTitle,
+    titleCase,
+} = require("./importer/parser-utils");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
