@@ -1,10 +1,12 @@
 const express = require("express");
 const axios = require("axios");
-const Database = require("better-sqlite3");
 const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
-const { Pool } = require("pg");
+const {
+    sqlite: db,
+    postgres: pgPool
+} = require("./database/connection");
 const Parser = require("rss-parser");
 const rssParser = new Parser();
 const os = require("os");
