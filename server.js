@@ -9,13 +9,6 @@ const {
   hasPostgres
 } = require("./database/connection");
 
-const {
-  normalizeReleaseText,
-  detectSource,
-  detectCodec,
-  detectAudioLanguage,
-} = require("./importer/detector");
-
 const db = sqlite;
 
 const {
