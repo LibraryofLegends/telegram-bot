@@ -14,205 +14,438 @@ const STAGING_CHAT = process.env.STAGING_CHAT || process.env.STAGING_CHAT_ID;
 const DATABASE_URL = process.env.DATABASE_URL || "";
 
 const pgPool = DATABASE_URL
-  ? new Pool({
-      connectionString: DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false,
-      },
-    })
-  : null;
+    ? new Pool({
+          connectionString: DATABASE_URL,
+          ssl: {
+              rejectUnauthorized: false,
+          },
+      })
+    : null;
 
 const ACTIVE_IMPORTS = new Set();
+const IMPORT_SESSIONS = new Map();
 
 function isUserbotEnabled() {
-  return String(process.env.USERBOT_ENABLED || "").toLowerCase() === "true";
+    return String(process.env.USERBOT_ENABLED || "").toLowerCase() === "true";
 }
 
 function normalizeReleaseText(text = "") {
-  return String(text || "")
-    .replace(/[_\-.]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    return String(text)
+        .replace(/[_\-.]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 }
 
 function titleCase(text = "") {
-  return String(text || "")
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => {
-      if (/^[A-Z0-9]{2,}$/.test(word)) return word;
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    })
-    .join(" ");
+    return String(text)
+        .split(" ")
+        .filter(Boolean)
+        .map((word) => {
+
+            if (/^[A-Z0-9]{2,}$/.test(word))
+                return word;
+
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+
+        })
+        .join(" ");
 }
 
 function cleanReleaseText(text = "") {
-  return String(text)
-    .replace(/\.[a-z0-9]{2,5}$/i, "")
-    .replace(/@\w+/g, " ")
-    .replace(/\b(2160p|1080p|720p|480p|uhd|fhd|hd|4k)\b/gi, " ")
-    .replace(/\b(web-dl|webrip|web|bluray|brrip|hdrip|dvdrip|x264|x265|h264|h265|hevc|aac|dts|ddp|truehd)\b/gi, " ")
-    .replace(/\b(german|deutsch|english|englisch|ger|eng|dl|dual|multi)\b/gi, " ")
-    .replace(/[._-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+
+    return String(text)
+
+        .replace(/\.[a-z0-9]{2,5}$/i, "")
+        .replace(/@\w+/g, " ")
+
+        .replace(/\[[^\]]+\]/g, " ")
+        .replace(/\([^)]+\)/g, " ")
+
+        .replace(/\b(PROPER|REPACK|READNFO|INTERNAL|LIMITED|UNCUT|COMPLETE)\b/gi, " ")
+
+        .replace(/\b(2160p|1080p|720p|480p|4k|uhd|fhd|hd)\b/gi, " ")
+
+        .replace(/\b(web[- ]?dl|webrip|web|bluray|brrip|hdrip|dvdrip)\b/gi, " ")
+
+        .replace(/\b(x264|x265|h264|h265|hevc|av1)\b/gi, " ")
+
+        .replace(/\b(aac|ac3|ddp|dts|truehd|atmos)\b/gi, " ")
+
+        .replace(/\b(german|deutsch|english|englisch|ger|eng|dual|dl|multi)\b/gi, " ")
+
+        .replace(/[._-]+/g, " ")
+
+        .replace(/\s+/g, " ")
+
+        .trim();
+
 }
 
 function detectQuality(text = "") {
-  const source = normalizeReleaseText(text);
 
-  if (/(^|\s)(2160p|4k|uhd)(\s|$)/i.test(source)) return "UHD / 4K";
-  if (/(^|\s)(1080p|fhd)(\s|$)/i.test(source)) return "FHD / 1080p";
-  if (/(^|\s)720p(\s|$)/i.test(source)) return "HD / 720p";
-  if (/(^|\s)480p(\s|$)/i.test(source)) return "SD / 480p";
+    const t = normalizeReleaseText(text);
 
-  return null;
+    if (/(2160p|4k|uhd)/i.test(t))
+        return "UHD / 4K";
+
+    if (/(1080p|fhd)/i.test(t))
+        return "FHD / 1080p";
+
+    if (/720p/i.test(t))
+        return "HD / 720p";
+
+    if (/480p/i.test(t))
+        return "SD / 480p";
+
+    return null;
+
 }
 
 function detectSource(text = "") {
-  const source = normalizeReleaseText(text);
 
-  if (/web\s*dl/i.test(source)) return "WEB-DL";
-  if (/web\s*rip/i.test(source)) return "WEBRip";
-  if (/(^|\s)web(\s|$)/i.test(source)) return "WEB";
-  if (/blu\s*ray/i.test(source)) return "BluRay";
-  if (/(^|\s)brrip(\s|$)/i.test(source)) return "BRRip";
-  if (/(^|\s)hdrip(\s|$)/i.test(source)) return "HDRip";
-  if (/(^|\s)dvdrip(\s|$)/i.test(source)) return "DVDRip";
+    const t = normalizeReleaseText(text);
 
-  return null;
+    if (/web\s*dl/i.test(t))
+        return "WEB-DL";
+
+    if (/web\s*rip/i.test(t))
+        return "WEBRip";
+
+    if (/\bweb\b/i.test(t))
+        return "WEB";
+
+    if (/blu\s*ray/i.test(t))
+        return "BluRay";
+
+    if (/brrip/i.test(t))
+        return "BRRip";
+
+    if (/hdrip/i.test(t))
+        return "HDRip";
+
+    if (/dvdrip/i.test(t))
+        return "DVDRip";
+
+    return null;
+
 }
 
 function detectCodec(text = "") {
-  const source = normalizeReleaseText(text);
 
-  if (/(^|\s)(x265|h265|hevc)(\s|$)/i.test(source)) return "H.265 / HEVC";
-  if (/(^|\s)(x264|h264)(\s|$)/i.test(source)) return "H.264";
-  if (/(^|\s)av1(\s|$)/i.test(source)) return "AV1";
+    const t = normalizeReleaseText(text);
 
-  return null;
+    if (/(x265|h265|hevc)/i.test(t))
+        return "H.265 / HEVC";
+
+    if (/(x264|h264)/i.test(t))
+        return "H.264";
+
+    if (/av1/i.test(t))
+        return "AV1";
+
+    return null;
+
 }
 
 function detectAudioLanguage(text = "") {
-  const source = normalizeReleaseText(text);
 
-  const hasGerman = /(^|\s)(german|deutsch|ger|de)(\s|$)/i.test(source);
-  const hasEnglish = /(^|\s)(english|englisch|eng|en)(\s|$)/i.test(source);
-  const hasDL = /(^|\s)(dl|dual|dual language|multi)(\s|$)/i.test(source);
+    const t = normalizeReleaseText(text);
 
-  if (hasDL && hasGerman) return "Deutsch / Dual Language";
-  if (hasDL) return "Dual Language";
-  if (hasGerman && hasEnglish) return "Deutsch / Englisch";
-  if (hasGerman) return "Deutsch";
-  if (hasEnglish) return "Englisch";
+    const german = /(german|deutsch|ger)/i.test(t);
+    const english = /(english|englisch|eng)/i.test(t);
+    const dual = /(dual|dual language|dl|multi)/i.test(t);
 
-  return null;
+    if (dual && german)
+        return "Deutsch / Dual Language";
+
+    if (dual)
+        return "Dual Language";
+
+    if (german && english)
+        return "Deutsch / Englisch";
+
+    if (german)
+        return "Deutsch";
+
+    if (english)
+        return "Englisch";
+
+    return null;
+
 }
 
 function cleanEpisodeTitle(text = "") {
-  return String(text || "")
-    .replace(/\.[a-z0-9]{2,5}$/i, "")
-    .replace(/^[:=\-\s]+/, "")
-    .replace(/^=+/, "")
-    .replace(/=+$/, "")
-    .replace(/\s+/g, " ")
-    .trim();
+
+    return String(text)
+
+        .replace(/\.[a-z0-9]{2,5}$/i, "")
+        .replace(/^[:=\-\s]+/, "")
+        .replace(/=+$/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
 }
 
 function parseMediaFileName(fileName = "") {
-  const original = String(fileName || "").trim();
 
-  const readable = original
-    .replace(/\.[a-z0-9]{2,5}$/i, "")
-    .replace(/@\w+/g, " ")
-    .replace(/[._]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    const original = String(fileName || "").trim();
 
-  const cleaned = cleanReleaseText(original);
-  const yearMatch = readable.match(/\b(19\d{2}|20\d{2})\b/);
+    const readable = original
+        .replace(/\.[a-z0-9]{2,5}$/i, "")
+        .replace(/@\w+/g, " ")
+        .replace(/[._]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 
-  const commonMeta = {
-    quality: detectQuality(original),
-    source: detectSource(original),
-    codec: detectCodec(original),
-    audio: detectAudioLanguage(original),
-  };
+    const cleaned = cleanReleaseText(original);
 
-  const seriesMatch = readable.match(/(.+?)\s+s(\d{1,2})\s*e(\d{1,3})(?:\s*[-:=]\s*(.+))?/i);
+    const yearMatch = readable.match(/\b(19\d{2}|20\d{2})\b/);
 
-  if (seriesMatch) {
-    return {
-      type: "series",
-      title: titleCase(
-        seriesMatch[1]
-          .replace(/\b(19\d{2}|20\d{2})\b/g, "")
-          .replace(/\s+-\s*$/, "")
-          .trim()
-      ),
-      year: yearMatch ? Number(yearMatch[1]) : null,
-      season: Number(seriesMatch[2]),
-      episode: Number(seriesMatch[3]),
-      episodeTitle: cleanEpisodeTitle(seriesMatch[4] || ""),
-      ...commonMeta,
+    const commonMeta = {
+        quality: detectQuality(original),
+        source: detectSource(original),
+        codec: detectCodec(original),
+        audio: detectAudioLanguage(original),
     };
-  }
 
-  const xMatch = readable.match(/(.+?)\s+(\d{1,2})x(\d{1,3})(?:\s*[-:=]\s*(.+))?/i);
+    // =========================================================
+    // Staffelpakete
+    // =========================================================
 
-  if (xMatch) {
+    const seasonPack = readable.match(
+        /(.+?)\s+(?:season|staffel)\s*(\d{1,2})\s*(?:complete|komplett|pack|全集)?/i
+    );
+
+    if (seasonPack) {
+
+        return {
+
+            type: "season",
+
+            title: titleCase(
+                seasonPack[1]
+                    .replace(/\b(19\d{2}|20\d{2})\b/g, "")
+                    .trim()
+            ),
+
+            year: yearMatch ? Number(yearMatch[1]) : null,
+
+            season: Number(seasonPack[2]),
+
+            episode: null,
+
+            episodes: [],
+
+            episodeTitle: null,
+
+            ...commonMeta,
+
+        };
+
+    }
+
+    // =========================================================
+    // Serienformate
+    // =========================================================
+
+    const patterns = [
+
+        // S01E01E02
+        {
+            regex: /(.+?)\s+s(\d{1,2})e(\d{1,3})e(\d{1,3})(?:\s*[-:=]\s*(.+))?/i,
+            multi: true,
+        },
+
+        // S01E01
+        {
+            regex: /(.+?)\s+s(\d{1,2})\s*e(\d{1,3})(?:\s*[-:=]\s*(.+))?/i,
+        },
+
+        // S1E1
+        {
+            regex: /(.+?)\s+s(\d{1,2})e(\d{1,3})(?:\s*[-:=]\s*(.+))?/i,
+        },
+
+        // 1x01
+        {
+            regex: /(.+?)\s+(\d{1,2})x(\d{1,3})(?:\s*[-:=]\s*(.+))?/i,
+        },
+
+        // Staffel 1 Folge 2
+        {
+            regex: /(.+?)\s+staffel\s*(\d{1,2})\s+folge\s*(\d{1,3})(?:\s*[-:=]\s*(.+))?/i,
+        },
+
+        // Season 1 Episode 2
+        {
+            regex: /(.+?)\s+season\s*(\d{1,2})\s+episode\s*(\d{1,3})(?:\s*[-:=]\s*(.+))?/i,
+        },
+
+        // Specials
+        {
+            regex: /(.+?)\s+(?:special|sp)\s*(\d{1,3})/i,
+            special: true,
+        },
+
+        // OVA
+        {
+            regex: /(.+?)\s+ova\s*(\d{1,3})/i,
+            ova: true,
+        },
+
+    ];
+
+    for (const entry of patterns) {
+
+        const match = readable.match(entry.regex);
+
+        if (!match)
+            continue;
+
+        let season = 1;
+        let episode = null;
+        let episodes = [];
+
+        if (entry.special) {
+
+            season = 0;
+            episode = Number(match[2]);
+            episodes.push(episode);
+
+        }
+
+        else if (entry.ova) {
+
+            season = -1;
+            episode = Number(match[2]);
+            episodes.push(episode);
+
+        }
+
+        else if (entry.multi) {
+
+            season = Number(match[2]);
+
+            episode = Number(match[3]);
+
+            episodes.push(Number(match[3]));
+            episodes.push(Number(match[4]));
+
+        }
+
+        else {
+
+            season = Number(match[2]);
+
+            episode = Number(match[3]);
+
+            episodes.push(episode);
+
+        }
+
+        return {
+
+            type: "series",
+
+            title: titleCase(
+
+                match[1]
+                    .replace(/\b(19\d{2}|20\d{2})\b/g, "")
+                    .replace(/\s+-\s*$/, "")
+                    .trim()
+
+            ),
+
+            year: yearMatch ? Number(yearMatch[1]) : null,
+
+            season,
+
+            episode,
+
+            episodes,
+
+            episodeTitle:
+
+                entry.multi
+                    ? cleanEpisodeTitle(match[5] || "")
+                    : cleanEpisodeTitle(match[4] || ""),
+
+            special: !!entry.special,
+
+            ova: !!entry.ova,
+
+            ...commonMeta,
+
+        };
+
+    }
+
+    // =========================================================
+    // Episode 15
+    // =========================================================
+
+    const episodeWord = readable.match(
+        /(.+?)\s*[- ]\s*(?:episode|folge|ep)\s*(\d{1,3})(?:\s*[-:=]?\s*(.+))?/i
+    );
+
+    if (episodeWord) {
+
+        return {
+
+            type: "series",
+
+            title: titleCase(
+                episodeWord[1]
+                    .replace(/\b(19\d{2}|20\d{2})\b/g, "")
+                    .trim()
+            ),
+
+            year: yearMatch ? Number(yearMatch[1]) : null,
+
+            season: 1,
+
+            episode: Number(episodeWord[2]),
+
+            episodes: [Number(episodeWord[2])],
+
+            episodeTitle: cleanEpisodeTitle(episodeWord[3] || ""),
+
+            ...commonMeta,
+
+        };
+
+    }
+
+    // =========================================================
+    // Film
+    // =========================================================
+
+    let title = cleaned;
+
+    if (yearMatch) {
+        title = cleaned.slice(0, yearMatch.index).trim();
+    }
+
     return {
-      type: "series",
-      title: titleCase(
-        xMatch[1]
-          .replace(/\b(19\d{2}|20\d{2})\b/g, "")
-          .replace(/\s+-\s*$/, "")
-          .trim()
-      ),
-      year: yearMatch ? Number(yearMatch[1]) : null,
-      season: Number(xMatch[2]),
-      episode: Number(xMatch[3]),
-      episodeTitle: cleanEpisodeTitle(xMatch[4] || ""),
-      ...commonMeta,
+
+        type: "movie",
+
+        title: titleCase(title || cleaned || original),
+
+        year: yearMatch ? Number(yearMatch[1]) : null,
+
+        season: null,
+
+        episode: null,
+
+        episodes: [],
+
+        episodeTitle: null,
+
+        ...commonMeta,
+
     };
-  }
 
-  const episodeWordMatch = readable.match(
-    /(.+?)\s*[- ]\s*(?:episode|folge|ep)\s*(\d{1,3})(?:\s*[-:=]?\s*(.+))?/i
-  );
-
-  if (episodeWordMatch) {
-    return {
-      type: "series",
-      title: titleCase(
-        episodeWordMatch[1]
-          .replace(/\b(19\d{2}|20\d{2})\b/g, "")
-          .replace(/\s+-\s*$/, "")
-          .trim()
-      ),
-      year: yearMatch ? Number(yearMatch[1]) : null,
-      season: 1,
-      episode: Number(episodeWordMatch[2]),
-      episodeTitle: cleanEpisodeTitle(episodeWordMatch[3] || ""),
-      ...commonMeta,
-    };
-  }
-
-  let title = cleaned;
-
-  if (yearMatch) {
-    title = cleaned.slice(0, yearMatch.index).trim();
-  }
-
-  return {
-    type: "movie",
-    title: titleCase(title || cleaned || original),
-    year: yearMatch ? Number(yearMatch[1]) : null,
-    season: null,
-    episode: null,
-    episodeTitle: null,
-    ...commonMeta,
-  };
 }
 
 function getDocumentFileName(message) {
@@ -272,48 +505,234 @@ function getMimeType(message) {
   return message?.document?.mimeType || null;
 }
 
-function buildImportReport({ fileName, parsed, fileSize, mimeType, videoMeta }) {
-  const typeLabel = parsed.type === "series" ? "📺 Serie" : "🎬 Film";
+// =========================================================
+// Import-Session
+// =========================================================
 
-  const lines = [
-    "🧠 USERBOT IMPORT",
-    "━━━━━━━━━━━━━━━━━━━━",
-    `${typeLabel} erkannt`,
-    "",
-    `📂 Datei: ${fileName}`,
-    `🏷 Titel: ${parsed.title || "Unbekannt"}`,
-  ];
+function updateImportSession(parsed) {
 
-  if (parsed.year) lines.push(`📅 Jahr: ${parsed.year}`);
-
-  if (parsed.type === "series") {
-    lines.push(`📀 Staffel: ${String(parsed.season).padStart(2, "0")}`);
-    lines.push(`🎞 Episode: ${String(parsed.episode).padStart(2, "0")}`);
-
-    if (parsed.episodeTitle) {
-      lines.push(`📝 Episodentitel: ${parsed.episodeTitle}`);
+    if (!["series", "season"].includes(parsed.type)) {
+        return null;
     }
-  }
 
-  if (parsed.quality) lines.push(`🔥 Qualität: ${parsed.quality}`);
-  if (parsed.source) lines.push(`📡 Quelle: ${parsed.source}`);
-  if (parsed.codec) lines.push(`🎥 Codec: ${parsed.codec}`);
-  if (parsed.audio) lines.push(`🔊 Audio: ${parsed.audio}`);
-  if (fileSize) lines.push(`💾 Größe: ${fileSize}`);
-  if (mimeType) lines.push(`🧾 MIME: ${mimeType}`);
+    const key = `${parsed.title}::S${parsed.season}`;
 
-  if (videoMeta.width && videoMeta.height) {
-    lines.push(`📺 Auflösung: ${videoMeta.width}x${videoMeta.height}`);
-  }
+    if (!IMPORT_SESSIONS.has(key)) {
 
-  if (videoMeta.duration) {
-    lines.push(`⏱ Dauer: ${Math.round(Number(videoMeta.duration) / 60)} Min.`);
-  }
+        IMPORT_SESSIONS.set(key, {
+            title: parsed.title,
+            season: parsed.season,
+            type: parsed.type,
+            episodes: new Set(),
+            duplicates: 0,
+            imported: 0,
+            started: Date.now(),
+            lastUpdate: Date.now(),
+        });
 
-  lines.push("");
-  lines.push("✅ Datei wurde in die Staging-Gruppe weitergeleitet.");
+    }
 
-  return lines.join("\n");
+    const session = IMPORT_SESSIONS.get(key);
+
+    if (Array.isArray(parsed.episodes) && parsed.episodes.length) {
+
+        for (const ep of parsed.episodes) {
+
+            if (session.episodes.has(ep)) {
+                session.duplicates++;
+                continue;
+            }
+
+            session.episodes.add(ep);
+            session.imported++;
+
+        }
+
+    } else if (parsed.episode !== null && parsed.episode !== undefined) {
+
+        if (session.episodes.has(parsed.episode)) {
+
+            session.duplicates++;
+
+        } else {
+
+            session.episodes.add(parsed.episode);
+            session.imported++;
+
+        }
+
+    }
+
+    session.lastUpdate = Date.now();
+
+    return session;
+
+}
+
+// =========================================================
+// Session automatisch löschen
+// =========================================================
+
+function cleanupImportSessions(maxAgeMinutes = 60) {
+
+    const now = Date.now();
+
+    for (const [key, session] of IMPORT_SESSIONS.entries()) {
+
+        const age = now - session.lastUpdate;
+
+        if (age > maxAgeMinutes * 60000) {
+            IMPORT_SESSIONS.delete(key);
+        }
+
+    }
+
+}
+
+// =========================================================
+// Report Builder
+// =========================================================
+
+function buildImportReport({
+
+    fileName,
+    parsed,
+    fileSize,
+    mimeType,
+    videoMeta,
+    importSession = null,
+
+}) {
+
+    let typeLabel = "🎬 Film";
+
+    if (parsed.type === "series")
+        typeLabel = "📺 Serie";
+
+    if (parsed.type === "season")
+        typeLabel = "📦 Staffel";
+
+    const lines = [];
+
+    lines.push("🧠 USERBOT IMPORT");
+    lines.push("━━━━━━━━━━━━━━━━━━━━");
+    lines.push(`${typeLabel} erkannt`);
+    lines.push("");
+
+    lines.push(`📂 Datei: ${fileName}`);
+    lines.push(`🏷 Titel: ${parsed.title}`);
+
+    if (parsed.year)
+        lines.push(`📅 Jahr: ${parsed.year}`);
+
+    if (parsed.type === "series") {
+
+        lines.push(
+            `📀 Staffel: ${String(parsed.season).padStart(2, "0")}`
+        );
+
+        lines.push(
+            `🎞 Episode: ${String(parsed.episode).padStart(2, "0")}`
+        );
+
+        if (parsed.episodes?.length > 1) {
+
+            lines.push(
+                `🎬 Doppelfolge: ${parsed.episodes.join(", ")}`
+            );
+
+        }
+
+        if (parsed.special)
+            lines.push("⭐ Special");
+
+        if (parsed.ova)
+            lines.push("🎌 OVA");
+
+        if (parsed.episodeTitle)
+            lines.push(`📝 Titel: ${parsed.episodeTitle}`);
+
+    }
+
+    if (parsed.type === "season") {
+
+        lines.push(
+            `📀 Staffel: ${String(parsed.season).padStart(2, "0")}`
+        );
+
+    }
+
+    if (parsed.quality)
+        lines.push(`🔥 Qualität: ${parsed.quality}`);
+
+    if (parsed.source)
+        lines.push(`📡 Quelle: ${parsed.source}`);
+
+    if (parsed.codec)
+        lines.push(`🎥 Codec: ${parsed.codec}`);
+
+    if (parsed.audio)
+        lines.push(`🔊 Audio: ${parsed.audio}`);
+
+    if (fileSize)
+        lines.push(`💾 Größe: ${fileSize}`);
+
+    if (mimeType)
+        lines.push(`🧾 MIME: ${mimeType}`);
+
+    if (videoMeta?.width && videoMeta?.height) {
+
+        lines.push(
+            `📺 Auflösung: ${videoMeta.width}x${videoMeta.height}`
+        );
+
+    }
+
+    if (videoMeta?.duration) {
+
+        lines.push(
+            `⏱ Dauer: ${Math.round(videoMeta.duration / 60)} Min.`
+        );
+
+    }
+
+    if (importSession) {
+
+        lines.push("");
+
+        lines.push("━━━━━━━━━━━━━━━━━━━━");
+        lines.push("📦 STAFFEL-IMPORT");
+        lines.push("━━━━━━━━━━━━━━━━━━━━");
+
+        lines.push(`🎬 Serie: ${importSession.title}`);
+
+        lines.push(
+            `📀 Staffel: ${String(importSession.season).padStart(2, "0")}`
+        );
+
+        lines.push(
+            `✅ Erkannte Episoden: ${importSession.episodes.size}`
+        );
+
+        lines.push(
+            `📥 Neue Episoden: ${importSession.imported}`
+        );
+
+        if (importSession.duplicates > 0) {
+
+            lines.push(
+                `⚠ Doppelte Episoden: ${importSession.duplicates}`
+            );
+
+        }
+
+    }
+
+    lines.push("");
+    lines.push("✅ Datei wurde in die Staging-Gruppe weitergeleitet.");
+
+    return lines.join("\n");
+
 }
 
 async function ensureUserbotImportTables() {
@@ -586,6 +1005,8 @@ async function startUserbotImporter() {
           `telegram_media_${message.id}`;
 
         const parsed = parseMediaFileName(fileName);
+        const importSession = updateImportSession(parsed);
+
         const fileSize = getFileSize(message);
         const mimeType = getMimeType(message);
         const videoMeta = getVideoMeta(message);
@@ -637,22 +1058,25 @@ async function startUserbotImporter() {
         });
 
         let report = buildImportReport({
-          fileName,
-          parsed,
-          fileSize,
-          mimeType,
-          videoMeta,
-        });
+  fileName,
+  parsed,
+  fileSize,
+  mimeType,
+  videoMeta,
+  importSession,
+});
 
         if (importDbId) {
           report += `\n🆔 Import-ID: ${importDbId}`;
         }
 
         await client.sendMessage(stagingEntity, {
-          message: report,
-        });
+  message: report,
+});
 
-        console.log("✅ Datei wurde in Staging weitergeleitet.");
+cleanupImportSessions();
+
+console.log("✅ Datei wurde in Staging weitergeleitet.");
 
         if (importDbId) {
           console.log("✅ Import in Supabase gespeichert. ID:", importDbId);
