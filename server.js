@@ -4,8 +4,9 @@ const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
 const {
-    sqlite: db,
-    postgres: pgPool
+  sqlite: db,
+  postgres: pgPool,
+  hasPostgres
 } = require("./database/connection");
 const Parser = require("rss-parser");
 const rssParser = new Parser();
