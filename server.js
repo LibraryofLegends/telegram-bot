@@ -8,6 +8,13 @@ const {
   postgres: pgPool,
   hasPostgres
 } = require("./database/connection");
+const {
+  logToDb,
+  getTopic,
+  saveTopic,
+  saveKnowledge,
+  knowledgeCaption
+} = require("./database/helpers");
 const Parser = require("rss-parser");
 const rssParser = new Parser();
 const os = require("os");
