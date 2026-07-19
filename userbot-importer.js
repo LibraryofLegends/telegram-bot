@@ -1166,11 +1166,15 @@ async function getTMDBDetails(type, tmdbId) {
 // =========================================================
 
 async function findOrCreateSeries(
+
     parsed,
+
     tmdbData = null
-)
+
+) {
 
     if (!pgPool)
+
         return null;
 
     let result = await pgPool.query(
