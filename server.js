@@ -22,6 +22,11 @@ const {
   seriesExists,
   saveSeries
 } = require("./database/helpers");
+
+const {
+  testPostgresConnection,
+  ensurePostgresTables
+} = require("./database/postgres");
 const Parser = require("rss-parser");
 const rssParser = new Parser();
 const os = require("os");
