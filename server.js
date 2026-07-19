@@ -465,7 +465,7 @@ function saveTopic({ name, type, chatId, topicId, uniqueKey }) {
 }
 
 async function saveSeriesNews(data) {
-  if (pgPool) {
+  if (hasPostgres()) {
     return await pgPool.query(
       `
       INSERT INTO series_news
@@ -512,7 +512,7 @@ async function saveSeriesNews(data) {
 }
 
 async function seriesNewsExists(seriesTitle, headline) {
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT id
@@ -539,7 +539,7 @@ async function seriesNewsExists(seriesTitle, headline) {
 }
 
 async function getSeriesNewsByCategory(category = "news") {
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -635,7 +635,7 @@ function detectNewsCategory(title = "") {
 async function repairSeriesNewsCategories() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT id, headline
       FROM series_news
@@ -734,7 +734,7 @@ async function importSeriesNews(seriesTitle) {
 }
 
 async function saveSeriesLibrary(data) {
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       INSERT INTO series_library
@@ -916,7 +916,7 @@ async function getSeriesTopic(seriesName, tmdb = {}, media = {}) {
 async function getMissingEpisodes(seriesTitle, season) {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT episode
@@ -1017,7 +1017,7 @@ async function handleMissingCommand(msg, text) {
 
 async function getCollection(tmdbCollectionId) {
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     const result = await pgPool.query(
       `
@@ -1039,7 +1039,7 @@ async function getCollection(tmdbCollectionId) {
 }
 
 async function saveCollection(data) {
-  if (pgPool) {
+  if (hasPostgres()) {
     return await pgPool.query(
       `
       INSERT INTO collections
@@ -1089,7 +1089,7 @@ async function saveCollection(data) {
 
 async function getCollectionById(tmdbCollectionId) {
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     const result = await pgPool.query(
       `
@@ -1115,7 +1115,7 @@ async function saveCollectionHubMessageId(
   messageId
 ) {
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     return await pgPool.query(
       `
@@ -1140,7 +1140,7 @@ async function saveCollectionHubMessageId(
 async function getSavedSeasonEpisodeCount(seriesTitle, season) {
   const targetKey = makeKey(seriesTitle);
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT series_title
@@ -1174,7 +1174,7 @@ async function getSavedEpisode(
   const targetKey =
     makeKey(seriesTitle);
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT
@@ -1220,7 +1220,7 @@ async function getSavedEpisode(
 async function getSeriesOverviewRows() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         series_title,
@@ -1258,7 +1258,7 @@ async function getSeriesLibraryInfo(seriesTitle) {
 
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT *
       FROM series_library
@@ -1467,7 +1467,7 @@ async function buildMasteredSeriesCaption() {
 async function seriesNewsCenterCaption() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT *
       FROM series_news
@@ -1624,7 +1624,7 @@ async function documentarySeriesHubCaption() {
 async function starWarsSeriesHubCaption() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         sl.*
@@ -1710,7 +1710,7 @@ async function disneySeriesHubCaption() {
 }
 
 async function getSeriesLibraryRows() {
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT *
       FROM series_library
@@ -1991,7 +1991,7 @@ async function updateSeriesSmartTopics() {
   for (const item of smartTopics) {
     let topic = null;
 
-    if (pgPool) {
+    if (hasPostgres()) {
       const result = await pgPool.query(
         `
         SELECT *
@@ -2078,7 +2078,7 @@ async function updateSeriesSmartTopics() {
     });
 
     if (msg?.message_id) {
-      if (pgPool) {
+      if (hasPostgres()) {
         await pgPool.query(
           `
           UPDATE topics
@@ -2898,7 +2898,7 @@ async function starWarsEraHubCaption(era) {
   let movieRows = [];
   let seriesRows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const movieResult = await pgPool.query(
       `
       SELECT id, title, starwars_era
@@ -3066,7 +3066,7 @@ async function starWarsCommandCenterCaption() {
     let movieRows = [];
     let seriesRows = [];
 
-    if (pgPool) {
+    if (hasPostgres()) {
       const movieResult = await pgPool.query(
         `
         SELECT title, starwars_era
@@ -3926,7 +3926,7 @@ async function buildCollectionData(collectionName = "") {
   // =============================
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     const result = await pgPool.query(
       `
@@ -4217,7 +4217,7 @@ async function universeHubCaption(universeName = "") {
   let movies = [];
   let series = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const movieResult = await pgPool.query(
       `
       SELECT title, year, rating, universe_phase
@@ -4363,7 +4363,7 @@ async function universeHubCaption(universeName = "") {
 // =============================
 async function getUniverseByName(universeName = "") {
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     const result = await pgPool.query(
       `
@@ -4391,7 +4391,7 @@ async function saveUniverseHubMessageId(
   messageId
 ) {
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     return await pgPool.query(
       `
@@ -4429,7 +4429,7 @@ async function multiverseCommandCenterCaption() {
     let movies = [];
     let series = [];
 
-    if (pgPool) {
+    if (hasPostgres()) {
 
       const movieResult = await pgPool.query(
         `
@@ -4595,7 +4595,7 @@ async function dcCommandCenterCaption() {
     let movies = [];
     let series = [];
 
-    if (pgPool) {
+    if (hasPostgres()) {
       const movieResult = await pgPool.query(
         `
         SELECT id
@@ -4746,7 +4746,7 @@ async function marvelCommandCenterCaption() {
   let movies = [];
   let series = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const movieResult = await pgPool.query(
       `
       SELECT title, universe_phase
@@ -4920,7 +4920,7 @@ async function disneyCommandCenterCaption() {
   let movies = [];
   let series = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const movieResult = await pgPool.query(
       `
       SELECT title, universe_phase
@@ -5084,7 +5084,7 @@ async function createOrUpdateUniverseHub(universeName = "") {
   let universe = await getUniverseByName(universeName);
 
   if (!universe) {
-    if (pgPool) {
+    if (hasPostgres()) {
       await pgPool.query(
         `
         INSERT INTO universes
@@ -5117,7 +5117,7 @@ async function createOrUpdateUniverseHub(universeName = "") {
     return null;
   }
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       UPDATE universes
@@ -5162,7 +5162,7 @@ async function createOrUpdateUniverseHub(universeName = "") {
     if (editError.includes("message to edit not found")) {
       console.log("⚠️ Universe Hub Message fehlt, erstelle neu:", universeName);
 
-      if (pgPool) {
+      if (hasPostgres()) {
         await pgPool.query(
           `
           UPDATE universes
@@ -5212,7 +5212,7 @@ async function createOrUpdateUniverseHub(universeName = "") {
 async function getMovieIndexStats() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         title,
@@ -5385,7 +5385,7 @@ const archiveLevel =
 async function getCollectionOverviewRows() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         collection,
@@ -5484,7 +5484,7 @@ async function buildCollectionsIndexHubCaption() {
 async function getUniverseOverviewRows() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         universe,
@@ -5575,7 +5575,7 @@ async function buildUniversesIndexHubCaption() {
 async function getPremiumQualityRows() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         title,
@@ -5796,7 +5796,7 @@ async function buildPremiumQualityHubCaption() {
 async function getEliteArchiveRows() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         title,
@@ -5969,7 +5969,7 @@ async function getNewReleaseRows() {
 
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     const result = await pgPool.query(`
       SELECT
@@ -6003,7 +6003,7 @@ async function getNewReleaseRows() {
 async function getActorMovies(actorName = "") {
   if (!actorName) return [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT
@@ -6038,7 +6038,7 @@ async function getActorMovies(actorName = "") {
 async function getKnowledgeByPerson(personName = "") {
   if (!personName) return [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT title, category, content, library_id
@@ -6067,7 +6067,7 @@ async function getKnowledgeByPerson(personName = "") {
 async function getKnowledgeByMovie(movieTitle = "") {
   if (!movieTitle) return [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT
@@ -6104,7 +6104,7 @@ async function getKnowledgeByMovie(movieTitle = "") {
 async function getKnowledgeBySeries(seriesTitle = "") {
   if (!seriesTitle) return [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT title, category, content, library_id
@@ -6134,7 +6134,7 @@ async function findSeriesForInfo(query = "") {
   const key = makeKey(query);
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         series_title,
@@ -6222,7 +6222,7 @@ async function findMovieForInfo(query = "") {
 
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT *
       FROM movies
@@ -6477,7 +6477,7 @@ async function createOrUpdateSystemHub({
 
   let topic = null;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -6522,7 +6522,7 @@ async function createOrUpdateSystemHub({
         name
       );
 
-      if (pgPool) {
+      if (hasPostgres()) {
         await pgPool.query(
           `
           UPDATE topics
@@ -6554,7 +6554,7 @@ async function createOrUpdateSystemHub({
   });
 
   if (msg?.message_id) {
-    if (pgPool) {
+    if (hasPostgres()) {
       await pgPool.query(
         `
         UPDATE topics
@@ -6622,7 +6622,7 @@ async function createOrUpdateCommandTopicHub({
 
   let topic = null;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -6676,7 +6676,7 @@ async function createOrUpdateCommandTopicHub({
 });
 
   if (msg?.message_id) {
-    if (pgPool) {
+    if (hasPostgres()) {
       await pgPool.query(
         `
         UPDATE topics
@@ -6708,7 +6708,7 @@ async function createOrUpdateCommandTopicHub({
 async function getMovieLibraryRows() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         title,
@@ -6969,7 +6969,7 @@ if (sendError.includes("message thread not found")) {
     return null;
   }
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     await pgPool.query(
       `
@@ -8521,7 +8521,7 @@ async function makeLibraryCode(genre = "") {
 
   let count = 0;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT COUNT(*) AS count
@@ -10357,7 +10357,7 @@ async function movieHubCaption(topicName = "", topicId = null) {
 
   let movies = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       isCollectionHub
         ? `
@@ -10498,7 +10498,7 @@ async function movieHubCaption(topicName = "", topicId = null) {
 // =============================
 async function getMovieHubTopic(topicId) {
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     const result = await pgPool.query(
       `
@@ -10530,7 +10530,7 @@ async function saveMovieHubMessageId(
   messageId
 ) {
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     await pgPool.query(
       `
@@ -10600,7 +10600,7 @@ console.log("🖼 MOVIE HUB BANNER CHECK:", {
 
     if (bannerMsg?.message_id) {
 
-      if (pgPool) {
+      if (hasPostgres()) {
         await pgPool.query(
           `
           UPDATE topics
@@ -10659,7 +10659,7 @@ console.log("🖼 MOVIE HUB BANNER CHECK:", {
 async function buildMovieIndexPages() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT title, year, library_id, collection, universe, rating
       FROM movies
@@ -12205,7 +12205,7 @@ async function createSeriesHubBanner(tmdb) {
 // SERIES HUB HELPERS
 // =============================
 async function getSeriesEpisodes(seriesTitle) {
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT season, episode, episode_title
@@ -12228,7 +12228,7 @@ async function getSeriesEpisodes(seriesTitle) {
 }
 
 async function getSeriesHubTopic(topicId) {
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -12251,7 +12251,7 @@ async function getSeriesHubTopic(topicId) {
 }
 
 async function saveHubMessageId(topicId, messageId) {
-  if (pgPool) {
+  if (hasPostgres()) {
     return await pgPool.query(
       `
       UPDATE topics
@@ -12606,7 +12606,7 @@ async function createOrUpdateEpisodeList({ topicId, seriesTitle }) {
     if (editError.includes("message to edit not found")) {
       console.log("⚠️ Episodenliste fehlt, lösche alte ID:", seriesTitle);
 
-      if (pgPool) {
+      if (hasPostgres()) {
         await pgPool.query(
           `
           UPDATE topics
@@ -12638,7 +12638,7 @@ async function createOrUpdateEpisodeList({ topicId, seriesTitle }) {
   });
 
   if (msg?.message_id) {
-    if (pgPool) {
+    if (hasPostgres()) {
       await pgPool.query(
         `
         UPDATE topics
@@ -12760,7 +12760,7 @@ async function updateSeriesHub({ tmdb, topicId }) {
       tmdb.seriesTitle
     );
 
-    if (pgPool) {
+    if (hasPostgres()) {
       await pgPool.query(
         `
         UPDATE topics
@@ -13013,7 +13013,7 @@ async function updateSeasonCard({ tmdb, topicId, season }) {
 async function getSeasonSeparators(topicId) {
   let topic = null;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT season_separators
@@ -13047,7 +13047,7 @@ async function saveSeasonSeparators(topicId, separators) {
   const value =
     JSON.stringify(separators || {});
 
-  if (pgPool) {
+  if (hasPostgres()) {
     return await pgPool.query(
       `
       UPDATE topics
@@ -13351,7 +13351,7 @@ if (cached && cached.expires > Date.now()) {
 
   let existingTopic = null;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const existing = await pgPool.query(
       `
       SELECT *
@@ -13395,7 +13395,7 @@ if (cached && cached.expires > Date.now()) {
     name
   );
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     await pgPool.query(
       `
@@ -13431,7 +13431,7 @@ await sleep(
     return null;
   }
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       INSERT INTO topics
@@ -13494,7 +13494,7 @@ async function recreateTopic({ chatId, name, type }) {
     return null;
   }
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     await pgPool.query(
       `
@@ -13615,7 +13615,7 @@ const FIXED_LIBRARY_TOPICS = {
 };
 
 async function getTopicByUniqueKeyAsync(uniqueKey) {
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -13637,7 +13637,7 @@ async function getTopicByThreadId(chatId, topicId) {
     return null;
   }
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -13816,7 +13816,7 @@ async function setupFixedLibraryTopics() {
 async function getMovieTitlesForAzV3() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT DISTINCT title, year
       FROM movies
@@ -13879,7 +13879,7 @@ async function getMovieTitlesForAzV3() {
 // speichert Message-IDs der einzelnen A–Z-Seiten
 // =============================
 async function ensureAzIndexPagesTableV3() {
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(`
       CREATE TABLE IF NOT EXISTS az_index_pages (
         id SERIAL PRIMARY KEY,
@@ -13915,7 +13915,7 @@ async function ensureAzIndexPagesTableV3() {
 async function getAzIndexPageV3(indexKey) {
   await ensureAzIndexPagesTableV3();
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -13943,7 +13943,7 @@ async function getAzIndexPagesByTypeV3({
 }) {
   await ensureAzIndexPagesTableV3();
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -13982,7 +13982,7 @@ async function saveAzIndexPageV3({
 }) {
   await ensureAzIndexPagesTableV3();
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       INSERT INTO az_index_pages
@@ -14037,7 +14037,7 @@ async function saveAzIndexPageV3({
 async function deleteAzIndexPageV3(indexKey) {
   await ensureAzIndexPagesTableV3();
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       DELETE FROM az_index_pages
@@ -14429,7 +14429,7 @@ async function movieAzIndexCaptionV3() {
 // SERIES COMMAND CENTER V3 — COMPACT
 // =============================
 async function getSeriesStatsV3() {
-  if (pgPool) {
+  if (hasPostgres()) {
     const seriesResult = await pgPool.query(`
       SELECT COUNT(DISTINCT series_title) AS count
       FROM series
@@ -14550,7 +14550,7 @@ async function seriesCommandCenterCaptionV3() {
 async function getSeriesTitlesForAzV3() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT DISTINCT series_title
       FROM series
@@ -14752,7 +14752,7 @@ async function createOrUpdateFixedTopicHub({
 // Prüft Lücken innerhalb bereits angefangener Staffeln
 // =============================
 async function getSeriesEpisodeRowsV3() {
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT series_title, season, episode, episode_title
       FROM series
@@ -15231,7 +15231,7 @@ const MOVIE_SERIES_DEFINITIONS_V3 = [
 // Prüft fehlende Filme aus manuellen Filmreihen
 // =============================
 async function getMovieRowsForGapsV3() {
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         id,
@@ -15872,7 +15872,7 @@ async function movieCommandCenterCaption() {
   let newReleaseCount = 0;
   let totalBytes = 0;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     movieCount = Number((await pgPool.query(`
       SELECT COUNT(*) AS count
       FROM movies
@@ -16028,7 +16028,7 @@ async function movieCommandCenterCaption() {
 async function seriesLibraryHubCaption() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         series_title,
@@ -16101,7 +16101,7 @@ async function seriesLibraryHubCaption() {
 async function trendingSeriesHubCaption() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         series_title,
@@ -16169,7 +16169,7 @@ async function trendingSeriesHubCaption() {
 async function incompleteSeriesHubCaption() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT series_title, season, episode
       FROM series
@@ -16262,7 +16262,7 @@ async function incompleteSeriesHubCaption() {
 async function masteredSeriesHubCaption() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT series_title, season, episode, genre, rating
       FROM series
@@ -16365,7 +16365,7 @@ async function masteredSeriesHubCaption() {
 async function seriesUniversesHubCaption() {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         universe,
@@ -16435,7 +16435,7 @@ async function singleSeriesHubCaption(seriesTitle) {
   let rows = [];
   let library = null;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const episodeResult = await pgPool.query(
       `
       SELECT *
@@ -16672,7 +16672,7 @@ async function createOrUpdateSingleSeriesHub(seriesTitle, topicId) {
 
   let existingTopic = null;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -16721,7 +16721,7 @@ async function createOrUpdateSingleSeriesHub(seriesTitle, topicId) {
     if (editError.includes("message to edit not found")) {
       console.log("⚠️ Single Series Hub Message fehlt, erstelle neu:", seriesTitle);
 
-      if (pgPool) {
+      if (hasPostgres()) {
         await pgPool.query(
           `
           UPDATE series_topics
@@ -16757,7 +16757,7 @@ async function createOrUpdateSingleSeriesHub(seriesTitle, topicId) {
     return null;
   }
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       UPDATE series_topics
@@ -16794,7 +16794,7 @@ async function createOrUpdateCommandCenter({
 
   let topic = null;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -16850,7 +16850,7 @@ async function createOrUpdateCommandCenter({
   console.log("🎛 Command Center Send Result:", JSON.stringify(msg, null, 2));
 
   if (msg?.message_id) {
-    if (pgPool) {
+    if (hasPostgres()) {
       await pgPool.query(
         `
         UPDATE topics
@@ -18208,7 +18208,7 @@ if (command === "/movieinfo") {
 if (command === "/knowledge") {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT title, category, library_id, created_at
       FROM knowledge
@@ -18413,7 +18413,7 @@ if (command === "/addseriesnews") {
 if (text === "/repairmovieuniverses") {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT id, title, collection
       FROM movies
@@ -18567,7 +18567,7 @@ if (
 if (text === "/resetpremiumtopic") {
   const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-💎 Premium Quality`);
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       DELETE FROM topics
@@ -18593,7 +18593,7 @@ if (text === "/resetpremiumtopic") {
 if (text === "/resetelitetopic") {
   const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🏆 Elite Archive`);
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       DELETE FROM topics
@@ -18622,7 +18622,7 @@ if (text === "/resetelitetopic") {
 if (text === "/resetnewreleasestopic") {
   const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🔥 New Releases`);
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       DELETE FROM topics
@@ -18651,7 +18651,7 @@ if (text === "/resetnewreleasestopic") {
 if (text === "/resetmovielibrarytopic") {
   const topicKey = makeKey(`system_hub-${MOVIE_GROUP_ID}-🎬 Movie Library`);
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       DELETE FROM topics
@@ -21358,7 +21358,7 @@ if (command === "/findmovie") {
 
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT
@@ -21670,7 +21670,7 @@ if (command === "/deletemovie") {
 
   let movie = null;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -21711,7 +21711,7 @@ if (command === "/deletemovie") {
     return;
   }
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       DELETE FROM movies
@@ -21744,7 +21744,7 @@ if (command === "/deletemovie") {
 }
 
 if (text === "/cleartopicsdb") {
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(`DELETE FROM topics;`);
   } else {
     db.prepare(`DELETE FROM topics;`).run();
@@ -21793,7 +21793,7 @@ if (text.startsWith("/deletetopic")) {
   // =============================
   // SUPABASE SEARCH
   // =============================
-  if (pgPool) {
+  if (hasPostgres()) {
 
     const result =
       await pgPool.query(
@@ -21845,7 +21845,7 @@ if (text.startsWith("/deletetopic")) {
   // =============================
   // DELETE FROM SUPABASE
   // =============================
-  if (pgPool) {
+  if (hasPostgres()) {
 
     await pgPool.query(
       `
@@ -21905,7 +21905,7 @@ if (text.startsWith("/deleteseriestopic")) {
 
   let topic = null;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -21940,7 +21940,7 @@ if (text.startsWith("/deleteseriestopic")) {
 
   let deletedEpisodes = 0;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const del = await pgPool.query(
       `
       DELETE FROM series
@@ -22032,7 +22032,7 @@ if (text.startsWith("/deleteseries")) {
 
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -22071,7 +22071,7 @@ if (text.startsWith("/deleteseries")) {
     return;
   }
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       DELETE FROM series
@@ -22108,7 +22108,7 @@ if (text.startsWith("/deleteseries")) {
 if (command === "/qualitystats") {
   let movies = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT quality, COUNT(*) AS count
       FROM movies
@@ -22162,7 +22162,7 @@ if (command === "/health") {
   let pgStatus = "Nicht aktiv";
   let pgPing = "Nicht getestet";
 
-  if (pgPool) {
+  if (hasPostgres()) {
     dbStatus = "Supabase/PostgreSQL";
 
     try {
@@ -22218,7 +22218,7 @@ if (command === "/progress") {
 
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT series_title, season, episode
@@ -22322,7 +22322,7 @@ if (text.startsWith("/rebuildseasoncards")) {
 
   let allRows = [];
 
-if (pgPool) {
+if (hasPostgres()) {
   const result = await pgPool.query(`
     SELECT *
     FROM series
@@ -22348,7 +22348,7 @@ const rows = allRows.filter((row) => {
   if (!rows.length) {
   let names = [];
 
-if (pgPool) {
+if (hasPostgres()) {
   const result = await pgPool.query(`
     SELECT series_title, COUNT(*) AS count
     FROM series
@@ -22402,7 +22402,7 @@ if (pgPool) {
 
   let topic = null;
 
-if (pgPool) {
+if (hasPostgres()) {
   const result = await pgPool.query(
     `
     SELECT *
@@ -22774,7 +22774,7 @@ if (
   let collectionCount = 0;
   let seriesLibraryCount = 0;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const movies =
       await pgPool.query(`
         SELECT COUNT(*) AS count
@@ -22915,7 +22915,7 @@ if (
   let topicCount = 0;
   let collectionCount = 0;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const movies =
       await pgPool.query(`
         SELECT COUNT(*) AS count
@@ -23152,7 +23152,7 @@ if (command === "/search") {
   let movies = [];
   let episodes = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const movieResult = await pgPool.query(
       `
       SELECT title, year, genre
@@ -23266,7 +23266,7 @@ if (command === "/rebuildcollections") {
 
   let collections = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT *
       FROM collections
@@ -23338,7 +23338,7 @@ if (command === "/rebuildcollections") {
 if (command === "/collections") {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT 
         c.collection_name,
@@ -23422,7 +23422,7 @@ if (command === "/collection") {
   let collection = null;
   let movies = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const collectionResult = await pgPool.query(
       `
       SELECT *
@@ -23538,7 +23538,7 @@ if (
   let episodeCount = 0;
   let collectionCount = 0;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const movieResult = await pgPool.query(`
       SELECT COUNT(*) AS count
       FROM movies
@@ -23700,7 +23700,7 @@ if (command === "/moviehub") {
   let latest = [];
   let featured = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const latestResult = await pgPool.query(`
       SELECT title, year, genre, rating, created_at
       FROM movies
@@ -23821,7 +23821,7 @@ if (command === "/moviehub") {
 if (command === "/newmovies") {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT title, year, genre, rating, created_at
       FROM movies
@@ -23899,7 +23899,7 @@ if (command === "/newmovies") {
 if (command === "/movies") {
   let movies = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT title, year, genre, rating
       FROM movies
@@ -23983,7 +23983,7 @@ if (command === "/movies") {
 if (command === "/series") {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT series_title, COUNT(*) AS count
       FROM series
@@ -24027,7 +24027,7 @@ if (command === "/series") {
 if (command === "/seriesaz") {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         series_title,
@@ -24140,7 +24140,7 @@ if (command === "/seriesaz") {
 if (command === "/newseries") {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT series_title, season, episode, episode_title, genre, rating, created_at
       FROM series
@@ -24261,7 +24261,7 @@ if (
 
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result =
       await pgPool.query(
         `
@@ -24425,7 +24425,7 @@ if (
 if (command === "/trendingseries") {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         series_title,
@@ -24504,7 +24504,7 @@ if (command === "/trendingseries") {
 if (command === "/featuredseries") {
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(`
       SELECT
         series_title,
@@ -24613,7 +24613,7 @@ if (command === "/serieshub") {
   let trending = [];
   let featured = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const latestResult = await pgPool.query(`
       SELECT series_title, season, episode, episode_title
       FROM series
@@ -24808,7 +24808,7 @@ if (command === "/missingseries") {
 
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
 
     const result = await pgPool.query(
       `
@@ -24946,7 +24946,7 @@ if (command === "/checkseries") {
 
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT *
@@ -25414,7 +25414,7 @@ if (idMatch) {
   const movieId =
     Number(idMatch[1]);
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result =
       await pgPool.query(
         `
@@ -25445,7 +25445,7 @@ if (idMatch) {
   const yearPart =
     yearMatch[2];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result =
       await pgPool.query(
         `
@@ -25490,7 +25490,7 @@ if (idMatch) {
   const search =
     `%${searchText.toLowerCase()}%`;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result =
       await pgPool.query(
         `
@@ -25552,7 +25552,7 @@ if (idMatch) {
     Object.entries(updateValues);
 
   try {
-    if (pgPool) {
+    if (hasPostgres()) {
       const setSql =
         entries
           .map(([field], index) =>
@@ -25601,7 +25601,7 @@ if (idMatch) {
 
   let updatedMovie = null;
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result =
       await pgPool.query(
         `
@@ -25708,7 +25708,7 @@ if (idMatch) {
   if (updatedMovie.collection) {
     let collectionRows = [];
 
-    if (pgPool) {
+    if (hasPostgres()) {
       const result =
         await pgPool.query(
           `
@@ -25971,7 +25971,7 @@ if (command === "/smartduplicates") {
   let movies = [];
   let series = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const movieResult = await pgPool.query(`
       SELECT id, title, year, file_name
       FROM movies
@@ -26096,7 +26096,7 @@ if (command === "/duplicates") {
   let movieDupes = [];
   let seriesDupes = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const movieResult = await pgPool.query(`
       SELECT title, year, COUNT(*) AS count
       FROM movies
@@ -26181,7 +26181,7 @@ if (command === "/duplicates") {
 // =============================
 if (text === "/clearmoviesdb") {
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(`DELETE FROM movies;`);
   }
 
@@ -26268,7 +26268,7 @@ if (command === "/seriesregistry" || command.startsWith("/seriesregistry@")) {
 
   let rows = [];
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result =
       await pgPool.query(
         `
@@ -26422,7 +26422,7 @@ if (command === "/seriesregistry" || command.startsWith("/seriesregistry@")) {
 // =============================
 if (text === "/clearalldb") {
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(`DELETE FROM movies;`);
     await pgPool.query(`DELETE FROM series;`);
     await pgPool.query(`DELETE FROM series_library;`);
@@ -26764,7 +26764,7 @@ async function deleteMovieDbEntryByUniqueKeyV3(uniqueKey) {
     return false;
   }
 
-  if (pgPool) {
+  if (hasPostgres()) {
     await pgPool.query(
       `
       DELETE FROM movies
@@ -27844,7 +27844,7 @@ async function getSavedSeriesEpisodeTotal(seriesTitle = "") {
   const targetKey =
     makeKey(seriesTitle);
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT series_title
@@ -27879,7 +27879,7 @@ async function getSavedSeriesSeasonEpisodeTotal(seriesTitle, season) {
   const seasonNumber =
     Number(season || 1);
 
-  if (pgPool) {
+  if (hasPostgres()) {
     const result = await pgPool.query(
       `
       SELECT series_title
