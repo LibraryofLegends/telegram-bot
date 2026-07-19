@@ -775,6 +775,382 @@ async function ensureUserbotImportTables() {
   console.log("✅ Userbot Import Tabelle bereit");
 }
 
+// =========================================================
+// Library of Legends Tabellen
+// =========================================================
+
+async function ensureLibraryTables() {
+
+    if (!pgPool) return;
+
+    await pgPool.query(`
+
+        CREATE TABLE IF NOT EXISTS series (
+
+            id SERIAL PRIMARY KEY,
+
+            title TEXT UNIQUE NOT NULL,
+
+            original_title TEXT,
+
+            year INTEGER,
+
+            tmdb_id INTEGER,
+
+            imdb_id TEXT,
+
+            status TEXT DEFAULT 'active',
+
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+
+        );
+
+    `);
+
+    await pgPool.query(`
+
+        CREATE TABLE IF NOT EXISTS seasons (
+
+            id SERIAL PRIMARY KEY,
+
+            series_id INTEGER REFERENCES series(id) ON DELETE CASCADE,
+
+            season_number INTEGER NOT NULL,
+
+            episode_count INTEGER DEFAULT 0,
+
+            imported_count INTEGER DEFAULT 0,
+
+            status TEXT DEFAULT 'active',
+
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+
+            updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+            UNIQUE(series_id, season_number)
+
+        );
+
+    `);
+
+    await pgPool.query(`
+
+        CREATE TABLE IF NOT EXISTS episodes (
+
+            id SERIAL PRIMARY KEY,
+
+            season_id INTEGER REFERENCES seasons(id) ON DELETE CASCADE,
+
+            episode_number INTEGER NOT NULL,
+
+            title TEXT,
+
+            staging_message_id TEXT,
+
+            imported BOOLEAN DEFAULT FALSE,
+
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+
+            updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+            UNIQUE(season_id, episode_number)
+
+        );
+
+    `);
+
+    console.log("✅ Library Tabellen bereit");
+
+}
+
+// =========================================================
+// Serienverwaltung
+// =========================================================
+
+async function findOrCreateSeries(parsed) {
+
+    if (!pgPool)
+        return null;
+
+    let result = await pgPool.query(
+
+        `
+
+        SELECT *
+
+        FROM series
+
+        WHERE LOWER(title)=LOWER($1)
+
+        LIMIT 1
+
+        `,
+
+        [
+
+            parsed.title
+
+        ]
+
+    );
+
+    if (result.rows.length) {
+
+        return result.rows[0];
+
+    }
+
+    result = await pgPool.query(
+
+        `
+
+        INSERT INTO series(
+
+            title,
+
+            year
+
+        )
+
+        VALUES(
+
+            $1,
+
+            $2
+
+        )
+
+        RETURNING *
+
+        `,
+
+        [
+
+            parsed.title,
+
+            parsed.year || null
+
+        ]
+
+    );
+
+    console.log("✅ Neue Serie angelegt:", parsed.title);
+
+    return result.rows[0];
+
+}
+
+// =========================================================
+// Staffelverwaltung
+// =========================================================
+
+async function findOrCreateSeason(seriesId, seasonNumber) {
+
+    if (!pgPool)
+        return null;
+
+    let result = await pgPool.query(
+
+        `
+
+        SELECT *
+
+        FROM seasons
+
+        WHERE series_id=$1
+
+        AND season_number=$2
+
+        LIMIT 1
+
+        `,
+
+        [
+
+            seriesId,
+
+            seasonNumber
+
+        ]
+
+    );
+
+    if (result.rows.length) {
+
+        return result.rows[0];
+
+    }
+
+    result = await pgPool.query(
+
+        `
+
+        INSERT INTO seasons(
+
+            series_id,
+
+            season_number
+
+        )
+
+        VALUES(
+
+            $1,
+
+            $2
+
+        )
+
+        RETURNING *
+
+        `,
+
+        [
+
+            seriesId,
+
+            seasonNumber
+
+        ]
+
+    );
+
+    console.log(
+
+        "✅ Staffel erstellt:",
+
+        seasonNumber
+
+    );
+
+    return result.rows[0];
+
+}
+
+// =========================================================
+// Episodenverwaltung
+// =========================================================
+
+async function findOrCreateEpisode(
+    seasonId,
+    parsed,
+    stagingMessageId = null
+) {
+
+    if (!pgPool)
+        return null;
+
+    let result = await pgPool.query(
+
+        `
+        SELECT *
+        FROM episodes
+        WHERE season_id=$1
+        AND episode_number=$2
+        LIMIT 1
+        `,
+
+        [
+            seasonId,
+            parsed.episode
+        ]
+
+    );
+
+    // Episode existiert bereits
+    if (result.rows.length) {
+
+        await pgPool.query(
+
+            `
+            UPDATE episodes
+            SET
+                staging_message_id=$1,
+                imported=TRUE,
+                updated_at=NOW()
+            WHERE id=$2
+            `,
+
+            [
+                stagingMessageId,
+                result.rows[0].id
+            ]
+
+        );
+
+        return {
+            ...result.rows[0],
+            alreadyExists: true
+        };
+
+    }
+
+    // Neue Episode anlegen
+
+    result = await pgPool.query(
+
+        `
+        INSERT INTO episodes(
+
+            season_id,
+            episode_number,
+            title,
+            staging_message_id,
+            imported
+
+        )
+        VALUES(
+
+            $1,
+            $2,
+            $3,
+            $4,
+            TRUE
+
+        )
+        RETURNING *
+        `,
+
+        [
+
+            seasonId,
+            parsed.episode,
+            parsed.episodeTitle || null,
+            stagingMessageId
+
+        ]
+
+    );
+
+    await pgPool.query(
+
+        `
+        UPDATE seasons
+        SET
+            imported_count = imported_count + 1,
+            updated_at = NOW()
+        WHERE id=$1
+        `,
+
+        [
+
+            seasonId
+
+        ]
+
+    );
+
+    return {
+
+        ...result.rows[0],
+        alreadyExists: false
+
+    };
+
+}
+
 function extractForwardedMessageId(result) {
   if (!result) return null;
 
@@ -978,6 +1354,7 @@ async function startUserbotImporter() {
   console.log("✅ Userbot verbunden als:", me.username || me.firstName || me.id);
 
   await ensureUserbotImportTables();
+  await ensureLibraryTables();
 
   const importEntity = await resolveChat(client, IMPORT_CHAT, "IMPORT_CHAT");
   const stagingEntity = await resolveChat(client, STAGING_CHAT, "STAGING_CHAT");
@@ -1005,7 +1382,22 @@ async function startUserbotImporter() {
           `telegram_media_${message.id}`;
 
         const parsed = parseMediaFileName(fileName);
-        const importSession = updateImportSession(parsed);
+const importSession = updateImportSession(parsed);
+
+let librarySeries = null;
+let librarySeason = null;
+let libraryEpisode = null;
+
+if (parsed.type === "series") {
+
+    librarySeries = await findOrCreateSeries(parsed);
+
+    librarySeason = await findOrCreateSeason(
+        librarySeries.id,
+        parsed.season
+    );
+
+}
 
         const fileSize = getFileSize(message);
         const mimeType = getMimeType(message);
@@ -1023,7 +1415,21 @@ async function startUserbotImporter() {
 
         const stagingMessageId = extractForwardedMessageId(forwardedResult);
 
-        const importDbId = await saveUserbotImport({
+// =========================================================
+// Library of Legends Datenbank aktualisieren
+// =========================================================
+
+if (parsed.type === "series" && librarySeason) {
+
+    libraryEpisode = await findOrCreateEpisode(
+        librarySeason.id,
+        parsed,
+        stagingMessageId
+    );
+
+}
+
+const importDbId = await saveUserbotImport({
           uniqueKey: `${String(message.chatId || IMPORT_CHAT)}:${String(message.id)}`,
           sourceChat: String(IMPORT_CHAT),
           stagingChat: String(STAGING_CHAT),
@@ -1069,6 +1475,32 @@ async function startUserbotImporter() {
         if (importDbId) {
           report += `\n🆔 Import-ID: ${importDbId}`;
         }
+        
+        if (librarySeries) {
+
+    report += `\n📺 Serien-ID: ${librarySeries.id}`;
+
+}
+
+if (librarySeason) {
+
+    report += `\n📀 Staffel-ID: ${librarySeason.id}`;
+
+}
+
+if (libraryEpisode) {
+
+    if (libraryEpisode.alreadyExists) {
+
+        report += `\n♻️ Episode bereits vorhanden`;
+
+    } else {
+
+        report += `\n✅ Neue Episode gespeichert`;
+
+    }
+
+}
 
         await client.sendMessage(stagingEntity, {
   message: report,
