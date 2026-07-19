@@ -68,6 +68,13 @@ const {
     handleHistoryCommands
 } = require("./commands");
 
+const {
+  getDocumentFileName,
+  getVideoMeta,
+  getFileSize,
+  getMimeType,
+} = require("./importer/media-utils");
+
 const app = express();
 
 const { registerUserbotSessionSetup } = require("./userbot-session-web");
