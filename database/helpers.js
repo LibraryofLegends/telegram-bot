@@ -466,7 +466,7 @@ module.exports = {
   getTopic,
   saveTopic,
   saveKnowledge,
-  knowledgeCaption
+  knowledgeCaption,
   movieExists,
   saveMovie,
   seriesExists,
