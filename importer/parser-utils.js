@@ -1,7 +1,18 @@
-function cleanReleaseText(text = "") {
-
+function titleCase(text = "") {
     return String(text)
+        .split(" ")
+        .filter(Boolean)
+        .map((word) => {
+            if (/^[A-Z0-9]{2,}$/.test(word))
+                return word;
 
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        })
+        .join(" ");
+}
+
+function cleanReleaseText(text = "") {
+    return String(text)
         .replace(/\.[a-z0-9]{2,5}$/i, "")
         .replace(/@\w+/g, " ")
 
@@ -25,38 +36,19 @@ function cleanReleaseText(text = "") {
         .replace(/\s+/g, " ")
 
         .trim();
-
 }
 
 function cleanEpisodeTitle(text = "") {
-
     return String(text)
-
         .replace(/\.[a-z0-9]{2,5}$/i, "")
         .replace(/^[:=\-\s]+/, "")
         .replace(/=+$/g, "")
         .replace(/\s+/g, " ")
         .trim();
-
-}
-
-function titleCase(text = "") {
-    return String(text)
-        .split(" ")
-        .filter(Boolean)
-        .map((word) => {
-
-            if (/^[A-Z0-9]{2,}$/.test(word))
-                return word;
-
-            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-
-        })
-        .join(" ");
 }
 
 module.exports = {
+    titleCase,
     cleanReleaseText,
     cleanEpisodeTitle,
-    titleCase,
 };
