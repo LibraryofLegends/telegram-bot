@@ -4,10 +4,12 @@ const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
 const {
-  sqlite: db,
+  sqlite,
   postgres: pgPool,
   hasPostgres
 } = require("./database/connection");
+
+const db = sqlite;
 
 const {
   logToDb,
@@ -168,13 +170,8 @@ if (!ADMIN_ID) console.error("❌ ADMIN_ID fehlt");
 // =============================
 // DATABASE
 // =============================
-const DB_FILE_PATH = path.join(__dirname, "library.db");
 
-const db = new Database(DB_FILE_PATH);
-
-db.pragma("journal_mode = WAL");
-
-db.exec(`
+sqlite.exec(`
 CREATE TABLE IF NOT EXISTS movies (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   title TEXT NOT NULL,
