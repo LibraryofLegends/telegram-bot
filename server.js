@@ -67,6 +67,27 @@ const BOT_USERNAME = process.env.BOT_USERNAME || "";
 const BASE_URL = `https://api.telegram.org/bot${TOKEN}`;
 
 // =============================
+// IMPORT QUEUES
+// =============================
+
+const seriesImportQueue = new Map();
+const movieImportQueue = new Map();
+
+// =============================
+// TMDB CACHE
+// =============================
+
+const seriesTmdbCache = new Map();
+
+// =============================
+// TOPIC CACHE
+// =============================
+
+const topicCache = new Map();
+
+const TOPIC_CACHE_TTL = 5 * 60 * 1000; // 5 Minuten
+
+// =============================
 // POSTGRES / SUPABASE
 // =============================
 const DATABASE_URL = process.env.DATABASE_URL || "";
@@ -14061,6 +14082,12 @@ async function sendLocalPhoto({
 // =============================
 async function createOrGetTopic({ chatId, name, type }) {
   const uniqueKey = makeKey(`${type}-${chatId}-${name}`);
+  
+  const cached = topicCache.get(uniqueKey);
+
+if (cached && cached.expires > Date.now()) {
+  return cached.topicId;
+}
 
   let existingTopic = null;
 
@@ -14094,8 +14121,14 @@ async function createOrGetTopic({ chatId, name, type }) {
     "";
 
   if (!error.includes("message thread not found")) {
-    return Number(existingTopic.topic_id);
-  }
+
+  topicCache.set(uniqueKey, {
+    topicId: Number(existingTopic.topic_id),
+    expires: Date.now() + TOPIC_CACHE_TTL
+  });
+
+  return Number(existingTopic.topic_id);
+}
 
   console.log(
     "♻️ Defektes Topic erkannt:",
@@ -14168,6 +14201,11 @@ await sleep(
       uniqueKey
     });
   }
+  
+  topicCache.set(uniqueKey, {
+  topicId: topic.message_thread_id,
+  expires: Date.now() + TOPIC_CACHE_TTL
+});
 
   console.log("✅ Thema erstellt:", name, topic.message_thread_id);
 
@@ -28884,11 +28922,26 @@ await tg("sendMessage", {
     `📺 ${normalizedSeriesTitle} S${media.seasonText}E${media.episodeText}`
 });
 
-const tmdb = await searchSeriesTMDB(
-  normalizedSeriesTitle,
-  media.season,
-  media.episode
-);
+const tmdbCacheKey =
+  `${normalizedSeriesTitle.toLowerCase()}-S${media.season}-E${media.episode}`;
+
+let tmdb =
+  seriesTmdbCache.get(tmdbCacheKey);
+
+if (!tmdb) {
+  tmdb = await searchSeriesTMDB(
+    normalizedSeriesTitle,
+    media.season,
+    media.episode
+  );
+
+  if (tmdb) {
+    seriesTmdbCache.set(
+      tmdbCacheKey,
+      tmdb
+    );
+  }
+}
 
     if (!tmdb) {
       await tg("sendMessage", {
