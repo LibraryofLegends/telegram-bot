@@ -26,6 +26,10 @@ const {
     cleanupImportSessions,
 } = require("./importer/import-session");
 
+const {
+    extractForwardedMessageId,
+} = require("./telegram/message-utils");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
@@ -1050,36 +1054,6 @@ async function findOrCreateMovie(
 
     return result.rows[0];
 
-}
-
-function extractForwardedMessageId(result) {
-  if (!result) return null;
-
-  if (Array.isArray(result)) {
-    for (const item of result) {
-      const found = extractForwardedMessageId(item);
-      if (found) return found;
-    }
-  }
-
-  if (result.id) return String(result.id);
-  if (result.message?.id) return String(result.message.id);
-
-  if (Array.isArray(result.updates)) {
-    for (const update of result.updates) {
-      const nested = extractForwardedMessageId(update);
-      if (nested) return nested;
-    }
-  }
-
-  if (result.updates?.updates && Array.isArray(result.updates.updates)) {
-    for (const update of result.updates.updates) {
-      const nested = extractForwardedMessageId(update);
-      if (nested) return nested;
-    }
-  }
-
-  return null;
 }
 
 async function saveUserbotImport(data) {
