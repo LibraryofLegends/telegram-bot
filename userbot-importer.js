@@ -26,11 +26,6 @@ const {
     cleanupImportSessions,
 } = require("./importer/import-session");
 
-const {
-    ensureUserbotImportTables,
-    ensureLibraryTables,
-} = require("./database/schema");
-
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
