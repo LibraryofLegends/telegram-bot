@@ -26,6 +26,11 @@ const {
     cleanupImportSessions,
 } = require("./importer/import-session");
 
+const {
+    searchTMDB,
+    getTMDBDetails,
+} = require("./tmdb/client");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
