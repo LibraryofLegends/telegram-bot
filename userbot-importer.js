@@ -3,7 +3,6 @@ require("dotenv").config();
 const { TelegramClient } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
-const { Pool } = require("pg");
 const fetch = global.fetch;
 
 const {
@@ -54,14 +53,16 @@ const {
     findOrCreateEpisode,
 } = require("./database/repositories/episodes");
 
+const {
+    pgPool,
+} = require("./database/pool");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
 
 const IMPORT_CHAT = process.env.IMPORT_CHAT || process.env.IMPORT_CHAT_ID;
 const STAGING_CHAT = process.env.STAGING_CHAT || process.env.STAGING_CHAT_ID;
-const DATABASE_URL = process.env.DATABASE_URL || "";
-
 // =========================================================
 // TMDB
 // =========================================================
@@ -69,15 +70,6 @@ const DATABASE_URL = process.env.DATABASE_URL || "";
 const TMDB_API_KEY = process.env.TMDB_API_KEY || "";
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_URL = "https://image.tmdb.org/t/p/original";
-
-const pgPool = DATABASE_URL
-    ? new Pool({
-          connectionString: DATABASE_URL,
-          ssl: {
-              rejectUnauthorized: false,
-          },
-      })
-    : null;
 
 const ACTIVE_IMPORTS = new Set();
 
