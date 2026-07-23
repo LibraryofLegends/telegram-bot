@@ -78,52 +78,6 @@ function isUserbotEnabled() {
 }
 
 // =========================================================
-// Collections
-// =========================================================
-
-await pgPool.query(`
-
-    CREATE TABLE IF NOT EXISTS collections (
-
-        id SERIAL PRIMARY KEY,
-
-        tmdb_collection_id INTEGER UNIQUE,
-
-        name TEXT NOT NULL,
-
-        overview TEXT,
-
-        poster_path TEXT,
-
-        backdrop_path TEXT,
-
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-
-    );
-
-`);
-
-await pgPool.query(`
-
-    CREATE TABLE IF NOT EXISTS movie_collections (
-
-        movie_id INTEGER REFERENCES movies(id) ON DELETE CASCADE,
-
-        collection_id INTEGER REFERENCES collections(id) ON DELETE CASCADE,
-
-        PRIMARY KEY(movie_id, collection_id)
-
-    );
-
-`);
-
-console.log("✅ Library Tabellen bereit");
-
-}
-
-// =========================================================
 // TMDB aktiv?
 // =========================================================
 
