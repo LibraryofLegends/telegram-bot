@@ -77,10 +77,6 @@ function isUserbotEnabled() {
     return String(process.env.USERBOT_ENABLED || "").toLowerCase() === "true";
 }
 
-
-
-
-
 // =========================================================
 // Filme
 // =========================================================
