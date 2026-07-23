@@ -78,60 +78,6 @@ function isUserbotEnabled() {
 }
 
 // =========================================================
-// Filme
-// =========================================================
-
-await pgPool.query(`
-
-    CREATE TABLE IF NOT EXISTS movies (
-
-        id SERIAL PRIMARY KEY,
-
-        title TEXT NOT NULL,
-
-        original_title TEXT,
-
-        year INTEGER,
-
-        tmdb_id INTEGER UNIQUE,
-
-        imdb_id TEXT,
-
-        overview TEXT,
-
-        poster_path TEXT,
-
-        backdrop_path TEXT,
-
-        vote_average NUMERIC,
-
-        vote_count INTEGER,
-
-        runtime INTEGER,
-
-        genres TEXT[],
-
-        quality TEXT,
-
-        source TEXT,
-
-        codec TEXT,
-
-        audio TEXT,
-
-        staging_message_id TEXT,
-
-        imported BOOLEAN DEFAULT TRUE,
-
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-
-    );
-
-`);
-
-// =========================================================
 // Collections
 // =========================================================
 
