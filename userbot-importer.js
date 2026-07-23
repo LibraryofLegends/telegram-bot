@@ -38,6 +38,10 @@ const {
     saveUserbotImport,
 } = require("./database/repositories/imports");
 
+const {
+    findOrCreateSeason,
+} = require("./database/repositories/seasons");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
@@ -628,93 +632,6 @@ async function findOrCreateSeries(
 }
 
 // =========================================================
-// Staffelverwaltung
-// =========================================================
-
-async function findOrCreateSeason(seriesId, seasonNumber) {
-
-    if (!pgPool)
-        return null;
-
-    let result = await pgPool.query(
-
-        `
-
-        SELECT *
-
-        FROM seasons
-
-        WHERE series_id=$1
-
-        AND season_number=$2
-
-        LIMIT 1
-
-        `,
-
-        [
-
-            seriesId,
-
-            seasonNumber
-
-        ]
-
-    );
-
-    if (result.rows.length) {
-
-        return result.rows[0];
-
-    }
-
-    result = await pgPool.query(
-
-        `
-
-        INSERT INTO seasons(
-
-            series_id,
-
-            season_number
-
-        )
-
-        VALUES(
-
-            $1,
-
-            $2
-
-        )
-
-        RETURNING *
-
-        `,
-
-        [
-
-            seriesId,
-
-            seasonNumber
-
-        ]
-
-    );
-
-    console.log(
-
-        "✅ Staffel erstellt:",
-
-        seasonNumber
-
-    );
-
-    return result.rows[0];
-
-}
-
-// =========================================================
 // Episodenverwaltung
 // =========================================================
 
@@ -1204,9 +1121,10 @@ else if (parsed.type === "series") {
     );
 
     librarySeason = await findOrCreateSeason(
-        librarySeries.id,
-        parsed.season
-    );
+    pgPool,
+    librarySeries.id,
+    parsed.season
+);
 
 }
 
