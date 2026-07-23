@@ -57,12 +57,17 @@ const {
     pgPool,
 } = require("./database/pool");
 
+const {
+    initializeDatabase,
+} = require("./database/schema");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
 
 const IMPORT_CHAT = process.env.IMPORT_CHAT || process.env.IMPORT_CHAT_ID;
 const STAGING_CHAT = process.env.STAGING_CHAT || process.env.STAGING_CHAT_ID;
+
 // =========================================================
 // TMDB
 // =========================================================
@@ -290,8 +295,7 @@ async function startUserbotImporter() {
 
   console.log("✅ Userbot verbunden als:", me.username || me.firstName || me.id);
 
-  await ensureUserbotImportTables();
-  await ensureLibraryTables();
+  await initializeDatabase(pgPool);
 
   const importEntity = await resolveChat(client, IMPORT_CHAT, "IMPORT_CHAT");
   const stagingEntity = await resolveChat(client, STAGING_CHAT, "STAGING_CHAT");
