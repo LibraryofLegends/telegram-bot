@@ -50,6 +50,10 @@ const {
     findOrCreateMovie,
 } = require("./database/repositories/movies");
 
+const {
+    findOrCreateEpisode,
+} = require("./database/repositories/episodes");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
@@ -507,226 +511,6 @@ async function getTMDBDetails(type, tmdbId) {
 
 }
 
-// =========================================================
-// Episodenverwaltung
-// =========================================================
-
-async function findOrCreateEpisode(
-    seasonId,
-    parsed,
-    stagingMessageId = null
-) {
-
-    if (!pgPool)
-        return null;
-
-    let result = await pgPool.query(
-
-        `
-        SELECT *
-        FROM episodes
-        WHERE season_id=$1
-        AND episode_number=$2
-        LIMIT 1
-        `,
-
-        [
-            seasonId,
-            parsed.episode
-        ]
-
-    );
-
-    // Episode existiert bereits
-    if (result.rows.length) {
-
-        await pgPool.query(
-
-            `
-            UPDATE episodes
-            SET
-                staging_message_id=$1,
-                imported=TRUE,
-                updated_at=NOW()
-            WHERE id=$2
-            `,
-
-            [
-                stagingMessageId,
-                result.rows[0].id
-            ]
-
-        );
-
-        return {
-            ...result.rows[0],
-            alreadyExists: true
-        };
-
-    }
-
-    // Neue Episode anlegen
-
-    const episodeNumbers =
-    parsed.episodes?.length
-        ? parsed.episodes
-        : [parsed.episode];
-
-let firstEpisode = null;
-
-for (const episodeNumber of episodeNumbers) {
-
-    let existing = await pgPool.query(
-
-        `
-        SELECT *
-        FROM episodes
-        WHERE season_id=$1
-        AND episode_number=$2
-        LIMIT 1
-        `,
-
-        [
-
-            seasonId,
-            episodeNumber
-
-        ]
-
-    );
-
-    if (existing.rows.length) {
-
-        await pgPool.query(
-
-            `
-            UPDATE episodes
-            SET
-                staging_message_id=$1,
-                imported=TRUE,
-                updated_at=NOW()
-            WHERE id=$2
-            `,
-
-            [
-
-                stagingMessageId,
-                existing.rows[0].id
-
-            ]
-
-        );
-
-        if (!firstEpisode) {
-
-            firstEpisode = {
-
-                ...existing.rows[0],
-                alreadyExists: true
-
-            };
-
-        }
-
-        continue;
-
-    }
-
-    const inserted = await pgPool.query(
-
-        `
-        INSERT INTO episodes(
-
-            season_id,
-            episode_number,
-            title,
-            staging_message_id,
-            imported
-
-        )
-        VALUES(
-
-            $1,
-            $2,
-            $3,
-            $4,
-            TRUE
-
-        )
-        RETURNING *
-        `,
-
-        [
-
-            seasonId,
-            episodeNumber,
-            parsed.episodeTitle || null,
-            stagingMessageId
-
-        ]
-
-    );
-
-    await pgPool.query(
-
-        `
-        UPDATE seasons
-        SET
-            imported_count = imported_count + 1,
-            updated_at = NOW()
-        WHERE id=$1
-        `,
-
-        [
-
-            seasonId
-
-        ]
-
-    );
-
-    if (!firstEpisode) {
-
-        firstEpisode = {
-
-            ...inserted.rows[0],
-            alreadyExists: false
-
-        };
-
-    }
-
-}
-
-return firstEpisode;
-
-    await pgPool.query(
-
-        `
-        UPDATE seasons
-        SET
-            imported_count = imported_count + 1,
-            updated_at = NOW()
-        WHERE id=$1
-        `,
-
-        [
-
-            seasonId
-
-        ]
-
-    );
-
-    return {
-
-        ...result.rows[0],
-        alreadyExists: false
-
-    };
-
-}
-
 async function startUserbotImporter() {
   if (!isUserbotEnabled()) {
     console.log("ℹ️ Userbot Importer deaktiviert. USERBOT_ENABLED ist nicht true.");
@@ -925,10 +709,11 @@ else if (parsed.type === "series") {
 if (parsed.type === "series" && librarySeason) {
 
     libraryEpisode = await findOrCreateEpisode(
-        librarySeason.id,
-        parsed,
-        stagingMessageId
-    );
+    pgPool,
+    librarySeason.id,
+    parsed,
+    stagingMessageId
+);
 
 }
 
