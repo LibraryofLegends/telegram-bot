@@ -86,6 +86,10 @@ const {
     updateMovieStaging,
 } = require("./importer/update-movie-staging");
 
+const {
+    syncEpisode,
+} = require("./importer/sync-episode");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
@@ -226,16 +230,13 @@ let libraryEpisode = null;
 // Library of Legends Datenbank aktualisieren
 // =========================================================
 
-if (parsed.type === "series" && librarySeason) {
-
-    libraryEpisode = await findOrCreateEpisode(
+libraryEpisode = await syncEpisode(
     pgPool,
-    librarySeason.id,
     parsed,
-    stagingMessageId
+    librarySeason,
+    stagingMessageId,
+    findOrCreateEpisode
 );
-
-}
 
 const importDbId = await saveUserbotImport(pgPool, {
           uniqueKey: `${String(message.chatId || IMPORT_CHAT)}:${String(message.id)}`,
