@@ -1,13 +1,14 @@
 function enhanceImportReport(
     report,
     {
-        importDbId,
-        librarySeries,
-        librarySeason,
-        libraryEpisode,
-        libraryMovie,
-        tmdbData,
-    }
+    importDbId,
+    librarySeries,
+    librarySeason,
+    libraryEpisode,
+    libraryMovie,
+    libraryCollection,
+    tmdbData,
+}
 ) {
     if (importDbId) {
         report += `\n🆔 Import-ID: ${importDbId}`;
@@ -32,6 +33,10 @@ function enhanceImportReport(
     if (libraryMovie) {
         report += `\n🎬 Film-ID: ${libraryMovie.id}`;
     }
+    
+    if (libraryCollection) {
+    report += `\n📚 Collection: ${libraryCollection.name}`;
+}
 
     if (tmdbData) {
         report += "\n";
