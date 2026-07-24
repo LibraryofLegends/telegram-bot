@@ -90,6 +90,15 @@ const {
     syncEpisode,
 } = require("./importer/sync-episode");
 
+const {
+    findOrCreateCollection,
+    assignMovieToCollection,
+} = require("./database/repositories/collections");
+
+const {
+    syncMovieCollection,
+} = require("./importer/collection-sync");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
@@ -236,6 +245,14 @@ libraryEpisode = await syncEpisode(
     librarySeason,
     stagingMessageId,
     findOrCreateEpisode
+);
+
+const libraryCollection = await syncMovieCollection(
+    pgPool,
+    tmdbData,
+    libraryMovie,
+    findOrCreateCollection,
+    assignMovieToCollection
 );
 
 const importDbId = await saveUserbotImport(pgPool, {
