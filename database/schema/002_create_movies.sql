@@ -1,3 +1,13 @@
+-- ======================================================
+-- Library Of Legends 2.0
+-- Movies Table
+-- Version: 2.0
+-- ======================================================
+
+-- ======================================================
+-- TABLE
+-- ======================================================
+
 CREATE TABLE IF NOT EXISTS movies (
 
     id BIGSERIAL PRIMARY KEY,
@@ -29,8 +39,21 @@ CREATE TABLE IF NOT EXISTS movies (
     updated_at TIMESTAMP DEFAULT NOW(),
 
     CONSTRAINT fk_movie_media
-        FOREIGN KEY(media_item_id)
+        FOREIGN KEY (media_item_id)
         REFERENCES media_items(id)
         ON DELETE CASCADE
 
 );
+
+-- ======================================================
+-- INDEXES
+-- ======================================================
+
+CREATE INDEX IF NOT EXISTS idx_movies_tmdb_id
+ON movies(tmdb_id);
+
+CREATE INDEX IF NOT EXISTS idx_movies_imdb_id
+ON movies(imdb_id);
+
+CREATE INDEX IF NOT EXISTS idx_movies_media_item_id
+ON movies(media_item_id);
