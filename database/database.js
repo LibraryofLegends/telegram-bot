@@ -1,8 +1,25 @@
+// ======================================================
+// Library Of Legends 2.0
+// File: database.js
+// Module: Database
+// Description: Unified database access layer
+// Author: Thomas Lorenz
+// Version: 2.0
+// ======================================================
+
+// ======================================================
+// IMPORTS
+// ======================================================
+
 const {
     postgres: pgPool,
     hasPostgres,
     sqlite
 } = require("./connection");
+
+// ======================================================
+// QUERY
+// ======================================================
 
 async function query(sql, params = []) {
 
@@ -14,12 +31,15 @@ async function query(sql, params = []) {
 
 }
 
+// ======================================================
+// GET
+// ======================================================
+
 async function get(sql, params = []) {
 
     if (hasPostgres()) {
 
-        const result =
-            await pgPool.query(sql, params);
+        const result = await pgPool.query(sql, params);
 
         return result.rows[0] || null;
 
@@ -28,6 +48,10 @@ async function get(sql, params = []) {
     return sqlite.prepare(sql).get(...params);
 
 }
+
+// ======================================================
+// RUN
+// ======================================================
 
 async function run(sql, params = []) {
 
@@ -39,6 +63,10 @@ async function run(sql, params = []) {
 
 }
 
+// ======================================================
+// EXEC
+// ======================================================
+
 async function exec(sql) {
 
     if (hasPostgres()) {
@@ -48,6 +76,10 @@ async function exec(sql) {
     return sqlite.exec(sql);
 
 }
+
+// ======================================================
+// EXPORTS
+// ======================================================
 
 module.exports = {
 
