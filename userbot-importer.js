@@ -304,6 +304,7 @@ const importDbId = await saveUserbotImport(pgPool, {
     librarySeason,
     libraryEpisode,
     libraryMovie,
+    libraryCollection,
     tmdbData,
 });
 
