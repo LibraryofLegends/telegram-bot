@@ -80,10 +80,6 @@ const STAGING_CHAT = process.env.STAGING_CHAT || process.env.STAGING_CHAT_ID;
 // TMDB
 // =========================================================
 
-const TMDB_API_KEY = process.env.TMDB_API_KEY || "";
-const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-const TMDB_IMAGE_URL = "https://image.tmdb.org/t/p/original";
-
 const ACTIVE_IMPORTS = new Set();
 
 function isUserbotEnabled() {
