@@ -1,0 +1,169 @@
+# TABLE_SPECIFICATION.md
+
+## Tabelle
+
+media_items
+
+---
+
+# Zweck
+
+Die Tabelle `media_items` ist die Basistabelle für sämtliche Medien in Library Of Legends.
+
+Jeder Medieneintrag besitzt genau einen Datensatz in dieser Tabelle.
+
+Spezifische Informationen befinden sich anschließend in den jeweiligen Modultabellen (movies, series, music usw.).
+
+---
+
+# Primärschlüssel
+
+id
+
+INTEGER
+
+PRIMARY KEY
+
+AUTOINCREMENT
+
+---
+
+# Spalten
+
+| Name | Typ | Null | Standard | Beschreibung |
+|------|-----|------|-----------|--------------|
+| id | INTEGER | Nein | Auto | Interne ID |
+| library_id | TEXT | Nein | - | Öffentliche Archivnummer |
+| media_type | TEXT | Nein | - | Typ des Mediums |
+| status | TEXT | Nein | active | Status |
+| created_at | DATETIME | Nein | CURRENT_TIMESTAMP | Erstellt |
+| updated_at | DATETIME | Nein | CURRENT_TIMESTAMP | Letzte Änderung |
+| deleted_at | DATETIME | Ja | NULL | Soft Delete |
+
+---
+
+# Zulässige Media Types
+
+Movie
+
+Series
+
+Season
+
+Episode
+
+Music
+
+Album
+
+Comic
+
+Book
+
+Audiobook
+
+Documentary
+
+Game
+
+---
+
+# Status
+
+active
+
+hidden
+
+draft
+
+archived
+
+deleted
+
+---
+
+# Unique
+
+library_id
+
+---
+
+# Indizes
+
+idx_media_items_library_id
+
+idx_media_items_media_type
+
+idx_media_items_status
+
+idx_media_items_created_at
+
+---
+
+# Check Constraints
+
+media_type muss gültig sein.
+
+status muss gültig sein.
+
+---
+
+# Beziehungen
+
+Movie
+
+↓
+
+movies.media_item_id
+
+Series
+
+↓
+
+series.media_item_id
+
+Music
+
+↓
+
+music.media_item_id
+
+---
+
+# Beispiel
+
+id
+
+1
+
+library_id
+
+MOV-000001
+
+media_type
+
+Movie
+
+status
+
+active
+
+created_at
+
+2026-01-01
+
+updated_at
+
+2026-01-01
+
+deleted_at
+
+NULL
+
+---
+
+# Hinweise
+
+Die Library-ID darf niemals geändert werden.
+
+Alle Module referenzieren ausschließlich diese Tabelle.
