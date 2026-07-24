@@ -78,6 +78,10 @@ const {
     syncLibrary,
 } = require("./importer/library-sync");
 
+const {
+    enhanceImportReport,
+} = require("./importer/report-enhancer");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
@@ -291,70 +295,14 @@ const importDbId = await saveUserbotImport(pgPool, {
   importSession,
 });
 
-        if (importDbId) {
-          report += `\n🆔 Import-ID: ${importDbId}`;
-        }
-        
-        if (librarySeries) {
-
-    report += `\n📺 Serien-ID: ${librarySeries.id}`;
-
-}
-
-if (librarySeason) {
-
-    report += `\n📀 Staffel-ID: ${librarySeason.id}`;
-
-}
-
-if (libraryEpisode) {
-
-    if (libraryEpisode.alreadyExists) {
-
-        report += `\n♻️ Episode bereits vorhanden`;
-
-    } else {
-
-        report += `\n✅ Neue Episode gespeichert`;
-
-    }
-
-}
-
-if (libraryMovie) {
-
-    report += `\n🎬 Film-ID: ${libraryMovie.id}`;
-
-}
-
-if (tmdbData) {
-
-    report += "\n";
-    report += "\n━━━━━━━━━━━━━━━━━━━━";
-    report += "\n🎬 TMDB";
-    report += "\n━━━━━━━━━━━━━━━━━━━━";
-
-    report += `\n🆔 TMDB-ID: ${tmdbData.tmdbId}`;
-
-    if (tmdbData.imdbId)
-        report += `\n🎟 IMDb: ${tmdbData.imdbId}`;
-
-    if (tmdbData.voteAverage)
-        report += `\n⭐ Bewertung: ${tmdbData.voteAverage}/10`;
-
-    if (tmdbData.genres?.length)
-        report += `\n🎭 Genres: ${tmdbData.genres.join(", ")}`;
-
-    if (tmdbData.runtime)
-        report += `\n⏱ Laufzeit: ${tmdbData.runtime} Min.`;
-
-    if (tmdbData.seasons)
-        report += `\n📀 Staffeln: ${tmdbData.seasons}`;
-
-    if (tmdbData.episodes)
-        report += `\n🎞 Episoden: ${tmdbData.episodes}`;
-
-}
+        report = enhanceImportReport(report, {
+    importDbId,
+    librarySeries,
+    librarySeason,
+    libraryEpisode,
+    libraryMovie,
+    tmdbData,
+});
 
         await client.sendMessage(stagingEntity, {
   message: report,
