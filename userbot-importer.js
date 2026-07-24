@@ -70,6 +70,10 @@ const {
     TMDB_IMAGE_URL,
 } = require("./tmdb/client");
 
+const {
+    loadTMDBData,
+} = require("./importer/tmdb-loader");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
@@ -159,50 +163,14 @@ const importSession = updateImportSession(parsed);
 // TMDB Informationen laden
 // =========================================================
 
-let tmdbSearch = null;
-let tmdbData = null;
-
-if (parsed.type === "movie") {
-
-    tmdbSearch = await searchTMDB(
-        "movie",
-        parsed.title,
-        parsed.year
-    );
-
-}
-
-else if (
-    parsed.type === "series" ||
-    parsed.type === "season"
-) {
-
-    tmdbSearch = await searchTMDB(
-        "tv",
-        parsed.title,
-        parsed.year
-    );
-
-}
-
-if (tmdbSearch) {
-
-    tmdbData = await getTMDBDetails(
-
-        parsed.type === "movie"
-            ? "movie"
-            : "tv",
-
-        tmdbSearch.id
-
-    );
-
-    console.log(
-        "🎬 TMDB:",
-        tmdbData?.title
-    );
-
-}
+const {
+    tmdbSearch,
+    tmdbData,
+} = await loadTMDBData(
+    parsed,
+    searchTMDB,
+    getTMDBDetails
+);
 
 let librarySeries = null;
 let librarySeason = null;
