@@ -74,6 +74,10 @@ const {
     loadTMDBData,
 } = require("./importer/tmdb-loader");
 
+const {
+    syncLibrary,
+} = require("./importer/library-sync");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
