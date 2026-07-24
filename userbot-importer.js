@@ -90,11 +90,6 @@ function isUserbotEnabled() {
 // TMDB aktiv?
 // =========================================================
 
-function hasTMDB() {
-    return Boolean(TMDB_API_KEY);
-
-}
-
 async function getTMDBDetails(type, tmdbId) {
 
     if (!hasTMDB())
