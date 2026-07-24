@@ -1,0 +1,121 @@
+# Tabelle
+
+movies
+
+---
+
+# Zweck
+
+Speichert ausschließlich filmspezifische Informationen.
+
+Alle allgemeinen Informationen befinden sich in media_items.
+
+---
+
+# Primärschlüssel
+
+id
+
+INTEGER
+
+PRIMARY KEY
+
+AUTOINCREMENT
+
+---
+
+# Fremdschlüssel
+
+media_item_id
+
+REFERENCES media_items(id)
+
+ON UPDATE CASCADE
+
+ON DELETE RESTRICT
+
+---
+
+# Spalten
+
+| Name | Typ | Null | Beschreibung |
+|------|-----|------|--------------|
+| id | INTEGER | Nein | PK |
+| media_item_id | INTEGER | Nein | FK |
+| title | TEXT | Nein | Deutscher Titel |
+| original_title | TEXT | Ja | Originaltitel |
+| sort_title | TEXT | Ja | Sortiertitel |
+| overview | TEXT | Ja | Beschreibung |
+| tagline | TEXT | Ja | Slogan |
+| release_date | DATE | Ja | Erscheinungsdatum |
+| runtime | INTEGER | Ja | Laufzeit |
+| certification | TEXT | Ja | FSK |
+| tmdb_id | INTEGER | Ja | TMDb |
+| imdb_id | TEXT | Ja | IMDb |
+| budget | INTEGER | Ja | Budget |
+| revenue | INTEGER | Ja | Einnahmen |
+| popularity | REAL | Ja | Popularität |
+
+---
+
+# Indizes
+
+idx_movies_title
+
+idx_movies_release_date
+
+idx_movies_tmdb_id
+
+idx_movies_imdb_id
+
+---
+
+# Unique
+
+tmdb_id
+
+imdb_id
+
+---
+
+# Checks
+
+runtime > 0
+
+budget >= 0
+
+revenue >= 0
+
+---
+
+# Beziehungen
+
+Movie
+
+↓
+
+Genres
+
+Collections
+
+Universes
+
+Studios
+
+Files
+
+Ratings
+
+Tags
+
+Countries
+
+Languages
+
+People
+
+---
+
+# Hinweise
+
+Alle weiteren Beziehungen erfolgen ausschließlich über Join-Tabellen.
