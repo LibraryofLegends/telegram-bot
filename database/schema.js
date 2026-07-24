@@ -43,6 +43,10 @@ async function ensureLibraryTables(pgPool) {
         return;
     }
 
+    // =========================================================
+    // Serien
+    // =========================================================
+
     await pgPool.query(`
         CREATE TABLE IF NOT EXISTS series (
             id SERIAL PRIMARY KEY,
@@ -65,6 +69,10 @@ async function ensureLibraryTables(pgPool) {
         );
     `);
 
+    // =========================================================
+    // Staffeln
+    // =========================================================
+
     await pgPool.query(`
         CREATE TABLE IF NOT EXISTS seasons (
             id SERIAL PRIMARY KEY,
@@ -78,6 +86,10 @@ async function ensureLibraryTables(pgPool) {
             UNIQUE(series_id, season_number)
         );
     `);
+
+    // =========================================================
+    // Episoden
+    // =========================================================
 
     await pgPool.query(`
         CREATE TABLE IF NOT EXISTS episodes (
@@ -93,14 +105,9 @@ async function ensureLibraryTables(pgPool) {
         );
     `);
 
-    await pgPool.query(`
-        CREATE TABLE IF NOT EXISTS logs (
-            id BIGSERIAL PRIMARY KEY,
-            type TEXT NOT NULL,
-            message TEXT NOT NULL,
-            created_at TIMESTAMPTZ DEFAULT NOW()
-        );
-    `);
+    // =========================================================
+    // Filme
+    // =========================================================
 
     await pgPool.query(`
         CREATE TABLE IF NOT EXISTS movies (
@@ -128,24 +135,49 @@ async function ensureLibraryTables(pgPool) {
         );
     `);
 
+    // =========================================================
+    // Collections
+    // =========================================================
+
     await pgPool.query(`
         CREATE TABLE IF NOT EXISTS collections (
             id SERIAL PRIMARY KEY,
             tmdb_collection_id INTEGER UNIQUE,
             name TEXT NOT NULL,
+            slug TEXT UNIQUE,
             overview TEXT,
             poster_path TEXT,
             backdrop_path TEXT,
+            movie_count INTEGER DEFAULT 0,
             created_at TIMESTAMPTZ DEFAULT NOW(),
             updated_at TIMESTAMPTZ DEFAULT NOW()
         );
     `);
 
+    // =========================================================
+    // Film ↔ Collection
+    // =========================================================
+
     await pgPool.query(`
         CREATE TABLE IF NOT EXISTS movie_collections (
-            movie_id INTEGER REFERENCES movies(id) ON DELETE CASCADE,
-            collection_id INTEGER REFERENCES collections(id) ON DELETE CASCADE,
-            PRIMARY KEY(movie_id, collection_id)
+            movie_id INTEGER NOT NULL REFERENCES movies(id) ON DELETE CASCADE,
+            collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+            position INTEGER,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            PRIMARY KEY (movie_id, collection_id)
+        );
+    `);
+
+    // =========================================================
+    // Logs
+    // =========================================================
+
+    await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS logs (
+            id BIGSERIAL PRIMARY KEY,
+            type TEXT NOT NULL,
+            message TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
         );
     `);
 
