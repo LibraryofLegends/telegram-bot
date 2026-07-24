@@ -176,36 +176,20 @@ const {
     getTMDBDetails
 );
 
-let librarySeries = null;
-let librarySeason = null;
+const {
+    librarySeries,
+    librarySeason,
+    libraryMovie,
+} = await syncLibrary(
+    pgPool,
+    parsed,
+    tmdbData,
+    findOrCreateMovie,
+    findOrCreateSeries,
+    findOrCreateSeason
+);
+
 let libraryEpisode = null;
-let libraryMovie = null;
-
-if (parsed.type === "movie") {
-
-    libraryMovie = await findOrCreateMovie(
-    pgPool,
-    parsed,
-    tmdbData
-);
-
-}
-
-else if (parsed.type === "series") {
-
-    librarySeries = await findOrCreateSeries(
-    pgPool,
-    parsed,
-    tmdbData
-);
-
-    librarySeason = await findOrCreateSeason(
-    pgPool,
-    librarySeries.id,
-    parsed.season
-);
-
-}
 
         const fileSize = getFileSize(message);
         const mimeType = getMimeType(message);
