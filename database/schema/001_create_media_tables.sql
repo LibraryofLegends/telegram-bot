@@ -1,11 +1,12 @@
 -- ======================================================
 -- Library Of Legends 2.0
--- Initial Media Schema
+-- File: 001_media_items.sql
+-- Description: Creates the media_items table
 -- Version: 2.0
 -- ======================================================
 
 -- ======================================================
--- MEDIA ITEMS
+-- TABLE
 -- ======================================================
 
 CREATE TABLE IF NOT EXISTS media_items (
@@ -44,11 +45,39 @@ CREATE TABLE IF NOT EXISTS media_items (
 
 );
 
-CREATE INDEX idx_media_library
+-- ======================================================
+-- INDEXES
+-- ======================================================
+
+CREATE INDEX IF NOT EXISTS idx_media_items_library_id
 ON media_items(library_id);
 
-CREATE INDEX idx_media_type
+CREATE INDEX IF NOT EXISTS idx_media_items_media_type
 ON media_items(media_type);
 
-CREATE INDEX idx_media_title
+CREATE INDEX IF NOT EXISTS idx_media_items_title
 ON media_items(title);
+
+-- ======================================================
+-- FOREIGN KEYS
+-- ======================================================
+
+-- None
+
+-- ======================================================
+-- TRIGGERS
+-- ======================================================
+
+-- None
+
+-- ======================================================
+-- VIEWS
+-- ======================================================
+
+-- None
+
+-- ======================================================
+-- DEFAULT DATA
+-- ======================================================
+
+-- None
