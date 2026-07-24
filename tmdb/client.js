@@ -54,7 +54,7 @@ async function searchTMDB(type, title, year = null) {
 }
 
 // =========================================================
-// TMDB aktiv?
+// TMDB Details laden
 // =========================================================
 
 async function getTMDBDetails(type, tmdbId) {
@@ -131,25 +131,39 @@ async function getTMDBDetails(type, tmdbId) {
                 (json.genres || []).map(g => g.name),
 
             poster:
-
                 json.poster_path
                     ? TMDB_IMAGE_URL + json.poster_path
                     : null,
 
             backdrop:
-
                 json.backdrop_path
                     ? TMDB_IMAGE_URL + json.backdrop_path
                     : null,
 
-            cast:
+            // =========================================================
+            // Collection
+            // =========================================================
 
+            collection:
+                json.belongs_to_collection
+                    ? {
+                          tmdbId: json.belongs_to_collection.id,
+                          name: json.belongs_to_collection.name,
+                          posterPath: json.belongs_to_collection.poster_path
+                              ? TMDB_IMAGE_URL + json.belongs_to_collection.poster_path
+                              : null,
+                          backdropPath: json.belongs_to_collection.backdrop_path
+                              ? TMDB_IMAGE_URL + json.belongs_to_collection.backdrop_path
+                              : null,
+                      }
+                    : null,
+
+            cast:
                 (json.credits?.cast || [])
                     .slice(0, 10)
                     .map(actor => actor.name),
 
             directors:
-
                 (json.credits?.crew || [])
                     .filter(c => c.job === "Director")
                     .map(c => c.name)
