@@ -1,6 +1,10 @@
 -- ======================================================
 -- Library Of Legends 2.0
--- Movies Table
+-- File: 002_movies.sql
+-- Module: Database Schema
+-- Table: movies
+-- Description: Creates the movies table
+-- Author: Thomas Lorenz
 -- Version: 2.0
 -- ======================================================
 
@@ -38,7 +42,7 @@ CREATE TABLE IF NOT EXISTS movies (
 
     updated_at TIMESTAMP DEFAULT NOW(),
 
-    CONSTRAINT fk_movie_media
+    CONSTRAINT fk_movies_media_items
         FOREIGN KEY (media_item_id)
         REFERENCES media_items(id)
         ON DELETE CASCADE
@@ -49,11 +53,36 @@ CREATE TABLE IF NOT EXISTS movies (
 -- INDEXES
 -- ======================================================
 
+CREATE INDEX IF NOT EXISTS idx_movies_media_item_id
+ON movies(media_item_id);
+
 CREATE INDEX IF NOT EXISTS idx_movies_tmdb_id
 ON movies(tmdb_id);
 
 CREATE INDEX IF NOT EXISTS idx_movies_imdb_id
 ON movies(imdb_id);
 
-CREATE INDEX IF NOT EXISTS idx_movies_media_item_id
-ON movies(media_item_id);
+-- ======================================================
+-- FOREIGN KEYS
+-- ======================================================
+
+-- fk_movies_media_items
+-- media_item_id → media_items.id
+
+-- ======================================================
+-- TRIGGERS
+-- ======================================================
+
+-- None
+
+-- ======================================================
+-- VIEWS
+-- ======================================================
+
+-- None
+
+-- ======================================================
+-- DEFAULT DATA
+-- ======================================================
+
+-- None
