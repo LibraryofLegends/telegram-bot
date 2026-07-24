@@ -82,6 +82,10 @@ const {
     enhanceImportReport,
 } = require("./importer/report-enhancer");
 
+const {
+    updateMovieStaging,
+} = require("./importer/update-movie-staging");
+
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const session = process.env.USERBOT_SESSION;
@@ -211,31 +215,12 @@ let libraryEpisode = null;
 
         const stagingMessageId = extractForwardedMessageId(forwardedResult);
         
-        if (
-    parsed.type === "movie" &&
-    libraryMovie
-) {
-
-    await pgPool.query(
-
-        `
-        UPDATE movies
-        SET
-            staging_message_id=$1,
-            updated_at=NOW()
-        WHERE id=$2
-        `,
-
-        [
-
-            stagingMessageId,
-            libraryMovie.id
-
-        ]
-
-    );
-
-}
+        await updateMovieStaging(
+    pgPool,
+    parsed,
+    libraryMovie,
+    stagingMessageId
+);
 
 // =========================================================
 // Library of Legends Datenbank aktualisieren
