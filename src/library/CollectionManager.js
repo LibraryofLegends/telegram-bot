@@ -45,7 +45,7 @@ class CollectionManager {
 
         return await this.db.collections.findOne({
 
-            tmdbId: collection.id
+            tmdbId: media.collection.id,
 
         });
 
@@ -58,7 +58,7 @@ class CollectionManager {
 
         return await this.db.collections.insert({
 
-            tmdbId: collection.id,
+            tmdbId: media.collection.id,
 
             name: media.collection.name,
 
