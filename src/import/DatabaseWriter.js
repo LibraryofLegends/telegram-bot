@@ -88,7 +88,7 @@ class DatabaseWriter {
                 series
             );
 
-            movie.databaseAction = "updated";
+            series.databaseAction = "updated";
             series.databaseId = existing.id;
 
             return series;
