@@ -1546,19 +1546,27 @@ class BaseRepository {
 
         this.log('TRANSACTION BEGIN');
 
-        const transaction = this.db.transaction(() => {
+try {
 
-            return callback(this);
+    const transaction = this.db.transaction(() => {
 
-        });
+        return callback(this);
 
-        const result = transaction();
+    });
 
-        this.log('TRANSACTION COMMIT');
+    const result = transaction();
 
-        return result;
+    this.log('TRANSACTION COMMIT');
 
-    }
+    return result;
+
+} catch (error) {
+
+    this.log('TRANSACTION ROLLBACK');
+
+    throw error;
+
+}
 
     /**
      * Transaktion starten
