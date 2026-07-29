@@ -457,6 +457,12 @@ class BaseRepository {
 
     }
     
+    /**
+ * ============================================================
+ * CRUD
+ * ============================================================
+ */
+    
         /**
      * Datensatz anhand der ID laden
      *
@@ -1433,3 +1439,540 @@ class BaseRepository {
         return this.db.pragma('wal_checkpoint(FULL)');
 
     }
+    
+        /**
+     * ============================================================
+     * Soft Deletes
+     * ============================================================
+     */
+
+    /**
+     * Soft Deletes aktivieren
+     */
+    enableSoftDeletes() {
+
+        this.enableSoftDelete = true;
+
+    }
+
+    /**
+     * Soft Deletes deaktivieren
+     */
+    disableSoftDeletes() {
+
+        this.enableSoftDelete = false;
+
+    }
+
+    /**
+     * Datensatz als gelöscht markieren
+     *
+     * @param {*} id
+     * @returns {*}
+     */
+    softDelete(id) {
+
+        this.validateId(id);
+
+        if (!this.enableSoftDelete) {
+
+            return this.delete(id);
+
+        }
+
+        const sql = `
+            UPDATE ${this.validateTable()}
+            SET ${this.softDeleteColumn} = ?
+            WHERE ${this.primaryKey} = ?
+        `;
+
+        return this.execute(sql, [
+            this.now(),
+            id
+        ]);
+
+    }
+
+    /**
+     * Gelöschten Datensatz wiederherstellen
+     *
+     * @param {*} id
+     * @returns {*}
+     */
+    restore(id) {
+
+        this.validateId(id);
+
+        const sql = `
+            UPDATE ${this.validateTable()}
+            SET ${this.softDeleteColumn} = NULL
+            WHERE ${this.primaryKey} = ?
+        `;
+
+        return this.execute(sql, [id]);
+
+    }
+
+    /**
+     * Datensatz endgültig löschen
+     *
+     * @param {*} id
+     * @returns {*}
+     */
+    forceDelete(id) {
+
+        this.validateId(id);
+
+        const sql = `
+            DELETE
+            FROM ${this.validateTable()}
+            WHERE ${this.primaryKey} = ?
+        `;
+
+        return this.execute(sql, [id]);
+
+    }
+
+    /**
+     * Nur gelöschte Datensätze laden
+     *
+     * @returns {Array}
+     */
+    onlyTrashed() {
+
+        const sql = `
+            SELECT *
+            FROM ${this.validateTable()}
+            WHERE ${this.softDeleteColumn} IS NOT NULL
+        `;
+
+        return this.all(sql);
+
+    }
+
+    /**
+     * Nur aktive Datensätze laden
+     *
+     * @returns {Array}
+     */
+    withoutTrashed() {
+
+        const sql = `
+            SELECT *
+            FROM ${this.validateTable()}
+            WHERE ${this.softDeleteColumn} IS NULL
+        `;
+
+        return this.all(sql);
+
+    }
+
+    /**
+     * Alle Datensätze laden
+     * (inklusive gelöschter)
+     *
+     * @returns {Array}
+     */
+    withTrashed() {
+
+        const sql = `
+            SELECT *
+            FROM ${this.validateTable()}
+        `;
+
+        return this.all(sql);
+
+    }
+
+    /**
+     * Mehrere Datensätze wiederherstellen
+     *
+     * @param {Array} ids
+     * @returns {*}
+     */
+    restoreMany(ids) {
+
+        this.validateArray(ids);
+
+        if (ids.length === 0) {
+
+            return;
+
+        }
+
+        const placeholders = ids
+            .map(() => '?')
+            .join(', ');
+
+        const sql = `
+            UPDATE ${this.validateTable()}
+            SET ${this.softDeleteColumn} = NULL
+            WHERE ${this.primaryKey}
+            IN (${placeholders})
+        `;
+
+        return this.execute(sql, ids);
+
+    }
+
+    /**
+     * Mehrere Datensätze endgültig löschen
+     *
+     * @param {Array} ids
+     * @returns {*}
+     */
+    forceDeleteMany(ids) {
+
+        this.validateArray(ids);
+
+        if (ids.length === 0) {
+
+            return;
+
+        }
+
+        const placeholders = ids
+            .map(() => '?')
+            .join(', ');
+
+        const sql = `
+            DELETE
+            FROM ${this.validateTable()}
+            WHERE ${this.primaryKey}
+            IN (${placeholders})
+        `;
+
+        return this.execute(sql, ids);
+
+    }
+    
+        /**
+     * ============================================================
+     * Statistik
+     * ============================================================
+     */
+
+    /**
+     * Maximalwert einer Spalte
+     *
+     * @param {string} column
+     * @returns {*}
+     */
+    max(column) {
+
+        this.validateColumn(column);
+
+        const sql = `
+            SELECT MAX(${column}) AS value
+            FROM ${this.validateTable()}
+        `;
+
+        const result = this.get(sql);
+
+        return result ? result.value : null;
+
+    }
+
+    /**
+     * Minimalwert einer Spalte
+     *
+     * @param {string} column
+     * @returns {*}
+     */
+    min(column) {
+
+        this.validateColumn(column);
+
+        const sql = `
+            SELECT MIN(${column}) AS value
+            FROM ${this.validateTable()}
+        `;
+
+        const result = this.get(sql);
+
+        return result ? result.value : null;
+
+    }
+
+    /**
+     * Summe einer Spalte
+     *
+     * @param {string} column
+     * @returns {number}
+     */
+    sum(column) {
+
+        this.validateColumn(column);
+
+        const sql = `
+            SELECT SUM(${column}) AS value
+            FROM ${this.validateTable()}
+        `;
+
+        const result = this.get(sql);
+
+        return result ? result.value : 0;
+
+    }
+
+    /**
+     * Durchschnitt einer Spalte
+     *
+     * @param {string} column
+     * @returns {number}
+     */
+    avg(column) {
+
+        this.validateColumn(column);
+
+        const sql = `
+            SELECT AVG(${column}) AS value
+            FROM ${this.validateTable()}
+        `;
+
+        const result = this.get(sql);
+
+        return result ? result.value : 0;
+
+    }
+
+    /**
+     * Anzahl nach Spalte gruppieren
+     *
+     * @param {string} column
+     * @returns {Array}
+     */
+    countBy(column) {
+
+        this.validateColumn(column);
+
+        const sql = `
+            SELECT
+                ${column},
+                COUNT(*) AS total
+            FROM ${this.validateTable()}
+            GROUP BY ${column}
+            ORDER BY total DESC
+        `;
+
+        return this.all(sql);
+
+    }
+
+    /**
+     * Nach Spalte gruppieren
+     *
+     * @param {string} column
+     * @returns {Array}
+     */
+    groupBy(column) {
+
+        this.validateColumn(column);
+
+        const sql = `
+            SELECT *
+            FROM ${this.validateTable()}
+            GROUP BY ${column}
+        `;
+
+        return this.all(sql);
+
+    }
+
+    /**
+     * Anzahl eindeutiger Werte
+     *
+     * @param {string} column
+     * @returns {number}
+     */
+    distinctCount(column) {
+
+        this.validateColumn(column);
+
+        const sql = `
+            SELECT COUNT(DISTINCT ${column}) AS total
+            FROM ${this.validateTable()}
+        `;
+
+        const result = this.get(sql);
+
+        return result ? result.total : 0;
+
+    }
+
+    /**
+     * Prüfen, ob Datensatz anhand einer Spalte existiert
+     *
+     * @param {string} column
+     * @param {*} value
+     * @returns {boolean}
+     */
+    existsWhere(column, value) {
+
+        this.validateColumn(column);
+
+        const sql = `
+            SELECT EXISTS(
+                SELECT 1
+                FROM ${this.validateTable()}
+                WHERE ${column} = ?
+            ) AS existsRecord
+        `;
+
+        const result = this.get(sql, [value]);
+
+        return Boolean(result.existsRecord);
+
+    }
+    
+        /**
+     * ============================================================
+     * Hilfsfunktionen
+     * ============================================================
+     */
+
+    /**
+     * Prüfen, ob die Tabelle existiert
+     *
+     * @returns {boolean}
+     */
+    tableExists() {
+
+        const sql = `
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table'
+            AND name = ?
+        `;
+
+        const result = this.get(sql, [this.table]);
+
+        return result !== undefined;
+
+    }
+
+    /**
+     * Spalten der Tabelle laden
+     *
+     * @returns {Array}
+     */
+    getColumns() {
+
+        const sql = `PRAGMA table_info(${this.table})`;
+
+        return this.all(sql);
+
+    }
+
+    /**
+     * Prüfen, ob eine Spalte existiert
+     *
+     * @param {string} column
+     * @returns {boolean}
+     */
+    columnExists(column) {
+
+        this.validateColumn(column);
+
+        const columns = this.getColumns();
+
+        return columns.some(item => item.name === column);
+
+    }
+
+    /**
+     * Datenbankschema laden
+     *
+     * @returns {*}
+     */
+    getSchema() {
+
+        const sql = `
+            SELECT sql
+            FROM sqlite_master
+            WHERE type = 'table'
+            AND name = ?
+        `;
+
+        return this.get(sql, [this.table]);
+
+    }
+
+    /**
+     * Repository zurücksetzen
+     *
+     * @returns {BaseRepository}
+     */
+    reset() {
+
+        this.enableLogging = true;
+
+        this.enableSoftDelete = false;
+
+        return this;
+
+    }
+
+    /**
+     * Repository klonen
+     *
+     * @returns {BaseRepository}
+     */
+    clone() {
+
+        return new BaseRepository(
+            this.table,
+            this.primaryKey
+        );
+
+    }
+
+    /**
+     * Repository als Objekt
+     *
+     * @returns {Object}
+     */
+    toJSON() {
+
+        return {
+
+            table: this.table,
+
+            primaryKey: this.primaryKey,
+
+            softDelete: this.enableSoftDelete,
+
+            logging: this.enableLogging
+
+        };
+
+    }
+
+    /**
+     * Repositoryinformationen
+     *
+     * @returns {Object}
+     */
+    info() {
+
+        return {
+
+            repository: this.constructor.name,
+
+            table: this.table,
+
+            primaryKey: this.primaryKey,
+
+            columns: this.getColumns(),
+
+            softDelete: this.enableSoftDelete,
+
+            logging: this.enableLogging
+
+        };
+
+    }
+
+}
+
+module.exports = BaseRepository;
