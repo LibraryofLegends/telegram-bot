@@ -202,7 +202,7 @@ class BaseRepository {
 
     }
     
-        /**
+            /**
      * ============================================================
      * Validierung
      * ============================================================
@@ -231,6 +231,8 @@ class BaseRepository {
      * @returns {string}
      */
     validateIdentifier(identifier) {
+
+        this.validateString(identifier, 'SQL-Identifier');
 
         const regex = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -295,18 +297,26 @@ class BaseRepository {
      */
     validateObject(value, field = 'Objekt') {
 
-        if (typeof value !== 'object') {
-
-            throw new Error(
-                `${field} muss ein Objekt sein.`
-            );
-
-        }
-
         if (value === null) {
 
             throw new Error(
                 `${field} darf nicht null sein.`
+            );
+
+        }
+
+        if (Array.isArray(value)) {
+
+            throw new Error(
+                `${field} darf kein Array sein.`
+            );
+
+        }
+
+        if (typeof value !== 'object') {
+
+            throw new Error(
+                `${field} muss ein Objekt sein.`
             );
 
         }
@@ -337,6 +347,8 @@ class BaseRepository {
 
         }
 
+        return value.trim();
+
     }
 
     /**
@@ -355,13 +367,15 @@ class BaseRepository {
 
         }
 
-        if (Number.isNaN(value)) {
+        if (!Number.isFinite(value)) {
 
             throw new Error(
                 `${field} enthält keine gültige Zahl.`
             );
 
         }
+
+        return value;
 
     }
 
@@ -381,11 +395,33 @@ class BaseRepository {
 
         }
 
+        if (
+            typeof id !== 'number' &&
+            typeof id !== 'string'
+        ) {
+
+            throw new Error(
+                'Ungültige ID.'
+            );
+
+        }
+
+        if (
+            typeof id === 'string' &&
+            !id.trim()
+        ) {
+
+            throw new Error(
+                'ID darf nicht leer sein.'
+            );
+
+        }
+
         return id;
 
     }
     
-        /**
+            /**
      * ============================================================
      * Logging
      * ============================================================
@@ -423,15 +459,21 @@ class BaseRepository {
 
         }
 
+        if (!Array.isArray(params)) {
+
+            params = [];
+
+        }
+
         console.log('================================================');
         console.log('[BaseRepository]');
-        console.log('Tabelle   :', this.table);
-        console.log('Zeit      :', this.now());
-        console.log('SQL       :', sql);
+        console.log('Tabelle    :', this.table);
+        console.log('Zeit       :', this.now());
+        console.log('SQL        :', sql);
 
         if (params.length > 0) {
 
-            console.log('Parameter :', params);
+            console.log('Parameter  :', params);
 
         }
 
@@ -448,9 +490,26 @@ class BaseRepository {
 
         console.error('================================================');
         console.error('[Repository Error]');
-        console.error('Tabelle :', this.table);
-        console.error('Zeit    :', this.now());
-        console.error(error);
+        console.error('Repository :', this.constructor.name);
+        console.error('Tabelle    :', this.table);
+        console.error('Zeit       :', this.now());
+
+        if (error instanceof Error) {
+
+            console.error('Fehler     :', error.message);
+
+            if (error.stack) {
+
+                console.error(error.stack);
+
+            }
+
+        } else {
+
+            console.error(error);
+
+        }
+
         console.error('================================================');
 
         throw error;
@@ -1176,7 +1235,7 @@ class BaseRepository {
 
     }
     
-            /**
+                    /**
      * ============================================================
      * Bulk-Operationen
      * ============================================================
@@ -1200,6 +1259,18 @@ class BaseRepository {
 
         const timestamp = this.now();
 
+        const columns = Object.keys(records[0]);
+
+        if (columns.length === 0) {
+
+            throw new Error(
+                'Keine Daten zum Speichern vorhanden.'
+            );
+
+        }
+
+        columns.forEach(column => this.validateColumn(column));
+
         for (const record of records) {
 
             this.validateObject(record);
@@ -1222,11 +1293,29 @@ class BaseRepository {
 
             }
 
+            const recordColumns = Object.keys(record);
+
+            if (recordColumns.length !== columns.length) {
+
+                throw new Error(
+                    'Alle Datensätze müssen dieselben Spalten besitzen.'
+                );
+
+            }
+
+            for (const column of columns) {
+
+                if (!Object.prototype.hasOwnProperty.call(record, column)) {
+
+                    throw new Error(
+                        `Spalte "${column}" fehlt in einem Datensatz.`
+                    );
+
+                }
+
+            }
+
         }
-
-        const columns = Object.keys(records[0]);
-
-        columns.forEach(column => this.validateColumn(column));
 
         const placeholders = `(${columns.map(() => '?').join(', ')})`;
 
@@ -1242,7 +1331,9 @@ class BaseRepository {
 
             for (const row of rows) {
 
-                statement.run(Object.values(row));
+                statement.run(
+                    columns.map(column => row[column])
+                );
 
             }
 
@@ -1266,9 +1357,11 @@ class BaseRepository {
 
         if (ids.length === 0) {
 
-            return;
+            return 0;
 
         }
+
+        ids.forEach(id => this.validateId(id));
 
         const placeholders = ids
             .map(() => '?')
@@ -1333,6 +1426,14 @@ class BaseRepository {
 
         const keys = Object.keys(data);
 
+        if (keys.length === 0) {
+
+            throw new Error(
+                'Keine Daten zum Speichern vorhanden.'
+            );
+
+        }
+
         keys.forEach(column => this.validateColumn(column));
 
         const placeholders = keys
@@ -1347,7 +1448,7 @@ class BaseRepository {
 
         return this.execute(
             sql,
-            Object.values(data)
+            keys.map(key => data[key])
         );
 
     }
@@ -1361,6 +1462,22 @@ class BaseRepository {
     chunk(size = 100, callback) {
 
         this.validateNumber(size, 'Chunkgröße');
+
+        if (size < 1) {
+
+            throw new Error(
+                'Die Chunkgröße muss größer als 0 sein.'
+            );
+
+        }
+
+        if (typeof callback !== 'function') {
+
+            throw new Error(
+                'Es muss eine Callback-Funktion übergeben werden.'
+            );
+
+        }
 
         let offset = 0;
 
@@ -1840,7 +1957,7 @@ class BaseRepository {
 
     }
     
-            /**
+                /**
      * ============================================================
      * Statistik
      * ============================================================
@@ -1865,7 +1982,7 @@ class BaseRepository {
 
         const result = this.get(sql);
 
-        return result ? result.value : null;
+        return result?.value ?? null;
 
     }
 
@@ -1888,7 +2005,7 @@ class BaseRepository {
 
         const result = this.get(sql);
 
-        return result ? result.value : null;
+        return result?.value ?? null;
 
     }
 
@@ -1911,7 +2028,7 @@ class BaseRepository {
 
         const result = this.get(sql);
 
-        return result ? result.value : 0;
+        return result?.value ?? 0;
 
     }
 
@@ -1934,7 +2051,7 @@ class BaseRepository {
 
         const result = this.get(sql);
 
-        return result ? result.value : 0;
+        return result?.value ?? 0;
 
     }
 
@@ -1956,7 +2073,7 @@ class BaseRepository {
             WHERE 1 = 1
             ${this.softDeleteWhere()}
             GROUP BY ${column}
-            ORDER BY total DESC
+            ORDER BY total DESC, ${column} ASC
         `;
 
         return this.all(sql);
@@ -1974,7 +2091,8 @@ class BaseRepository {
         this.validateColumn(column);
 
         const sql = `
-            SELECT *
+            SELECT
+                ${column}
             FROM ${this.validateTable()}
             WHERE 1 = 1
             ${this.softDeleteWhere()}
@@ -2005,7 +2123,7 @@ class BaseRepository {
 
         const result = this.get(sql);
 
-        return result ? result.total : 0;
+        return result?.total ?? 0;
 
     }
 
@@ -2031,11 +2149,11 @@ class BaseRepository {
 
         const result = this.get(sql, [value]);
 
-        return Boolean(result.existsRecord);
+        return Boolean(result?.existsRecord);
 
     }
     
-            /**
+                /**
      * ============================================================
      * Hilfsfunktionen
      * ============================================================
@@ -2055,7 +2173,9 @@ class BaseRepository {
 
         }
 
-        const prefix = alias ? `${alias}.` : '';
+        const prefix = alias
+            ? `${this.validateIdentifier(alias)}.`
+            : '';
 
         return ` AND ${prefix}${this.softDeleteColumn} IS NULL`;
 
@@ -2075,9 +2195,9 @@ class BaseRepository {
             AND name = ?
         `;
 
-        const result = this.get(sql, [this.table]);
-
-        return result !== undefined;
+        return Boolean(
+            this.get(sql, [this.table])
+        );
 
     }
 
@@ -2106,9 +2226,9 @@ class BaseRepository {
 
         this.validateColumn(column);
 
-        const columns = this.getColumns();
-
-        return columns.some(item => item.name === column);
+        return this
+            .getColumns()
+            .some(item => item.name === column);
 
     }
 
@@ -2152,10 +2272,18 @@ class BaseRepository {
      */
     clone() {
 
-        return new BaseRepository(
+        const repository = new BaseRepository(
             this.table,
             this.primaryKey
         );
+
+        repository.createdColumn = this.createdColumn;
+        repository.updatedColumn = this.updatedColumn;
+        repository.softDeleteColumn = this.softDeleteColumn;
+        repository.enableLogging = this.enableLogging;
+        repository.enableSoftDelete = this.enableSoftDelete;
+
+        return repository;
 
     }
 
@@ -2168,9 +2296,17 @@ class BaseRepository {
 
         return {
 
+            repository: this.constructor.name,
+
             table: this.table,
 
             primaryKey: this.primaryKey,
+
+            createdColumn: this.createdColumn,
+
+            updatedColumn: this.updatedColumn,
+
+            softDeleteColumn: this.softDeleteColumn,
 
             softDelete: this.enableSoftDelete,
 
@@ -2185,7 +2321,7 @@ class BaseRepository {
      *
      * @returns {Object}
      */
-        info() {
+    info() {
 
         return {
 
@@ -2195,11 +2331,19 @@ class BaseRepository {
 
             primaryKey: this.primaryKey,
 
-            columns: this.getColumns(),
+            createdColumn: this.createdColumn,
+
+            updatedColumn: this.updatedColumn,
+
+            softDeleteColumn: this.softDeleteColumn,
 
             softDelete: this.enableSoftDelete,
 
-            logging: this.enableLogging
+            logging: this.enableLogging,
+
+            columns: this.getColumns(),
+
+            schema: this.getSchema()
 
         };
 
