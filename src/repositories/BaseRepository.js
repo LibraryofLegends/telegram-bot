@@ -457,13 +457,13 @@ class BaseRepository {
 
     }
     
-    /**
- * ============================================================
- * CRUD
- * ============================================================
- */
-    
         /**
+     * ============================================================
+     * CRUD
+     * ============================================================
+     */
+
+    /**
      * Datensatz anhand der ID laden
      *
      * @param {*} id
@@ -477,6 +477,7 @@ class BaseRepository {
             SELECT *
             FROM ${this.validateTable()}
             WHERE ${this.validateColumn(this.primaryKey)} = ?
+            ${this.softDeleteWhere()}
             LIMIT 1
         `;
 
@@ -499,6 +500,7 @@ class BaseRepository {
             SELECT *
             FROM ${this.validateTable()}
             WHERE ${column} = ?
+            ${this.softDeleteWhere()}
             LIMIT 1
         `;
 
@@ -516,6 +518,8 @@ class BaseRepository {
         const sql = `
             SELECT *
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
         `;
 
         return this.all(sql);
@@ -532,6 +536,8 @@ class BaseRepository {
         const sql = `
             SELECT *
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
             ORDER BY ${this.primaryKey} ASC
             LIMIT 1
         `;
@@ -550,6 +556,8 @@ class BaseRepository {
         const sql = `
             SELECT *
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
             ORDER BY ${this.primaryKey} DESC
             LIMIT 1
         `;
@@ -573,6 +581,7 @@ class BaseRepository {
                 SELECT 1
                 FROM ${this.validateTable()}
                 WHERE ${this.primaryKey} = ?
+                ${this.softDeleteWhere()}
             ) AS existsRecord
         `;
 
@@ -592,6 +601,8 @@ class BaseRepository {
         const sql = `
             SELECT COUNT(*) AS total
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
         `;
 
         const result = this.get(sql);
@@ -599,8 +610,8 @@ class BaseRepository {
         return result.total;
 
     }
-    
-        /**
+
+    /**
      * Datensatz erstellen
      *
      * @param {Object} data
@@ -609,6 +620,26 @@ class BaseRepository {
     create(data) {
 
         this.validateObject(data);
+
+        const timestamp = this.now();
+
+        if (
+            this.createdColumn &&
+            !Object.prototype.hasOwnProperty.call(data, this.createdColumn)
+        ) {
+
+            data[this.createdColumn] = timestamp;
+
+        }
+
+        if (
+            this.updatedColumn &&
+            !Object.prototype.hasOwnProperty.call(data, this.updatedColumn)
+        ) {
+
+            data[this.updatedColumn] = timestamp;
+
+        }
 
         const keys = Object.keys(data);
 
@@ -651,6 +682,17 @@ class BaseRepository {
         this.validateId(id);
 
         this.validateObject(data);
+
+        const timestamp = this.now();
+
+        if (
+            this.updatedColumn &&
+            !Object.prototype.hasOwnProperty.call(data, this.updatedColumn)
+        ) {
+
+            data[this.updatedColumn] = timestamp;
+
+        }
 
         const keys = Object.keys(data);
 
@@ -733,7 +775,7 @@ class BaseRepository {
 
     }
     
-        /**
+            /**
      * ============================================================
      * Query Builder
      * ============================================================
@@ -754,6 +796,7 @@ class BaseRepository {
             SELECT *
             FROM ${this.validateTable()}
             WHERE ${column} = ?
+            ${this.softDeleteWhere()}
         `;
 
         return this.all(sql, [value]);
@@ -797,6 +840,7 @@ class BaseRepository {
             FROM ${this.validateTable()}
             WHERE
                 ${conditions.join(' AND ')}
+            ${this.softDeleteWhere()}
         `;
 
         return this.all(sql, values);
@@ -830,6 +874,7 @@ class BaseRepository {
             SELECT *
             FROM ${this.validateTable()}
             WHERE ${column} IN (${placeholders})
+            ${this.softDeleteWhere()}
         `;
 
         return this.all(sql, values);
@@ -863,6 +908,7 @@ class BaseRepository {
             SELECT *
             FROM ${this.validateTable()}
             WHERE ${column} NOT IN (${placeholders})
+            ${this.softDeleteWhere()}
         `;
 
         return this.all(sql, values);
@@ -883,6 +929,7 @@ class BaseRepository {
             SELECT *
             FROM ${this.validateTable()}
             WHERE ${column} IS NULL
+            ${this.softDeleteWhere()}
         `;
 
         return this.all(sql);
@@ -903,13 +950,14 @@ class BaseRepository {
             SELECT *
             FROM ${this.validateTable()}
             WHERE ${column} IS NOT NULL
+            ${this.softDeleteWhere()}
         `;
 
         return this.all(sql);
 
     }
-    
-        /**
+
+    /**
      * Sortierung
      *
      * @param {string} column
@@ -933,6 +981,8 @@ class BaseRepository {
         const sql = `
             SELECT *
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
             ORDER BY ${column} ${direction}
         `;
 
@@ -953,6 +1003,8 @@ class BaseRepository {
         const sql = `
             SELECT *
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
             LIMIT ?
         `;
 
@@ -976,6 +1028,8 @@ class BaseRepository {
         const sql = `
             SELECT *
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
             LIMIT ?
             OFFSET ?
         `;
@@ -1008,6 +1062,8 @@ class BaseRepository {
         const sql = `
             SELECT *
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
             LIMIT ?
             OFFSET ?
         `;
@@ -1045,6 +1101,7 @@ class BaseRepository {
             SELECT *
             FROM ${this.validateTable()}
             WHERE ${column} LIKE ?
+            ${this.softDeleteWhere()}
         `;
 
         return this.all(sql, [`%${searchTerm}%`]);
@@ -1064,6 +1121,8 @@ class BaseRepository {
         const sql = `
             SELECT DISTINCT ${column}
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
         `;
 
         return this.all(sql);
@@ -1083,6 +1142,8 @@ class BaseRepository {
         const sql = `
             SELECT ${column}
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
             LIMIT 1
         `;
 
@@ -1105,6 +1166,8 @@ class BaseRepository {
         const sql = `
             SELECT ${column}
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
         `;
 
         const rows = this.all(sql);
@@ -1113,7 +1176,7 @@ class BaseRepository {
 
     }
     
-        /**
+            /**
      * ============================================================
      * Bulk-Operationen
      * ============================================================
@@ -1132,6 +1195,32 @@ class BaseRepository {
         if (records.length === 0) {
 
             return 0;
+
+        }
+
+        const timestamp = this.now();
+
+        for (const record of records) {
+
+            this.validateObject(record);
+
+            if (
+                this.createdColumn &&
+                !Object.prototype.hasOwnProperty.call(record, this.createdColumn)
+            ) {
+
+                record[this.createdColumn] = timestamp;
+
+            }
+
+            if (
+                this.updatedColumn &&
+                !Object.prototype.hasOwnProperty.call(record, this.updatedColumn)
+            ) {
+
+                record[this.updatedColumn] = timestamp;
+
+            }
 
         }
 
@@ -1222,6 +1311,26 @@ class BaseRepository {
 
         this.validateObject(data);
 
+        const timestamp = this.now();
+
+        if (
+            this.createdColumn &&
+            !Object.prototype.hasOwnProperty.call(data, this.createdColumn)
+        ) {
+
+            data[this.createdColumn] = timestamp;
+
+        }
+
+        if (
+            this.updatedColumn &&
+            !Object.prototype.hasOwnProperty.call(data, this.updatedColumn)
+        ) {
+
+            data[this.updatedColumn] = timestamp;
+
+        }
+
         const keys = Object.keys(data);
 
         keys.forEach(column => this.validateColumn(column));
@@ -1260,6 +1369,8 @@ class BaseRepository {
             const sql = `
                 SELECT *
                 FROM ${this.validateTable()}
+                WHERE 1 = 1
+                ${this.softDeleteWhere()}
                 LIMIT ?
                 OFFSET ?
             `;
@@ -1293,7 +1404,7 @@ class BaseRepository {
 
     }
     
-        /**
+            /**
      * ============================================================
      * Transaktionen
      * ============================================================
@@ -1316,13 +1427,19 @@ class BaseRepository {
 
         }
 
+        this.log('TRANSACTION BEGIN');
+
         const transaction = this.db.transaction(() => {
 
             return callback(this);
 
         });
 
-        return transaction();
+        const result = transaction();
+
+        this.log('TRANSACTION COMMIT');
+
+        return result;
 
     }
 
@@ -1332,6 +1449,8 @@ class BaseRepository {
      * @returns {*}
      */
     beginTransaction() {
+
+        this.log('BEGIN TRANSACTION');
 
         return this.db.exec('BEGIN TRANSACTION');
 
@@ -1344,6 +1463,8 @@ class BaseRepository {
      */
     commit() {
 
+        this.log('COMMIT');
+
         return this.db.exec('COMMIT');
 
     }
@@ -1354,6 +1475,8 @@ class BaseRepository {
      * @returns {*}
      */
     rollback() {
+
+        this.log('ROLLBACK');
 
         return this.db.exec('ROLLBACK');
 
@@ -1380,6 +1503,17 @@ class BaseRepository {
 
             for (const query of queries) {
 
+                if (
+                    !query ||
+                    typeof query !== 'object'
+                ) {
+
+                    throw new Error(
+                        'Ungültige SQL-Anweisung.'
+                    );
+
+                }
+
                 if (!query.sql) {
 
                     throw new Error(
@@ -1388,7 +1522,11 @@ class BaseRepository {
 
                 }
 
-                const params = query.params || [];
+                const params = Array.isArray(query.params)
+                    ? query.params
+                    : [];
+
+                this.log(query.sql, params);
 
                 this.db
                     .prepare(query.sql)
@@ -1414,6 +1552,8 @@ class BaseRepository {
 
         this.validateString(sql, 'SQL');
 
+        this.log(sql);
+
         return this.db.exec(sql);
 
     }
@@ -1424,6 +1564,8 @@ class BaseRepository {
      * @returns {*}
      */
     vacuum() {
+
+        this.log('VACUUM');
 
         return this.db.exec('VACUUM');
 
@@ -1436,11 +1578,13 @@ class BaseRepository {
      */
     checkpoint() {
 
+        this.log('PRAGMA wal_checkpoint(FULL)');
+
         return this.db.pragma('wal_checkpoint(FULL)');
 
     }
     
-        /**
+            /**
      * ============================================================
      * Soft Deletes
      * ============================================================
@@ -1480,16 +1624,32 @@ class BaseRepository {
 
         }
 
-        const sql = `
+        const values = [
+            this.now()
+        ];
+
+        let sql = `
             UPDATE ${this.validateTable()}
             SET ${this.softDeleteColumn} = ?
+        `;
+
+        if (this.updatedColumn) {
+
+            sql += `,
+                ${this.updatedColumn} = ?
+            `;
+
+            values.push(this.now());
+
+        }
+
+        sql += `
             WHERE ${this.primaryKey} = ?
         `;
 
-        return this.execute(sql, [
-            this.now(),
-            id
-        ]);
+        values.push(id);
+
+        return this.execute(sql, values);
 
     }
 
@@ -1503,13 +1663,30 @@ class BaseRepository {
 
         this.validateId(id);
 
-        const sql = `
+        const values = [];
+
+        let sql = `
             UPDATE ${this.validateTable()}
             SET ${this.softDeleteColumn} = NULL
+        `;
+
+        if (this.updatedColumn) {
+
+            sql += `,
+                ${this.updatedColumn} = ?
+            `;
+
+            values.push(this.now());
+
+        }
+
+        sql += `
             WHERE ${this.primaryKey} = ?
         `;
 
-        return this.execute(sql, [id]);
+        values.push(id);
+
+        return this.execute(sql, values);
 
     }
 
@@ -1596,7 +1773,7 @@ class BaseRepository {
 
         if (ids.length === 0) {
 
-            return;
+            return 0;
 
         }
 
@@ -1604,14 +1781,31 @@ class BaseRepository {
             .map(() => '?')
             .join(', ');
 
-        const sql = `
+        const values = [];
+
+        let sql = `
             UPDATE ${this.validateTable()}
             SET ${this.softDeleteColumn} = NULL
+        `;
+
+        if (this.updatedColumn) {
+
+            sql += `,
+                ${this.updatedColumn} = ?
+            `;
+
+            values.push(this.now());
+
+        }
+
+        sql += `
             WHERE ${this.primaryKey}
             IN (${placeholders})
         `;
 
-        return this.execute(sql, ids);
+        values.push(...ids);
+
+        return this.execute(sql, values);
 
     }
 
@@ -1627,7 +1821,7 @@ class BaseRepository {
 
         if (ids.length === 0) {
 
-            return;
+            return 0;
 
         }
 
@@ -1646,7 +1840,7 @@ class BaseRepository {
 
     }
     
-        /**
+            /**
      * ============================================================
      * Statistik
      * ============================================================
@@ -1665,6 +1859,8 @@ class BaseRepository {
         const sql = `
             SELECT MAX(${column}) AS value
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
         `;
 
         const result = this.get(sql);
@@ -1686,6 +1882,8 @@ class BaseRepository {
         const sql = `
             SELECT MIN(${column}) AS value
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
         `;
 
         const result = this.get(sql);
@@ -1707,6 +1905,8 @@ class BaseRepository {
         const sql = `
             SELECT SUM(${column}) AS value
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
         `;
 
         const result = this.get(sql);
@@ -1728,6 +1928,8 @@ class BaseRepository {
         const sql = `
             SELECT AVG(${column}) AS value
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
         `;
 
         const result = this.get(sql);
@@ -1751,6 +1953,8 @@ class BaseRepository {
                 ${column},
                 COUNT(*) AS total
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
             GROUP BY ${column}
             ORDER BY total DESC
         `;
@@ -1772,7 +1976,10 @@ class BaseRepository {
         const sql = `
             SELECT *
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
             GROUP BY ${column}
+            ORDER BY ${column} ASC
         `;
 
         return this.all(sql);
@@ -1792,6 +1999,8 @@ class BaseRepository {
         const sql = `
             SELECT COUNT(DISTINCT ${column}) AS total
             FROM ${this.validateTable()}
+            WHERE 1 = 1
+            ${this.softDeleteWhere()}
         `;
 
         const result = this.get(sql);
@@ -1816,6 +2025,7 @@ class BaseRepository {
                 SELECT 1
                 FROM ${this.validateTable()}
                 WHERE ${column} = ?
+                ${this.softDeleteWhere()}
             ) AS existsRecord
         `;
 
@@ -1825,11 +2035,31 @@ class BaseRepository {
 
     }
     
-        /**
+            /**
      * ============================================================
      * Hilfsfunktionen
      * ============================================================
      */
+
+    /**
+     * Soft-Delete-Bedingung erzeugen
+     *
+     * @param {string} alias
+     * @returns {string}
+     */
+    softDeleteWhere(alias = '') {
+
+        if (!this.enableSoftDelete) {
+
+            return '';
+
+        }
+
+        const prefix = alias ? `${alias}.` : '';
+
+        return ` AND ${prefix}${this.softDeleteColumn} IS NULL`;
+
+    }
 
     /**
      * Prüfen, ob die Tabelle existiert
@@ -1858,7 +2088,9 @@ class BaseRepository {
      */
     getColumns() {
 
-        const sql = `PRAGMA table_info(${this.table})`;
+        const sql = `
+            PRAGMA table_info(${this.validateTable()})
+        `;
 
         return this.all(sql);
 
@@ -1928,7 +2160,7 @@ class BaseRepository {
     }
 
     /**
-     * Repository als Objekt
+     * Repository als Objekt zurückgeben
      *
      * @returns {Object}
      */
@@ -1949,11 +2181,11 @@ class BaseRepository {
     }
 
     /**
-     * Repositoryinformationen
+     * Repositoryinformationen zurückgeben
      *
      * @returns {Object}
      */
-    info() {
+        info() {
 
         return {
 
