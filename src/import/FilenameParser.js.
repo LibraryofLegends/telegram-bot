@@ -1,0 +1,828 @@
+/**
+ * ============================================================
+ * Library Of Legends 2.0
+ * ------------------------------------------------------------
+ * File: FilenameParser.js
+ * Version: 2.0.0
+ * Author: Library Of Legends
+ * ------------------------------------------------------------
+ * Analysiert Dateinamen und extrahiert Metadaten wie:
+ * - Titel
+ * - Jahr
+ * - Staffel / Episode
+ * - Qualität
+ * - Quelle
+ * - Codecs
+ * - Sprache
+ * - HDR
+ * - Editionen
+ * - Release Group
+ * ============================================================
+ */
+
+'use strict';
+
+const path = require('path');
+
+class FilenameParser {
+
+    /**
+     * Konstruktor
+     * @param {Object} options
+     */
+    constructor(options = {}) {
+
+        this.options = {
+            normalize: true,
+            detectAnime: true,
+            detectReleaseGroup: true,
+            detectEdition: true,
+            ...options
+        };
+
+    }
+
+    /**
+     * Haupteinstieg
+     * @param {String} filename
+     * @returns {Object}
+     */
+    parse(filename) {
+
+        if (!filename || typeof filename !== 'string') {
+            throw new Error('Filename must be a string.');
+        }
+
+        const originalFilename = filename;
+
+        filename = path.basename(filename);
+
+        const extension = path.extname(filename);
+
+        filename = filename.replace(extension, '');
+
+        const normalized = this.normalize(filename);
+
+        const tokens = this.tokenize(normalized);
+
+        const result = {
+            originalFilename,
+            filename,
+            extension,
+            normalized,
+            tokens,
+
+            mediaType: 'unknown',
+
+            title: null,
+            originalTitle: null,
+
+            year: null,
+
+            season: null,
+            episode: null,
+            episodes: [],
+
+            resolution: null,
+            source: null,
+
+            videoCodec: null,
+            audioCodec: null,
+            audioChannels: null,
+
+            hdr: null,
+
+            language: null,
+            subtitles: [],
+
+            edition: null,
+            releaseGroup: null,
+
+            confidence: 0,
+
+            warnings: []
+        };
+
+        return this.runPipeline(result);
+
+    }
+
+    /**
+     * Führt alle Parser nacheinander aus.
+     * @param {Object} result
+     * @returns {Object}
+     */
+    runPipeline(result) {
+
+        this.parseSeries(result);
+        this.parseYear(result);
+        this.parseResolution(result);
+        this.parseSource(result);
+        this.parseVideoCodec(result);
+        this.parseAudioCodec(result);
+        this.parseAudioChannels(result);
+        this.parseHDR(result);
+        this.parseLanguage(result);
+        this.parseEdition(result);
+        this.parseReleaseGroup(result);
+        this.parseTitle(result);
+
+        this.calculateConfidence(result);
+
+        return result;
+
+    }
+
+    /**
+     * Normalisiert einen Dateinamen.
+     * @param {String} filename
+     * @returns {String}
+     */
+    normalize(filename) {
+
+        return filename
+
+            .replace(/_/g, ' ')
+            .replace(/\./g, ' ')
+            .replace(/\[/g, ' ')
+            .replace(/\]/g, ' ')
+            .replace(/\(/g, ' ')
+            .replace(/\)/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+    }
+
+    /**
+     * Zerlegt den Dateinamen in einzelne Tokens.
+     * @param {String} filename
+     * @returns {Array<String>}
+     */
+    tokenize(filename) {
+
+        if (!filename) {
+            return [];
+        }
+
+        return filename
+            .split(' ')
+            .map(token => token.trim())
+            .filter(Boolean);
+
+    }
+
+    /**
+     * Prüft, ob ein Token vorhanden ist.
+     * @param {Object} result
+     * @param {Array<String>} values
+     * @returns {Boolean}
+     */
+    hasToken(result, values = []) {
+
+        return result.tokens.some(token =>
+            values.some(value =>
+                token.toLowerCase() === value.toLowerCase()
+            )
+        );
+
+    }
+
+    /**
+     * Liefert den ersten gefundenen Token.
+     * @param {Object} result
+     * @param {Array<String>} values
+     * @returns {String|null}
+     */
+    findToken(result, values = []) {
+
+        const token = result.tokens.find(token =>
+            values.some(value =>
+                token.toLowerCase() === value.toLowerCase()
+            )
+        );
+
+        return token || null;
+
+    }
+
+    /**
+     * Erkennt Staffel und Episode.
+     * Unterstützte Formate:
+     * S01E01
+     * S01E01E02
+     * S01E01-E03
+     * 1x05
+     * Season 2 Episode 8
+     *
+     * @param {Object} result
+     */
+    parseSeries(result) {
+
+        const text = result.normalized;
+
+        let match = text.match(/S(\d{1,2})E(\d{1,3})/i);
+
+        if (match) {
+
+            result.mediaType = 'series';
+            result.season = Number(match[1]);
+            result.episode = Number(match[2]);
+            result.episodes.push(result.episode);
+
+            return;
+
+        }
+
+        match = text.match(/(\d{1,2})x(\d{1,3})/i);
+
+        if (match) {
+
+            result.mediaType = 'series';
+            result.season = Number(match[1]);
+            result.episode = Number(match[2]);
+            result.episodes.push(result.episode);
+
+            return;
+
+        }
+
+        match = text.match(/Season\s*(\d{1,2}).*Episode\s*(\d{1,3})/i);
+
+        if (match) {
+
+            result.mediaType = 'series';
+            result.season = Number(match[1]);
+            result.episode = Number(match[2]);
+            result.episodes.push(result.episode);
+
+        }
+
+    }
+
+    /**
+     * Erkennt das Erscheinungsjahr.
+     *
+     * @param {Object} result
+     */
+    parseYear(result) {
+
+        const years = result.normalized.match(/\b(19\d{2}|20\d{2})\b/g);
+
+        if (!years) {
+            return;
+        }
+
+        const year = Number(years[0]);
+
+        if (year >= 1900 && year <= new Date().getFullYear() + 2) {
+
+            result.year = year;
+
+        }
+
+    }
+
+    /**
+     * Entfernt bekannte Informationen aus einem Titel.
+     *
+     * @param {String} title
+     * @returns {String}
+     */
+    cleanTitle(title) {
+
+        return title
+
+            .replace(/\bS\d{1,2}E\d{1,3}\b/gi, '')
+            .replace(/\b\d{1,2}x\d{1,3}\b/gi, '')
+            .replace(/\b(19\d{2}|20\d{2})\b/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+    }
+
+    /**
+     * Erkennt die Auflösung.
+     *
+     * @param {Object} result
+     */
+    parseResolution(result) {
+
+        const resolutions = [
+            '480p',
+            '576p',
+            '720p',
+            '1080p',
+            '1440p',
+            '2160p',
+            '4320p',
+            '4K',
+            '8K'
+        ];
+
+        const resolution = this.findToken(result, resolutions);
+
+        if (resolution) {
+            result.resolution = resolution.toUpperCase();
+        }
+
+    }
+
+    /**
+     * Erkennt die Quelle.
+     *
+     * @param {Object} result
+     */
+    parseSource(result) {
+
+        const sources = [
+            'BluRay',
+            'BDRip',
+            'BRRip',
+            'WEB-DL',
+            'WEBRip',
+            'WEB',
+            'HDTV',
+            'DVDRip',
+            'DVD',
+            'UHD',
+            'REMUX'
+        ];
+
+        const source = this.findToken(result, sources);
+
+        if (source) {
+            result.source = source;
+        }
+
+    }
+
+    /**
+     * Erkennt den Video-Codec.
+     *
+     * @param {Object} result
+     */
+    parseVideoCodec(result) {
+
+        const codecs = [
+            'x264',
+            'H264',
+            'AVC',
+            'x265',
+            'H265',
+            'HEVC',
+            'AV1',
+            'VP9',
+            'MPEG2'
+        ];
+
+        const codec = this.findToken(result, codecs);
+
+        if (!codec) {
+            return;
+        }
+
+        switch (codec.toUpperCase()) {
+
+            case 'X264':
+            case 'H264':
+            case 'AVC':
+                result.videoCodec = 'H.264';
+                break;
+
+            case 'X265':
+            case 'H265':
+            case 'HEVC':
+                result.videoCodec = 'H.265 / HEVC';
+                break;
+
+            case 'AV1':
+                result.videoCodec = 'AV1';
+                break;
+
+            case 'VP9':
+                result.videoCodec = 'VP9';
+                break;
+
+            case 'MPEG2':
+                result.videoCodec = 'MPEG-2';
+                break;
+
+            default:
+                result.videoCodec = codec;
+
+        }
+
+    }
+
+    /**
+     * Erkennt den Audio-Codec.
+     *
+     * @param {Object} result
+     */
+    parseAudioCodec(result) {
+
+        const codecs = [
+            'AAC',
+            'AC3',
+            'EAC3',
+            'DD',
+            'DDP',
+            'DD+',
+            'DTS',
+            'DTS-HD',
+            'TRUEHD',
+            'ATMOS',
+            'FLAC',
+            'PCM'
+        ];
+
+        const codec = this.findToken(result, codecs);
+
+        if (!codec) {
+            return;
+        }
+
+        switch (codec.toUpperCase()) {
+
+            case 'DD':
+            case 'DD+':
+            case 'DDP':
+            case 'EAC3':
+                result.audioCodec = 'Dolby Digital Plus';
+                break;
+
+            case 'AC3':
+                result.audioCodec = 'Dolby Digital';
+                break;
+
+            case 'TRUEHD':
+                result.audioCodec = 'Dolby TrueHD';
+                break;
+
+            case 'ATMOS':
+                result.audioCodec = 'Dolby Atmos';
+                break;
+
+            case 'DTS-HD':
+                result.audioCodec = 'DTS-HD';
+                break;
+
+            default:
+                result.audioCodec = codec;
+
+        }
+
+    }
+
+    /**
+     * Erkennt die Audio-Kanäle.
+     *
+     * @param {Object} result
+     */
+    parseAudioChannels(result) {
+
+        const match = result.normalized.match(/\b(1\.0|2\.0|2\.1|5\.1|6\.1|7\.1)\b/i);
+
+        if (match) {
+            result.audioChannels = match[1];
+        }
+
+    }
+
+    /**
+     * Erkennt HDR-Formate.
+     *
+     * @param {Object} result
+     */
+    parseHDR(result) {
+
+        const hdrFormats = [
+            'HDR10+',
+            'HDR10',
+            'HDR',
+            'DV',
+            'DOLBY',
+            'VISION',
+            'HLG',
+            'SDR'
+        ];
+
+        const upper = result.normalized.toUpperCase();
+
+        if (upper.includes('DOLBY VISION')) {
+
+            result.hdr = 'Dolby Vision';
+            return;
+
+        }
+
+        if (upper.includes('HDR10+')) {
+
+            result.hdr = 'HDR10+';
+            return;
+
+        }
+
+        if (upper.includes('HDR10')) {
+
+            result.hdr = 'HDR10';
+            return;
+
+        }
+
+        if (upper.includes('HDR')) {
+
+            result.hdr = 'HDR';
+            return;
+
+        }
+
+        if (upper.includes('DV')) {
+
+            result.hdr = 'Dolby Vision';
+            return;
+
+        }
+
+        if (upper.includes('HLG')) {
+
+            result.hdr = 'HLG';
+            return;
+
+        }
+
+        if (upper.includes('SDR')) {
+
+            result.hdr = 'SDR';
+        }
+
+    }
+
+    /**
+     * Erkennt die Sprache.
+     *
+     * @param {Object} result
+     */
+    parseLanguage(result) {
+
+        const languages = {
+
+            GERMAN: 'Deutsch',
+            DEUTSCH: 'Deutsch',
+            GER: 'Deutsch',
+
+            ENGLISH: 'Englisch',
+            ENG: 'Englisch',
+
+            FRENCH: 'Französisch',
+            FRE: 'Französisch',
+
+            ITALIAN: 'Italienisch',
+
+            SPANISH: 'Spanisch',
+
+            JAPANESE: 'Japanisch',
+
+            MULTI: 'Multi',
+            DUAL: 'Dual Audio'
+
+        };
+
+        const upper = result.normalized.toUpperCase();
+
+        for (const [key, value] of Object.entries(languages)) {
+
+            if (upper.includes(key)) {
+
+                result.language = value;
+                return;
+
+            }
+
+        }
+
+    }
+
+    /**
+     * Erkennt Sondereditionen.
+     *
+     * @param {Object} result
+     */
+    parseEdition(result) {
+
+        const editions = [
+
+            "Director's Cut",
+            "Extended",
+            "Extended Edition",
+            "Ultimate Edition",
+            "Collector's Edition",
+            "IMAX",
+            "Remastered",
+            "Unrated"
+
+        ];
+
+        const upper = result.normalized.toUpperCase();
+
+        for (const edition of editions) {
+
+            if (upper.includes(edition.toUpperCase())) {
+
+                result.edition = edition;
+                return;
+
+            }
+
+        }
+
+    }
+
+    /**
+     * Erkennt die Release Group.
+     *
+     * @param {Object} result
+     */
+    parseReleaseGroup(result) {
+
+        const match = result.filename.match(/-([A-Za-z0-9]+)$/);
+
+        if (match) {
+
+            result.releaseGroup = match[1];
+
+        }
+
+    }
+
+    /**
+     * Berechnet einen Confidence Score.
+     *
+     * @param {Object} result
+     */
+    calculateConfidence(result) {
+
+        let score = 0;
+
+        if (result.title) score += 35;
+
+        if (result.year) score += 15;
+
+        if (result.mediaType !== 'unknown') score += 10;
+
+        if (result.resolution) score += 10;
+
+        if (result.source) score += 10;
+
+        if (result.videoCodec) score += 5;
+
+        if (result.audioCodec) score += 5;
+
+        if (result.language) score += 5;
+
+        if (result.hdr) score += 5;
+
+        result.confidence = Math.min(score, 100);
+
+    }
+
+    /**
+     * Erkennt und bereinigt den eigentlichen Titel.
+     *
+     * @param {Object} result
+     */
+    parseTitle(result) {
+
+        let title = result.normalized;
+
+        // Staffel / Episode entfernen
+        title = title.replace(/\bS\d{1,2}E\d{1,3}\b/gi, '');
+        title = title.replace(/\b\d{1,2}x\d{1,3}\b/gi, '');
+
+        // Jahr entfernen
+        title = title.replace(/\b(19\d{2}|20\d{2})\b/g, '');
+
+        // Auflösungen entfernen
+        title = title.replace(/\b(480P|576P|720P|1080P|1440P|2160P|4320P|4K|8K)\b/gi, '');
+
+        // Quellen entfernen
+        title = title.replace(/\b(BLURAY|BDRIP|BRRIP|WEB-DL|WEBRIP|WEB|HDTV|DVDRIP|DVD|REMUX|UHD)\b/gi, '');
+
+        // Video-Codecs entfernen
+        title = title.replace(/\b(X264|X265|H264|H265|HEVC|AVC|AV1|VP9|MPEG2)\b/gi, '');
+
+        // Audio-Codecs entfernen
+        title = title.replace(/\b(AAC|AC3|EAC3|DDP|DD|DD\+|DTS|DTS-HD|TRUEHD|ATMOS|FLAC|PCM)\b/gi, '');
+
+        // Audio-Kanäle entfernen
+        title = title.replace(/\b(1\.0|2\.0|2\.1|5\.1|6\.1|7\.1)\b/gi, '');
+
+        // HDR entfernen
+        title = title.replace(/\b(HDR10\+|HDR10|HDR|DV|DOLBY VISION|HLG|SDR)\b/gi, '');
+
+        // Sprachen entfernen
+        title = title.replace(/\b(GERMAN|DEUTSCH|GER|ENGLISH|ENG|FRENCH|FRE|ITALIAN|SPANISH|JAPANESE|MULTI|DUAL)\b/gi, '');
+
+        // Editionen entfernen
+        title = title.replace(/\b(EXTENDED|DIRECTOR'S CUT|ULTIMATE EDITION|COLLECTOR'S EDITION|IMAX|REMASTERED|UNRATED)\b/gi, '');
+
+        // Klammern entfernen
+        title = title.replace(/[\[\]\(\)\{\}]/g, '');
+
+        // Mehrere Leerzeichen bereinigen
+        title = title.replace(/\s+/g, ' ').trim();
+
+        result.title = title;
+        result.originalTitle = title;
+
+    }
+
+    /**
+     * Fügt eine Warnung hinzu.
+     *
+     * @param {Object} result
+     * @param {String} warning
+     */
+    addWarning(result, warning) {
+
+        if (!result.warnings.includes(warning)) {
+            result.warnings.push(warning);
+        }
+
+    }
+
+    /**
+     * Prüft, ob der Parser genügend Informationen
+     * für eine sichere Erkennung gefunden hat.
+     *
+     * @param {Object} result
+     * @returns {Boolean}
+     */
+    isValid(result) {
+
+        return (
+            result.title !== null &&
+            result.title.length > 0 &&
+            result.confidence >= 40
+        );
+
+    }
+
+    /**
+     * Erstellt das finale Parser-Ergebnis.
+     *
+     * @param {Object} result
+     * @returns {Object}
+     */
+    buildResult(result) {
+
+        if (!this.isValid(result)) {
+
+            this.addWarning(
+                result,
+                'Parser confidence is low.'
+            );
+
+        }
+
+        return {
+            originalFilename: result.originalFilename,
+            filename: result.filename,
+            extension: result.extension,
+
+            mediaType: result.mediaType,
+
+            title: result.title,
+            originalTitle: result.originalTitle,
+
+            year: result.year,
+
+            season: result.season,
+            episode: result.episode,
+            episodes: result.episodes,
+
+            resolution: result.resolution,
+            source: result.source,
+
+            videoCodec: result.videoCodec,
+            audioCodec: result.audioCodec,
+            audioChannels: result.audioChannels,
+
+            hdr: result.hdr,
+
+            language: result.language,
+            subtitles: result.subtitles,
+
+            edition: result.edition,
+            releaseGroup: result.releaseGroup,
+
+            confidence: result.confidence,
+
+            warnings: result.warnings
+        };
+
+    }
+
+}
+
+module.exports = FilenameParser;
