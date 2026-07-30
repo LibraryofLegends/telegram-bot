@@ -11,47 +11,94 @@
  * ║ Datei        : Runtime.js                                              ║
  * ║ Klasse       : Runtime                                                 ║
  * ║ ID           : LLF-CORE-0003                                           ║
- * ║ Datei-Version: 1.0.0                                                   ║
+ * ║ Datei-Version: 2.0.0                                                   ║
  * ║ Erstellt     : 30.07.2026                                              ║
  * ║ Autor        : Mr. Library Of Legends                                  ║
  * ╠══════════════════════════════════════════════════════════════════════════╣
  * ║ Beschreibung:                                                          ║
  * ║                                                                        ║
- * ║ Verwaltet den Laufzeitzustand des Frameworks und liefert               ║
- * ║ Informationen über den aktuellen Status der Anwendung.                 ║
+ * ║ Verwaltet den aktuellen Laufzeitzustand des Frameworks.                ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 
  /**
-  * Repräsentiert die aktuelle Laufzeit des Frameworks.
+  * Repräsentiert die Laufzeitumgebung des Frameworks.
   */
 export default class Runtime {
+
+    /**
+     * Aktueller Status.
+     *
+     * @type {string}
+     */
+    #state;
+
+    /**
+     * Startzeitpunkt.
+     *
+     * @type {Date|null}
+     */
+    #startedAt;
+
+    /**
+     * Endzeitpunkt.
+     *
+     * @type {Date|null}
+     */
+    #stoppedAt;
 
     /**
      * Erstellt eine neue Runtime.
      */
     constructor() {
 
-        /**
-         * Aktueller Status.
-         *
-         * @type {string}
-         */
-        this.state = 'created';
+        this.#state = 'created';
+        this.#startedAt = null;
+        this.#stoppedAt = null;
 
-        /**
-         * Zeitpunkt des Starts.
-         *
-         * @type {Date|null}
-         */
-        this.startedAt = null;
+    }
 
-        /**
-         * Zeitpunkt des Stopps.
-         *
-         * @type {Date|null}
-         */
-        this.stoppedAt = null;
+    /**
+     * Aktueller Runtime-Status.
+     *
+     * @returns {string}
+     */
+    get state() {
+
+        return this.#state;
+
+    }
+
+    /**
+     * Startzeitpunkt.
+     *
+     * @returns {Date|null}
+     */
+    get startedAt() {
+
+        return this.#startedAt;
+
+    }
+
+    /**
+     * Endzeitpunkt.
+     *
+     * @returns {Date|null}
+     */
+    get stoppedAt() {
+
+        return this.#stoppedAt;
+
+    }
+
+    /**
+     * Prüft, ob die Runtime läuft.
+     *
+     * @returns {boolean}
+     */
+    get running() {
+
+        return this.#state === 'running';
 
     }
 
@@ -62,15 +109,15 @@ export default class Runtime {
      */
     start() {
 
-        if (this.state === 'running') {
+        if (this.running) {
 
             return this;
 
         }
 
-        this.state = 'running';
-        this.startedAt = new Date();
-        this.stoppedAt = null;
+        this.#state = 'running';
+        this.#startedAt = new Date();
+        this.#stoppedAt = null;
 
         return this;
 
@@ -83,57 +130,47 @@ export default class Runtime {
      */
     stop() {
 
-        if (this.state !== 'running') {
+        if (!this.running) {
 
             return this;
 
         }
 
-        this.state = 'stopped';
-        this.stoppedAt = new Date();
+        this.#state = 'stopped';
+        this.#stoppedAt = new Date();
 
         return this;
 
     }
 
     /**
-     * Startet die Runtime erneut.
+     * Setzt die Runtime zurück.
      *
      * @returns {Runtime}
      */
-    restart() {
+    reset() {
 
-        this.stop();
-
-        this.start();
+        this.#state = 'created';
+        this.#startedAt = null;
+        this.#stoppedAt = null;
 
         return this;
 
     }
 
     /**
-     * Prüft, ob die Runtime aktiv ist.
-     *
-     * @returns {boolean}
-     */
-    isRunning() {
-
-        return this.state === 'running';
-
-    }
-
-    /**
-     * Gibt alle Runtime-Informationen zurück.
+     * Gibt sämtliche Runtime-Informationen zurück.
      *
      * @returns {Object}
      */
-    getInformation() {
+    toJSON() {
 
         return {
 
-            state: this.state,
-            startedAt: this.startedAt,
-            stoppedAt: this.stoppedAt
+            state: this.#state,
+            running: this.running,
+            startedAt: this.#startedAt,
+            stoppedAt: this.#stoppedAt
 
         };
 
