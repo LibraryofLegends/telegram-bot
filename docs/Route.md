@@ -6,7 +6,7 @@
 ║ Dokument-ID   : LLF-DOC-ROUTING-0004                                   ║
 ║ Zugehörige ID : LLF-ROUTING-0004                                       ║
 ║ Klasse        : Route                                                  ║
-║ Version       : 1.0.0                                                  ║
+║ Version       : 1.1.0                                                  ║
 ║ Status        : Stable                                                 ║
 ║ Erstellt      : 30.07.2026                                             ║
 ║ Autor         : Mr. Library Of Legends                                 ║
@@ -24,70 +24,60 @@
 | Klasse | Route |
 | Typ | Runtime Object |
 | Status | Stable |
-| Seit Version | 1.0.0 |
+| Seit Version | 1.1.0 |
 | Abhängigkeiten | RouteDefinition, RouteParameter |
-| Verwendet von | RouteCollection, Router |
+| Verwendet von | RouteCollection, RouteMatcher |
 
 ---
 
 # Übersicht
 
-Die Klasse **Route** repräsentiert eine Route während der Laufzeit.
+Die Klasse **Route** repräsentiert eine registrierte Route zur Laufzeit.
 
-Im Gegensatz zur **RouteDefinition**, die ausschließlich die
-Konfiguration einer Route beschreibt, enthält eine Route alle
-Informationen, die während eines konkreten Routing-Vorgangs
-benötigt werden.
+Während **RouteDefinition** sämtliche unveränderlichen
+Konfigurationsdaten enthält, verwaltet Route ausschließlich
+Laufzeitinformationen.
 
-Dazu gehören insbesondere:
-
-- die zugrunde liegende Routendefinition
-- die aktuell ermittelten Parameter
-- der Laufzeitzustand der Route
+Dadurch werden Konfiguration und Laufzeit konsequent voneinander
+getrennt.
 
 ---
 
 # Verantwortlichkeit
 
-Die Klasse besitzt genau eine Aufgabe:
+Route besitzt genau eine Aufgabe:
 
-Eine bereits definierte Route während der Verarbeitung einer
-HTTP-Anfrage darzustellen.
+Die Laufzeitrepräsentation einer Route bereitzustellen.
 
-Sie verwaltet ausschließlich Laufzeitinformationen.
+Sie verwaltet:
 
-Konfigurationsdaten werden niemals verändert.
+- Routendefinition
+- Parameter
+- zukünftige Laufzeitinformationen
+
+Sie verwaltet **nicht**:
+
+- Matching
+- Routing
+- HTTP Requests
+- Controller-Ausführung
 
 ---
 
 # Architektur
 
-Das LLF trennt Routing in zwei Ebenen.
-
-## Ebene 1
-
 ```text
 RouteDefinition
-
-↓
-
-Konfiguration
+        │
+        ▼
+      Route
+        │
+        ▼
+RouteParameter
 ```
 
----
-
-## Ebene 2
-
-```text
-Route
-
-↓
-
-Laufzeit
-```
-
-Dadurch kann eine einzige Routendefinition beliebig oft
-für verschiedene Requests verwendet werden.
+Route kapselt eine unveränderliche RouteDefinition und ergänzt sie
+um Laufzeitinformationen.
 
 ---
 
@@ -95,8 +85,12 @@ für verschiedene Requests verwendet werden.
 
 | Eigenschaft | Typ | Beschreibung |
 |-------------|-----|--------------|
-| definition | RouteDefinition | Unveränderliche Routendefinition |
-| parameters | Map | Aktuelle Parameter |
+| definition | RouteDefinition | Routendefinition |
+| method | string | HTTP-Methode |
+| path | string | Routenpfad |
+| handler | mixed | Handler |
+| name | string \| null | Routenname |
+| parameterCount | number | Anzahl registrierter Parameter |
 
 ---
 
@@ -104,7 +98,7 @@ für verschiedene Requests verwendet werden.
 
 ## definition
 
-Liefert die zugrunde liegende Definition.
+Liefert die zugehörige RouteDefinition.
 
 ---
 
@@ -112,39 +106,35 @@ Liefert die zugrunde liegende Definition.
 
 Liefert die HTTP-Methode.
 
-Beispiel
-
-```javascript
-route.method;
-
-// GET
-```
-
 ---
 
 ## path
 
-Liefert den URI.
+Liefert den Routenpfad.
 
 ---
 
 ## handler
 
-Liefert den Handler.
+Liefert den registrierten Handler.
 
 ---
 
 ## name
 
-Liefert den Routennamen.
+Liefert den Namen der Route.
+
+---
+
+## parameterCount
+
+Liefert die Anzahl registrierter Parameter.
 
 ---
 
 ## addParameter()
 
-Registriert einen neuen Parameter.
-
-Beispiel
+Registriert einen RouteParameter.
 
 ```javascript
 route.addParameter(parameter);
@@ -152,25 +142,55 @@ route.addParameter(parameter);
 
 ---
 
-## getParameter()
+## removeParameter()
 
-Liefert einen Parameter anhand seines Namens.
+Entfernt einen Parameter.
 
 ```javascript
-route.getParameter("id");
+route.removeParameter("id");
 ```
 
 ---
 
 ## hasParameter()
 
-Prüft, ob ein Parameter existiert.
+Prüft, ob ein Parameter vorhanden ist.
+
+```javascript
+route.hasParameter("id");
+```
+
+---
+
+## getParameter()
+
+Liefert einen Parameter.
+
+```javascript
+const parameter =
+    route.getParameter("id");
+```
 
 ---
 
 ## getParameters()
 
-Liefert sämtliche Parameter.
+Liefert alle Parameter.
+
+```javascript
+const parameters =
+    route.getParameters();
+```
+
+---
+
+## clearParameters()
+
+Entfernt sämtliche Parameter.
+
+```javascript
+route.clearParameters();
+```
 
 ---
 
@@ -178,174 +198,111 @@ Liefert sämtliche Parameter.
 
 Exportiert die komplette Route.
 
-Beispiel
-
-```javascript
-{
-
-    definition: {
-
-        ...
-
-    },
-
-    parameters: [
-
-        ...
-
-    ]
-
-}
-```
-
 ---
 
 # Beispiel
 
 ```javascript
-const definition = new RouteDefinition(
+const definition = new RouteDefinition({
 
-    "GET",
+    method: "GET",
 
-    "/users/{id}",
+    path: "/movies/{id}",
 
-    "UserController@show"
+    handler: MovieController,
 
-);
+    name: "movies.show"
 
-const route = new Route(
+});
 
-    definition
-
-);
+const route = new Route(definition);
 
 route.addParameter(
 
-    new RouteParameter(
-
-        "id",
-
-        42
-
-    )
+    new RouteParameter("id")
 
 );
 ```
-
----
-
-# Verwendet von
-
-✓ RouteCollection
-
-✓ Router
 
 ---
 
 # Dependency Graph
 
 ```text
-RouteMethod
-
-        │
-
-        ▼
-
 RouteDefinition
-
         │
-
         ▼
-
-Route
-
+      Route
         │
-
         ▼
-
-RouteCollection
-
-        │
-
-        ▼
-
-Router
+RouteParameter
 ```
 
 ---
 
 # Designentscheidung
 
-Warum existieren RouteDefinition und Route?
+Die Klasse **Route** speichert bewusst keine
+Konfigurationsdaten selbst.
 
-Die meisten Frameworks speichern sowohl Konfiguration
-als auch Laufzeitdaten in derselben Klasse.
+Alle unveränderlichen Informationen befinden sich in
+RouteDefinition.
 
-Das LLF trennt diese Bereiche bewusst.
+Route ergänzt diese lediglich um Laufzeitinformationen.
 
-Dadurch entsteht:
+Diese Trennung bringt mehrere Vorteile:
 
-✓ bessere Testbarkeit
-
-✓ weniger Seiteneffekte
-
-✓ einfacheres Debugging
-
-✓ sichere Parallelität
-
-✓ sauberere Architektur
+- geringere Kopplung
+- klare Verantwortlichkeiten
+- einfachere Tests
+- bessere Erweiterbarkeit
 
 ---
 
 # Vorteile
 
-✓ Runtime Object
+✅ Single Responsibility
 
-✓ Immutable Definition
+✅ Composition over Inheritance
 
-✓ SOLID-konform
+✅ Immutable Configuration
 
-✓ leicht erweiterbar
+✅ Erweiterbare Laufzeitdaten
 
-✓ sauber testbar
+✅ Testfreundlich
 
-✓ serialisierbar
+✅ Kleine API
 
----
-
-# Changelog
-
-Version 1.0.0
-
-- Erstveröffentlichung
-- Runtime-Objekt eingeführt
-- Parameterverwaltung
-- Definition-Verknüpfung
-- JSON-Export
+✅ Framework-konform
 
 ---
 
-# Zukünftige Erweiterungen
+# Änderungen in Version 1.1.0
 
-□ Request-Referenz
+- Vollständige JSDoc-Dokumentation
+- Getter vereinheitlicht
+- parameterCount ergänzt
+- removeParameter() ergänzt
+- clearParameters() ergänzt
+- API konsolidiert
+- Dokumentation erweitert
 
-□ Response-Referenz
+---
 
-□ Route-Matching-Informationen
+# Zukunft
 
-□ Controller-Instanz
+Geplante Erweiterungen:
 
-□ Middleware-Ausführungsstatus
-
-□ Parameter-Konverter
-
-□ URL-Generator
-
-□ Profiling-Daten
-
-□ Debug-Informationen
-
-□ Lifecycle-Hooks
+- Route-Metadaten
+- Middleware-Kontext
+- Laufzeitstatistiken
+- Match-Zeit
+- Request-Kontext
+- Caching-Informationen
+- Debug-Daten
+- Performance-Metriken
+- Tracing-Unterstützung
+- Erweiterte Serialisierung
 
 ---
 
@@ -361,6 +318,10 @@ Version 1.0.0
 
 → RouteGroup.md
 
+→ RouteMatcher.md
+
+→ RouteResult.md
+
 → Router.md
 
 ---
@@ -369,16 +330,16 @@ Version 1.0.0
 
 Quick Facts vorhanden..................... ✅
 
-Dokument vollständig...................... ✅
+Architektur dokumentiert................. ✅
 
-Architektur beschrieben................... ✅
+API vollständig beschrieben.............. ✅
 
-API dokumentiert.......................... ✅
+Beispiele vorhanden...................... ✅
 
-Beispiele vorhanden....................... ✅
+Designentscheidung erläutert............. ✅
 
-Dependency Graph enthalten................ ✅
+Dependency Graph enthalten............... ✅
 
-Siehe auch vorhanden...................... ✅
+Version 1.1.0 dokumentiert............... ✅
 
-Framework Ready........................... ✅
+Framework Ready.......................... ✅
