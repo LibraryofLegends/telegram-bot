@@ -6,7 +6,7 @@
 ║ Dokument-ID   : LLF-DOC-ROUTING-0009                                   ║
 ║ Zugehörige ID : LLF-ROUTING-0009                                       ║
 ║ Klasse        : Router                                                 ║
-║ Version       : 1.0.0                                                  ║
+║ Version       : 1.1.0                                                  ║
 ║ Status        : Stable                                                 ║
 ║ Erstellt      : 30.07.2026                                             ║
 ║ Autor         : Mr. Library Of Legends                                 ║
@@ -22,81 +22,67 @@
 |-------------|------|
 | Modul | Routing System |
 | Klasse | Router |
-| Typ | Orchestrator |
+| Typ | Coordinator |
 | Status | Stable |
-| Seit Version | 1.0.0 |
-| Abhängigkeiten | RouteCollection, RouteMatcher, RouteResult |
-| Verwendet von | Application, HTTP Kernel |
+| Seit Version | 1.1.0 |
+| Abhängigkeiten | RouteCollection, RouteMatcher |
+| Verwendet von | Application |
 
 ---
 
 # Übersicht
 
-Die Klasse **Router** bildet den zentralen Einstiegspunkt des Routing-Systems.
+Die Klasse **Router** bildet den zentralen Einstiegspunkt des
+Routing-Systems.
 
-Sie koordiniert sämtliche Komponenten, die für die Verarbeitung
-einer eingehenden HTTP-Anfrage notwendig sind.
+Ihre Aufgabe besteht ausschließlich darin, eingehende
+Routing-Anfragen entgegenzunehmen und vollständig an den
+**RouteMatcher** zu delegieren.
 
-Der Router selbst enthält keine Matching-Algorithmen und verwaltet
-keine Routen.
-
-Er delegiert diese Aufgaben vollständig an spezialisierte Klassen.
-
-Dadurch bleibt der Router klein, übersichtlich und leicht testbar.
+Der Router enthält bewusst keinerlei Matching-Logik.
 
 ---
 
 # Verantwortlichkeit
 
-Der Router besitzt genau eine Aufgabe:
+Router besitzt genau eine Aufgabe:
 
-Die einzelnen Komponenten des Routing-Systems zu koordinieren.
+Die Koordination des Routing-Prozesses.
 
-Er
+Der Router verwaltet:
 
-✓ empfängt eine Anfrage
+- RouteCollection
+- RouteMatcher
+- Routing-Delegation
 
-✓ startet das Matching
+Der Router verwaltet ausdrücklich **nicht**:
 
-✓ verarbeitet das Ergebnis
-
-✓ liefert ein RouteResult zurück
-
-Er kennt keine Details über den Matching-Algorithmus.
+- URL-Matching
+- Parameterextraktion
+- Request-Objekte
+- Controller-Ausführung
+- Middleware-Ausführung
+- HTTP-Responses
 
 ---
 
 # Architektur
 
 ```text
-              Request
-
-                 │
-
-                 ▼
-
-              Router
-
-        ┌────────┴────────┐
-
-        ▼                 ▼
-
-RouteMatcher      RouteCollection
-
-        │
-
-        ▼
-
-   RouteResult
-
-        │
-
-        ▼
-
- Application / Kernel
+Application
+      │
+      ▼
+    Router
+      │
+      ▼
+RouteMatcher
+      │
+      ▼
+RouteResult
 ```
 
-Der Router fungiert ausschließlich als Orchestrator.
+Der Router fungiert ausschließlich als Orchestrator zwischen
+Application und RouteMatcher.
 
 ---
 
@@ -105,7 +91,27 @@ Der Router fungiert ausschließlich als Orchestrator.
 | Eigenschaft | Typ | Beschreibung |
 |-------------|-----|--------------|
 | routes | RouteCollection | Registrierte Routen |
-| matcher | RouteMatcher | Matching-Komponente |
+| matcher | RouteMatcher | Zuständige Matching-Komponente |
+
+---
+
+# Konstruktor
+
+```javascript
+const router = new Router(
+
+    routeCollection,
+
+    routeMatcher
+
+);
+```
+
+Beide Abhängigkeiten können über Dependency Injection
+bereitgestellt werden.
+
+Werden keine Instanzen übergeben, erzeugt der Router
+Standardimplementierungen.
 
 ---
 
@@ -113,13 +119,13 @@ Der Router fungiert ausschließlich als Orchestrator.
 
 ## routes
 
-Liefert die RouteCollection.
+Liefert die registrierte RouteCollection.
 
 ---
 
 ## matcher
 
-Liefert den aktuell verwendeten RouteMatcher.
+Liefert den verwendeten RouteMatcher.
 
 ---
 
@@ -127,18 +133,18 @@ Liefert den aktuell verwendeten RouteMatcher.
 
 Startet den Routing-Vorgang.
 
-Parameter
+```javascript
+const result = router.dispatch(
 
-| Name | Typ |
-|------|-----|
-| method | string |
-| path | string |
+    "GET",
 
-Rückgabe
+    "/movies/12"
 
-```text
-RouteResult
+);
 ```
+
+Der Router delegiert den Vorgang vollständig an den
+RouteMatcher.
 
 ---
 
@@ -146,10 +152,22 @@ RouteResult
 
 Prüft, ob eine Route existiert.
 
-Rückgabe
+```javascript
+if (
 
-```text
-boolean
+    router.has(
+
+        "GET",
+
+        "/movies"
+
+    )
+
+) {
+
+    // ...
+
+}
 ```
 
 ---
@@ -160,48 +178,10 @@ Exportiert den Router.
 
 ---
 
-# Beispiel
-
-```javascript
-const router = new Router(
-
-    routes,
-
-    matcher
-
-);
-
-const result = router.dispatch(
-
-    "GET",
-
-    "/users"
-
-);
-
-if (result.isMatched()) {
-
-    console.log(
-
-        result.route
-
-    );
-
-}
-```
-
----
-
 # Ablauf
 
 ```text
-HTTP Request
-
-      │
-
-      ▼
-
-Router.dispatch()
+dispatch()
 
       │
 
@@ -222,159 +202,115 @@ RouteResult
 Application
 ```
 
----
-
-# Verwendet von
-
-✓ Application
-
-✓ HTTP Kernel
+Der Router verändert das Ergebnis des Matchers nicht.
 
 ---
 
-# Dependency Graph
+# Beispiel
 
-```text
-Request
+```javascript
+const router = new Router();
 
-      │
+const result = router.dispatch(
 
-      ▼
+    "GET",
 
-Router
+    "/users"
 
-      │
+);
 
-      ├──────────────► RouteMatcher
+if (
 
-      │                     │
+    result.isMatched()
 
-      │                     ▼
+) {
 
-      │              RouteCollection
+    console.log(
 
-      │                     │
+        result.route
 
-      │                     ▼
+    );
 
-      │                   Route
-
-      │
-
-      ▼
-
-RouteResult
+}
 ```
 
 ---
 
 # Designentscheidung
 
-Warum existiert Router?
+Der Router besitzt bewusst keine eigene Matching-Logik.
 
-In vielen Frameworks übernimmt der Router mehrere Aufgaben gleichzeitig.
+Dadurch ergeben sich mehrere Vorteile:
 
-Beispiele:
-
-- Matching
-- Middleware
-- Controller-Erzeugung
-- Parameterauflösung
-- Events
-
-Dadurch entstehen sehr große Klassen.
-
-Das LLF trennt diese Verantwortlichkeiten bewusst.
-
-Router übernimmt ausschließlich die Koordination.
-
-Alle Fachlogik wird ausgelagert.
+- klare Verantwortlichkeiten
+- einfache Testbarkeit
+- austauschbarer Matcher
+- geringe Kopplung
+- hohe Erweiterbarkeit
 
 ---
 
 # Vorteile
 
-✓ Orchestrator Pattern
+✅ Single Responsibility
 
-✓ SOLID-konform
+✅ Dependency Injection
 
-✓ Kleine Klasse
+✅ Lose Kopplung
 
-✓ Leicht testbar
+✅ Testfreundlich
 
-✓ Erweiterbar
+✅ Erweiterbar
 
-✓ Austauschbare Komponenten
-
----
-
-# Zukunft des Routers
-
-Spätere Versionen werden weitere Komponenten koordinieren.
-
-Beispiele:
-
-- Middleware Pipeline
-
-- Controller Resolver
-
-- Parameter Resolver
-
-- Dependency Injection
-
-- URL Generator
-
-- Exception Handler
-
-- Event Dispatcher
-
-- Route Cache
-
-- Compiled Routing
-
-Die öffentliche API bleibt dabei weitgehend unverändert.
+✅ Framework-konform
 
 ---
 
-# Changelog
+# Änderungen in Version 1.1.0
 
-## Version 1.0.0
-
-- Erstveröffentlichung
-
-- Orchestrator-Architektur
-
-- RouteMatcher-Unterstützung
-
-- RouteCollection-Unterstützung
-
-- RouteResult-Unterstützung
-
-- JSON-Export
+- Router auf reine Orchestrierung reduziert
+- Entfernung der RouteResult-Kompatibilitätsschicht
+- Keine instanceof-Prüfungen mehr im dispatch()
+- Delegation vollständig an RouteMatcher
+- Vollständige JSDoc
+- Dokumentation vollständig überarbeitet
 
 ---
 
-# Zukünftige Erweiterungen
+# Zukunft
 
-□ Request-Unterstützung
+Die Architektur erlaubt spätere Erweiterungen ohne Änderungen
+am öffentlichen API.
 
-□ Response-Erzeugung
+Geplante Erweiterungen:
 
-□ Middleware-Pipeline
+- Request-Unterstützung
+- URI-Objekte
+- Host-Routing
+- Domain-Routing
+- Locale-Routing
+- Pipeline-Unterstützung
+- Middleware-Dispatcher
+- Controller-Resolver
+- Performance-Monitoring
+- Debug-Modus
 
-□ Controller-Resolver
+---
 
-□ URL-Generator
+# Dependency Graph
 
-□ Exception-Handling
-
-□ Event-Hooks
-
-□ Route-Caching
-
-□ Compiled Routing
-
-□ Performance-Monitoring
+```text
+Application
+      │
+      ▼
+    Router
+      │
+      ▼
+RouteMatcher
+      │
+      ▼
+RouteResult
+```
 
 ---
 
@@ -402,16 +338,18 @@ Die öffentliche API bleibt dabei weitgehend unverändert.
 
 Quick Facts vorhanden..................... ✅
 
-Dokument vollständig...................... ✅
+Architektur dokumentiert................. ✅
 
-Architektur beschrieben................... ✅
+API vollständig beschrieben.............. ✅
 
-API dokumentiert.......................... ✅
+Dependency Injection dokumentiert........ ✅
 
-Beispiele vorhanden....................... ✅
+Designentscheidung erläutert............. ✅
 
-Dependency Graph enthalten................ ✅
+Beispiele vorhanden...................... ✅
 
-Designentscheidung erläutert.............. ✅
+Dependency Graph enthalten............... ✅
 
-Framework Ready........................... ✅
+Version 1.1.0 dokumentiert............... ✅
+
+Framework Ready.......................... ✅
