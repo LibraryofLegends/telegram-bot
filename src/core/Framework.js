@@ -11,127 +11,196 @@
  * ║ Datei        : Framework.js                                            ║
  * ║ Klasse       : Framework                                               ║
  * ║ ID           : LLF-CORE-0002                                           ║
- * ║ Datei-Version: 1.0.0                                                   ║
+ * ║ Datei-Version: 2.0.0                                                   ║
  * ║ Erstellt     : 30.07.2026                                              ║
  * ║ Autor        : Mr. Library Of Legends                                  ║
  * ╠══════════════════════════════════════════════════════════════════════════╣
  * ║ Beschreibung:                                                          ║
  * ║                                                                        ║
- * ║ Repräsentiert die zentrale Instanz des Frameworks.                     ║
- * ║ Alle Kernkomponenten werden später über diese Klasse verwaltet.        ║
+ * ║ Repräsentiert die zentrale Framework-Instanz und stellt grundlegende   ║
+ * ║ Informationen über das Framework bereit.                               ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 
 import Version from './Version.js';
 
 /**
- * Zentrale Framework-Klasse.
+ * Repräsentiert eine Framework-Instanz.
  */
 export default class Framework {
+
+    /**
+     * Name des Frameworks.
+     *
+     * @type {string}
+     */
+    #name;
+
+    /**
+     * Kurzname des Frameworks.
+     *
+     * @type {string}
+     */
+    #shortName;
+
+    /**
+     * Versionsnummer.
+     *
+     * @type {string}
+     */
+    #version;
+
+    /**
+     * Codename der aktuellen Version.
+     *
+     * @type {string}
+     */
+    #codename;
+
+    /**
+     * Gibt an, ob das Framework gestartet wurde.
+     *
+     * @type {boolean}
+     */
+    #booted;
+
+    /**
+     * Zeitpunkt des Frameworkstarts.
+     *
+     * @type {Date|null}
+     */
+    #startedAt;
 
     /**
      * Erstellt eine neue Framework-Instanz.
      */
     constructor() {
 
-        /**
-         * Name des Frameworks.
-         *
-         * @type {string}
-         */
-        this.name = Version.NAME;
+        this.#name = Version.NAME;
+        this.#shortName = Version.SHORT_NAME;
+        this.#version = Version.version;
+        this.#codename = Version.CODENAME;
 
-        /**
-         * Aktuelle Framework-Version.
-         *
-         * @type {string}
-         */
-        this.version = Version.version;
-
-        /**
-         * Codename der aktuellen Version.
-         *
-         * @type {string}
-         */
-        this.codename = Version.CODENAME;
-
-        /**
-         * Gibt an, ob das Framework gestartet wurde.
-         *
-         * @type {boolean}
-         */
-        this.booted = false;
-
-        /**
-         * Startzeit des Frameworks.
-         *
-         * @type {Date|null}
-         */
-        this.startedAt = null;
+        this.#booted = false;
+        this.#startedAt = null;
 
     }
 
     /**
-     * Startet das Framework.
+     * Gibt den Frameworknamen zurück.
+     *
+     * @returns {string}
+     */
+    get name() {
+
+        return this.#name;
+
+    }
+
+    /**
+     * Gibt den Kurznamen zurück.
+     *
+     * @returns {string}
+     */
+    get shortName() {
+
+        return this.#shortName;
+
+    }
+
+    /**
+     * Gibt die aktuelle Version zurück.
+     *
+     * @returns {string}
+     */
+    get version() {
+
+        return this.#version;
+
+    }
+
+    /**
+     * Gibt den aktuellen Codenamen zurück.
+     *
+     * @returns {string}
+     */
+    get codename() {
+
+        return this.#codename;
+
+    }
+
+    /**
+     * Gibt den Startzeitpunkt zurück.
+     *
+     * @returns {Date|null}
+     */
+    get startedAt() {
+
+        return this.#startedAt;
+
+    }
+
+    /**
+     * Gibt zurück, ob das Framework gestartet wurde.
+     *
+     * @returns {boolean}
+     */
+    get booted() {
+
+        return this.#booted;
+
+    }
+
+    /**
+     * Markiert das Framework als gestartet.
      *
      * @returns {Framework}
      */
     boot() {
 
-        if (this.booted) {
+        if (this.#booted) {
 
             return this;
 
         }
 
-        this.booted = true;
-
-        this.startedAt = new Date();
+        this.#booted = true;
+        this.#startedAt = new Date();
 
         return this;
 
     }
 
     /**
-     * Beendet das Framework.
+     * Markiert das Framework als beendet.
      *
      * @returns {Framework}
      */
     shutdown() {
 
-        this.booted = false;
-
-        this.startedAt = null;
+        this.#booted = false;
+        this.#startedAt = null;
 
         return this;
 
     }
 
     /**
-     * Prüft, ob das Framework bereits gestartet wurde.
-     *
-     * @returns {boolean}
-     */
-    isBooted() {
-
-        return this.booted;
-
-    }
-
-    /**
-     * Gibt Informationen über die Framework-Instanz zurück.
+     * Gibt alle Frameworkinformationen zurück.
      *
      * @returns {Object}
      */
-    getInformation() {
+    toJSON() {
 
         return {
 
-            framework: this.name,
-            version: this.version,
-            codename: this.codename,
-            booted: this.booted,
-            startedAt: this.startedAt
+            name: this.#name,
+            shortName: this.#shortName,
+            version: this.#version,
+            codename: this.#codename,
+            booted: this.#booted,
+            startedAt: this.#startedAt
 
         };
 
