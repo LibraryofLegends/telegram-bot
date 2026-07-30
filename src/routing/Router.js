@@ -11,17 +11,23 @@
  * ║ Datei        : Router.js                                               ║
  * ║ Klasse       : Router                                                  ║
  * ║ ID           : LLF-ROUTING-0009                                        ║
- * ║ Datei-Version: 1.0.0                                                   ║
+ * ║ Datei-Version: 1.1.0                                                   ║
+ * ║ Teil         : 1 / 2                                                   ║
  * ║ Status       : Stable                                                  ║
- * ║ Erstellt     : 30.07.2026                                              ║
  * ║ Autor        : Mr. Library Of Legends                                  ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 
-import RouteCollection from './RouteCollection.js';
-import RouteMatcher from './RouteMatcher.js';
-import RouteResult from './RouteResult.js';
+import RouteCollection from "./RouteCollection.js";
+import RouteMatcher from "./RouteMatcher.js";
 
+/**
+ * Zentraler Einstiegspunkt des Routing-Systems.
+ *
+ * Der Router besitzt ausschließlich koordinierende Aufgaben.
+ * Das eigentliche Matching wird vollständig an den
+ * RouteMatcher delegiert.
+ */
 export default class Router {
 
     /**
@@ -32,27 +38,30 @@ export default class Router {
     #routes;
 
     /**
-     * Matching-Komponente.
+     * Zuständige Matching-Komponente.
      *
      * @type {RouteMatcher}
      */
     #matcher;
 
     /**
-     * Erstellt einen Router.
+     * Erstellt einen neuen Router.
      *
-     * @param {RouteCollection} routes
-     * @param {RouteMatcher} matcher
+     * @param {RouteCollection} [routes=new RouteCollection()]
+     * @param {RouteMatcher} [matcher=new RouteMatcher()]
      */
     constructor(
+
         routes = new RouteCollection(),
+
         matcher = new RouteMatcher()
+
     ) {
 
         if (!(routes instanceof RouteCollection)) {
 
             throw new TypeError(
-                'The routes argument must be a RouteCollection.'
+                "The routes argument must be an instance of RouteCollection."
             );
 
         }
@@ -60,18 +69,19 @@ export default class Router {
         if (!(matcher instanceof RouteMatcher)) {
 
             throw new TypeError(
-                'The matcher argument must be an instance of RouteMatcher.'
+                "The matcher argument must be an instance of RouteMatcher."
             );
 
         }
 
         this.#routes = routes;
+
         this.#matcher = matcher;
 
     }
 
     /**
-     * Liefert die RouteCollection.
+     * Liefert die registrierten Routen.
      *
      * @returns {RouteCollection}
      */
@@ -82,7 +92,7 @@ export default class Router {
     }
 
     /**
-     * Liefert den RouteMatcher.
+     * Liefert den verwendeten Matcher.
      *
      * @returns {RouteMatcher}
      */
@@ -93,7 +103,10 @@ export default class Router {
     }
 
     /**
-     * Führt das Routing aus.
+     * Führt den Routing-Vorgang aus.
+     *
+     * Der Router delegiert das Matching vollständig
+     * an den RouteMatcher.
      *
      * @param {string} method
      * @param {string} path
@@ -102,36 +115,20 @@ export default class Router {
      */
     dispatch(method, path) {
 
-        const result = this.#matcher.match(
+        return this.#matcher.match(
 
             this.#routes,
+
             method,
+
             path
 
         );
 
-        if (result instanceof RouteResult) {
-
-            return result;
-
-        }
-
-        return new RouteResult({
-
-            matched: true,
-
-            route: result,
-
-            status: 200,
-
-            message: 'Route matched.'
-
-        });
-
     }
 
     /**
-     * Prüft, ob eine Route existiert.
+     * Prüft, ob eine passende Route existiert.
      *
      * @param {string} method
      * @param {string} path
@@ -140,16 +137,13 @@ export default class Router {
      */
     has(method, path) {
 
-        return this.dispatch(
-
-            method,
-            path
-
-        ).isMatched();
+        return this
+            .dispatch(method, path)
+            .isMatched();
 
     }
-
-    /**
+    
+        /**
      * Exportiert den Router.
      *
      * @returns {Object}
