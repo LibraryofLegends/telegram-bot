@@ -1562,9 +1562,11 @@ try {
 
 } catch (error) {
 
-    this.log('TRANSACTION ROLLBACK');
+    this.log("TRANSACTION ROLLBACK");
 
     throw error;
+
+}
 
 }
 
