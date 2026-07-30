@@ -11,14 +11,13 @@
  * ║ Datei        : Kernel.js                                               ║
  * ║ Klasse       : Kernel                                                  ║
  * ║ ID           : LLF-CORE-0004                                           ║
- * ║ Datei-Version: 1.0.0                                                   ║
+ * ║ Datei-Version: 2.0.0                                                   ║
  * ║ Erstellt     : 30.07.2026                                              ║
  * ║ Autor        : Mr. Library Of Legends                                  ║
  * ╠══════════════════════════════════════════════════════════════════════════╣
  * ║ Beschreibung:                                                          ║
  * ║                                                                        ║
- * ║ Verwaltet den Lebenszyklus des Frameworks und bildet den zentralen     ║
- * ║ Einstiegspunkt für alle zukünftigen Framework-Komponenten.             ║
+ * ║ Verwaltet den kompletten Lebenszyklus des Frameworks.                  ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 
@@ -26,63 +25,132 @@ import Framework from './Framework.js';
 import Runtime from './Runtime.js';
 
 /**
- * Zentrale Kernel-Klasse des Frameworks.
+ * Kernklasse des Frameworks.
  */
 export default class Kernel {
+
+    /**
+     * Framework-Instanz.
+     *
+     * @type {Framework}
+     */
+    #framework;
+
+    /**
+     * Runtime-Instanz.
+     *
+     * @type {Runtime}
+     */
+    #runtime;
+
+    /**
+     * Initialisierungsstatus.
+     *
+     * @type {boolean}
+     */
+    #initialized;
 
     /**
      * Erstellt einen neuen Kernel.
      */
     constructor() {
 
-        /**
-         * Framework-Instanz.
-         *
-         * @type {Framework}
-         */
-        this.framework = new Framework();
+        this.#framework = new Framework();
+        this.#runtime = new Runtime();
 
-        /**
-         * Runtime-Instanz.
-         *
-         * @type {Runtime}
-         */
-        this.runtime = new Runtime();
+        this.#initialized = false;
 
     }
 
     /**
-     * Startet den Kernel.
+     * Framework-Instanz.
+     *
+     * @returns {Framework}
+     */
+    get framework() {
+
+        return this.#framework;
+
+    }
+
+    /**
+     * Runtime-Instanz.
+     *
+     * @returns {Runtime}
+     */
+    get runtime() {
+
+        return this.#runtime;
+
+    }
+
+    /**
+     * Initialisierungsstatus.
+     *
+     * @returns {boolean}
+     */
+    get initialized() {
+
+        return this.#initialized;
+
+    }
+
+    /**
+     * Initialisiert den Kernel.
+     *
+     * Diese Methode wird später erweitert und lädt
+     * alle Framework-Module.
+     *
+     * @returns {Kernel}
+     */
+    initialize() {
+
+        if (this.#initialized) {
+
+            return this;
+
+        }
+
+        this.#initialized = true;
+
+        return this;
+
+    }
+
+    /**
+     * Startet das Framework.
      *
      * @returns {Kernel}
      */
     boot() {
 
-        this.framework.boot();
+        this.initialize();
 
-        this.runtime.start();
+        this.#framework.boot();
+
+        this.#runtime.start();
 
         return this;
 
     }
 
     /**
-     * Beendet den Kernel.
+     * Beendet das Framework.
      *
      * @returns {Kernel}
      */
     shutdown() {
 
-        this.runtime.stop();
+        this.#runtime.stop();
 
-        this.framework.shutdown();
+        this.#framework.shutdown();
 
         return this;
 
     }
 
     /**
-     * Startet den Kernel neu.
+     * Startet das Framework neu.
      *
      * @returns {Kernel}
      */
@@ -97,35 +165,13 @@ export default class Kernel {
     }
 
     /**
-     * Gibt die Framework-Instanz zurück.
-     *
-     * @returns {Framework}
-     */
-    getFramework() {
-
-        return this.framework;
-
-    }
-
-    /**
-     * Gibt die Runtime-Instanz zurück.
-     *
-     * @returns {Runtime}
-     */
-    getRuntime() {
-
-        return this.runtime;
-
-    }
-
-    /**
-     * Prüft, ob der Kernel vollständig gestartet wurde.
+     * Prüft, ob das Framework läuft.
      *
      * @returns {boolean}
      */
     isRunning() {
 
-        return this.framework.isBooted() && this.runtime.isRunning();
+        return this.#framework.booted && this.#runtime.running;
 
     }
 
@@ -134,13 +180,14 @@ export default class Kernel {
      *
      * @returns {Object}
      */
-    getInformation() {
+    toJSON() {
 
         return {
 
-            framework: this.framework.getInformation(),
-            runtime: this.runtime.getInformation(),
-            running: this.isRunning()
+            initialized: this.#initialized,
+            running: this.isRunning(),
+            framework: this.#framework.toJSON(),
+            runtime: this.#runtime.toJSON()
 
         };
 
