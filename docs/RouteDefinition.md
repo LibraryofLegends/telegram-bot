@@ -6,7 +6,7 @@
 ║ Dokument-ID   : LLF-DOC-ROUTING-0003                                   ║
 ║ Zugehörige ID : LLF-ROUTING-0003                                       ║
 ║ Klasse        : RouteDefinition                                        ║
-║ Version       : 1.0.0                                                  ║
+║ Version       : 1.1.0                                                  ║
 ║ Status        : Stable                                                 ║
 ║ Erstellt      : 30.07.2026                                             ║
 ║ Autor         : Mr. Library Of Legends                                 ║
@@ -22,32 +22,24 @@
 |-------------|------|
 | Modul | Routing System |
 | Klasse | RouteDefinition |
-| Typ | Immutable Definition Object |
+| Typ | Immutable Value Object |
 | Status | Stable |
-| Seit Version | 1.0.0 |
+| Seit Version | 1.1.0 |
 | Abhängigkeiten | RouteMethod |
-| Verwendet von | Route, Router |
+| Verwendet von | Route |
 
 ---
 
 # Übersicht
 
-Die Klasse **RouteDefinition** beschreibt eine Route vollständig,
-ohne Informationen über deren aktuelle Laufzeit zu speichern.
+Die Klasse **RouteDefinition** beschreibt eine Route vollständig
+und unveränderlich.
 
-Sie dient als unveränderliche (Immutable) Definition und stellt
-die zentrale Konfiguration einer Route dar.
+Sie enthält ausschließlich statische Konfigurationsdaten und dient
+als Grundlage für die Laufzeitrepräsentation einer Route.
 
-Eine RouteDefinition beschreibt ausschließlich:
-
-- HTTP-Methode
-- URL-Pfad
-- Handler
-- Name
-- Middleware
-- Metadaten
-
-Die Klasse enthält keinerlei Logik zur Verarbeitung einer HTTP-Anfrage.
+Alle Laufzeitinformationen werden von der Klasse **Route**
+verwaltet.
 
 ---
 
@@ -55,14 +47,82 @@ Die Klasse enthält keinerlei Logik zur Verarbeitung einer HTTP-Anfrage.
 
 RouteDefinition besitzt genau eine Aufgabe:
 
-Die vollständige Beschreibung einer Route.
+Die unveränderliche Beschreibung einer Route bereitzustellen.
 
-Sie kennt weder Requests noch Responses,
-keine Parameterwerte,
-keine Controller-Instanzen
-und keine Routinglogik.
+Sie verwaltet:
 
-Dadurch bleibt sie vollständig unabhängig.
+- HTTP-Methode
+- Pfad
+- Handler
+- Routenname
+- Middleware
+- Metadaten
+
+Sie verwaltet ausdrücklich **nicht**:
+
+- Parameterwerte
+- Matching
+- Request-Daten
+- Response-Daten
+- Controller-Ausführung
+- Laufzeitstatus
+
+---
+
+# Architektur
+
+```text
+RouteMethod
+      │
+      ▼
+RouteDefinition
+      │
+      ▼
+Route
+      │
+      ▼
+RouteMatcher
+```
+
+RouteDefinition bildet die statische Grundlage des gesamten
+Routing-Systems.
+
+---
+
+# Konstruktor
+
+Die Erstellung erfolgt über das **Options Pattern**.
+
+```javascript
+const definition = new RouteDefinition({
+
+    method: "GET",
+
+    path: "/movies/{id}",
+
+    handler: MovieController,
+
+    name: "movies.show",
+
+    middleware: [
+
+        "auth",
+
+        "cache"
+
+    ],
+
+    metadata: {
+
+        category: "movies"
+
+    }
+
+});
+```
+
+Das Options Pattern erlaubt zukünftige Erweiterungen,
+ohne den Konstruktor verändern zu müssen.
 
 ---
 
@@ -71,28 +131,14 @@ Dadurch bleibt sie vollständig unabhängig.
 | Eigenschaft | Typ | Beschreibung |
 |-------------|-----|--------------|
 | method | string | HTTP-Methode |
-| path | string | URL-Pfad |
-| handler | Function \| string | Zielhandler |
-| name | string \| null | Routenname |
-| middleware | Array | Middleware-Liste |
+| path | string | Normalisierter Pfad |
+| handler | Function \| string | Controller oder Callback |
+| name | string \| null | Name der Route |
+| middleware | string[] | Middleware-Liste |
 | metadata | Object | Zusätzliche Informationen |
-
----
-
-# Konstruktor
-
-```javascript
-new RouteDefinition(
-
-    method,
-    path,
-    handler,
-    name,
-    middleware,
-    metadata
-
-);
-```
+| hasName | boolean | Name vorhanden |
+| hasMiddleware | boolean | Middleware vorhanden |
+| hasMetadata | boolean | Metadaten vorhanden |
 
 ---
 
@@ -106,13 +152,13 @@ Liefert die HTTP-Methode.
 
 ## path
 
-Liefert den URI-Pfad.
+Liefert den normalisierten Pfad.
 
 ---
 
 ## handler
 
-Liefert den Handler.
+Liefert den registrierten Handler.
 
 ---
 
@@ -122,37 +168,129 @@ Liefert den Routennamen.
 
 ---
 
+## hasName
+
+Prüft, ob ein Routenname vergeben wurde.
+
+---
+
 ## middleware
 
-Liefert sämtliche Middleware.
+Liefert alle Middleware-Einträge.
 
-Da RouteDefinition unveränderlich ist,
-ist diese Liste schreibgeschützt.
+---
+
+## hasMiddleware
+
+Prüft, ob Middleware definiert wurde.
 
 ---
 
 ## metadata
 
-Liefert zusätzliche Metadaten.
+Liefert die Metadaten.
+
+---
+
+## hasMetadata
+
+Prüft, ob Metadaten vorhanden sind.
 
 ---
 
 ## toJSON()
 
-Exportiert die Definition.
+Exportiert die komplette Routendefinition.
 
-Beispiel
+---
+
+# Validierung
+
+Beim Erstellen werden sämtliche Eingaben geprüft.
+
+## HTTP-Methode
+
+Die Methode wird durch **RouteMethod.validate()**
+validiert.
+
+---
+
+## Pfad
+
+Der Pfad muss:
+
+- ein String sein
+- nicht leer sein
+- automatisch normalisiert werden
+
+Beispiele:
+
+```text
+movies
+```
+
+↓
+
+```text
+/movies
+```
+
+---
+
+```text
+/movies/
+```
+
+↓
+
+```text
+/movies
+```
+
+---
+
+## Handler
+
+Erlaubte Typen:
+
+- Function
+- String
+
+---
+
+## Name
+
+Erlaubte Werte:
+
+- String
+- null
+
+---
+
+## Middleware
+
+Middleware muss immer ein Array sein.
+
+---
+
+## Metadata
+
+Metadata muss immer ein Objekt sein.
+
+---
+
+# Beispiel
 
 ```javascript
-{
+const definition = new RouteDefinition({
 
-    method: "GET",
+    method: "POST",
 
-    path: "/users/{id}",
+    path: "/users",
 
-    handler: "UserController@show",
+    handler: UserController,
 
-    name: "users.show",
+    name: "users.store",
 
     middleware: [
 
@@ -160,175 +298,103 @@ Beispiel
 
     ],
 
-    metadata: {}
+    metadata: {
 
-}
+        section: "admin"
+
+    }
+
+});
 ```
-
----
-
-# Immutable Design
-
-RouteDefinition ist ein sogenanntes
-Immutable Object.
-
-Nach der Erstellung kann die Instanz
-nicht mehr verändert werden.
-
-Dadurch entstehen zahlreiche Vorteile.
-
-✓ Thread-Sicherheit
-
-✓ Vorhersehbares Verhalten
-
-✓ Einfaches Debugging
-
-✓ Sichere Serialisierung
-
-✓ Optimales Caching
-
-✓ Keine versehentlichen Änderungen
-
----
-
-# Beispiel
-
-```javascript
-import RouteDefinition
-from "./RouteDefinition.js";
-
-const route = new RouteDefinition(
-
-    "GET",
-
-    "/users/{id}",
-
-    "UserController@show",
-
-    "users.show",
-
-    [
-
-        "auth"
-
-    ]
-
-);
-```
-
----
-
-# Verwendet von
-
-✓ Route
-
-✓ RouteCollection
-
-✓ RouteGroup
-
-✓ Router
-
----
-
-# Dependency Graph
-
-RouteMethod
-
-↓
-
-RouteDefinition
-
-↓
-
-Route
-
-↓
-
-RouteCollection
-
-↓
-
-Router
 
 ---
 
 # Designentscheidung
 
-Warum RouteDefinition?
+RouteDefinition ist bewusst vollständig **immutable**.
 
-Viele Frameworks speichern Konfiguration
-und Laufzeitinformationen innerhalb
-derselben Klasse.
+Nach der Erstellung kann keine Eigenschaft mehr geändert werden.
 
-Das LLF trennt diese Bereiche vollständig.
+Dadurch ergeben sich mehrere Vorteile:
 
-Dadurch entstehen kleinere Klassen
-mit klar definierten Verantwortlichkeiten.
-
-Diese Architektur erleichtert außerdem
-
-- Caching
-- Kompilierung
-- Debugging
-- Testbarkeit
-- Performanceoptimierungen
+- keine Seiteneffekte
+- thread-sicheres Verhalten
+- einfache Tests
+- konsistente Routendefinitionen
+- bessere Performance durch unveränderliche Objekte
 
 ---
 
 # Vorteile
 
-✓ Immutable
+✅ Immutable Value Object
 
-✓ SOLID-konform
+✅ Options Pattern
 
-✓ Leicht testbar
+✅ Zukunftssichere API
 
-✓ Sehr gut serialisierbar
+✅ Geringe Kopplung
 
-✓ Zukunftssicher
+✅ Single Responsibility
 
-✓ Erweiterbar
+✅ Framework-konform
 
----
-
-# Changelog
-
-Version 1.0.0
-
-- Erstveröffentlichung
-- Immutable Design
-- Middleware-Unterstützung
-- Metadaten
-- Routennamen
-- JSON-Export
+✅ Erweiterbar
 
 ---
 
-# Zukünftige Erweiterungen
+# Änderungen in Version 1.1.0
 
-□ Host-Routing
-
-□ Domain-Routing
-
-□ API-Versionierung
-
-□ HTTPS-only
-
-□ Route-Gruppenattribute
-
-□ OpenAPI-Informationen
-
-□ Compiler-Hinweise
-
-□ Cache-Strategien
-
-□ Signierte Routen
-
-□ Feature-Flags
+- Umstellung auf das Options Pattern
+- Erweiterte Validierung
+- Pfadnormalisierung integriert
+- Neue Getter `hasName`
+- Neue Getter `hasMiddleware`
+- Neue Getter `hasMetadata`
+- Vollständige JSDoc
+- Konsistente Serialisierung
+- Dokumentation vollständig überarbeitet
 
 ---
 
-# Siehe auch
+# Zukunft
+
+Die Architektur erlaubt spätere Erweiterungen ohne Breaking Changes.
+
+Geplante Eigenschaften:
+
+- defaults
+- constraints
+- host
+- schemes
+- domain
+- namespace
+- locale
+- prefix
+- priority
+- caching
+- tags
+
+---
+
+# Dependency Graph
+
+```text
+RouteMethod
+      │
+      ▼
+RouteDefinition
+      │
+      ▼
+Route
+      │
+      ▼
+RouteMatcher
+```
+
+---
+
+# 🔗 Siehe auch
 
 → RouteMethod.md
 
@@ -340,6 +406,10 @@ Version 1.0.0
 
 → RouteGroup.md
 
+→ RouteMatcher.md
+
+→ RouteResult.md
+
 → Router.md
 
 ---
@@ -348,18 +418,20 @@ Version 1.0.0
 
 Quick Facts vorhanden..................... ✅
 
-Dokument vollständig...................... ✅
+Architektur dokumentiert................. ✅
 
-Eigenschaften dokumentiert................ ✅
+Options Pattern beschrieben.............. ✅
 
-API dokumentiert.......................... ✅
+Validierung dokumentiert................. ✅
 
-Beispiele vorhanden....................... ✅
+API vollständig.......................... ✅
 
-Dependency Graph enthalten................ ✅
+Beispiele vorhanden...................... ✅
 
-Siehe auch vorhanden...................... ✅
+Immutable Design erläutert............... ✅
 
-Architektur erläutert..................... ✅
+Dependency Graph enthalten............... ✅
 
-Framework Ready........................... ✅
+Version 1.1.0 dokumentiert............... ✅
+
+Framework Ready.......................... ✅
