@@ -7,46 +7,27 @@
  * ------------------------------------------------------------------------
  * Beschreibung:
  *
- * Zentrale Basisklasse für sämtliche Repository-Klassen.
+ * Enterprise Base Repository
  *
- * Diese Klasse stellt die grundlegenden Funktionen für den
- * Datenbankzugriff bereit und dient als gemeinsame Grundlage
- * aller Repositorys innerhalb von Library Of Legends.
+ * Diese Klasse dient als zentrale Basisklasse sämtlicher Repositorys.
+ * Alle Repositorys der Anwendung erben von dieser Klasse und erhalten
+ * dadurch eine einheitliche API für Datenbankoperationen.
  *
- * Funktionen:
- * - Datenbankzugriff
- * - Prepared Statements
- * - SQL-Validierung
- * - Fehlerbehandlung
- * - Query Logging
- * - CRUD-Grundfunktionen
- * - Query Builder
- * - Pagination
- * - Filter
- * - Sortierung
- * - Bulk-Operationen
- * - Transaktionen
- * - Soft Deletes
- * - Statistiken
- *
- * Verwendet von:
- * - MovieRepository
- * - SeriesRepository
- * - PersonRepository
- * - CollectionRepository
- * - GenreRepository
- * - StudioRepository
- * - CompanyRepository
- * - UserRepository
- * - WorkflowRepository
- * - AIRepository
- * - sowie allen zukünftigen Repository-Klassen
- *
- * Abhängigkeiten:
- * - src/config/database.js
+ * Features
+ * --------
+ * ✓ CRUD
+ * ✓ Fluent Query Builder
+ * ✓ Prepared Statements
+ * ✓ Validierung
+ * ✓ Bulk Operationen
+ * ✓ Transaktionen
+ * ✓ Soft Deletes
+ * ✓ Statistiken
+ * ✓ Query Logging
+ * ✓ Erweiterbare Architektur
  *
  * Version:
- * 1.0.0
+ * 2.0.0
  * ========================================================================
  */
 
@@ -65,35 +46,176 @@ class BaseRepository {
     constructor(tableName, primaryKey = 'id') {
 
         if (!tableName) {
-            throw new Error('Repository benötigt einen Tabellennamen.');
+
+            throw new Error(
+                'Repository benötigt einen Tabellennamen.'
+            );
+
         }
 
+        /**
+         * Datenbank
+         */
+
         this.db = db;
+
+        /**
+         * Tabelleninformationen
+         */
 
         this.table = tableName;
 
         this.primaryKey = primaryKey;
 
-        this.softDeleteColumn = 'deleted_at';
+        /**
+         * Standardspalten
+         */
 
         this.createdColumn = 'created_at';
 
         this.updatedColumn = 'updated_at';
 
-        this.enableSoftDelete = false;
+        this.softDeleteColumn = 'deleted_at';
+
+        /**
+         * Optionen
+         */
 
         this.enableLogging = true;
+
+        this.enableSoftDelete = false;
+
+        /**
+         * Query Builder Status
+         */
+
+        this.resetQueryState();
 
     }
 
     /**
      * ============================================================
-     * Datenbank
+     * Query State
      * ============================================================
      */
 
     /**
-     * Datenbankinstanz zurückgeben
+     * Initialisiert den internen Query Builder.
+     *
+     * Diese Methode wird sowohl im Konstruktor als auch bei
+     * query() verwendet.
+     *
+     * @returns {BaseRepository}
+     */
+
+    resetQueryState() {
+
+        this.queryState = {
+
+            /**
+             * Query Typ
+             */
+
+            type: 'select',
+
+            /**
+             * Tabelle
+             */
+
+            table: this.table,
+
+            alias: null,
+
+            /**
+             * SELECT
+             */
+
+            distinct: false,
+
+            columns: ['*'],
+
+            /**
+             * JOIN
+             */
+
+            joins: [],
+
+            /**
+             * WHERE
+             */
+
+            wheres: [],
+
+            /**
+             * GROUP BY
+             */
+
+            groups: [],
+
+            /**
+             * HAVING
+             */
+
+            havings: [],
+
+            /**
+             * ORDER BY
+             */
+
+            orders: [],
+
+            /**
+             * UNION
+             */
+
+            unions: [],
+
+            /**
+             * LIMIT / OFFSET
+             */
+
+            limit: null,
+
+            offset: null,
+
+            /**
+             * Parameter
+             */
+
+            bindings: []
+
+        };
+
+        return this;
+
+    }
+
+    /**
+     * Neue Query beginnen.
+     *
+     * Beispiel:
+     *
+     * movieRepository
+     *     .query()
+     *     .select('*')
+     */
+
+    query() {
+
+        return this.resetQueryState();
+
+    }
+    
+        /**
+     * ============================================================
+     * Datenbankzugriff
+     * ============================================================
+     */
+
+    /**
+     * Datenbankinstanz zurückgeben.
+     *
+     * @returns {*}
      */
     getDatabase() {
 
@@ -102,7 +224,9 @@ class BaseRepository {
     }
 
     /**
-     * Tabellennamen zurückgeben
+     * Aktuelle Tabelle zurückgeben.
+     *
+     * @returns {string}
      */
     getTable() {
 
@@ -111,7 +235,9 @@ class BaseRepository {
     }
 
     /**
-     * Primärschlüssel zurückgeben
+     * Primärschlüssel zurückgeben.
+     *
+     * @returns {string}
      */
     getPrimaryKey() {
 
@@ -120,10 +246,10 @@ class BaseRepository {
     }
 
     /**
-     * Prepared Statement erzeugen
+     * Prepared Statement erzeugen.
      *
      * @param {string} sql
-     * @returns {Statement}
+     * @returns {*}
      */
     prepare(sql) {
 
@@ -134,19 +260,21 @@ class BaseRepository {
     }
 
     /**
-     * SQL ausführen (INSERT / UPDATE / DELETE)
+     * SQL direkt ausführen (INSERT / UPDATE / DELETE).
      *
      * @param {string} sql
-     * @param {Array} params
+     * @param {Array} bindings
      * @returns {*}
      */
-    execute(sql, params = []) {
+    execute(sql, bindings = []) {
 
         try {
 
-            this.log(sql, params);
+            this.log(sql, bindings);
 
-            return this.db.prepare(sql).run(params);
+            return this.db
+                .prepare(sql)
+                .run(bindings);
 
         } catch (error) {
 
@@ -157,19 +285,34 @@ class BaseRepository {
     }
 
     /**
-     * Einzelnen Datensatz laden
+     * Alias für execute().
      *
      * @param {string} sql
-     * @param {Array} params
+     * @param {Array} bindings
      * @returns {*}
      */
-    get(sql, params = []) {
+    run(sql, bindings = []) {
+
+        return this.execute(sql, bindings);
+
+    }
+
+    /**
+     * Einen Datensatz abrufen.
+     *
+     * @param {string} sql
+     * @param {Array} bindings
+     * @returns {*}
+     */
+    get(sql, bindings = []) {
 
         try {
 
-            this.log(sql, params);
+            this.log(sql, bindings);
 
-            return this.db.prepare(sql).get(params);
+            return this.db
+                .prepare(sql)
+                .get(bindings);
 
         } catch (error) {
 
@@ -180,36 +323,162 @@ class BaseRepository {
     }
 
     /**
-     * Mehrere Datensätze laden
+     * Mehrere Datensätze abrufen.
      *
      * @param {string} sql
-     * @param {Array} params
+     * @param {Array} bindings
      * @returns {Array}
      */
-    all(sql, params = []) {
+    all(sql, bindings = []) {
 
         try {
 
-            this.log(sql, params);
+            this.log(sql, bindings);
 
-            return this.db.prepare(sql).all(params);
+            return this.db
+                .prepare(sql)
+                .all(bindings);
 
         } catch (error) {
 
             this.handleError(error);
 
         }
+
+    }
+
+    /**
+     * SQL ohne Rückgabewert ausführen.
+     *
+     * Geeignet für:
+     * - CREATE TABLE
+     * - ALTER TABLE
+     * - DROP TABLE
+     * - PRAGMA
+     * - VACUUM
+     *
+     * @param {string} sql
+     * @returns {*}
+     */
+    exec(sql) {
+
+        this.log(sql);
+
+        try {
+
+            return this.db.exec(sql);
+
+        } catch (error) {
+
+            this.handleError(error);
+
+        }
+
+    }
+
+    /**
+     * SQL-Pragma ausführen.
+     *
+     * @param {string} pragma
+     * @returns {*}
+     */
+    pragma(pragma) {
+
+        this.log(`PRAGMA ${pragma}`);
+
+        try {
+
+            return this.db.pragma(pragma);
+
+        } catch (error) {
+
+            this.handleError(error);
+
+        }
+
+    }
+
+    /**
+     * Statement im Cache vorbereiten.
+     *
+     * Bereitet häufig verwendete Statements vor,
+     * damit sie mehrfach verwendet werden können.
+     *
+     * @param {string} sql
+     * @returns {*}
+     */
+    cachedStatement(sql) {
+
+        if (!this.statementCache) {
+
+            this.statementCache = new Map();
+
+        }
+
+        if (!this.statementCache.has(sql)) {
+
+            this.statementCache.set(
+                sql,
+                this.db.prepare(sql)
+            );
+
+        }
+
+        return this.statementCache.get(sql);
+
+    }
+
+    /**
+     * Statement-Cache leeren.
+     *
+     * @returns {BaseRepository}
+     */
+    clearStatementCache() {
+
+        if (this.statementCache) {
+
+            this.statementCache.clear();
+
+        }
+
+        return this;
 
     }
     
-            /**
+        /**
      * ============================================================
-     * Validierung
+     * Logging & Error Handling
      * ============================================================
      */
 
     /**
-     * Aktuellen Zeitstempel erzeugen
+     * Query Logging aktivieren.
+     *
+     * @returns {BaseRepository}
+     */
+    enableQueryLogging() {
+
+        this.enableLogging = true;
+
+        return this;
+
+    }
+
+    /**
+     * Query Logging deaktivieren.
+     *
+     * @returns {BaseRepository}
+     */
+    disableQueryLogging() {
+
+        this.enableLogging = false;
+
+        return this;
+
+    }
+
+    /**
+     * Zeitstempel erzeugen.
      *
      * @returns {string}
      */
@@ -220,238 +489,38 @@ class BaseRepository {
     }
 
     /**
-     * SQL-Identifier validieren
+     * Hochauflösende Zeitmessung starten.
      *
-     * Erlaubt ausschließlich:
-     * - Buchstaben
-     * - Zahlen
-     * - Unterstriche
+     * @returns {bigint}
+     */
+    startTimer() {
+
+        return process.hrtime.bigint();
+
+    }
+
+    /**
+     * Laufzeit berechnen.
      *
-     * @param {string} identifier
-     * @returns {string}
+     * @param {bigint} started
+     * @returns {number}
      */
-    validateIdentifier(identifier) {
+    stopTimer(started) {
 
-        this.validateString(identifier, 'SQL-Identifier');
+        const finished = process.hrtime.bigint();
 
-        const regex = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-        if (!regex.test(identifier)) {
-
-            throw new Error(
-                `Ungültiger SQL-Identifier: ${identifier}`
-            );
-
-        }
-
-        return identifier;
+        return Number(finished - started) / 1000000;
 
     }
 
     /**
-     * Tabellennamen validieren
-     *
-     * @returns {string}
-     */
-    validateTable() {
-
-        return this.validateIdentifier(this.table);
-
-    }
-
-    /**
-     * Spaltennamen validieren
-     *
-     * @param {string} column
-     * @returns {string}
-     */
-    validateColumn(column) {
-
-        return this.validateIdentifier(column);
-
-    }
-
-    /**
-     * Array validieren
-     *
-     * @param {*} value
-     * @param {string} field
-     */
-    validateArray(value, field = 'Array') {
-
-        if (!Array.isArray(value)) {
-
-            throw new Error(
-                `${field} muss ein Array sein.`
-            );
-
-        }
-
-    }
-
-    /**
-     * Objekt validieren
-     *
-     * @param {*} value
-     * @param {string} field
-     */
-    validateObject(value, field = 'Objekt') {
-
-        if (value === null) {
-
-            throw new Error(
-                `${field} darf nicht null sein.`
-            );
-
-        }
-
-        if (Array.isArray(value)) {
-
-            throw new Error(
-                `${field} darf kein Array sein.`
-            );
-
-        }
-
-        if (typeof value !== 'object') {
-
-            throw new Error(
-                `${field} muss ein Objekt sein.`
-            );
-
-        }
-
-    }
-
-    /**
-     * String validieren
-     *
-     * @param {*} value
-     * @param {string} field
-     */
-    validateString(value, field = 'String') {
-
-        if (typeof value !== 'string') {
-
-            throw new Error(
-                `${field} muss ein String sein.`
-            );
-
-        }
-
-        if (!value.trim()) {
-
-            throw new Error(
-                `${field} darf nicht leer sein.`
-            );
-
-        }
-
-        return value.trim();
-
-    }
-
-    /**
-     * Zahl validieren
-     *
-     * @param {*} value
-     * @param {string} field
-     */
-    validateNumber(value, field = 'Zahl') {
-
-        if (typeof value !== 'number') {
-
-            throw new Error(
-                `${field} muss eine Zahl sein.`
-            );
-
-        }
-
-        if (!Number.isFinite(value)) {
-
-            throw new Error(
-                `${field} enthält keine gültige Zahl.`
-            );
-
-        }
-
-        return value;
-
-    }
-
-    /**
-     * ID validieren
-     *
-     * @param {*} id
-     * @returns {*}
-     */
-    validateId(id) {
-
-        if (id === undefined || id === null) {
-
-            throw new Error(
-                'ID fehlt.'
-            );
-
-        }
-
-        if (
-            typeof id !== 'number' &&
-            typeof id !== 'string'
-        ) {
-
-            throw new Error(
-                'Ungültige ID.'
-            );
-
-        }
-
-        if (
-            typeof id === 'string' &&
-            !id.trim()
-        ) {
-
-            throw new Error(
-                'ID darf nicht leer sein.'
-            );
-
-        }
-
-        return id;
-
-    }
-    
-            /**
-     * ============================================================
-     * Logging
-     * ============================================================
-     */
-
-    /**
-     * Query-Logging aktivieren
-     */
-    enableQueryLogging() {
-
-        this.enableLogging = true;
-
-    }
-
-    /**
-     * Query-Logging deaktivieren
-     */
-    disableQueryLogging() {
-
-        this.enableLogging = false;
-
-    }
-
-    /**
-     * SQL-Abfrage protokollieren
+     * SQL protokollieren.
      *
      * @param {string} sql
-     * @param {Array} params
+     * @param {Array} bindings
+     * @param {number|null} duration
      */
-    log(sql, params = []) {
+    log(sql, bindings = [], duration = null) {
 
         if (!this.enableLogging) {
 
@@ -459,46 +528,120 @@ class BaseRepository {
 
         }
 
-        if (!Array.isArray(params)) {
+        console.log(
+            '============================================================'
+        );
 
-            params = [];
+        console.log('[Repository]');
 
-        }
+        console.log('Repository :', this.constructor.name);
 
-        console.log('================================================');
-        console.log('[BaseRepository]');
         console.log('Tabelle    :', this.table);
+
         console.log('Zeit       :', this.now());
+
         console.log('SQL        :', sql);
 
-        if (params.length > 0) {
+        if (Array.isArray(bindings) && bindings.length > 0) {
 
-            console.log('Parameter  :', params);
+            console.log('Bindings   :', bindings);
 
         }
 
-        console.log('================================================');
+        if (duration !== null) {
+
+            console.log(
+                'Laufzeit   :',
+                `${duration.toFixed(3)} ms`
+            );
+
+        }
+
+        console.log(
+            '============================================================'
+        );
 
     }
 
     /**
-     * Fehler zentral behandeln
+     * Debug-Ausgabe.
+     *
+     * @param {...*} args
+     */
+    debug(...args) {
+
+        if (!this.enableLogging) {
+
+            return;
+
+        }
+
+        console.log('[DEBUG]', ...args);
+
+    }
+
+    /**
+     * Warnung protokollieren.
+     *
+     * @param {...*} args
+     */
+    warn(...args) {
+
+        console.warn('[WARNING]', ...args);
+
+    }
+
+    /**
+     * Informationen protokollieren.
+     *
+     * @param {...*} args
+     */
+    info(...args) {
+
+        console.info('[INFO]', ...args);
+
+    }
+
+    /**
+     * Fehler zentral behandeln.
      *
      * @param {Error} error
      */
     handleError(error) {
 
-        console.error('================================================');
+        console.error(
+            '============================================================'
+        );
+
         console.error('[Repository Error]');
-        console.error('Repository :', this.constructor.name);
-        console.error('Tabelle    :', this.table);
-        console.error('Zeit       :', this.now());
+
+        console.error(
+            'Repository :',
+            this.constructor.name
+        );
+
+        console.error(
+            'Tabelle    :',
+            this.table
+        );
+
+        console.error(
+            'Zeit       :',
+            this.now()
+        );
 
         if (error instanceof Error) {
 
-            console.error('Fehler     :', error.message);
+            console.error(
+                'Nachricht  :',
+                error.message
+            );
 
             if (error.stack) {
+
+                console.error(
+                    'Stacktrace :'
+                );
 
                 console.error(error.stack);
 
@@ -510,1855 +653,1573 @@ class BaseRepository {
 
         }
 
-        console.error('================================================');
+        console.error(
+            '============================================================'
+        );
 
         throw error;
+
+    }
+
+    /**
+     * SQL mit Laufzeit messen.
+     *
+     * @param {Function} callback
+     * @returns {*}
+     */
+    measure(callback) {
+
+        const started = this.startTimer();
+
+        const result = callback();
+
+        const duration = this.stopTimer(started);
+
+        this.debug(
+            `Ausführungszeit: ${duration.toFixed(3)} ms`
+        );
+
+        return result;
 
     }
     
         /**
      * ============================================================
-     * CRUD
+     * Validierung
      * ============================================================
      */
 
     /**
-     * Datensatz anhand der ID laden
+     * Prüft auf undefined oder null.
      *
-     * @param {*} id
-     * @returns {*}
-     */
-    findById(id) {
-
-        this.validateId(id);
-
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE ${this.validateColumn(this.primaryKey)} = ?
-            ${this.softDeleteWhere()}
-            LIMIT 1
-        `;
-
-        return this.get(sql, [id]);
-
-    }
-
-    /**
-     * Ersten Datensatz anhand einer Spalte laden
-     *
-     * @param {string} column
      * @param {*} value
+     * @param {string} field
      * @returns {*}
      */
-    findOne(column, value) {
+    validateRequired(value, field = 'Wert') {
 
-        this.validateColumn(column);
+        if (value === undefined || value === null) {
 
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE ${column} = ?
-            ${this.softDeleteWhere()}
-            LIMIT 1
-        `;
+            throw new Error(`${field} darf nicht leer sein.`);
 
-        return this.get(sql, [value]);
+        }
+
+        return value;
 
     }
 
     /**
-     * Alle Datensätze laden
+     * String validieren.
      *
-     * @returns {Array}
+     * @param {*} value
+     * @param {string} field
+     * @returns {string}
      */
-    findAll() {
+    validateString(value, field = 'String') {
 
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-        `;
+        this.validateRequired(value, field);
 
-        return this.all(sql);
+        if (typeof value !== 'string') {
 
-    }
+            throw new TypeError(`${field} muss ein String sein.`);
 
-    /**
-     * Ersten Datensatz laden
-     *
-     * @returns {*}
-     */
-    first() {
+        }
 
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-            ORDER BY ${this.primaryKey} ASC
-            LIMIT 1
-        `;
+        const result = value.trim();
 
-        return this.get(sql);
+        if (result.length === 0) {
+
+            throw new Error(`${field} darf nicht leer sein.`);
+
+        }
+
+        return result;
 
     }
 
     /**
-     * Letzten Datensatz laden
+     * Zahl validieren.
      *
-     * @returns {*}
-     */
-    last() {
-
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-            ORDER BY ${this.primaryKey} DESC
-            LIMIT 1
-        `;
-
-        return this.get(sql);
-
-    }
-
-    /**
-     * Prüfen ob Datensatz existiert
-     *
-     * @param {*} id
-     * @returns {boolean}
-     */
-    exists(id) {
-
-        this.validateId(id);
-
-        const sql = `
-            SELECT EXISTS(
-                SELECT 1
-                FROM ${this.validateTable()}
-                WHERE ${this.primaryKey} = ?
-                ${this.softDeleteWhere()}
-            ) AS existsRecord
-        `;
-
-        const result = this.get(sql, [id]);
-
-        return Boolean(result.existsRecord);
-
-    }
-
-    /**
-     * Anzahl aller Datensätze ermitteln
-     *
+     * @param {*} value
+     * @param {string} field
      * @returns {number}
      */
-    count() {
+    validateNumber(value, field = 'Zahl') {
 
-        const sql = `
-            SELECT COUNT(*) AS total
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-        `;
+        this.validateRequired(value, field);
 
-        const result = this.get(sql);
+        if (typeof value !== 'number') {
 
-        return result.total;
+            throw new TypeError(`${field} muss eine Zahl sein.`);
+
+        }
+
+        if (!Number.isFinite(value)) {
+
+            throw new Error(`${field} ist keine gültige Zahl.`);
+
+        }
+
+        return value;
 
     }
 
     /**
-     * Datensatz erstellen
+     * Boolean validieren.
      *
-     * @param {Object} data
-     * @returns {*}
-     */
-    create(data) {
-
-        this.validateObject(data);
-
-        const timestamp = this.now();
-
-        if (
-            this.createdColumn &&
-            !Object.prototype.hasOwnProperty.call(data, this.createdColumn)
-        ) {
-
-            data[this.createdColumn] = timestamp;
-
-        }
-
-        if (
-            this.updatedColumn &&
-            !Object.prototype.hasOwnProperty.call(data, this.updatedColumn)
-        ) {
-
-            data[this.updatedColumn] = timestamp;
-
-        }
-
-        const keys = Object.keys(data);
-
-        if (keys.length === 0) {
-
-            throw new Error(
-                'Keine Daten zum Speichern vorhanden.'
-            );
-
-        }
-
-        keys.forEach(column => this.validateColumn(column));
-
-        const columns = keys.join(', ');
-
-        const placeholders = keys.map(() => '?').join(', ');
-
-        const values = Object.values(data);
-
-        const sql = `
-            INSERT INTO ${this.validateTable()}
-            (${columns})
-            VALUES
-            (${placeholders})
-        `;
-
-        return this.execute(sql, values);
-
-    }
-
-    /**
-     * Datensatz aktualisieren
-     *
-     * @param {*} id
-     * @param {Object} data
-     * @returns {*}
-     */
-    update(id, data) {
-
-        this.validateId(id);
-
-        this.validateObject(data);
-
-        const timestamp = this.now();
-
-        if (
-            this.updatedColumn &&
-            !Object.prototype.hasOwnProperty.call(data, this.updatedColumn)
-        ) {
-
-            data[this.updatedColumn] = timestamp;
-
-        }
-
-        const keys = Object.keys(data);
-
-        if (keys.length === 0) {
-
-            throw new Error(
-                'Keine Daten zum Aktualisieren vorhanden.'
-            );
-
-        }
-
-        const values = [];
-
-        const updates = [];
-
-        for (const key of keys) {
-
-            this.validateColumn(key);
-
-            updates.push(`${key} = ?`);
-
-            values.push(data[key]);
-
-        }
-
-        values.push(id);
-
-        const sql = `
-            UPDATE ${this.validateTable()}
-            SET
-                ${updates.join(', ')}
-            WHERE
-                ${this.primaryKey} = ?
-        `;
-
-        return this.execute(sql, values);
-
-    }
-
-    /**
-     * Datensatz löschen
-     *
-     * @param {*} id
-     * @returns {*}
-     */
-    delete(id) {
-
-        this.validateId(id);
-
-        const sql = `
-            DELETE
-            FROM ${this.validateTable()}
-            WHERE ${this.primaryKey} = ?
-        `;
-
-        return this.execute(sql, [id]);
-
-    }
-
-    /**
-     * Datensatz speichern
-     *
-     * Existiert der Datensatz bereits,
-     * wird ein UPDATE ausgeführt,
-     * andernfalls ein INSERT.
-     *
-     * @param {*} id
-     * @param {Object} data
-     * @returns {*}
-     */
-    save(id, data) {
-
-        if (this.exists(id)) {
-
-            return this.update(id, data);
-
-        }
-
-        return this.create(data);
-
-    }
-    
-            /**
-     * ============================================================
-     * Query Builder
-     * ============================================================
-     */
-
-    /**
-     * Datensätze anhand einer Spalte laden
-     *
-     * @param {string} column
      * @param {*} value
-     * @returns {Array}
+     * @param {string} field
+     * @returns {boolean}
      */
-    findBy(column, value) {
+    validateBoolean(value, field = 'Boolean') {
 
-        this.validateColumn(column);
+        this.validateRequired(value, field);
 
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE ${column} = ?
-            ${this.softDeleteWhere()}
-        `;
+        if (typeof value !== 'boolean') {
 
-        return this.all(sql, [value]);
-
-    }
-
-    /**
-     * Datensätze anhand mehrerer Bedingungen laden
-     *
-     * @param {Object} filters
-     * @returns {Array}
-     */
-    where(filters = {}) {
-
-        this.validateObject(filters);
-
-        const keys = Object.keys(filters);
-
-        if (keys.length === 0) {
-
-            return this.findAll();
+            throw new TypeError(`${field} muss true oder false sein.`);
 
         }
 
-        const conditions = [];
+        return value;
 
-        const values = [];
+    }
 
-        for (const key of keys) {
+    /**
+     * Array validieren.
+     *
+     * @param {*} value
+     * @param {string} field
+     * @returns {Array}
+     */
+    validateArray(value, field = 'Array') {
 
-            this.validateColumn(key);
+        this.validateRequired(value, field);
 
-            conditions.push(`${key} = ?`);
+        if (!Array.isArray(value)) {
 
-            values.push(filters[key]);
+            throw new TypeError(`${field} muss ein Array sein.`);
 
         }
 
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE
-                ${conditions.join(' AND ')}
-            ${this.softDeleteWhere()}
-        `;
-
-        return this.all(sql, values);
+        return value;
 
     }
 
     /**
-     * WHERE IN
+     * Objekt validieren.
      *
-     * @param {string} column
-     * @param {Array} values
-     * @returns {Array}
+     * @param {*} value
+     * @param {string} field
+     * @returns {Object}
      */
-    whereIn(column, values) {
+    validateObject(value, field = 'Objekt') {
 
-        this.validateColumn(column);
+        this.validateRequired(value, field);
 
-        this.validateArray(values);
+        if (Array.isArray(value)) {
 
-        if (values.length === 0) {
-
-            return [];
+            throw new TypeError(`${field} darf kein Array sein.`);
 
         }
 
-        const placeholders = values
-            .map(() => '?')
-            .join(', ');
+        if (typeof value !== 'object') {
 
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE ${column} IN (${placeholders})
-            ${this.softDeleteWhere()}
-        `;
-
-        return this.all(sql, values);
-
-    }
-
-    /**
-     * WHERE NOT IN
-     *
-     * @param {string} column
-     * @param {Array} values
-     * @returns {Array}
-     */
-    whereNotIn(column, values) {
-
-        this.validateColumn(column);
-
-        this.validateArray(values);
-
-        if (values.length === 0) {
-
-            return this.findAll();
+            throw new TypeError(`${field} muss ein Objekt sein.`);
 
         }
 
-        const placeholders = values
-            .map(() => '?')
-            .join(', ');
-
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE ${column} NOT IN (${placeholders})
-            ${this.softDeleteWhere()}
-        `;
-
-        return this.all(sql, values);
+        return value;
 
     }
 
     /**
-     * WHERE IS NULL
+     * Funktion validieren.
      *
-     * @param {string} column
-     * @returns {Array}
+     * @param {*} value
+     * @param {string} field
+     * @returns {Function}
      */
-    whereNull(column) {
+    validateFunction(value, field = 'Callback') {
 
-        this.validateColumn(column);
+        if (typeof value !== 'function') {
 
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE ${column} IS NULL
-            ${this.softDeleteWhere()}
-        `;
+            throw new TypeError(`${field} muss eine Funktion sein.`);
 
-        return this.all(sql);
+        }
+
+        return value;
 
     }
 
     /**
-     * WHERE IS NOT NULL
+     * ID validieren.
      *
-     * @param {string} column
-     * @returns {Array}
+     * @param {*} id
+     * @returns {*}
      */
-    whereNotNull(column) {
+    validateId(id) {
 
-        this.validateColumn(column);
+        this.validateRequired(id, 'ID');
 
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE ${column} IS NOT NULL
-            ${this.softDeleteWhere()}
-        `;
+        if (typeof id !== 'number' && typeof id !== 'string') {
 
-        return this.all(sql);
+            throw new Error('Ungültige ID.');
+
+        }
+
+        return id;
 
     }
 
     /**
-     * Sortierung
+     * SQL-Identifier validieren.
+     *
+     * Erlaubt:
+     * A-Z
+     * a-z
+     * 0-9
+     * _
+     *
+     * @param {string} identifier
+     * @returns {string}
+     */
+    validateIdentifier(identifier) {
+
+        identifier = this.validateString(identifier, 'Identifier');
+
+        const regex = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+        if (!regex.test(identifier)) {
+
+            throw new Error(
+
+                `Ungültiger SQL-Identifier: ${identifier}`
+
+            );
+
+        }
+
+        return identifier;
+
+    }
+
+    /**
+     * Tabellenname validieren.
+     *
+     * @returns {string}
+     */
+    validateTable() {
+
+        return this.validateIdentifier(this.table);
+
+    }
+
+    /**
+     * Spaltenname validieren.
      *
      * @param {string} column
+     * @returns {string}
+     */
+    validateColumn(column) {
+
+        return this.validateIdentifier(column);
+
+    }
+
+    /**
+     * SQL-Operator validieren.
+     *
+     * @param {string} operator
+     * @returns {string}
+     */
+    validateOperator(operator) {
+
+        const allowed = [
+
+            '=',
+            '!=',
+            '<>',
+            '>',
+            '<',
+            '>=',
+            '<=',
+            'LIKE',
+            'NOT LIKE',
+            'IN',
+            'NOT IN',
+            'BETWEEN',
+            'IS',
+            'IS NOT'
+
+        ];
+
+        operator = this
+            .validateString(operator, 'Operator')
+            .toUpperCase();
+
+        if (!allowed.includes(operator)) {
+
+            throw new Error(
+
+                `Ungültiger SQL-Operator: ${operator}`
+
+            );
+
+        }
+
+        return operator;
+
+    }
+
+    /**
+     * Sortierrichtung validieren.
+     *
      * @param {string} direction
-     * @returns {Array}
+     * @returns {string}
      */
-    orderBy(column, direction = 'ASC') {
+    validateDirection(direction) {
 
-        this.validateColumn(column);
-
-        direction = direction.toUpperCase();
+        direction = this
+            .validateString(direction, 'Sortierung')
+            .toUpperCase();
 
         if (!['ASC', 'DESC'].includes(direction)) {
 
             throw new Error(
-                'Ungültige Sortierrichtung.'
+
+                'Sortierung muss ASC oder DESC sein.'
+
             );
 
         }
 
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-            ORDER BY ${column} ${direction}
-        `;
-
-        return this.all(sql);
+        return direction;
 
     }
 
     /**
-     * Anzahl der Datensätze begrenzen
+     * LIMIT validieren.
      *
      * @param {number} limit
-     * @returns {Array}
+     * @returns {number}
      */
-    limit(limit = 10) {
+    validateLimit(limit) {
 
-        this.validateNumber(limit, 'Limit');
+        limit = this.validateNumber(limit, 'Limit');
 
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-            LIMIT ?
-        `;
+        if (limit < 0) {
 
-        return this.all(sql, [limit]);
+            throw new Error(
+
+                'Limit darf nicht negativ sein.'
+
+            );
+
+        }
+
+        return limit;
 
     }
 
     /**
-     * Offset
+     * OFFSET validieren.
      *
      * @param {number} offset
-     * @param {number} limit
-     * @returns {Array}
-     */
-    offset(offset = 0, limit = 25) {
-
-        this.validateNumber(offset, 'Offset');
-
-        this.validateNumber(limit, 'Limit');
-
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-            LIMIT ?
-            OFFSET ?
-        `;
-
-        return this.all(sql, [limit, offset]);
-
-    }
-
-    /**
-     * Pagination
-     *
-     * @param {number} page
-     * @param {number} perPage
-     * @returns {Object}
-     */
-    paginate(page = 1, perPage = 25) {
-
-        this.validateNumber(page, 'Seite');
-
-        this.validateNumber(perPage, 'Einträge');
-
-        page = Math.max(page, 1);
-
-        perPage = Math.max(perPage, 1);
-
-        const offset = (page - 1) * perPage;
-
-        const total = this.count();
-
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-            LIMIT ?
-            OFFSET ?
-        `;
-
-        return {
-
-            page,
-
-            perPage,
-
-            total,
-
-            pages: Math.ceil(total / perPage),
-
-            data: this.all(sql, [perPage, offset])
-
-        };
-
-    }
-
-    /**
-     * Suche über LIKE
-     *
-     * @param {string} column
-     * @param {string} searchTerm
-     * @returns {Array}
-     */
-    search(column, searchTerm) {
-
-        this.validateColumn(column);
-
-        this.validateString(searchTerm, 'Suchbegriff');
-
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE ${column} LIKE ?
-            ${this.softDeleteWhere()}
-        `;
-
-        return this.all(sql, [`%${searchTerm}%`]);
-
-    }
-
-    /**
-     * DISTINCT-Werte
-     *
-     * @param {string} column
-     * @returns {Array}
-     */
-    distinct(column) {
-
-        this.validateColumn(column);
-
-        const sql = `
-            SELECT DISTINCT ${column}
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-        `;
-
-        return this.all(sql);
-
-    }
-
-    /**
-     * Einzelnen Wert zurückgeben
-     *
-     * @param {string} column
-     * @returns {*}
-     */
-    value(column) {
-
-        this.validateColumn(column);
-
-        const sql = `
-            SELECT ${column}
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-            LIMIT 1
-        `;
-
-        const row = this.get(sql);
-
-        return row ? row[column] : null;
-
-    }
-
-    /**
-     * Komplette Spalte als Array zurückgeben
-     *
-     * @param {string} column
-     * @returns {Array}
-     */
-    pluck(column) {
-
-        this.validateColumn(column);
-
-        const sql = `
-            SELECT ${column}
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-        `;
-
-        const rows = this.all(sql);
-
-        return rows.map(row => row[column]);
-
-    }
-    
-                    /**
-     * ============================================================
-     * Bulk-Operationen
-     * ============================================================
-     */
-
-    /**
-     * Mehrere Datensätze einfügen
-     *
-     * @param {Array} records
      * @returns {number}
      */
-    insertMany(records) {
+    validateOffset(offset) {
 
-        this.validateArray(records);
+        offset = this.validateNumber(offset, 'Offset');
 
-        if (records.length === 0) {
-
-            return 0;
-
-        }
-
-        const timestamp = this.now();
-
-        const columns = Object.keys(records[0]);
-
-        if (columns.length === 0) {
+        if (offset < 0) {
 
             throw new Error(
-                'Keine Daten zum Speichern vorhanden.'
+
+                'Offset darf nicht negativ sein.'
+
             );
 
         }
 
-        columns.forEach(column => this.validateColumn(column));
-
-        for (const record of records) {
-
-            this.validateObject(record);
-
-            if (
-                this.createdColumn &&
-                !Object.prototype.hasOwnProperty.call(record, this.createdColumn)
-            ) {
-
-                record[this.createdColumn] = timestamp;
-
-            }
-
-            if (
-                this.updatedColumn &&
-                !Object.prototype.hasOwnProperty.call(record, this.updatedColumn)
-            ) {
-
-                record[this.updatedColumn] = timestamp;
-
-            }
-
-            const recordColumns = Object.keys(record);
-
-            if (recordColumns.length !== columns.length) {
-
-                throw new Error(
-                    'Alle Datensätze müssen dieselben Spalten besitzen.'
-                );
-
-            }
-
-            for (const column of columns) {
-
-                if (!Object.prototype.hasOwnProperty.call(record, column)) {
-
-                    throw new Error(
-                        `Spalte "${column}" fehlt in einem Datensatz.`
-                    );
-
-                }
-
-            }
-
-        }
-
-        const placeholders = `(${columns.map(() => '?').join(', ')})`;
-
-        const sql = `
-            INSERT INTO ${this.validateTable()}
-            (${columns.join(', ')})
-            VALUES ${placeholders}
-        `;
-
-        const statement = this.prepare(sql);
-
-        const transaction = this.db.transaction((rows) => {
-
-            for (const row of rows) {
-
-                statement.run(
-                    columns.map(column => row[column])
-                );
-
-            }
-
-        });
-
-        transaction(records);
-
-        return records.length;
-
-    }
-
-    /**
-     * Mehrere Datensätze löschen
-     *
-     * @param {Array} ids
-     * @returns {*}
-     */
-    deleteMany(ids) {
-
-        this.validateArray(ids);
-
-        if (ids.length === 0) {
-
-            return 0;
-
-        }
-
-        ids.forEach(id => this.validateId(id));
-
-        const placeholders = ids
-            .map(() => '?')
-            .join(', ');
-
-        const sql = `
-            DELETE
-            FROM ${this.validateTable()}
-            WHERE ${this.primaryKey}
-            IN (${placeholders})
-        `;
-
-        return this.execute(sql, ids);
-
-    }
-
-    /**
-     * Tabelle leeren
-     *
-     * @returns {*}
-     */
-    truncate() {
-
-        const sql = `
-            DELETE
-            FROM ${this.validateTable()}
-        `;
-
-        return this.execute(sql);
-
-    }
-
-    /**
-     * Datensatz ersetzen
-     *
-     * @param {Object} data
-     * @returns {*}
-     */
-    replace(data) {
-
-        this.validateObject(data);
-
-        const timestamp = this.now();
-
-        if (
-            this.createdColumn &&
-            !Object.prototype.hasOwnProperty.call(data, this.createdColumn)
-        ) {
-
-            data[this.createdColumn] = timestamp;
-
-        }
-
-        if (
-            this.updatedColumn &&
-            !Object.prototype.hasOwnProperty.call(data, this.updatedColumn)
-        ) {
-
-            data[this.updatedColumn] = timestamp;
-
-        }
-
-        const keys = Object.keys(data);
-
-        if (keys.length === 0) {
-
-            throw new Error(
-                'Keine Daten zum Speichern vorhanden.'
-            );
-
-        }
-
-        keys.forEach(column => this.validateColumn(column));
-
-        const placeholders = keys
-            .map(() => '?')
-            .join(', ');
-
-        const sql = `
-            REPLACE INTO ${this.validateTable()}
-            (${keys.join(', ')})
-            VALUES (${placeholders})
-        `;
-
-        return this.execute(
-            sql,
-            keys.map(key => data[key])
-        );
-
-    }
-
-    /**
-     * Datensätze in Blöcken laden
-     *
-     * @param {number} size
-     * @param {Function} callback
-     */
-    chunk(size = 100, callback) {
-
-        this.validateNumber(size, 'Chunkgröße');
-
-        if (size < 1) {
-
-            throw new Error(
-                'Die Chunkgröße muss größer als 0 sein.'
-            );
-
-        }
-
-        if (typeof callback !== 'function') {
-
-            throw new Error(
-                'Es muss eine Callback-Funktion übergeben werden.'
-            );
-
-        }
-
-        let offset = 0;
-
-        while (true) {
-
-            const sql = `
-                SELECT *
-                FROM ${this.validateTable()}
-                WHERE 1 = 1
-                ${this.softDeleteWhere()}
-                LIMIT ?
-                OFFSET ?
-            `;
-
-            const rows = this.all(sql, [size, offset]);
-
-            if (rows.length === 0) {
-
-                break;
-
-            }
-
-            callback(rows);
-
-            offset += size;
-
-        }
-
-    }
-
-    /**
-     * Alle Datensätze löschen
-     *
-     * Alias für truncate()
-     *
-     * @returns {*}
-     */
-    clear() {
-
-        return this.truncate();
+        return offset;
 
     }
     
-            /**
+        /**
      * ============================================================
-     * Transaktionen
-     * ============================================================
-     */
-
-    /**
-     * Führt mehrere Datenbankoperationen
-     * innerhalb einer Transaktion aus.
-     *
-     * @param {Function} callback
-     * @returns {*}
-     */
-    transaction(callback) {
-
-        if (typeof callback !== 'function') {
-
-            throw new Error(
-                'Es muss eine Callback-Funktion übergeben werden.'
-            );
-
-        }
-
-        this.log('TRANSACTION BEGIN');
-
-try {
-
-    const transaction = this.db.transaction(() => {
-
-        return callback(this);
-
-    });
-
-    const result = transaction();
-
-    this.log('TRANSACTION COMMIT');
-
-    return result;
-
-} catch (error) {
-
-    this.log("TRANSACTION ROLLBACK");
-
-    throw error;
-
-}
-
-}
-
-    /**
-     * Transaktion starten
-     *
-     * @returns {*}
-     */
-    beginTransaction() {
-
-        this.log('BEGIN TRANSACTION');
-
-        return this.db.exec('BEGIN TRANSACTION');
-
-    }
-
-    /**
-     * Transaktion bestätigen
-     *
-     * @returns {*}
-     */
-    commit() {
-
-        this.log('COMMIT');
-
-        return this.db.exec('COMMIT');
-
-    }
-
-    /**
-     * Transaktion zurückrollen
-     *
-     * @returns {*}
-     */
-    rollback() {
-
-        this.log('ROLLBACK');
-
-        return this.db.exec('ROLLBACK');
-
-    }
-
-    /**
-     * Mehrere SQL-Befehle
-     * innerhalb einer Transaktion ausführen.
-     *
-     * @param {Array} statements
-     * @returns {number}
-     */
-    executeMany(statements) {
-
-        this.validateArray(statements);
-
-        if (statements.length === 0) {
-
-            return 0;
-
-        }
-
-        const transaction = this.db.transaction((queries) => {
-
-            for (const query of queries) {
-
-                if (
-                    !query ||
-                    typeof query !== 'object'
-                ) {
-
-                    throw new Error(
-                        'Ungültige SQL-Anweisung.'
-                    );
-
-                }
-
-                if (!query.sql) {
-
-                    throw new Error(
-                        'SQL-Anweisung fehlt.'
-                    );
-
-                }
-
-                const params = Array.isArray(query.params)
-                    ? query.params
-                    : [];
-
-                this.log(query.sql, params);
-
-                this.db
-                    .prepare(query.sql)
-                    .run(params);
-
-            }
-
-        });
-
-        transaction(statements);
-
-        return statements.length;
-
-    }
-
-    /**
-     * SQL direkt ausführen
-     *
-     * @param {string} sql
-     * @returns {*}
-     */
-    exec(sql) {
-
-        this.validateString(sql, 'SQL');
-
-        this.log(sql);
-
-        return this.db.exec(sql);
-
-    }
-
-    /**
-     * Datenbank optimieren
-     *
-     * @returns {*}
-     */
-    vacuum() {
-
-        this.log('VACUUM');
-
-        return this.db.exec('VACUUM');
-
-    }
-
-    /**
-     * WAL-Checkpoint durchführen
-     *
-     * @returns {*}
-     */
-    checkpoint() {
-
-        this.log('PRAGMA wal_checkpoint(FULL)');
-
-        return this.db.pragma('wal_checkpoint(FULL)');
-
-    }
-    
-            /**
-     * ============================================================
-     * Soft Deletes
+     * Query Engine
      * ============================================================
      */
 
     /**
-     * Soft Deletes aktivieren
-     */
-    enableSoftDeletes() {
-
-        this.enableSoftDelete = true;
-
-    }
-
-    /**
-     * Soft Deletes deaktivieren
-     */
-    disableSoftDeletes() {
-
-        this.enableSoftDelete = false;
-
-    }
-
-    /**
-     * Datensatz als gelöscht markieren
-     *
-     * @param {*} id
-     * @returns {*}
-     */
-    softDelete(id) {
-
-        this.validateId(id);
-
-        if (!this.enableSoftDelete) {
-
-            return this.delete(id);
-
-        }
-
-        const values = [
-            this.now()
-        ];
-
-        let sql = `
-            UPDATE ${this.validateTable()}
-            SET ${this.softDeleteColumn} = ?
-        `;
-
-        if (this.updatedColumn) {
-
-            sql += `,
-                ${this.updatedColumn} = ?
-            `;
-
-            values.push(this.now());
-
-        }
-
-        sql += `
-            WHERE ${this.primaryKey} = ?
-        `;
-
-        values.push(id);
-
-        return this.execute(sql, values);
-
-    }
-
-    /**
-     * Gelöschten Datensatz wiederherstellen
-     *
-     * @param {*} id
-     * @returns {*}
-     */
-    restore(id) {
-
-        this.validateId(id);
-
-        const values = [];
-
-        let sql = `
-            UPDATE ${this.validateTable()}
-            SET ${this.softDeleteColumn} = NULL
-        `;
-
-        if (this.updatedColumn) {
-
-            sql += `,
-                ${this.updatedColumn} = ?
-            `;
-
-            values.push(this.now());
-
-        }
-
-        sql += `
-            WHERE ${this.primaryKey} = ?
-        `;
-
-        values.push(id);
-
-        return this.execute(sql, values);
-
-    }
-
-    /**
-     * Datensatz endgültig löschen
-     *
-     * @param {*} id
-     * @returns {*}
-     */
-    forceDelete(id) {
-
-        this.validateId(id);
-
-        const sql = `
-            DELETE
-            FROM ${this.validateTable()}
-            WHERE ${this.primaryKey} = ?
-        `;
-
-        return this.execute(sql, [id]);
-
-    }
-
-    /**
-     * Nur gelöschte Datensätze laden
-     *
-     * @returns {Array}
-     */
-    onlyTrashed() {
-
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE ${this.softDeleteColumn} IS NOT NULL
-        `;
-
-        return this.all(sql);
-
-    }
-
-    /**
-     * Nur aktive Datensätze laden
-     *
-     * @returns {Array}
-     */
-    withoutTrashed() {
-
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-            WHERE ${this.softDeleteColumn} IS NULL
-        `;
-
-        return this.all(sql);
-
-    }
-
-    /**
-     * Alle Datensätze laden
-     * (inklusive gelöschter)
-     *
-     * @returns {Array}
-     */
-    withTrashed() {
-
-        const sql = `
-            SELECT *
-            FROM ${this.validateTable()}
-        `;
-
-        return this.all(sql);
-
-    }
-
-    /**
-     * Mehrere Datensätze wiederherstellen
-     *
-     * @param {Array} ids
-     * @returns {*}
-     */
-    restoreMany(ids) {
-
-        this.validateArray(ids);
-
-        if (ids.length === 0) {
-
-            return 0;
-
-        }
-
-        const placeholders = ids
-            .map(() => '?')
-            .join(', ');
-
-        const values = [];
-
-        let sql = `
-            UPDATE ${this.validateTable()}
-            SET ${this.softDeleteColumn} = NULL
-        `;
-
-        if (this.updatedColumn) {
-
-            sql += `,
-                ${this.updatedColumn} = ?
-            `;
-
-            values.push(this.now());
-
-        }
-
-        sql += `
-            WHERE ${this.primaryKey}
-            IN (${placeholders})
-        `;
-
-        values.push(...ids);
-
-        return this.execute(sql, values);
-
-    }
-
-    /**
-     * Mehrere Datensätze endgültig löschen
-     *
-     * @param {Array} ids
-     * @returns {*}
-     */
-    forceDeleteMany(ids) {
-
-        this.validateArray(ids);
-
-        if (ids.length === 0) {
-
-            return 0;
-
-        }
-
-        const placeholders = ids
-            .map(() => '?')
-            .join(', ');
-
-        const sql = `
-            DELETE
-            FROM ${this.validateTable()}
-            WHERE ${this.primaryKey}
-            IN (${placeholders})
-        `;
-
-        return this.execute(sql, ids);
-
-    }
-    
-                /**
-     * ============================================================
-     * Statistik
-     * ============================================================
-     */
-
-    /**
-     * Maximalwert einer Spalte
-     *
-     * @param {string} column
-     * @returns {*}
-     */
-    max(column) {
-
-        this.validateColumn(column);
-
-        const sql = `
-            SELECT MAX(${column}) AS value
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-        `;
-
-        const result = this.get(sql);
-
-        return result?.value ?? null;
-
-    }
-
-    /**
-     * Minimalwert einer Spalte
-     *
-     * @param {string} column
-     * @returns {*}
-     */
-    min(column) {
-
-        this.validateColumn(column);
-
-        const sql = `
-            SELECT MIN(${column}) AS value
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-        `;
-
-        const result = this.get(sql);
-
-        return result?.value ?? null;
-
-    }
-
-    /**
-     * Summe einer Spalte
-     *
-     * @param {string} column
-     * @returns {number}
-     */
-    sum(column) {
-
-        this.validateColumn(column);
-
-        const sql = `
-            SELECT SUM(${column}) AS value
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-        `;
-
-        const result = this.get(sql);
-
-        return result?.value ?? 0;
-
-    }
-
-    /**
-     * Durchschnitt einer Spalte
-     *
-     * @param {string} column
-     * @returns {number}
-     */
-    avg(column) {
-
-        this.validateColumn(column);
-
-        const sql = `
-            SELECT AVG(${column}) AS value
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-        `;
-
-        const result = this.get(sql);
-
-        return result?.value ?? 0;
-
-    }
-
-    /**
-     * Anzahl nach Spalte gruppieren
-     *
-     * @param {string} column
-     * @returns {Array}
-     */
-    countBy(column) {
-
-        this.validateColumn(column);
-
-        const sql = `
-            SELECT
-                ${column},
-                COUNT(*) AS total
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-            GROUP BY ${column}
-            ORDER BY total DESC, ${column} ASC
-        `;
-
-        return this.all(sql);
-
-    }
-
-    /**
-     * Nach Spalte gruppieren
-     *
-     * @param {string} column
-     * @returns {Array}
-     */
-    groupBy(column) {
-
-        this.validateColumn(column);
-
-        const sql = `
-            SELECT
-                ${column}
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-            GROUP BY ${column}
-            ORDER BY ${column} ASC
-        `;
-
-        return this.all(sql);
-
-    }
-
-    /**
-     * Anzahl eindeutiger Werte
-     *
-     * @param {string} column
-     * @returns {number}
-     */
-    distinctCount(column) {
-
-        this.validateColumn(column);
-
-        const sql = `
-            SELECT COUNT(DISTINCT ${column}) AS total
-            FROM ${this.validateTable()}
-            WHERE 1 = 1
-            ${this.softDeleteWhere()}
-        `;
-
-        const result = this.get(sql);
-
-        return result?.total ?? 0;
-
-    }
-
-    /**
-     * Prüfen, ob Datensatz anhand einer Spalte existiert
-     *
-     * @param {string} column
-     * @param {*} value
-     * @returns {boolean}
-     */
-    existsWhere(column, value) {
-
-        this.validateColumn(column);
-
-        const sql = `
-            SELECT EXISTS(
-                SELECT 1
-                FROM ${this.validateTable()}
-                WHERE ${column} = ?
-                ${this.softDeleteWhere()}
-            ) AS existsRecord
-        `;
-
-        const result = this.get(sql, [value]);
-
-        return Boolean(result?.existsRecord);
-
-    }
-    
-                /**
-     * ============================================================
-     * Hilfsfunktionen
-     * ============================================================
-     */
-
-    /**
-     * Soft-Delete-Bedingung erzeugen
-     *
-     * @param {string} alias
-     * @returns {string}
-     */
-    softDeleteWhere(alias = '') {
-
-        if (!this.enableSoftDelete) {
-
-            return '';
-
-        }
-
-        const prefix = alias
-            ? `${this.validateIdentifier(alias)}.`
-            : '';
-
-        return ` AND ${prefix}${this.softDeleteColumn} IS NULL`;
-
-    }
-
-    /**
-     * Prüfen, ob die Tabelle existiert
-     *
-     * @returns {boolean}
-     */
-    tableExists() {
-
-        const sql = `
-            SELECT name
-            FROM sqlite_master
-            WHERE type = 'table'
-            AND name = ?
-        `;
-
-        return Boolean(
-            this.get(sql, [this.table])
-        );
-
-    }
-
-    /**
-     * Spalten der Tabelle laden
-     *
-     * @returns {Array}
-     */
-    getColumns() {
-
-        const sql = `
-            PRAGMA table_info(${this.validateTable()})
-        `;
-
-        return this.all(sql);
-
-    }
-
-    /**
-     * Prüfen, ob eine Spalte existiert
-     *
-     * @param {string} column
-     * @returns {boolean}
-     */
-    columnExists(column) {
-
-        this.validateColumn(column);
-
-        return this
-            .getColumns()
-            .some(item => item.name === column);
-
-    }
-
-    /**
-     * Datenbankschema laden
-     *
-     * @returns {*}
-     */
-    getSchema() {
-
-        const sql = `
-            SELECT sql
-            FROM sqlite_master
-            WHERE type = 'table'
-            AND name = ?
-        `;
-
-        return this.get(sql, [this.table]);
-
-    }
-
-    /**
-     * Repository zurücksetzen
+     * Query zurücksetzen.
      *
      * @returns {BaseRepository}
      */
-    reset() {
+    resetQuery() {
 
-        this.enableLogging = true;
+        this.queryState = {
 
-        this.enableSoftDelete = false;
+            type: 'select',
+
+            table: this.table,
+
+            alias: null,
+
+            distinct: false,
+
+            columns: ['*'],
+
+            joins: [],
+
+            wheres: [],
+
+            groups: [],
+
+            havings: [],
+
+            orders: [],
+
+            unions: [],
+
+            limit: null,
+
+            offset: null,
+
+            bindings: []
+
+        };
 
         return this;
 
     }
 
     /**
-     * Repository klonen
+     * Neue Query starten.
      *
      * @returns {BaseRepository}
      */
-    clone() {
+    query() {
 
-        const repository = new BaseRepository(
-            this.table,
-            this.primaryKey
+        return this.resetQuery();
+
+    }
+
+    /**
+     * Parameter hinzufügen.
+     *
+     * @param {*} value
+     * @returns {BaseRepository}
+     */
+    addBinding(value) {
+
+        this.queryState.bindings.push(value);
+
+        return this;
+
+    }
+
+    /**
+     * Mehrere Parameter hinzufügen.
+     *
+     * @param {Array} values
+     * @returns {BaseRepository}
+     */
+    addBindings(values = []) {
+
+        this.validateArray(values);
+
+        this.queryState.bindings.push(...values);
+
+        return this;
+
+    }
+
+    /**
+     * Alle Parameter zurückgeben.
+     *
+     * @returns {Array}
+     */
+    getBindings() {
+
+        return [...this.queryState.bindings];
+
+    }
+
+    /**
+     * Parameter zurücksetzen.
+     *
+     * @returns {BaseRepository}
+     */
+    clearBindings() {
+
+        this.queryState.bindings = [];
+
+        return this;
+
+    }
+
+    /**
+     * Query-Typ setzen.
+     *
+     * @param {string} type
+     * @returns {BaseRepository}
+     */
+    setQueryType(type) {
+
+        this.queryState.type = type;
+
+        return this;
+
+    }
+
+    /**
+     * Query-Typ abrufen.
+     *
+     * @returns {string}
+     */
+    getQueryType() {
+
+        return this.queryState.type;
+
+    }
+
+    /**
+     * Tabellenalias setzen.
+     *
+     * @param {string} alias
+     * @returns {BaseRepository}
+     */
+    setAlias(alias) {
+
+        this.validateIdentifier(alias);
+
+        this.queryState.alias = alias;
+
+        return this;
+
+    }
+
+    /**
+     * Tabellenalias abrufen.
+     *
+     * @returns {string|null}
+     */
+    getAlias() {
+
+        return this.queryState.alias;
+
+    }
+
+    /**
+     * Aktuelle Tabelle ändern.
+     *
+     * @param {string} table
+     * @returns {BaseRepository}
+     */
+    from(table) {
+
+        this.validateIdentifier(table);
+
+        this.queryState.table = table;
+
+        return this;
+
+    }
+
+    /**
+     * Aktuelle Tabelle zurückgeben.
+     *
+     * @returns {string}
+     */
+    getQueryTable() {
+
+        return this.queryState.table;
+
+    }
+
+    /**
+     * Query-Status zurückgeben.
+     *
+     * @returns {Object}
+     */
+    getQueryState() {
+
+        return structuredClone(this.queryState);
+
+    }
+
+    /**
+     * Prüfen, ob Bedingungen existieren.
+     *
+     * @returns {boolean}
+     */
+    hasWhere() {
+
+        return this.queryState.wheres.length > 0;
+
+    }
+
+    /**
+     * Prüfen, ob JOINs existieren.
+     *
+     * @returns {boolean}
+     */
+    hasJoins() {
+
+        return this.queryState.joins.length > 0;
+
+    }
+
+    /**
+     * Prüfen, ob GROUP BY existiert.
+     *
+     * @returns {boolean}
+     */
+    hasGroups() {
+
+        return this.queryState.groups.length > 0;
+
+    }
+
+    /**
+     * Prüfen, ob HAVING existiert.
+     *
+     * @returns {boolean}
+     */
+    hasHaving() {
+
+        return this.queryState.havings.length > 0;
+
+    }
+
+    /**
+     * Prüfen, ob ORDER BY existiert.
+     *
+     * @returns {boolean}
+     */
+    hasOrderBy() {
+
+        return this.queryState.orders.length > 0;
+
+    }
+
+    /**
+     * Query komplett leeren.
+     *
+     * @returns {BaseRepository}
+     */
+    clearQuery() {
+
+        return this.resetQuery();
+
+    }
+    
+        /**
+     * ============================================================
+     * SELECT Engine
+     * ============================================================
+     */
+
+    /**
+     * SELECT-Spalten festlegen.
+     *
+     * @param  {...string} columns
+     * @returns {BaseRepository}
+     */
+    select(...columns) {
+
+        if (columns.length === 0) {
+
+            columns = ['*'];
+
+        }
+
+        this.queryState.columns = [];
+
+        for (const column of columns.flat()) {
+
+            if (column !== '*') {
+
+                this.validateString(column, 'Spalte');
+
+            }
+
+            this.queryState.columns.push(column);
+
+        }
+
+        return this;
+
+    }
+
+    /**
+     * Weitere SELECT-Spalten hinzufügen.
+     *
+     * @param  {...string} columns
+     * @returns {BaseRepository}
+     */
+    addSelect(...columns) {
+
+        for (const column of columns.flat()) {
+
+            if (column !== '*') {
+
+                this.validateString(column, 'Spalte');
+
+            }
+
+            this.queryState.columns.push(column);
+
+        }
+
+        return this;
+
+    }
+
+    /**
+     * DISTINCT aktivieren/deaktivieren.
+     *
+     * @param {boolean} enabled
+     * @returns {BaseRepository}
+     */
+    distinct(enabled = true) {
+
+        this.queryState.distinct = Boolean(enabled);
+
+        return this;
+
+    }
+
+    /**
+     * Alias für DISTINCT.
+     *
+     * @returns {BaseRepository}
+     */
+    unique() {
+
+        return this.distinct(true);
+
+    }
+
+    /**
+     * Rohes SQL in SELECT aufnehmen.
+     *
+     * Beispiel:
+     * COUNT(*) AS total
+     *
+     * @param {string} expression
+     * @returns {BaseRepository}
+     */
+    selectRaw(expression) {
+
+        this.validateString(expression);
+
+        this.queryState.columns.push({
+
+            raw: true,
+
+            expression
+
+        });
+
+        return this;
+
+    }
+
+    /**
+     * COUNT(*)
+     *
+     * @param {string} alias
+     * @returns {BaseRepository}
+     */
+    selectCount(alias = 'count') {
+
+        return this.selectRaw(
+
+            `COUNT(*) AS ${alias}`
+
         );
 
-        repository.createdColumn = this.createdColumn;
-        repository.updatedColumn = this.updatedColumn;
-        repository.softDeleteColumn = this.softDeleteColumn;
-        repository.enableLogging = this.enableLogging;
-        repository.enableSoftDelete = this.enableSoftDelete;
+    }
 
-        return repository;
+    /**
+     * SUM()
+     *
+     * @param {string} column
+     * @param {string} alias
+     * @returns {BaseRepository}
+     */
+    selectSum(column, alias = 'sum') {
+
+        this.validateIdentifier(column);
+
+        return this.selectRaw(
+
+            `SUM(${column}) AS ${alias}`
+
+        );
 
     }
 
     /**
-     * Repository als Objekt zurückgeben
+     * AVG()
      *
-     * @returns {Object}
+     * @param {string} column
+     * @param {string} alias
+     * @returns {BaseRepository}
      */
-    toJSON() {
+    selectAvg(column, alias = 'avg') {
 
-        return {
+        this.validateIdentifier(column);
 
-            repository: this.constructor.name,
+        return this.selectRaw(
 
-            table: this.table,
+            `AVG(${column}) AS ${alias}`
 
-            primaryKey: this.primaryKey,
-
-            createdColumn: this.createdColumn,
-
-            updatedColumn: this.updatedColumn,
-
-            softDeleteColumn: this.softDeleteColumn,
-
-            softDelete: this.enableSoftDelete,
-
-            logging: this.enableLogging
-
-        };
+        );
 
     }
 
     /**
-     * Repositoryinformationen zurückgeben
+     * MAX()
+     *
+     * @param {string} column
+     * @param {string} alias
+     * @returns {BaseRepository}
+     */
+    selectMax(column, alias = 'max') {
+
+        this.validateIdentifier(column);
+
+        return this.selectRaw(
+
+            `MAX(${column}) AS ${alias}`
+
+        );
+
+    }
+
+    /**
+     * MIN()
+     *
+     * @param {string} column
+     * @param {string} alias
+     * @returns {BaseRepository}
+     */
+    selectMin(column, alias = 'min') {
+
+        this.validateIdentifier(column);
+
+        return this.selectRaw(
+
+            `MIN(${column}) AS ${alias}`
+
+        );
+
+    }
+
+    /**
+     * Alle SELECT-Spalten löschen.
+     *
+     * @returns {BaseRepository}
+     */
+    clearSelect() {
+
+        this.queryState.columns = ['*'];
+
+        return this;
+
+    }
+
+    /**
+     * Aktuelle SELECT-Spalten zurückgeben.
+     *
+     * @returns {Array}
+     */
+    getSelects() {
+
+        return [...this.queryState.columns];
+
+    }
+    
+        /**
+     * ============================================================
+     * WHERE Engine
+     * ============================================================
+     */
+
+    /**
+     * WHERE
+     *
+     * @param {string} column
+     * @param {string|*} operator
+     * @param {*} value
+     * @returns {BaseRepository}
+     */
+    where(column, operator, value = null) {
+
+        this.validateIdentifier(column);
+
+        if (arguments.length === 2) {
+
+            value = operator;
+            operator = '=';
+
+        }
+
+        operator = this.validateOperator(operator);
+
+        this.queryState.wheres.push({
+
+            boolean: 'AND',
+
+            column,
+
+            operator,
+
+            value
+
+        });
+
+        this.addBinding(value);
+
+        return this;
+
+    }
+
+    /**
+     * OR WHERE
+     */
+
+    orWhere(column, operator, value = null) {
+
+        this.validateIdentifier(column);
+
+        if (arguments.length === 2) {
+
+            value = operator;
+            operator = '=';
+
+        }
+
+        operator = this.validateOperator(operator);
+
+        this.queryState.wheres.push({
+
+            boolean: 'OR',
+
+            column,
+
+            operator,
+
+            value
+
+        });
+
+        this.addBinding(value);
+
+        return this;
+
+    }
+
+    /**
+     * WHERE NOT
+     */
+
+    whereNot(column, value) {
+
+        return this.where(column, '!=', value);
+
+    }
+
+    /**
+     * WHERE LIKE
+     */
+
+    whereLike(column, value) {
+
+        return this.where(column, 'LIKE', `%${value}%`);
+
+    }
+
+    /**
+     * WHERE NOT LIKE
+     */
+
+    whereNotLike(column, value) {
+
+        return this.where(column, 'NOT LIKE', `%${value}%`);
+
+    }
+
+    /**
+     * WHERE NULL
+     */
+
+    whereNull(column) {
+
+        this.validateIdentifier(column);
+
+        this.queryState.wheres.push({
+
+            boolean: 'AND',
+
+            raw: `${column} IS NULL`
+
+        });
+
+        return this;
+
+    }
+
+    /**
+     * WHERE NOT NULL
+     */
+
+    whereNotNull(column) {
+
+        this.validateIdentifier(column);
+
+        this.queryState.wheres.push({
+
+            boolean: 'AND',
+
+            raw: `${column} IS NOT NULL`
+
+        });
+
+        return this;
+
+    }
+
+    /**
+     * WHERE IN
+     */
+
+    whereIn(column, values) {
+
+        this.validateIdentifier(column);
+
+        this.validateArray(values);
+
+        this.queryState.wheres.push({
+
+            boolean: 'AND',
+
+            column,
+
+            operator: 'IN',
+
+            value: values
+
+        });
+
+        this.addBindings(values);
+
+        return this;
+
+    }
+
+    /**
+     * WHERE NOT IN
+     */
+
+    whereNotIn(column, values) {
+
+        this.validateIdentifier(column);
+
+        this.validateArray(values);
+
+        this.queryState.wheres.push({
+
+            boolean: 'AND',
+
+            column,
+
+            operator: 'NOT IN',
+
+            value: values
+
+        });
+
+        this.addBindings(values);
+
+        return this;
+
+    }
+
+    /**
+     * WHERE BETWEEN
+     */
+
+    whereBetween(column, start, end) {
+
+        this.validateIdentifier(column);
+
+        this.queryState.wheres.push({
+
+            boolean: 'AND',
+
+            column,
+
+            operator: 'BETWEEN',
+
+            value: [
+
+                start,
+
+                end
+
+            ]
+
+        });
+
+        this.addBinding(start);
+
+        this.addBinding(end);
+
+        return this;
+
+    }
+
+    /**
+     * WHERE RAW
+     */
+
+    whereRaw(sql, bindings = []) {
+
+        this.validateString(sql);
+
+        this.queryState.wheres.push({
+
+            boolean: 'AND',
+
+            raw: sql
+
+        });
+
+        this.addBindings(bindings);
+
+        return this;
+
+    }
+
+    /**
+     * Prüfen ob WHERE vorhanden.
+     */
+
+    hasWhere() {
+
+        return this.queryState.wheres.length > 0;
+
+    }
+
+    /**
+     * WHERE löschen.
+     */
+
+    clearWhere() {
+
+        this.queryState.wheres = [];
+
+        this.clearBindings();
+
+        return this;
+
+    }
+    
+        /**
+     * ============================================================
+     * JOIN Engine
+     * ============================================================
+     */
+
+    /**
+     * Allgemeiner JOIN.
+     *
+     * @param {string} type
+     * @param {string} table
+     * @param {string} first
+     * @param {string} operator
+     * @param {string} second
+     * @returns {BaseRepository}
+     */
+    join(type, table, first, operator, second) {
+
+        type = this.validateString(type).toUpperCase();
+
+        const allowed = [
+            'INNER',
+            'LEFT',
+            'RIGHT',
+            'FULL',
+            'CROSS'
+        ];
+
+        if (!allowed.includes(type)) {
+
+            throw new Error(
+                `Ungültiger JOIN-Typ: ${type}`
+            );
+
+        }
+
+        this.validateString(table);
+        this.validateString(first);
+        this.validateOperator(operator);
+        this.validateString(second);
+
+        this.queryState.joins.push({
+
+            type,
+
+            table,
+
+            first,
+
+            operator,
+
+            second
+
+        });
+
+        return this;
+
+    }
+
+    /**
+     * INNER JOIN
+     */
+
+    innerJoin(table, first, operator, second) {
+
+        return this.join(
+            'INNER',
+            table,
+            first,
+            operator,
+            second
+        );
+
+    }
+
+    /**
+     * LEFT JOIN
+     */
+
+    leftJoin(table, first, operator, second) {
+
+        return this.join(
+            'LEFT',
+            table,
+            first,
+            operator,
+            second
+        );
+
+    }
+
+    /**
+     * RIGHT JOIN
+     */
+
+    rightJoin(table, first, operator, second) {
+
+        return this.join(
+            'RIGHT',
+            table,
+            first,
+            operator,
+            second
+        );
+
+    }
+
+    /**
+     * FULL JOIN
+     */
+
+    fullJoin(table, first, operator, second) {
+
+        return this.join(
+            'FULL',
+            table,
+            first,
+            operator,
+            second
+        );
+
+    }
+
+    /**
+     * CROSS JOIN
+     */
+
+    crossJoin(table) {
+
+        this.validateString(table);
+
+        this.queryState.joins.push({
+
+            type: 'CROSS',
+
+            table
+
+        });
+
+        return this;
+
+    }
+
+    /**
+     * JOIN mit rohem SQL.
+     */
+
+    joinRaw(sql, bindings = []) {
+
+        this.validateString(sql);
+
+        this.queryState.joins.push({
+
+            raw: true,
+
+            sql
+
+        });
+
+        this.addBindings(bindings);
+
+        return this;
+
+    }
+
+    /**
+     * Existieren JOINs?
+     */
+
+    hasJoins() {
+
+        return this.queryState.joins.length > 0;
+
+    }
+
+    /**
+     * JOINs löschen.
+     */
+
+    clearJoins() {
+
+        this.queryState.joins = [];
+
+        return this;
+
+    }
+
+    /**
+     * JOINs abrufen.
+     */
+
+    getJoins() {
+
+        return [...this.queryState.joins];
+
+    }
+    
+        /**
+     * ============================================================
+     * SQL Builder
+     * ============================================================
+     */
+
+    /**
+     * Erstellt das finale SQL.
+     *
+     * @returns {string}
+     */
+    build() {
+
+        const sql = [];
+
+        /*
+         * SELECT
+         */
+
+        sql.push('SELECT');
+
+        if (this.queryState.distinct) {
+
+            sql.push('DISTINCT');
+
+        }
+
+        const columns = this.queryState.columns.map(column => {
+
+            if (typeof column === 'object' && column.raw) {
+
+                return column.expression;
+
+            }
+
+            return column;
+
+        });
+
+        sql.push(columns.join(', '));
+
+        /*
+         * FROM
+         */
+
+        sql.push('FROM');
+
+        sql.push(this.queryState.table);
+
+        if (this.queryState.alias) {
+
+            sql.push(this.queryState.alias);
+
+        }
+
+        /*
+         * JOIN
+         */
+
+        for (const join of this.queryState.joins) {
+
+            if (join.raw) {
+
+                sql.push(join.sql);
+
+                continue;
+
+            }
+
+            if (join.type === 'CROSS') {
+
+                sql.push(
+
+                    `CROSS JOIN ${join.table}`
+
+                );
+
+                continue;
+
+            }
+
+            sql.push(
+
+                `${join.type} JOIN ${join.table} ON ${join.first} ${join.operator} ${join.second}`
+
+            );
+
+        }
+
+        /*
+         * WHERE
+         */
+
+        if (this.queryState.wheres.length > 0) {
+
+            sql.push('WHERE');
+
+            this.queryState.wheres.forEach((where, index) => {
+
+                if (index > 0) {
+
+                    sql.push(where.boolean);
+
+                }
+
+                if (where.raw) {
+
+                    sql.push(where.raw);
+
+                    return;
+
+                }
+
+                if (
+                    where.operator === 'IN' ||
+                    where.operator === 'NOT IN'
+                ) {
+
+                    const placeholders = where.value
+                        .map(() => '?')
+                        .join(', ');
+
+                    sql.push(
+
+                        `${where.column} ${where.operator} (${placeholders})`
+
+                    );
+
+                    return;
+
+                }
+
+                if (where.operator === 'BETWEEN') {
+
+                    sql.push(
+
+                        `${where.column} BETWEEN ? AND ?`
+
+                    );
+
+                    return;
+
+                }
+
+                sql.push(
+
+                    `${where.column} ${where.operator} ?`
+
+                );
+
+            });
+
+        }
+
+        return sql.join(' ');
+
+    }
+
+    /**
+     * SQL anzeigen.
+     *
+     * @returns {string}
+     */
+    toSql() {
+
+        return this.build();
+
+    }
+
+    /**
+     * Parameter anzeigen.
+     *
+     * @returns {Array}
+     */
+    bindings() {
+
+        return this.getBindings();
+
+    }
+
+    /**
+     * Query zurückgeben.
      *
      * @returns {Object}
      */
-    info() {
+    toQuery() {
 
         return {
 
-            repository: this.constructor.name,
+            sql: this.build(),
 
-            table: this.table,
-
-            primaryKey: this.primaryKey,
-
-            createdColumn: this.createdColumn,
-
-            updatedColumn: this.updatedColumn,
-
-            softDeleteColumn: this.softDeleteColumn,
-
-            softDelete: this.enableSoftDelete,
-
-            logging: this.enableLogging,
-
-            columns: this.getColumns(),
-
-            schema: this.getSchema()
+            bindings: this.getBindings()
 
         };
 
     }
-
-}
-
-module.exports = BaseRepository;
