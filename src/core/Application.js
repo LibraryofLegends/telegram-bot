@@ -1,89 +1,126 @@
 /**
- * ========================================================================
- * Library Of Legends 2.0
- * ------------------------------------------------------------------------
- * Datei:
- * src/core/Application.js
- * ------------------------------------------------------------------------
- * Beschreibung:
- *
- * Hauptklasse der gesamten Anwendung.
- *
- * Initialisiert sämtliche Komponenten und startet
- * Library Of Legends.
- *
- * Version:
- * 1.0.0
- * ========================================================================
+ * ╔══════════════════════════════════════════════════════════════════════════╗
+ * ║                     🚀 Library Of Legends Framework                     ║
+ * ║                                  (LLF)                                 ║
+ * ╠══════════════════════════════════════════════════════════════════════════╣
+ * ║ Framework    : Library Of Legends Framework                            ║
+ * ║ Version      : 0.1.0                                                   ║
+ * ║ Codename     : Foundation                                              ║
+ * ║ Modul        : Core Foundation                                         ║
+ * ║ Paket        : 01                                                      ║
+ * ║ Datei        : Application.js                                          ║
+ * ║ Klasse       : Application                                             ║
+ * ║ ID           : LLF-CORE-0005                                           ║
+ * ║ Datei-Version: 1.0.0                                                   ║
+ * ║ Erstellt     : 30.07.2026                                              ║
+ * ║ Autor        : Mr. Library Of Legends                                  ║
+ * ╠══════════════════════════════════════════════════════════════════════════╣
+ * ║ Beschreibung:                                                          ║
+ * ║                                                                        ║
+ * ║ Öffentlicher Einstiegspunkt des Frameworks.                            ║
+ * ║ Alle Framework-Funktionen werden später über diese Klasse              ║
+ * ║ bereitgestellt.                                                        ║
+ * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 
-'use strict';
+import Kernel from './Kernel.js';
 
-class Application {
+/**
+ * Öffentliche Framework-API.
+ */
+export default class Application {
 
     /**
-     * ============================================================
-     * Konstruktor
-     * ============================================================
+     * Kernel des Frameworks.
+     *
+     * @type {Kernel}
      */
+    #kernel;
 
-    constructor({
+    /**
+     * Erstellt eine neue Application.
+     */
+    constructor() {
 
-        database,
-
-        repositories,
-
-        services,
-
-        engines,
-
-        eventBus,
-
-        scheduler,
-
-        telegram,
-
-        api,
-
-        logger = console
-
-    }) {
-
-        this.database = database;
-
-        this.repositories = repositories;
-
-        this.services = services;
-
-        this.engines = engines;
-
-        this.eventBus = eventBus;
-
-        this.scheduler = scheduler;
-
-        this.telegram = telegram;
-
-        this.api = api;
-
-        this.logger = logger;
+        this.#kernel = new Kernel();
 
     }
 
     /**
-     * ============================================================
-     * Start
-     * ============================================================
+     * Gibt den Kernel zurück.
+     *
+     * @returns {Kernel}
      */
+    get kernel() {
 
-    async start() {
+        return this.#kernel;
 
-        this.logger.info('===================================');
-        this.logger.info('Library Of Legends 2.0');
-        this.logger.info('Starting...');
-        this.logger.info('===================================');
+    }
+
+    /**
+     * Startet die Anwendung.
+     *
+     * @returns {Application}
+     */
+    boot() {
+
+        this.#kernel.boot();
+
+        return this;
+
+    }
+
+    /**
+     * Beendet die Anwendung.
+     *
+     * @returns {Application}
+     */
+    shutdown() {
+
+        this.#kernel.shutdown();
+
+        return this;
+
+    }
+
+    /**
+     * Startet die Anwendung neu.
+     *
+     * @returns {Application}
+     */
+    restart() {
+
+        this.#kernel.restart();
+
+        return this;
+
+    }
+
+    /**
+     * Prüft, ob die Anwendung läuft.
+     *
+     * @returns {boolean}
+     */
+    isRunning() {
+
+        return this.#kernel.isRunning();
+
+    }
+
+    /**
+     * Gibt Informationen über die Anwendung zurück.
+     *
+     * @returns {Object}
+     */
+    toJSON() {
+
+        return {
+
+            application: 'Library Of Legends Framework',
+            kernel: this.#kernel.toJSON()
+
+        };
 
     }
 
 }
-
-module.exports = Application;
