@@ -1,114 +1,149 @@
 /**
- * ============================================================================
- * Library Of Legends 2.0
- * ----------------------------------------------------------------------------
- * Datei:
- * src/core/Kernel.js
- * ============================================================================
+ * ╔══════════════════════════════════════════════════════════════════════════╗
+ * ║                     🚀 Library Of Legends Framework                     ║
+ * ║                                  (LLF)                                 ║
+ * ╠══════════════════════════════════════════════════════════════════════════╣
+ * ║ Framework    : Library Of Legends Framework                            ║
+ * ║ Version      : 0.1.0                                                   ║
+ * ║ Codename     : Foundation                                              ║
+ * ║ Modul        : Core Foundation                                         ║
+ * ║ Paket        : 01                                                      ║
+ * ║ Datei        : Kernel.js                                               ║
+ * ║ Klasse       : Kernel                                                  ║
+ * ║ ID           : LLF-CORE-0004                                           ║
+ * ║ Datei-Version: 1.0.0                                                   ║
+ * ║ Erstellt     : 30.07.2026                                              ║
+ * ║ Autor        : Mr. Library Of Legends                                  ║
+ * ╠══════════════════════════════════════════════════════════════════════════╣
+ * ║ Beschreibung:                                                          ║
+ * ║                                                                        ║
+ * ║ Verwaltet den Lebenszyklus des Frameworks und bildet den zentralen     ║
+ * ║ Einstiegspunkt für alle zukünftigen Framework-Komponenten.             ║
+ * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 
-'use strict';
+import Framework from './Framework.js';
+import Runtime from './Runtime.js';
 
-class Kernel {
+/**
+ * Zentrale Kernel-Klasse des Frameworks.
+ */
+export default class Kernel {
 
     /**
-     * @param {Application} application
+     * Erstellt einen neuen Kernel.
      */
-    constructor(application) {
+    constructor() {
 
-        this.application = application;
+        /**
+         * Framework-Instanz.
+         *
+         * @type {Framework}
+         */
+        this.framework = new Framework();
 
-        this.booted = false;
+        /**
+         * Runtime-Instanz.
+         *
+         * @type {Runtime}
+         */
+        this.runtime = new Runtime();
 
     }
 
     /**
-     * Framework starten.
+     * Startet den Kernel.
+     *
+     * @returns {Kernel}
      */
-    async boot() {
+    boot() {
 
-        if (this.booted) {
+        this.framework.boot();
 
-            return;
+        this.runtime.start();
 
-        }
-
-        if (this.application.database?.connect) {
-
-            await this.application.database.connect();
-
-        }
-
-        if (this.application.eventBus?.start) {
-
-            await this.application.eventBus.start();
-
-        }
-
-        if (this.application.scheduler?.start) {
-
-            await this.application.scheduler.start();
-
-        }
-
-        if (this.application.telegram?.start) {
-
-            await this.application.telegram.start();
-
-        }
-
-        if (this.application.api?.start) {
-
-            await this.application.api.start();
-
-        }
-
-        this.booted = true;
+        return this;
 
     }
 
     /**
-     * Framework herunterfahren.
+     * Beendet den Kernel.
+     *
+     * @returns {Kernel}
      */
-    async shutdown() {
+    shutdown() {
 
-        if (this.application.scheduler?.stop) {
+        this.runtime.stop();
 
-            await this.application.scheduler.stop();
+        this.framework.shutdown();
 
-        }
-
-        if (this.application.telegram?.stop) {
-
-            await this.application.telegram.stop();
-
-        }
-
-        if (this.application.api?.stop) {
-
-            await this.application.api.stop();
-
-        }
-
-        if (this.application.database?.disconnect) {
-
-            await this.application.database.disconnect();
-
-        }
-
-        this.booted = false;
+        return this;
 
     }
 
     /**
-     * Status.
+     * Startet den Kernel neu.
+     *
+     * @returns {Kernel}
      */
-    isBooted() {
+    restart() {
 
-        return this.booted;
+        this.shutdown();
+
+        this.boot();
+
+        return this;
+
+    }
+
+    /**
+     * Gibt die Framework-Instanz zurück.
+     *
+     * @returns {Framework}
+     */
+    getFramework() {
+
+        return this.framework;
+
+    }
+
+    /**
+     * Gibt die Runtime-Instanz zurück.
+     *
+     * @returns {Runtime}
+     */
+    getRuntime() {
+
+        return this.runtime;
+
+    }
+
+    /**
+     * Prüft, ob der Kernel vollständig gestartet wurde.
+     *
+     * @returns {boolean}
+     */
+    isRunning() {
+
+        return this.framework.isBooted() && this.runtime.isRunning();
+
+    }
+
+    /**
+     * Gibt Informationen über den Kernel zurück.
+     *
+     * @returns {Object}
+     */
+    getInformation() {
+
+        return {
+
+            framework: this.framework.getInformation(),
+            runtime: this.runtime.getInformation(),
+            running: this.isRunning()
+
+        };
 
     }
 
 }
-
-module.exports = Kernel;
