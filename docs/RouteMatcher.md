@@ -6,7 +6,7 @@
 ║ Dokument-ID   : LLF-DOC-ROUTING-0007                                   ║
 ║ Zugehörige ID : LLF-ROUTING-0007                                       ║
 ║ Klasse        : RouteMatcher                                           ║
-║ Version       : 1.0.0                                                  ║
+║ Version       : 1.1.0                                                  ║
 ║ Status        : Stable                                                 ║
 ║ Erstellt      : 30.07.2026                                             ║
 ║ Autor         : Mr. Library Of Legends                                 ║
@@ -22,132 +22,60 @@
 |-------------|------|
 | Modul | Routing System |
 | Klasse | RouteMatcher |
-| Typ | Matching Strategy |
+| Typ | Matcher |
 | Status | Stable |
-| Seit Version | 1.0.0 |
-| Abhängigkeiten | RouteCollection |
+| Seit Version | 1.1.0 |
+| Abhängigkeiten | RouteCollection, Route, RouteDefinition, RouteResult |
 | Verwendet von | Router |
 
 ---
 
 # Übersicht
 
-Die Klasse **RouteMatcher** ist für das Auffinden der passenden Route
-innerhalb einer RouteCollection verantwortlich.
+Der **RouteMatcher** ist für den eigentlichen Matching-Prozess des Routing-Systems verantwortlich.
 
-Sie stellt den eigentlichen Matching-Algorithmus des Routing-Systems
-bereit und entscheidet anhand der HTTP-Methode sowie des URI-Pfades,
-welche Route zu einer eingehenden Anfrage gehört.
+Er durchsucht alle registrierten Routen, vergleicht sie mit einer eingehenden HTTP-Anfrage und liefert **immer** ein `RouteResult` zurück.
 
-Der Router delegiert diese Aufgabe vollständig an den RouteMatcher.
+Seit Version **1.1.0** verwendet der RouteMatcher konsequent das **Result Pattern**. Dadurch existieren keine `null`-Rückgaben oder unterschiedlichen Rückgabetypen mehr.
 
 ---
 
 # Verantwortlichkeit
 
-RouteMatcher besitzt genau eine Aufgabe:
+Der RouteMatcher besitzt genau eine Aufgabe:
 
-Eine passende Route finden.
+Das Ermitteln einer passenden Route.
 
-Die Klasse
+Der Matcher übernimmt **nicht**:
 
-✓ durchsucht die RouteCollection
+- Registrierung von Routen
+- Verwaltung der RouteCollection
+- Controller-Ausführung
+- Middleware
+- HTTP-Response-Erzeugung
 
-✓ vergleicht HTTP-Methoden
-
-✓ vergleicht URI-Pfade
-
-✓ liefert das Matching-Ergebnis
-
-Sie verarbeitet keine Requests und erzeugt keine Responses.
+Dadurch bleibt die Klasse vollständig auf den Matching-Prozess fokussiert.
 
 ---
 
 # Architektur
 
 ```text
-            Router
-               │
-               ▼
-        RouteMatcher
-               │
-               ▼
-       RouteCollection
-               │
-       ┌───────┴────────┐
-       ▼                ▼
-     Route            Route
-```
-
-Dadurch bleibt der Router klein und konzentriert sich ausschließlich auf
-die Steuerung des Routing-Prozesses.
-
----
-
-# Eigenschaften
-
-Die Klasse besitzt keine persistenten Eigenschaften.
-
-Sie arbeitet vollständig zustandslos (Stateless).
-
-Dadurch kann dieselbe Instanz beliebig oft wiederverwendet werden.
-
----
-
-# Öffentliche API
-
-## match()
-
-Durchsucht eine RouteCollection nach einer passenden Route.
-
-Parameter
-
-| Name | Typ |
-|------|-----|
-| routes | RouteCollection |
-| method | string |
-| path | string |
-
-Rückgabe
-
-```text
-Route|null
-```
-
----
-
-## has()
-
-Prüft, ob eine passende Route existiert.
-
-Rückgabe
-
-```text
-boolean
-```
-
----
-
-# Beispiel
-
-```javascript
-const matcher = new RouteMatcher();
-
-const route = matcher.match(
-
-    routes,
-
-    "GET",
-
-    "/users"
-
-);
-
-if (route) {
-
-    console.log(route.name);
-
-}
+Request
+   │
+   ▼
+RouteMatcher
+   │
+   ├────────► RouteCollection
+   │                │
+   │                ▼
+   │              Route
+   │                │
+   │                ▼
+   │        RouteDefinition
+   │
+   ▼
+RouteResult
 ```
 
 ---
@@ -155,180 +83,241 @@ if (route) {
 # Matching-Ablauf
 
 ```text
-HTTP Request
+match()
 
-        │
+ │
 
-        ▼
+ ├────────► validateInput()
 
-HTTP-Methode vergleichen
+ │
 
-        │
+ ├────────► normalizeMethod()
 
-        ▼
+ │
 
-URI vergleichen
+ ├────────► normalizePath()
 
-        │
+ │
 
-        ▼
+ ├────────► findMatchingRoute()
 
-Route gefunden?
+ │
 
-      │       │
+ ├────────► extractParameters()
 
-     Ja      Nein
+ │
 
-      │       │
+ └────────► createRouteResult()
+```
 
-      ▼       ▼
+Jeder Arbeitsschritt besitzt eine klar definierte Verantwortung.
 
-   Route     null
+---
+
+# Öffentliche API
+
+## match()
+
+Startet den kompletten Matching-Prozess.
+
+### Parameter
+
+| Name | Typ |
+|------|-----|
+| routes | RouteCollection |
+| method | string |
+| path | string |
+
+### Rückgabe
+
+```text
+RouteResult
+```
+
+Der Rückgabewert ist immer ein vollständiges Ergebnisobjekt.
+
+---
+
+# Private Methoden
+
+| Methode | Aufgabe |
+|----------|----------|
+| validateInput() | Eingaben prüfen |
+| normalizeMethod() | HTTP-Methode vereinheitlichen |
+| normalizePath() | Request-Pfad normalisieren |
+| findMatchingRoute() | Route suchen |
+| isMatchingPath() | Pfade vergleichen |
+| extractParameters() | URL-Parameter extrahieren |
+| createSuccessResult() | Erfolgreiches Ergebnis erzeugen |
+| createNotFoundResult() | 404-Ergebnis erzeugen |
+
+---
+
+# Beispiel
+
+```javascript
+const result = matcher.match(
+
+    routes,
+
+    "GET",
+
+    "/movies/42"
+
+);
+
+if (result.isMatched()) {
+
+    console.log(
+
+        result.parameters.id
+
+    );
+
+}
 ```
 
 ---
 
-# Verwendet von
+# Erfolgreiches Ergebnis
 
-✓ Router
+```text
+matched
+
+↓
+
+true
+
+↓
+
+RouteResult
+```
+
+---
+
+# Nicht gefunden
+
+```text
+matched
+
+↓
+
+false
+
+↓
+
+404
+
+↓
+
+RouteResult
+```
 
 ---
 
 # Dependency Graph
 
 ```text
-RouteMethod
+Request
 
-      │
+   │
 
-      ▼
-
-RouteDefinition
-
-      │
-
-      ▼
-
-Route
-
-      │
-
-      ▼
-
-RouteCollection
-
-      │
-
-      ▼
-
-RouteGroup
-
-      │
-
-      ▼
+   ▼
 
 RouteMatcher
 
-      │
+   │
 
-      ▼
+   ├────────► RouteCollection
 
-Router
+   │                │
+
+   │                ▼
+
+   │              Route
+
+   │                │
+
+   │                ▼
+
+   │        RouteDefinition
+
+   │
+
+   ▼
+
+RouteResult
 ```
 
 ---
 
 # Designentscheidung
 
-Warum existiert RouteMatcher?
+Version **1.1.0** führt das Result Pattern vollständig ein.
 
-Viele Frameworks integrieren das Matching direkt in den Router.
+Frühere Versionen konnten unterschiedliche Rückgabewerte liefern:
 
-Dadurch wächst der Router mit jeder neuen Funktion.
+- Route
+- null
 
-Das LLF trennt diese Verantwortlichkeiten bewusst.
+Diese Variante wurde bewusst verworfen.
 
-RouteMatcher kümmert sich ausschließlich um das Finden einer Route.
+Seit Version 1.1.0 liefert der Matcher ausschließlich ein `RouteResult`.
 
-Router kümmert sich ausschließlich um den Ablauf.
+Dadurch entstehen:
 
-Diese Aufteilung erleichtert:
-
-- Testbarkeit
-- Erweiterbarkeit
-- Austausch verschiedener Matching-Strategien
-- Performanceoptimierungen
+- konsistente APIs
+- weniger Sonderfälle
+- einfachere Tests
+- bessere Erweiterbarkeit
 
 ---
 
 # Vorteile
 
-✓ Stateless
+✅ Single Responsibility
 
-✓ Wiederverwendbar
+✅ Result Pattern
 
-✓ Austauschbar
+✅ Kleine öffentliche API
 
-✓ Sehr gut testbar
+✅ Private Helper-Methoden
 
-✓ Klare Verantwortlichkeit
+✅ Testfreundlich
 
-✓ SOLID-konform
+✅ Erweiterbar
 
----
-
-# Zukunft des Matchers
-
-Die aktuelle Version verwendet einen einfachen linearen Vergleich.
-
-Spätere Versionen können leistungsfähigere Algorithmen integrieren.
-
-Beispiele:
-
-- reguläre Ausdrücke
-- Parameter-Matching
-- Wildcards
-- Trie-Strukturen
-- vorkompilierte Routing-Tabellen
-- Cache-Optimierungen
-
-Die öffentliche API bleibt dabei unverändert.
+✅ Framework-konform
 
 ---
 
 # Changelog
 
-## Version 1.0.0
+## Version 1.1.0
 
-- Erstveröffentlichung
-- URI-Matching
-- HTTP-Methodenvergleich
-- Zustandslose Architektur
-- Wiederverwendbare Matching-Strategie
+- Result Pattern vollständig integriert
+- `RouteResult` als einziger Rückgabetyp
+- Matching-Prozess in private Methoden aufgeteilt
+- Verbesserte Eingabevalidierung
+- Einheitliche Fehlerbehandlung
+- Vereinfachte öffentliche API
 
 ---
 
-# Zukünftige Erweiterungen
+# Zukunft
 
-□ RouteResult-Unterstützung
+Geplante Erweiterungen:
 
-□ Parameterauflösung
-
-□ Reguläre Ausdrücke
-
-□ Wildcards
-
-□ Optionale Parameter
-
-□ Domain-Matching
-
-□ Locale-Matching
-
-□ Prioritätsregeln
-
-□ Compiled Routing
-
-□ Matching-Statistiken
+- Constraints (`{id:\d+}`)
+- Optionale Parameter
+- Wildcards
+- Host-Matching
+- Regex-Routen
+- Priorisierte Routen
+- Route Cache
+- Compiled Routing
+- Performance-Messung
+- Debug-Modus
 
 ---
 
@@ -356,16 +345,16 @@ Die öffentliche API bleibt dabei unverändert.
 
 Quick Facts vorhanden..................... ✅
 
-Dokument vollständig...................... ✅
+Architektur dokumentiert................. ✅
 
-Architektur beschrieben................... ✅
+API dokumentiert......................... ✅
 
-API dokumentiert.......................... ✅
+Private Methoden beschrieben............. ✅
 
-Matching-Ablauf dokumentiert.............. ✅
+Designentscheidung dokumentiert.......... ✅
 
-Dependency Graph enthalten................ ✅
+Beispiele vorhanden...................... ✅
 
-Designentscheidung erläutert.............. ✅
+Dependency Graph enthalten............... ✅
 
-Framework Ready........................... ✅
+Framework Ready.......................... ✅
