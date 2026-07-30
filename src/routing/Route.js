@@ -11,30 +11,37 @@
  * ║ Datei        : Route.js                                                ║
  * ║ Klasse       : Route                                                   ║
  * ║ ID           : LLF-ROUTING-0004                                        ║
- * ║ Datei-Version: 1.0.0                                                   ║
+ * ║ Datei-Version: 1.1.0                                                   ║
+ * ║ Teil         : 1 / 2                                                   ║
  * ║ Status       : Stable                                                  ║
- * ║ Erstellt     : 30.07.2026                                              ║
  * ║ Autor        : Mr. Library Of Legends                                  ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 
-import RouteDefinition from './RouteDefinition.js';
-import RouteParameter from './RouteParameter.js';
+import RouteDefinition from "./RouteDefinition.js";
+import RouteParameter from "./RouteParameter.js";
 
 /**
- * Laufzeitrepräsentation einer Route.
+ * Repräsentiert eine registrierte Route zur Laufzeit.
+ *
+ * Die eigentliche Konfiguration befindet sich vollständig
+ * innerhalb der RouteDefinition.
+ *
+ * Route dient ausschließlich als Laufzeitobjekt und verwaltet
+ * zusätzliche Informationen wie Parameter oder zukünftige
+ * Laufzeit-Metadaten.
  */
 export default class Route {
 
     /**
-     * Routendefinition.
+     * Unveränderliche Routendefinition.
      *
      * @type {RouteDefinition}
      */
     #definition;
 
     /**
-     * Parameter.
+     * Registrierte Parameter.
      *
      * @type {Map<string, RouteParameter>}
      */
@@ -50,7 +57,7 @@ export default class Route {
         if (!(definition instanceof RouteDefinition)) {
 
             throw new TypeError(
-                'The definition must be an instance of RouteDefinition.'
+                "The definition must be an instance of RouteDefinition."
             );
 
         }
@@ -60,33 +67,69 @@ export default class Route {
 
     }
 
+    /**
+     * Liefert die Routendefinition.
+     *
+     * @returns {RouteDefinition}
+     */
     get definition() {
 
         return this.#definition;
 
     }
 
+    /**
+     * Liefert die HTTP-Methode.
+     *
+     * @returns {string}
+     */
     get method() {
 
         return this.#definition.method;
 
     }
 
+    /**
+     * Liefert den Routenpfad.
+     *
+     * @returns {string}
+     */
     get path() {
 
         return this.#definition.path;
 
     }
 
+    /**
+     * Liefert den Handler.
+     *
+     * @returns {*}
+     */
     get handler() {
 
         return this.#definition.handler;
 
     }
 
+    /**
+     * Liefert den Routennamen.
+     *
+     * @returns {string|null}
+     */
     get name() {
 
         return this.#definition.name;
+
+    }
+
+    /**
+     * Anzahl registrierter Parameter.
+     *
+     * @returns {number}
+     */
+    get parameterCount() {
+
+        return this.#parameters.size;
 
     }
 
@@ -102,14 +145,17 @@ export default class Route {
         if (!(parameter instanceof RouteParameter)) {
 
             throw new TypeError(
-                'The parameter must be an instance of RouteParameter.'
+                "The parameter must be an instance of RouteParameter."
             );
 
         }
 
         this.#parameters.set(
+
             parameter.name,
+
             parameter
+
         );
 
         return this;
@@ -117,15 +163,15 @@ export default class Route {
     }
 
     /**
-     * Liefert einen Parameter.
+     * Entfernt einen Parameter.
      *
      * @param {string} name
      *
-     * @returns {RouteParameter|null}
+     * @returns {boolean}
      */
-    getParameter(name) {
+    removeParameter(name) {
 
-        return this.#parameters.get(name) ?? null;
+        return this.#parameters.delete(name);
 
     }
 
@@ -141,17 +187,45 @@ export default class Route {
         return this.#parameters.has(name);
 
     }
+    
+        /**
+     * Liefert einen Parameter.
+     *
+     * @param {string} name
+     *
+     * @returns {RouteParameter|null}
+     */
+    getParameter(name) {
+
+        return this.#parameters.get(name) ?? null;
+
+    }
 
     /**
-     * Liefert alle Parameter.
+     * Liefert alle registrierten Parameter.
      *
      * @returns {RouteParameter[]}
      */
     getParameters() {
 
         return Array.from(
+
             this.#parameters.values()
+
         );
+
+    }
+
+    /**
+     * Entfernt sämtliche Parameter.
+     *
+     * @returns {Route}
+     */
+    clearParameters() {
+
+        this.#parameters.clear();
+
+        return this;
 
     }
 
