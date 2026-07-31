@@ -1,31 +1,55 @@
 {
-  "name": "library-of-legends",
+  "name": "@library-of-legends/workspace",
   "version": "0.1.0",
-  "description": "Professional Media Library Platform for Telegram, API and Web.",
-  "author": "Mr. Library Of Legends",
-  "license": "MIT",
+  "description": "Library Of Legends - Professional Media Library Platform",
   "private": true,
   "type": "module",
-  "main": "apps/telegram-bot/src/index.js",
-  "engines": {
-    "node": ">=22.0.0"
+  "author": {
+    "name": "Mr. Library Of Legends"
   },
+  "license": "MIT",
+  "packageManager": "npm@11",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=11.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "start": "node apps/telegram-bot/src/index.js",
-    "dev": "node --watch apps/telegram-bot/src/index.js",
+    "start": "npm run start --workspace=@lol/telegram-bot",
+    "dev": "npm run dev --workspace=@lol/telegram-bot",
+    "build": "npm run build --workspaces",
     "test": "node --test",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "check": "npm run lint && npm test"
+    "check": "npm run lint && npm test",
+    "clean": "node scripts/clean.js"
   },
   "keywords": [
     "telegram",
+    "bot",
     "media",
     "movies",
     "series",
     "library",
-    "bot",
     "tmdb",
-    "llf"
-  ]
+    "nodejs",
+    "library-of-legends"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/library-of-legends/library-of-legends.git"
+  },
+  "bugs": {
+    "url": "https://github.com/library-of-legends/library-of-legends/issues"
+  },
+  "homepage": "https://github.com/library-of-legends/library-of-legends",
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.0.0"
+  }
 }
