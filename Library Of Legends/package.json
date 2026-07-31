@@ -1,0 +1,31 @@
+{
+  "name": "library-of-legends",
+  "version": "0.1.0",
+  "description": "Professional Media Library Platform for Telegram, API and Web.",
+  "author": "Mr. Library Of Legends",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "apps/telegram-bot/src/index.js",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node apps/telegram-bot/src/index.js",
+    "dev": "node --watch apps/telegram-bot/src/index.js",
+    "test": "node --test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "check": "npm run lint && npm test"
+  },
+  "keywords": [
+    "telegram",
+    "media",
+    "movies",
+    "series",
+    "library",
+    "bot",
+    "tmdb",
+    "llf"
+  ]
+}
