@@ -10,10 +10,10 @@
 |-----------|-------|
 | Project | Library Of Legends |
 | Codename | Project Phoenix |
-| Document ID | LOL-POL-0001 |
+| Document ID | LOL-POL-0002 |
 | Version | 1.0.0 |
 | Status | Stable |
-| Classification | Documentation Policy |
+| Classification | Documentation Governance Policy |
 
 ---
 
@@ -22,28 +22,26 @@
 1. Purpose
 2. Scope
 3. Policy Statement
-4. Mandatory Documentation Requirements
-5. Documentation Ownership
-6. Documentation Lifecycle
-7. Documentation Structure
-8. Version Control
-9. Review and Approval
-10. Exceptions
-11. Compliance
-12. Definition of Ready
-13. Definition of Done
-14. References
-15. Related Documents
-16. Revision History
-17. Approval Block
+4. Documentation Requirements
+5. Document Standards
+6. Version Management
+7. Roles and Responsibilities
+8. Compliance Requirements
+9. Exception Management
+10. Enforcement
+11. Monitoring
+12. Related Documents
+13. References
+14. Revision History
+15. Approval Block
 
 ---
 
 # 1. Purpose
 
-This policy defines the mandatory rules governing documentation throughout the Library Of Legends Architecture Framework (LOAF).
+This policy establishes the mandatory governance requirements for creating, maintaining, reviewing and publishing documentation throughout the Library Of Legends Architecture Framework (LOAF).
 
-Its objective is to ensure that documentation remains complete, accurate, traceable and continuously maintained throughout the project lifecycle.
+The objective is to ensure documentation remains complete, accurate, consistent and fully traceable.
 
 ---
 
@@ -51,205 +49,164 @@ Its objective is to ensure that documentation remains complete, accurate, tracea
 
 This policy applies to:
 
-- Architecture Documents
-- Standards
-- Specifications
+- Architecture Documentation
+- Governance Documentation
 - Policies
-- Principles
-- Source Code Documentation
-- APIs
-- Database Documentation
+- Standards
+- Workflows
+- Technical Documentation
 - Operational Documentation
-- User Documentation
-
-No project artifact is exempt unless explicitly approved.
+- Repository Documentation
 
 ---
 
 # 3. Policy Statement
 
-Documentation is mandatory.
+All documentation shall:
 
-Implementation shall not begin before the required documentation has been completed and approved.
-
-Documentation shall remain synchronized with implementation at all times.
-
-Outdated documentation shall be corrected immediately.
+- use approved templates
+- contain required metadata
+- maintain version history
+- define document ownership
+- undergo formal review
+- receive formal approval before publication
+- remain traceable throughout its lifecycle
 
 ---
 
-# 4. Mandatory Documentation Requirements
+# 4. Documentation Requirements
 
 Every document shall include:
 
 - Document ID
-- Title
-- Metadata
+- Document Title
 - Version
 - Status
 - Author
-- Table of Contents
-- References
-- Revision History
 - Approval Block
+- Revision History
+- References
+- Table of Contents
+- Classification
 
-Additional metadata may be defined by LLDS.
-
----
-
-# 5. Documentation Ownership
-
-Each document shall have:
-
-- Primary Author
-- Responsible Reviewer
-- Approval Authority
-- Current Version Owner
-
-Ownership shall remain assigned throughout the document lifecycle.
+All documents shall be stored within the official repository.
 
 ---
 
-# 6. Documentation Lifecycle
+# 5. Document Standards
 
-Documents shall progress through:
+Documentation shall:
 
-Draft
-
-↓
-
-Review
-
-↓
-
-Approved
-
-↓
-
-Published
-
-↓
-
-Maintained
-
-↓
-
-Archived
-
-Every lifecycle transition shall be recorded.
+- follow approved naming conventions
+- use standardized formatting
+- use approved terminology
+- reference related documents
+- avoid duplicate content
+- maintain consistent structure
 
 ---
 
-# 7. Documentation Structure
+# 6. Version Management
 
-Documentation shall comply with:
+Documentation versions shall:
 
-- LLDS
-- Naming Standards
-- Repository Structure
-- Registry References
-- Object Identifier Rules
-
-Custom document structures require approval.
+- follow the approved versioning policy
+- record all revisions
+- identify document owners
+- archive superseded versions
+- maintain full revision history
 
 ---
 
-# 8. Version Control
+# 7. Roles and Responsibilities
 
-Every modification shall include:
+Primary roles include:
 
-- Version Increment
-- Revision Entry
-- Change Description
-- Approval Record
+- Documentation Owner
+- Architecture Owner
+- Repository Maintainer
+- Quality Manager
+- Release Manager
 
-Version history shall remain immutable.
-
----
-
-# 9. Review and Approval
-
-Major documentation changes require:
-
-- Technical Review
-- Architecture Review
-- Documentation Review
-
-Approval shall be documented before publication.
+Responsibilities are defined within the applicable RACI matrices.
 
 ---
 
-# 10. Exceptions
+# 8. Compliance Requirements
 
-Exceptions shall require:
+Compliance requires:
 
-- Written justification
-- Architecture approval
-- Risk assessment
-- Change Catalog entry
+- approved document templates
+- completed metadata
+- documented review records
+- approved publication
+- repository registration
+- periodic documentation review
+
+---
+
+# 9. Exception Management
+
+Documentation exceptions require:
+
+- documented justification
+- responsible owner
+- governance approval
+- mitigation measures
+- review schedule
 
 Temporary exceptions shall define an expiration date.
 
 ---
 
-# 11. Compliance
+# 10. Enforcement
 
-Compliance shall be verified through:
+Policy violations may result in:
 
-- Documentation Audits
-- Architecture Reviews
-- Repository Inspections
-- Quality Reviews
-
-Repeated non-compliance shall require corrective action.
-
----
-
-# 12. Definition of Ready
-
-☑ Scope defined
-
-☑ Metadata prepared
-
-☑ Template selected
-
-☑ References identified
+- publication rejection
+- mandatory document revision
+- governance escalation
+- audit findings
+- corrective actions
 
 ---
 
-# 13. Definition of Done
+# 11. Monitoring
 
-☑ Documentation complete
+The following metrics shall be monitored:
 
-☑ Reviews finished
+- Documentation Completeness
+- Review Completion Rate
+- Metadata Compliance
+- Documentation Accuracy
+- Publication Timeliness
+- Periodic Review Completion
 
-☑ Approval recorded
-
-☑ Registry updated
-
-☑ Published
+Monitoring results shall be reviewed regularly.
 
 ---
 
-# 14. References
+# 12. Related Documents
+
+- DOCUMENTATION_WORKFLOW.md
+- DOCUMENTATION_RACI.md
+- CHANGE_MANAGEMENT_POLICY.md
+- VERSIONING_POLICY.md
+- ARCHIVE_POLICY.md
+
+---
+
+# 13. References
 
 Internal
 
+- POLICY_INDEX.md
+- WORKFLOW_INDEX.md
 - LLDS_SPECIFICATION.md
-- DOCUMENTATION_PRINCIPLES.md
-- DOCUMENT_REGISTRY.md
 
 ---
 
-# 15. Related Documents
-
-- VERSIONING_POLICY.md
-- QUALITY_PRINCIPLES.md
-- CHANGE_CATALOG.md
-
----
-
-# 16. Revision History
+# 14. Revision History
 
 | Version | Date | Description |
 |----------|------|-------------|
@@ -257,7 +214,7 @@ Internal
 
 ---
 
-# 17. Approval Block
+# 15. Approval Block
 
 | Role | Status |
 |------|--------|
@@ -272,4 +229,4 @@ End of Document
 
 Document ID
 
-LOL-POL-0001
+LOL-POL-0002
