@@ -10,7 +10,7 @@
 |-----------|-------|
 | Project | Library Of Legends |
 | Codename | Project Phoenix |
-| Document ID | LOL-POL-0005 |
+| Document ID | LOL-POL-0001 |
 | Version | 1.0.0 |
 | Status | Stable |
 | Classification | Change Management Policy |
@@ -22,30 +22,25 @@
 1. Purpose
 2. Scope
 3. Policy Statement
-4. Change Categories
-5. Change Classification
-6. Change Lifecycle
-7. Change Requests
-8. Risk Assessment
-9. Approval Process
-10. Emergency Changes
-11. Documentation Requirements
-12. Compliance
-13. Exceptions
-14. Definition of Ready
-15. Definition of Done
-16. References
-17. Related Documents
-18. Revision History
-19. Approval Block
+4. Policy Requirements
+5. Change Categories
+6. Roles and Responsibilities
+7. Compliance Requirements
+8. Exception Management
+9. Enforcement
+10. Monitoring
+11. Related Documents
+12. References
+13. Revision History
+14. Approval Block
 
 ---
 
 # 1. Purpose
 
-This policy defines the mandatory process for managing changes throughout the Library Of Legends Architecture Framework (LOAF).
+This policy defines the mandatory governance requirements for initiating, evaluating, approving, implementing and closing changes within the Library Of Legends Architecture Framework (LOAF).
 
-Its objective is to ensure that every change is planned, documented, reviewed, approved and traceable before implementation.
+The objective is to ensure controlled, traceable and auditable change management.
 
 ---
 
@@ -53,260 +48,153 @@ Its objective is to ensure that every change is planned, documented, reviewed, a
 
 This policy applies to:
 
-- Architecture
-- Source Code
-- Documentation
-- APIs
-- Databases
-- Infrastructure
-- Automation
-- Packages
-- Modules
-- Assets
-
-Every controlled project artifact is subject to change management.
+- Architecture Changes
+- Documentation Changes
+- Source Code Changes
+- Repository Changes
+- Configuration Changes
+- Workflow Changes
+- Policy Changes
+- Release Changes
 
 ---
 
 # 3. Policy Statement
 
-Every significant change shall follow the approved Change Management Process.
+All changes shall:
+
+- be formally requested
+- be documented
+- undergo impact assessment
+- undergo risk assessment
+- receive appropriate approval
+- be traceable
+- be auditable
 
 Unauthorized changes are prohibited.
 
-Changes shall be documented before implementation begins.
+---
+
+# 4. Policy Requirements
+
+Mandatory requirements include:
+
+- Every change shall have a unique Change ID.
+- Every change shall identify an owner.
+- Every change shall include a business justification.
+- High-risk changes require governance approval.
+- Emergency changes require post-implementation review.
+- All implemented changes shall update related documentation.
 
 ---
 
-# 4. Change Categories
+# 5. Change Categories
 
-Changes shall be assigned to one of the following categories:
+The following categories are defined:
 
-- Architecture
-- Documentation
-- Development
-- Security
-- Infrastructure
-- Database
-- API
-- Operations
-- Automation
-- Release
-- Asset
-- Configuration
+- Standard Change
+- Normal Change
+- Emergency Change
+- Major Change
+- Minor Change
+- Security Change
+- Documentation Change
+- Infrastructure Change
+
+Each category follows its designated workflow.
 
 ---
 
-# 5. Change Classification
+# 6. Roles and Responsibilities
 
-Every change shall receive one impact level:
+Primary roles include:
 
-- Low
-- Medium
-- High
-- Critical
+- Architecture Owner
+- Documentation Owner
+- Repository Maintainer
+- Quality Manager
+- Security Officer
+- Release Manager
 
-Impact shall determine the approval workflow.
-
----
-
-# 6. Change Lifecycle
-
-Every approved change shall progress through:
-
-Request
-
-↓
-
-Analysis
-
-↓
-
-Risk Assessment
-
-↓
-
-Review
-
-↓
-
-Approval
-
-↓
-
-Implementation
-
-↓
-
-Verification
-
-↓
-
-Closure
-
-Every lifecycle stage shall be documented.
+Responsibilities are defined in the applicable RACI matrices.
 
 ---
 
-# 7. Change Requests
+# 7. Compliance Requirements
 
-Every Change Request shall include:
+Compliance requires:
 
-- Change Identifier
-- Title
-- Description
-- Business Justification
-- Technical Justification
-- Impact Assessment
-- Risk Level
-- Dependencies
-- Rollback Strategy
-- Requested Version
-
-Incomplete requests shall not proceed to review.
+- approved workflow usage
+- documented approvals
+- maintained audit trails
+- updated documentation
+- periodic governance reviews
+- measurable compliance indicators
 
 ---
 
-# 8. Risk Assessment
-
-Each change shall evaluate:
-
-- Security Impact
-- Performance Impact
-- Compatibility
-- Data Integrity
-- Operational Risk
-- User Impact
-
-Risk assessments shall be documented before approval.
-
----
-
-# 9. Approval Process
-
-Standard approval workflow:
-
-Author
-
-↓
-
-Technical Review
-
-↓
-
-Architecture Review
-
-↓
-
-Quality Review
-
-↓
-
-Final Approval
-
-Critical changes require governance approval.
-
----
-
-# 10. Emergency Changes
-
-Emergency changes shall:
-
-- be minimized
-- receive expedited approval
-- be documented immediately
-- undergo post-implementation review
-
-Emergency procedures shall not bypass documentation.
-
----
-
-# 11. Documentation Requirements
-
-Every approved change shall update:
-
-- Change Catalog
-- Revision History
-- Related Documentation
-- Release Notes
-- Registry Entries (if applicable)
-
-Traceability shall be preserved.
-
----
-
-# 12. Compliance
-
-Compliance shall be verified through:
-
-- Architecture Reviews
-- Documentation Audits
-- Change Audits
-- Repository Reviews
-- Quality Assurance
-
----
-
-# 13. Exceptions
+# 8. Exception Management
 
 Exceptions require:
 
 - documented justification
-- architecture approval
-- risk acceptance
-- defined expiration
+- risk assessment
+- governance approval
+- mitigation plan
+- exception record
 
-Permanent exceptions shall be avoided.
-
----
-
-# 14. Definition of Ready
-
-☑ Change Request completed
-
-☑ Risk assessed
-
-☑ Dependencies identified
-
-☑ Review scheduled
+Temporary exceptions shall define an expiration date.
 
 ---
 
-# 15. Definition of Done
+# 9. Enforcement
 
-☑ Change implemented
+Violations may result in:
 
-☑ Verification completed
-
-☑ Documentation updated
-
-☑ Change Catalog synchronized
-
-☑ Approval recorded
-
-☑ Change closed
+- rejected implementation
+- mandatory rework
+- governance escalation
+- additional review
+- corrective actions
 
 ---
 
-# 16. References
+# 10. Monitoring
+
+The following metrics shall be monitored:
+
+- Change Success Rate
+- Emergency Change Rate
+- Failed Changes
+- Rollback Frequency
+- Average Approval Time
+- Documentation Compliance
+
+Monitoring results shall be reviewed regularly.
+
+---
+
+# 11. Related Documents
+
+- CHANGE_WORKFLOW.md
+- GOVERNANCE_RACI.md
+- DEVELOPMENT_RACI.md
+- RELEASE_POLICY.md
+- DOCUMENTATION_POLICY.md
+
+---
+
+# 12. References
 
 Internal
 
-- CHANGE_CATALOG.md
-- VERSIONING_POLICY.md
-- RELEASE_POLICY.md
+- POLICY_INDEX.md
+- WORKFLOW_INDEX.md
+- LLDS_SPECIFICATION.md
 
 ---
 
-# 17. Related Documents
-
-- CHANGE_REQUEST_TEMPLATE.md
-- RELEASE_MANAGEMENT.md
-- QUALITY_PRINCIPLES.md
-
----
-
-# 18. Revision History
+# 13. Revision History
 
 | Version | Date | Description |
 |----------|------|-------------|
@@ -314,13 +202,12 @@ Internal
 
 ---
 
-# 19. Approval Block
+# 14. Approval Block
 
 | Role | Status |
 |------|--------|
 | Author | Approved |
-| Architecture Review | Approved |
-| Governance Review | Pending |
+| Governance Review | Approved |
 | Final Approval | Pending |
 
 ---
@@ -329,4 +216,4 @@ End of Document
 
 Document ID
 
-LOL-POL-0005
+LOL-POL-0001
