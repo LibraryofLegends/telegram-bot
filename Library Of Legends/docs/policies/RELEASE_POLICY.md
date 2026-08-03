@@ -10,10 +10,10 @@
 |-----------|-------|
 | Project | Library Of Legends |
 | Codename | Project Phoenix |
-| Document ID | LOL-POL-0004 |
+| Document ID | LOL-POL-0005 |
 | Version | 1.0.0 |
 | Status | Stable |
-| Classification | Release Policy |
+| Classification | Release Management Governance Policy |
 
 ---
 
@@ -22,30 +22,26 @@
 1. Purpose
 2. Scope
 3. Policy Statement
-4. Release Types
-5. Release Planning
-6. Release Requirements
-7. Release Approval
-8. Release Process
-9. Release Documentation
-10. Rollback Policy
-11. Post-Release Activities
-12. Compliance
-13. Exceptions
-14. Definition of Ready
-15. Definition of Done
-16. References
-17. Related Documents
-18. Revision History
-19. Approval Block
+4. Release Requirements
+5. Release Categories
+6. Release Approval Requirements
+7. Roles and Responsibilities
+8. Compliance Requirements
+9. Exception Management
+10. Enforcement
+11. Monitoring
+12. Related Documents
+13. References
+14. Revision History
+15. Approval Block
 
 ---
 
 # 1. Purpose
 
-This policy establishes the mandatory release management rules for every software component, document, package and service delivered within the Library Of Legends Architecture Framework (LOAF).
+This policy establishes the mandatory governance requirements for planning, approving, deploying and documenting releases within the Library Of Legends Architecture Framework (LOAF).
 
-Its purpose is to ensure predictable, repeatable and traceable releases.
+Its objective is to ensure secure, predictable, repeatable and traceable software releases.
 
 ---
 
@@ -53,267 +49,170 @@ Its purpose is to ensure predictable, repeatable and traceable releases.
 
 This policy applies to:
 
-- Applications
-- APIs
-- Packages
-- Modules
-- Databases
-- Documentation
-- Telegram Services
-- Automation
-- Infrastructure Changes
-- Configuration Releases
+- Major Releases
+- Minor Releases
+- Patch Releases
+- Hotfix Releases
+- Security Releases
+- Documentation Releases
+- Infrastructure Releases
 
 ---
 
 # 3. Policy Statement
 
-Every release shall follow a documented approval process.
+All releases shall:
 
-No release may be published without satisfying all mandatory quality, security and documentation requirements.
+- follow the approved Release Workflow
+- satisfy all quality gates
+- complete mandatory testing
+- receive formal approval
+- maintain rollback capability
+- be fully documented
+- remain completely traceable
 
-Emergency releases shall follow a documented expedited approval process.
-
----
-
-# 4. Release Types
-
-The framework recognizes the following release categories:
-
-- Development Release
-- Alpha Release
-- Beta Release
-- Release Candidate (RC)
-- Stable Release
-- Hotfix Release
-- Emergency Release
-- Maintenance Release
-
-Each release shall be identified by its release type.
+Unapproved releases shall not be deployed.
 
 ---
 
-# 5. Release Planning
+# 4. Release Requirements
 
-Every planned release shall define:
+Every release shall include:
 
-- Scope
-- Objectives
-- Target Version
-- Expected Release Date
-- Responsible Owner
-- Risk Assessment
-- Rollback Strategy
+- approved Release Candidate
+- completed testing
+- security validation
+- rollback plan
+- deployment plan
+- release notes
+- approval evidence
 
-Planning shall be completed before implementation freeze.
-
----
-
-# 6. Release Requirements
-
-Before approval every release shall include:
-
-- Successful testing
-- Documentation updates
-- Version assignment
-- Updated Change Catalog
-- Updated Release Notes
-- Security verification
-- Approval records
-
-Incomplete releases shall not be published.
+Production deployment requires all mandatory release artifacts.
 
 ---
 
-# 7. Release Approval
+# 5. Release Categories
 
-Release approval shall include:
+The following release categories are defined:
 
-Development Review
+- Major Release
+- Minor Release
+- Patch Release
+- Emergency Hotfix
+- Security Release
+- Infrastructure Release
+- Documentation Release
 
-↓
-
-Quality Review
-
-↓
-
-Security Review
-
-↓
-
-Architecture Review
-
-↓
-
-Final Approval
-
-Every approval shall be documented.
+Each category follows its designated workflow.
 
 ---
 
-# 8. Release Process
+# 6. Release Approval Requirements
 
-Standard workflow:
+Approval requires:
 
-Planning
+- successful review
+- completed testing
+- security validation
+- quality approval
+- documented release decision
+- deployment authorization
 
-↓
-
-Implementation
-
-↓
-
-Testing
-
-↓
-
-Documentation
-
-↓
-
-Quality Verification
-
-↓
-
-Approval
-
-↓
-
-Publication
-
-↓
-
-Monitoring
-
-↓
-
-Closure
-
-Every stage shall be completed before the next begins.
+No production deployment shall occur without formal approval.
 
 ---
 
-# 9. Release Documentation
+# 7. Roles and Responsibilities
 
-Every release shall provide:
+Primary roles include:
 
-- Release Notes
-- Version Number
-- Change Summary
-- Known Limitations
-- Compatibility Information
-- Migration Instructions
-- Rollback Procedure
+- Release Manager
+- Architecture Owner
+- Quality Manager
+- Security Officer
+- Repository Maintainer
+- Documentation Owner
 
-Release documentation shall be published together with the release.
-
----
-
-# 10. Rollback Policy
-
-Every release shall include a rollback strategy.
-
-Rollback documentation shall define:
-
-- Recovery steps
-- Previous supported version
-- Database rollback requirements
-- Configuration restoration
-- Validation after rollback
-
-Rollback procedures shall be verified whenever practical.
+Responsibilities are defined within the applicable RACI matrices.
 
 ---
 
-# 11. Post-Release Activities
+# 8. Compliance Requirements
 
-Following publication:
+Compliance requires:
 
-- Monitor system health
-- Validate successful deployment
-- Record incidents
-- Update operational documentation
-- Archive release artifacts
-- Schedule retrospective
-
-Lessons learned shall be documented.
+- approved workflows
+- documented approvals
+- repository traceability
+- release documentation
+- audit records
+- post-release monitoring
 
 ---
 
-# 12. Compliance
+# 9. Exception Management
 
-Compliance shall be verified through:
-
-- Release Reviews
-- Repository Validation
-- Documentation Audits
-- Quality Assurance
-- Security Verification
-
-Non-compliant releases shall be rejected.
-
----
-
-# 13. Exceptions
-
-Exceptions require:
+Release exceptions require:
 
 - documented justification
-- risk assessment
-- approval authority
-- defined mitigation plan
+- formal risk assessment
+- governance approval
+- mitigation measures
+- post-release review
 
-Emergency exceptions shall be reviewed after release.
-
----
-
-# 14. Definition of Ready
-
-☑ Scope approved
-
-☑ Release plan completed
-
-☑ Risks documented
-
-☑ Rollback strategy prepared
+Emergency releases require retrospective approval.
 
 ---
 
-# 15. Definition of Done
+# 10. Enforcement
 
-☑ Release approved
+Policy violations may result in:
 
-☑ Documentation published
-
-☑ Version assigned
-
-☑ Change Catalog updated
-
-☑ Monitoring completed
-
-☑ Release closed
+- deployment cancellation
+- rollback execution
+- governance escalation
+- incident investigation
+- corrective actions
 
 ---
 
-# 16. References
+# 11. Monitoring
+
+The following metrics shall be monitored:
+
+- Release Success Rate
+- Failed Release Rate
+- Rollback Frequency
+- Deployment Duration
+- Production Incidents
+- Post-Release Defects
+
+Monitoring results shall be reviewed regularly.
+
+---
+
+# 12. Related Documents
+
+- RELEASE_WORKFLOW.md
+- RELEASE_RACI.md
+- CHANGE_MANAGEMENT_POLICY.md
+- DEVELOPMENT_POLICY.md
+- SECURITY_POLICY.md
+
+---
+
+# 13. References
 
 Internal
 
+- POLICY_INDEX.md
+- WORKFLOW_INDEX.md
 - VERSIONING_POLICY.md
-- CHANGE_CATALOG.md
-- QUALITY_PRINCIPLES.md
+- LLDS_SPECIFICATION.md
 
 ---
 
-# 17. Related Documents
-
-- CHANGE_MANAGEMENT_POLICY.md
-- RELEASE_NOTES_TEMPLATE.md
-- DEPLOYMENT_STANDARD.md
-
----
-
-# 18. Revision History
+# 14. Revision History
 
 | Version | Date | Description |
 |----------|------|-------------|
@@ -321,7 +220,7 @@ Internal
 
 ---
 
-# 19. Approval Block
+# 15. Approval Block
 
 | Role | Status |
 |------|--------|
@@ -336,4 +235,4 @@ End of Document
 
 Document ID
 
-LOL-POL-0004
+LOL-POL-0005
