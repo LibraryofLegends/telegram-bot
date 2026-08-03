@@ -13,7 +13,7 @@
 | Document ID | LOL-POL-0006 |
 | Version | 1.0.0 |
 | Status | Stable |
-| Classification | Artificial Intelligence Usage Policy |
+| Classification | AI Governance Policy |
 
 ---
 
@@ -23,29 +23,25 @@
 2. Scope
 3. Policy Statement
 4. Approved AI Usage
-5. Human Oversight
-6. Documentation Requirements
-7. AI Generated Content
-8. Data Protection
-9. Quality Assurance
-10. Intellectual Property
-11. Prohibited Usage
-12. Compliance
-13. Exceptions
-14. Definition of Ready
-15. Definition of Done
-16. References
-17. Related Documents
-18. Revision History
-19. Approval Block
+5. Human Oversight Requirements
+6. AI Output Requirements
+7. Roles and Responsibilities
+8. Compliance Requirements
+9. Exception Management
+10. Enforcement
+11. Monitoring
+12. Related Documents
+13. References
+14. Revision History
+15. Approval Block
 
 ---
 
 # 1. Purpose
 
-This policy defines the mandatory requirements for the responsible use of Artificial Intelligence within the Library Of Legends Architecture Framework (LOAF).
+This policy establishes the mandatory governance requirements for the responsible use of Artificial Intelligence throughout the Library Of Legends Architecture Framework (LOAF).
 
-Its objective is to ensure that AI supports productivity while maintaining quality, security, transparency and accountability.
+The objective is to ensure that AI is used transparently, securely, responsibly and under appropriate human supervision.
 
 ---
 
@@ -53,25 +49,29 @@ Its objective is to ensure that AI supports productivity while maintaining quali
 
 This policy applies to:
 
-- Documentation
-- Software Development
-- Architecture
-- Automation
-- Testing
-- Content Generation
-- Repository Management
-- Project Planning
-- Knowledge Management
+- AI-assisted Documentation
+- AI-assisted Development
+- AI-assisted Testing
+- Prompt Engineering
+- AI-generated Reports
+- AI-assisted Analysis
+- AI-assisted Automation
+- AI-supported Governance Activities
 
 ---
 
 # 3. Policy Statement
 
-Artificial Intelligence is an approved engineering tool.
+Artificial Intelligence shall:
 
-AI shall support human decision-making but shall not replace human responsibility.
+- support human decision-making
+- not replace governance approval
+- operate under human supervision
+- produce traceable outputs
+- comply with security requirements
+- comply with documentation requirements
 
-Every project artifact remains the responsibility of its designated owner.
+Final responsibility always remains with the designated human owner.
 
 ---
 
@@ -79,175 +79,137 @@ Every project artifact remains the responsibility of its designated owner.
 
 AI may be used for:
 
-- documentation generation
-- code generation
-- code explanation
-- refactoring suggestions
-- architecture brainstorming
+- documentation drafting
+- code assistance
+- quality analysis
 - test generation
-- template creation
 - workflow optimization
+- metadata generation
+- reporting support
 - knowledge organization
 
-Final approval remains a human responsibility.
+AI shall not independently approve, publish or authorize controlled artifacts.
 
 ---
 
-# 5. Human Oversight
+# 5. Human Oversight Requirements
 
-Every AI-generated artifact shall be:
+Every AI-assisted activity shall include:
 
-- reviewed
-- validated
-- approved
-- version controlled
+- identified responsible reviewer
+- human validation
+- documented review outcome
+- approval before publication
+- correction of identified deficiencies
 
-No AI-generated artifact may be published without human review.
-
----
-
-# 6. Documentation Requirements
-
-AI assistance shall be transparent where appropriate.
-
-Major AI-assisted documents should record:
-
-- review status
-- responsible owner
-- approval status
-- revision history
-
-Documentation shall remain understandable without requiring access to AI prompts.
+No AI-generated artifact shall be published without human review.
 
 ---
 
-# 7. AI Generated Content
+# 6. AI Output Requirements
 
-AI-generated content shall:
+AI-generated outputs shall:
 
-- follow LLDS
-- comply with project standards
-- remain technically accurate
+- be reviewed for accuracy
+- be checked for completeness
+- reference authoritative sources where applicable
+- avoid unsupported claims
+- document significant prompts when required
 - maintain traceability
-- support future maintenance
-
-Generated content shall be editable by humans.
 
 ---
 
-# 8. Data Protection
+# 7. Roles and Responsibilities
 
-Confidential or sensitive information shall only be processed with approved AI services and in accordance with applicable legal and organizational requirements.
+Primary roles include:
 
-Applicable privacy and security policies shall always be observed.
+- AI Governance Manager
+- Documentation Owner
+- Architecture Owner
+- Quality Manager
+- Security Officer
+- Repository Maintainer
 
----
-
-# 9. Quality Assurance
-
-AI-generated outputs shall undergo:
-
-- technical review
-- quality review
-- consistency verification
-- architecture validation
-- documentation review
-
-AI output shall never bypass established quality controls.
+Responsibilities are defined within the applicable RACI matrices.
 
 ---
 
-# 10. Intellectual Property
+# 8. Compliance Requirements
 
-Before adoption, AI-generated content shall be reviewed to ensure it is appropriate for the project and does not knowingly introduce material that cannot be lawfully used.
+Compliance requires:
 
-Licensing obligations shall be respected.
-
----
-
-# 11. Prohibited Usage
-
-AI shall not be used to:
-
-- bypass governance
-- approve its own work
-- ignore review processes
-- circumvent security requirements
-- replace mandatory documentation
-- alter audit records
+- approved AI workflows
+- documented human reviews
+- audit trails
+- prompt traceability where applicable
+- policy compliance
+- periodic governance review
 
 ---
 
-# 12. Compliance
+# 9. Exception Management
 
-Compliance shall be verified through:
-
-- documentation reviews
-- repository audits
-- quality assurance
-- governance reviews
-
----
-
-# 13. Exceptions
-
-Exceptions require:
+AI usage exceptions require:
 
 - documented justification
-- architecture approval
-- governance approval
 - risk assessment
+- governance approval
+- mitigation measures
+- defined review schedule
 
 Temporary exceptions shall define an expiration date.
 
 ---
 
-# 14. Definition of Ready
+# 10. Enforcement
 
-☑ AI usage identified
+Policy violations may result in:
 
-☑ Responsible owner assigned
-
-☑ Review process defined
-
-☑ Applicable policies identified
-
----
-
-# 15. Definition of Done
-
-☑ Human review completed
-
-☑ Quality verified
-
-☑ Documentation updated
-
-☑ Approval recorded
-
-☑ Repository synchronized
+- rejection of AI-generated artifacts
+- mandatory human review
+- governance escalation
+- corrective actions
+- suspension of AI-assisted processes
 
 ---
 
-# 16. References
+# 11. Monitoring
+
+The following metrics shall be monitored:
+
+- AI Review Completion Rate
+- AI Output Acceptance Rate
+- AI Correction Frequency
+- Policy Compliance Rate
+- Prompt Reuse Rate
+- Governance Findings
+
+Monitoring results shall be reviewed periodically.
+
+---
+
+# 12. Related Documents
+
+- AI_WORKFLOW.md
+- AI_GOVERNANCE_RACI.md
+- DEVELOPMENT_POLICY.md
+- DOCUMENTATION_POLICY.md
+- SECURITY_POLICY.md
+
+---
+
+# 13. References
 
 Internal
 
-- DOCUMENTATION_POLICY.md
-- SECURITY_POLICY.md
-- CHANGE_MANAGEMENT_POLICY.md
+- POLICY_INDEX.md
+- WORKFLOW_INDEX.md
+- AI_GOVERNANCE_MANAGER.md
 - LLDS_SPECIFICATION.md
 
 ---
 
-# 17. Related Documents
-
-- AI_CODING_STANDARD.md
-- AI_REVIEW_GUIDE.md
-- AI_GOVERNANCE.md
-
----
-
-# 18. Revision History
+# 14. Revision History
 
 | Version | Date | Description |
 |----------|------|-------------|
@@ -255,12 +217,12 @@ Internal
 
 ---
 
-# 19. Approval Block
+# 15. Approval Block
 
 | Role | Status |
 |------|--------|
 | Author | Approved |
-| Architecture Review | Approved |
+| AI Governance Review | Approved |
 | Governance Review | Pending |
 | Final Approval | Pending |
 
