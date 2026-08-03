@@ -1,94 +1,217 @@
 /*
-──────────────────────────────────────────────────────────────────────────────
-Library Of Legends
-Project Phoenix
+===============================================================================
+██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
+██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
+██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
+██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
+███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
+╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
 
-Version     : 0.1.0
-Module      : Core
-Package     : 3A
-File        : library-engine.ts
-Path        : src/core/library-engine.ts
+                         PROJECT PHOENIX
 
-Author      : Mr. Library Of Legends
-Copyright   : Copyright (c) 2026 Library Of Legends
-License     : MIT
+===============================================================================
 
-Description :
-Central orchestration engine of Project Phoenix.
+Project.............: Library Of Legends
+Framework...........: LOAF (Library Of Legends Architecture Framework)
 
-Responsibilities:
-• Coordinate media imports
-• Manage processing pipeline
-• Invoke metadata services
-• Trigger AI processing
+Module..............: Core
+Package.............: Core Engine
+
+Component...........: Library Engine
+LOL-ID..............: LOL-CORE-0001
+
+File................: library-engine.ts
+Location............: src/core/library-engine.ts
+
+Author..............: Mr. Library Of Legends
+Architecture........: Project Phoenix
+
+License.............: MIT
+
+-------------------------------------------------------------------------------
+DESCRIPTION
+-------------------------------------------------------------------------------
+
+The Library Engine is the heart of Project Phoenix.
+
+Every media import starts here.
+
+The engine coordinates all processing services but contains almost no business
+logic itself.
+
+Responsibilities
+
+• Coordinate complete import pipeline
+• Create import context
+• Execute metadata detection
+• Execute TMDB lookup
+• Execute AI services
+• Execute duplicate detection
 • Store media
-• Publish to Telegram
 • Update search index
-• Generate statistics
+• Publish to Telegram
+• Update statistics
 
-Status      : Development
-──────────────────────────────────────────────────────────────────────────────
+-------------------------------------------------------------------------------
+STATUS
+-------------------------------------------------------------------------------
+
+State...............: Development
+
+Version.............: 1.0.0
+
+Created.............: 2026-08-03
+
+===============================================================================
 */
 
 /*
-──────────────────────────────────────────────────────────────────────────────
-Dependencies
+===============================================================================
+DEPENDENCIES
+===============================================================================
 
-Uses:
-• metadata.service.ts
-• tmdb.service.ts
-• ai.service.ts
-• database.service.ts
-• search.service.ts
-• telegram.service.ts
-• statistics.service.ts
-• logger.service.ts
+Uses
 
-Called by:
-• importer.service.ts
-• telegram webhook
-• admin console
-──────────────────────────────────────────────────────────────────────────────
+- Metadata Service
+- TMDB Service
+- AI Service
+- Search Service
+- Database Service
+- Telegram Service
+- Statistics Service
+- Logger Service
+
+Called By
+
+- Importer Service
+- Telegram Webhook
+- Scheduled Jobs
+- Admin Console
+
+===============================================================================
+*/
+
+/*
+===============================================================================
+ROADMAP
+===============================================================================
+
+[ ] Metadata Detection
+
+[ ] Filename Parsing
+
+[ ] Movie Detection
+
+[ ] Series Detection
+
+[ ] TMDB Integration
+
+[ ] AI Enhancement
+
+[ ] Duplicate Detection
+
+[ ] Library ID Generation
+
+[ ] Database Storage
+
+[ ] Search Index Update
+
+[ ] Telegram Publication
+
+[ ] Statistics Update
+
+===============================================================================
+*/
+
+/*
+===============================================================================
+CHANGELOG
+===============================================================================
+
+1.0.0
+
+- Initial implementation
+
+===============================================================================
+*/
+
+/*
+===============================================================================
+IMPORTS
+===============================================================================
 */
 
 export interface ImportContext {
+
     fileId: string;
+
     fileName: string;
+
     chatId?: number;
+
     messageId?: number;
+
 }
 
 export interface ImportResult {
+
     success: boolean;
+
     libraryId?: string;
+
     mediaType?: "movie" | "series";
+
     message: string;
+
 }
 
 export class LibraryEngine {
 
+    constructor() {}
+
+    /**
+     * Starts a complete media import.
+     */
     public async import(
         context: ImportContext
     ): Promise<ImportResult> {
 
-        console.log("================================");
+        console.log("======================================");
+        console.log("PROJECT PHOENIX");
         console.log("Library Engine");
-        console.log("Import gestartet");
-        console.log("Datei:", context.fileName);
-        console.log("================================");
+        console.log("Starting Import");
+        console.log("======================================");
 
-        // TODO:
-        // Filename analysieren
-        // Metadata laden
-        // TMDB suchen
-        // KI nutzen
-        // DB speichern
-        // Telegram veröffentlichen
+        console.log("File:", context.fileName);
+
+        /*
+         * Pipeline
+         *
+         * Metadata
+         * ↓
+         * TMDB
+         * ↓
+         * AI
+         * ↓
+         * Duplicate Check
+         * ↓
+         * Database
+         * ↓
+         * Search
+         * ↓
+         * Telegram
+         * ↓
+         * Statistics
+         */
 
         return {
+
             success: true,
-            message: "Import erfolgreich initialisiert."
+
+            message: "Import successfully initialized."
+
         };
+
     }
 
 }
