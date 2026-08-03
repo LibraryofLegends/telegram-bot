@@ -10,10 +10,10 @@
 |-----------|-------|
 | Project | Library Of Legends |
 | Codename | Project Phoenix |
-| Document ID | LOL-POL-0002 |
+| Document ID | LOL-POL-0007 |
 | Version | 1.0.0 |
 | Status | Stable |
-| Classification | Versioning Policy |
+| Classification | Version Management Governance Policy |
 
 ---
 
@@ -22,30 +22,26 @@
 1. Purpose
 2. Scope
 3. Policy Statement
-4. Versioning Model
-5. Version Number Rules
-6. Version Categories
-7. Document Versioning
-8. Software Versioning
-9. Registry Versioning
-10. Breaking Changes
-11. Release Compatibility
-12. Exceptions
-13. Compliance
-14. Definition of Ready
-15. Definition of Done
-16. References
-17. Related Documents
-18. Revision History
-19. Approval Block
+4. Version Numbering Rules
+5. Version Lifecycle
+6. Version Control Requirements
+7. Roles and Responsibilities
+8. Compliance Requirements
+9. Exception Management
+10. Enforcement
+11. Monitoring
+12. Related Documents
+13. References
+14. Revision History
+15. Approval Block
 
 ---
 
 # 1. Purpose
 
-This policy defines the mandatory version management rules for all artifacts maintained within the Library Of Legends Architecture Framework (LOAF).
+This policy establishes the mandatory governance requirements for identifying, managing and tracking versions of all controlled artifacts throughout the Library Of Legends Architecture Framework (LOAF).
 
-Consistent versioning enables traceability, compatibility assessment and reliable change management.
+The objective is to ensure consistency, traceability and reproducibility across the complete lifecycle of every artifact.
 
 ---
 
@@ -54,224 +50,186 @@ Consistent versioning enables traceability, compatibility assessment and reliabl
 This policy applies to:
 
 - Documentation
+- Policies
+- Standards
+- Workflows
 - Source Code
-- Packages
-- Modules
-- APIs
-- Databases
-- Assets
-- Templates
-- Automation Scripts
+- Releases
 - Configuration Files
-
-Every versioned artifact shall comply with this policy.
+- Architecture Artifacts
+- Templates
+- Repository Metadata
 
 ---
 
 # 3. Policy Statement
 
-Every controlled artifact shall maintain a documented version.
+All controlled artifacts shall:
 
-Versions shall accurately represent the significance of changes.
+- maintain a unique version number
+- follow the approved versioning scheme
+- record revision history
+- remain traceable
+- identify responsible owners
+- support rollback and historical retrieval
 
-Version history shall remain permanent and traceable.
-
----
-
-# 4. Versioning Model
-
-LOAF adopts Semantic Versioning.
-
-Format:
-
-MAJOR.MINOR.PATCH
-
-Example:
-
-1.4.7
+No controlled artifact shall exist without version identification.
 
 ---
 
-# 5. Version Number Rules
+# 4. Version Numbering Rules
 
-## MAJOR
+The framework adopts Semantic Versioning:
 
-Increment when:
+**MAJOR.MINOR.PATCH**
 
-- breaking compatibility
-- fundamental redesign
-- architectural restructuring
+Examples:
 
----
+- 1.0.0
+- 1.2.0
+- 2.0.0
+- 2.4.7
 
-## MINOR
+Version increments:
 
-Increment when:
-
-- new functionality
-- backward compatible improvements
-- new modules
-
----
-
-## PATCH
-
-Increment when:
-
-- corrections
-- documentation improvements
-- bug fixes
-- editorial updates
+- **MAJOR** – incompatible structural or governance changes
+- **MINOR** – new functionality or significant enhancements
+- **PATCH** – corrections, editorial updates or bug fixes
 
 ---
 
-# 6. Version Categories
+# 5. Version Lifecycle
 
-The following lifecycle states are supported:
+Every version follows:
 
-- Draft
-- Alpha
-- Beta
-- Release Candidate
-- Stable
-- Maintenance
-- Archived
+Draft
 
-Status and version shall always remain synchronized.
+↓
 
----
+Review
 
-# 7. Document Versioning
+↓
 
-Every document shall include:
+Approval
 
-- Document Version
-- Creation Date
-- Last Updated
-- Revision History
+↓
 
-Major documentation revisions require governance review.
+Published
 
----
+↓
 
-# 8. Software Versioning
+Superseded
 
-Software releases shall maintain:
+↓
 
-- Release Version
-- Build Number
-- Release Date
-- Release Notes
-- Compatibility Information
+Archived
 
-Every release shall reference its associated Change Catalog entries.
+Historical versions shall remain retrievable.
 
 ---
 
-# 9. Registry Versioning
+# 6. Version Control Requirements
 
-Registry entries shall preserve historical revisions.
+Version management shall:
 
-Object identifiers remain immutable regardless of version changes.
-
----
-
-# 10. Breaking Changes
-
-Breaking changes shall include:
-
-- compatibility analysis
-- migration guidance
-- rollback strategy
-- release approval
-
-Breaking changes require a major version increment.
+- maintain complete revision history
+- record publication dates
+- identify authors
+- identify approvers
+- preserve historical versions
+- prevent unauthorized modification
 
 ---
 
-# 11. Release Compatibility
+# 7. Roles and Responsibilities
 
-Each release shall specify:
+Primary roles include:
 
-- minimum supported version
-- migration requirements
-- deprecated features
-- removed functionality
+- Documentation Owner
+- Repository Maintainer
+- Architecture Owner
+- Release Manager
+- Quality Manager
 
-Compatibility information shall be documented before release.
-
----
-
-# 12. Exceptions
-
-Exceptions require:
-
-- written justification
-- architecture approval
-- documented impact assessment
-
-Temporary exceptions shall include an expiration date.
+Responsibilities are defined within the applicable RACI matrices.
 
 ---
 
-# 13. Compliance
+# 8. Compliance Requirements
 
-Compliance shall be verified through:
+Compliance requires:
 
-- Release Reviews
-- Documentation Reviews
-- Repository Audits
-- Version Validation
-
-Non-compliance shall be corrected before release.
-
----
-
-# 14. Definition of Ready
-
-☑ Version strategy defined
-
-☑ Artifact classified
-
-☑ Compatibility assessed
-
-☑ Dependencies identified
+- approved version identifiers
+- revision history
+- repository registration
+- published change records
+- documented approvals
+- periodic version audits
 
 ---
 
-# 15. Definition of Done
+# 9. Exception Management
 
-☑ Version assigned
+Versioning exceptions require:
 
-☑ Revision history updated
+- documented justification
+- governance approval
+- risk assessment
+- corrective measures
+- review schedule
 
-☑ Release documentation completed
-
-☑ Registry synchronized
-
-☑ Approval recorded
+Temporary exceptions shall define an expiration date.
 
 ---
 
-# 16. References
+# 10. Enforcement
+
+Policy violations may result in:
+
+- publication rejection
+- rollback to previous version
+- governance escalation
+- corrective actions
+- audit findings
+
+---
+
+# 11. Monitoring
+
+The following metrics shall be monitored:
+
+- Version Compliance Rate
+- Revision Accuracy
+- Change Traceability
+- Audit Findings
+- Repository Consistency
+- Historical Retrieval Success
+
+Monitoring results shall be reviewed periodically.
+
+---
+
+# 12. Related Documents
+
+- CHANGE_MANAGEMENT_POLICY.md
+- RELEASE_POLICY.md
+- DOCUMENTATION_POLICY.md
+- CHANGE_WORKFLOW.md
+- ARCHIVE_POLICY.md
+
+---
+
+# 13. References
 
 Internal
 
-- CHANGE_CATALOG.md
-- DOCUMENT_REGISTRY.md
+- POLICY_INDEX.md
+- WORKFLOW_INDEX.md
 - LLDS_SPECIFICATION.md
 
 ---
 
-# 17. Related Documents
-
-- RELEASE_POLICY.md
-- CHANGE_MANAGEMENT_POLICY.md
-- DOCUMENTATION_POLICY.md
-
----
-
-# 18. Revision History
+# 14. Revision History
 
 | Version | Date | Description |
 |----------|------|-------------|
@@ -279,12 +237,12 @@ Internal
 
 ---
 
-# 19. Approval Block
+# 15. Approval Block
 
 | Role | Status |
 |------|--------|
 | Author | Approved |
-| Architecture Review | Approved |
+| Documentation Review | Approved |
 | Governance Review | Pending |
 | Final Approval | Pending |
 
@@ -294,4 +252,4 @@ End of Document
 
 Document ID
 
-LOL-POL-0002
+LOL-POL-0007
