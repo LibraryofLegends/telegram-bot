@@ -10,10 +10,10 @@
 |-----------|-------|
 | Project | Library Of Legends |
 | Codename | Project Phoenix |
-| Document ID | LOL-POL-0003 |
+| Document ID | LOL-POL-0004 |
 | Version | 1.0.0 |
 | Status | Stable |
-| Classification | Security Policy |
+| Classification | Information Security Governance Policy |
 
 ---
 
@@ -22,31 +22,27 @@
 1. Purpose
 2. Scope
 3. Policy Statement
-4. Identity and Access Management
-5. Authentication Policy
-6. Authorization Policy
-7. Secret Management
-8. Data Protection
-9. Secure Development
-10. Logging and Monitoring
-11. Vulnerability Management
-12. Incident Response
-13. Compliance
-14. Exceptions
-15. Definition of Ready
-16. Definition of Done
-17. References
-18. Related Documents
-19. Revision History
-20. Approval Block
+4. Security Principles
+5. Access Control Requirements
+6. Secure Development Requirements
+7. Incident Response Requirements
+8. Roles and Responsibilities
+9. Compliance Requirements
+10. Exception Management
+11. Enforcement
+12. Monitoring
+13. Related Documents
+14. References
+15. Revision History
+16. Approval Block
 
 ---
 
 # 1. Purpose
 
-This policy defines the mandatory security requirements for all systems, services, infrastructure, documentation and software developed within the Library Of Legends Architecture Framework (LOAF).
+This policy establishes the mandatory security requirements for protecting information assets, software, infrastructure and operational processes throughout the Library Of Legends Architecture Framework (LOAF).
 
-Security requirements defined in this document are mandatory.
+The objective is to ensure confidentiality, integrity, availability and accountability.
 
 ---
 
@@ -55,245 +51,177 @@ Security requirements defined in this document are mandatory.
 This policy applies to:
 
 - Source Code
-- APIs
-- Databases
-- Telegram Services
-- Web Services
-- Infrastructure
-- Build Systems
-- CI/CD Pipelines
 - Documentation
-- Automation
+- Infrastructure
+- Repositories
+- APIs
+- Services
+- Build Systems
+- AI Components
+- Operational Data
+- Archive Systems
 
 ---
 
 # 3. Policy Statement
 
-Security shall be enforced throughout the complete software lifecycle.
+All information assets shall:
 
-Every component shall comply with the approved Security Principles.
+- be protected against unauthorized access
+- maintain integrity
+- remain available
+- support accountability
+- be monitored continuously
+- comply with governance requirements
 
-Security requirements shall never be bypassed for convenience.
-
----
-
-# 4. Identity and Access Management
-
-Every system shall implement:
-
-- unique user identities
-- authenticated access
-- role-based permissions
-- least privilege
-- periodic permission reviews
-
-Shared administrative accounts are prohibited.
+Security shall be integrated into every lifecycle phase.
 
 ---
 
-# 5. Authentication Policy
+# 4. Security Principles
 
-Authentication mechanisms shall:
+The framework follows:
 
-- protect credentials
-- support strong authentication
-- prevent unauthorized access
-- expire inactive sessions
-- securely manage password resets
-
-Default passwords shall never remain active.
-
----
-
-# 6. Authorization Policy
-
-Authorization shall be enforced on every protected resource.
-
-Every request shall be evaluated before access is granted.
-
-Permission inheritance shall remain documented.
+- Least Privilege
+- Need-to-Know
+- Zero Trust
+- Defense in Depth
+- Secure by Design
+- Security by Default
+- Continuous Monitoring
+- Risk-Based Security
 
 ---
 
-# 7. Secret Management
+# 5. Access Control Requirements
 
-Secrets include:
+Access shall:
 
-- API Keys
-- Access Tokens
-- Passwords
-- Certificates
-- Encryption Keys
-
-Secrets shall:
-
-- never be stored in source code
-- never be committed to repositories
-- be rotated when required
-- remain access controlled
+- require authenticated identities
+- use role-based permissions
+- follow least privilege
+- be reviewed periodically
+- be revoked when no longer required
+- be logged for audit purposes
 
 ---
 
-# 8. Data Protection
+# 6. Secure Development Requirements
 
-Sensitive information shall:
+Development shall:
 
-- be classified
-- be encrypted where appropriate
-- be protected in transit
-- be protected at rest
-- follow defined retention policies
-
-Personal information shall only be processed for approved purposes.
-
----
-
-# 9. Secure Development
-
-Development activities shall include:
-
-- dependency validation
-- code review
-- vulnerability scanning
-- secure coding practices
-- security testing
-
-Security findings shall be documented before release.
+- follow secure coding practices
+- complete security reviews
+- validate dependencies
+- address vulnerabilities
+- perform security testing
+- document security decisions
 
 ---
 
-# 10. Logging and Monitoring
+# 7. Incident Response Requirements
 
-Security-relevant events shall be logged.
+Security incidents shall:
 
-Examples include:
-
-- Login attempts
-- Permission changes
-- Configuration changes
-- Administrative actions
-- Authentication failures
-- Critical application errors
-
-Audit logs shall be protected against unauthorized modification.
+- be reported immediately
+- receive severity classification
+- follow the Incident Workflow
+- undergo root cause analysis
+- implement corrective actions
+- update documentation where required
 
 ---
 
-# 11. Vulnerability Management
+# 8. Roles and Responsibilities
 
-Discovered vulnerabilities shall be:
+Primary roles include:
 
-- recorded
-- classified
-- prioritized
-- remediated
-- verified after correction
+- Security Officer
+- Architecture Owner
+- Repository Maintainer
+- Quality Manager
+- AI Governance Manager
+- Release Manager
 
-Critical vulnerabilities shall receive immediate attention.
-
----
-
-# 12. Incident Response
-
-Security incidents shall follow the approved incident response process:
-
-Detection
-
-↓
-
-Assessment
-
-↓
-
-Containment
-
-↓
-
-Investigation
-
-↓
-
-Recovery
-
-↓
-
-Lessons Learned
-
-Every incident shall receive a documented report.
+Responsibilities are defined within the applicable RACI matrices.
 
 ---
 
-# 13. Compliance
+# 9. Compliance Requirements
 
-Compliance shall be verified through:
+Compliance requires:
 
-- Security Reviews
-- Vulnerability Assessments
-- Architecture Reviews
-- Repository Audits
-- Configuration Reviews
-- Penetration Testing where appropriate
-
----
-
-# 14. Exceptions
-
-Policy exceptions require:
-
-- documented justification
-- risk assessment
-- architecture approval
-- defined expiration date
-
-Permanent exceptions are discouraged.
+- periodic security reviews
+- vulnerability management
+- audit logging
+- security documentation
+- access reviews
+- security awareness
 
 ---
 
-# 15. Definition of Ready
+# 10. Exception Management
 
-☑ Security requirements defined
+Security exceptions require:
 
-☑ Risk assessment completed
-
-☑ Required controls identified
-
-☑ Compliance requirements documented
-
----
-
-# 16. Definition of Done
-
-☑ Security review completed
-
-☑ Vulnerabilities addressed
-
-☑ Documentation updated
-
-☑ Audit requirements satisfied
-
-☑ Approval recorded
+- documented business justification
+- formal risk assessment
+- Security Officer approval
+- mitigation controls
+- expiration date
+- periodic review
 
 ---
 
-# 17. References
+# 11. Enforcement
+
+Security violations may result in:
+
+- access revocation
+- deployment suspension
+- governance escalation
+- mandatory remediation
+- incident investigation
+
+---
+
+# 12. Monitoring
+
+The following metrics shall be monitored:
+
+- Open Vulnerabilities
+- Critical Findings
+- Mean Time to Remediate (MTTR)
+- Security Review Completion Rate
+- Access Review Compliance
+- Security Incident Frequency
+
+Monitoring results shall be reviewed regularly.
+
+---
+
+# 13. Related Documents
+
+- SECURITY_RACI.md
+- INCIDENT_WORKFLOW.md
+- INCIDENT_RESPONSE_RACI.md
+- DEVELOPMENT_POLICY.md
+- AI_USAGE_POLICY.md
+
+---
+
+# 14. References
 
 Internal
 
-- SECURITY_PRINCIPLES.md
-- CHANGE_CATALOG.md
-- VERSIONING_POLICY.md
+- POLICY_INDEX.md
+- WORKFLOW_INDEX.md
+- RISK_MANAGEMENT_RACI.md
+- LLDS_SPECIFICATION.md
 
 ---
 
-# 18. Related Documents
-
-- RELEASE_POLICY.md
-- INCIDENT_RESPONSE_PLAN.md
-- ACCESS_CONTROL_STANDARD.md
-
----
-
-# 19. Revision History
+# 15. Revision History
 
 | Version | Date | Description |
 |----------|------|-------------|
@@ -301,7 +229,7 @@ Internal
 
 ---
 
-# 20. Approval Block
+# 16. Approval Block
 
 | Role | Status |
 |------|--------|
@@ -316,4 +244,4 @@ End of Document
 
 Document ID
 
-LOL-POL-0003
+LOL-POL-0004
