@@ -1,324 +1,225 @@
-/*
-===============================================================================
-██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
-██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
-██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
-██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
-███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
-╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+# LIBRARY OF LEGENDS
+### Project Phoenix
 
-                          PROJECT PHOENIX
-===============================================================================
+| Property | Value |
+|---|---|
+| Project | Library Of Legends |
+| Codename | Project Phoenix |
+| Framework | LOAF (Library Of Legends Architecture Framework) |
+| Document | Library Blueprint |
+| Document ID | LOL-DOC-0002 |
+| Category | Foundation |
+| Architecture | LOAF 2.0 |
+| Version | 1.0.0 |
+| Status | Approved |
+| Quality | ★★★★★ Enterprise Ready |
+| Classification | Core Documentation |
+| Storage Path | `docs/foundation/LOL-DOC-0002_LIBRARY_BLUEPRINT.md` |
+| Created | 2026-08-04 |
+| Last Modified | 2026-08-04 |
 
-Project.............: Library Of Legends
-
-Codename............: Project Phoenix
-
-Framework...........: LOAF (Library Of Legends Architecture Framework)
-
-Document............: Library Blueprint
-
-Document ID.........: LOL-DOC-0002
-
-Category............: Foundation
-
-Architecture........: LOAF 2.0
-
-Version.............: 1.0.0
-
-Status..............: APPROVED
-
-Quality.............: ★★★★★ Enterprise Ready
-
-Classification......: Core Documentation
-
-Storage Path........:
-docs/foundation/LOL-DOC-0002_LIBRARY_BLUEPRINT.md
-
-Created.............: 2026-08-04
-
-Last Modified.......: 2026-08-04
-
-===============================================================================
-DESCRIPTION
-===============================================================================
-
-The Library Blueprint defines the complete high-level architecture of the
-Library Of Legends platform.
-
-It describes the platform structure, all major modules, system layers,
-responsibilities and long-term expansion strategy.
-
-This document serves as the master blueprint for every future implementation.
-
-===============================================================================
-*/
+---
 
 # LOL-DOC-0002 — Library Blueprint
 
+## 1. Executive Summary
+
+The Library Blueprint defines the complete high-level architecture of the Library Of Legends platform.
+
+It describes the platform structure, all major modules, system layers, responsibilities, dependencies and long-term expansion strategy.
+
+This document serves as the architectural master blueprint for every future implementation.
+
 ---
 
-# 1. Purpose
+## 2. Vision
 
-The purpose of this document is to describe the complete structure of the
-Library Of Legends platform before implementation begins.
-
-Every module, package, document and source file must follow this blueprint.
-
----
-
-# 2. Platform Vision
-
-Library Of Legends is a modular media management platform.
+Library Of Legends is designed as a modular media platform.
 
 Telegram is only one client.
 
-The platform is designed to support additional clients, services and modules
-without redesigning the core architecture.
+Every future application shall communicate with the Core through clearly defined interfaces.
 
 ---
 
-# 3. Platform Layers
+## 3. Architecture Goals
 
-The platform consists of six primary layers.
-
-────────────────────────────────────────────────────────
-
-Layer 1
-
-Foundation
-
-Core infrastructure
-
-────────────────────────────────────────────────────────
-
-Layer 2
-
-Core Engine
-
-Configuration
-
-Events
-
-Logging
-
-Registry
-
-Security
-
-Cache
-
-Scheduler
-
-────────────────────────────────────────────────────────
-
-Layer 3
-
-Platform Modules
-
-Telegram
-
-Userbot
-
-Importer
-
-Metadata
-
-TMDB
-
-Search
-
-Statistics
-
-Collections
-
-Dashboard
-
-API
-
-Authentication
-
-────────────────────────────────────────────────────────
-
-Layer 4
-
-Media Modules
-
-Movies
-
-Series
-
-Anime
-
-Cartoons
-
-Documentaries
-
-Books
-
-Comics
-
-Audiobooks
-
-Music
-
-Podcasts
-
-Magazines
-
-────────────────────────────────────────────────────────
-
-Layer 5
-
-Infrastructure
-
-Database
-
-Storage
-
-Queue
-
-Cache
-
-External Services
-
-────────────────────────────────────────────────────────
-
-Layer 6
-
-Clients
-
-Telegram
-
-REST API
-
-Web Dashboard
-
-CLI
-
-Future Applications
+| Goal | Description |
+|---|---|
+| Scalability | Support future growth without restructuring |
+| Maintainability | Easy to understand and maintain |
+| Modularity | Independent replaceable modules |
+| Extensibility | New features without affecting existing ones |
+| Stability | Reliable long-term operation |
+| Documentation | Complete technical documentation |
 
 ---
 
-# 4. Core Philosophy
+## 4. Platform Layers
 
-The Core knows nothing about Telegram.
-
-The Core knows nothing about Movies.
-
-The Core knows nothing about TMDB.
-
-The Core only manages modules.
-
-Every feature exists outside of the Core.
-
----
-
-# 5. Module Philosophy
-
-Every module must
-
-• have one responsibility
-
-• be independently testable
-
-• contain its own documentation
-
-• expose a defined interface
-
-• avoid direct dependencies whenever possible
+| Layer | Responsibility |
+|---|---|
+| Foundation | Standards, documentation, governance |
+| Core Engine | Configuration, events, logging, security |
+| Platform Modules | Telegram, Userbot, Importer, Search, TMDB, Statistics |
+| Media Modules | Movies, Series, Anime, Books, Music, Comics |
+| Infrastructure | Database, Storage, Cache, Queue |
+| Clients | Telegram, REST API, Dashboard, CLI |
 
 ---
 
-# 6. Folder Philosophy
+## 5. Core Philosophy
 
-Folders are grouped by responsibility.
+The Core shall never depend on application-specific modules.
 
-No folder may contain unrelated functionality.
+The Core does not know:
 
-Every folder must have a clear purpose.
+- Telegram
+- TMDB
+- Movies
+- Series
+- Userbot
 
----
-
-# 7. Expansion Strategy
-
-The architecture must allow future support for
-
-• additional media types
-
-• additional clients
-
-• AI integrations
-
-• automation
-
-• cloud synchronization
-
-• analytics
-
-• plugins
-
-without restructuring the platform.
+The Core only provides shared services and coordinates registered modules.
 
 ---
 
-# 8. Platform Principles
+## 6. Platform Modules
 
-Architecture First
-
-Documentation First
-
-Quality First
-
-Security First
-
-Maintainability First
-
-Scalability First
-
-Future First
-
----
-
-# 9. Long-Term Goal
-
-The Library Of Legends platform shall evolve into a modular digital media
-ecosystem that remains understandable, maintainable and expandable regardless
-of project size.
-
-Every future feature must strengthen—not weaken—the architecture.
+| Module | Responsibility |
+|---|---|
+| Telegram | Telegram Bot integration |
+| Userbot | Telegram Userbot automation |
+| Importer | Media import pipeline |
+| Metadata | Metadata detection |
+| TMDB | Movie and TV metadata |
+| Search | Search engine |
+| Statistics | Analytics and reporting |
+| Collections | Media collections |
+| Dashboard | Administrative interface |
+| API | REST services |
+| Authentication | User authentication |
 
 ---
 
-===============================================================================
-RELATED DOCUMENTS
-===============================================================================
+## 7. Media Modules
 
-LOL-DOC-0001 Project Charter
+The platform shall support multiple media categories.
 
-===============================================================================
-CHANGE LOG
-===============================================================================
+| Category | Planned |
+|---|---|
+| Movies | ✅ |
+| Series | ✅ |
+| Anime | ✅ |
+| Cartoons | ✅ |
+| Documentaries | ✅ |
+| Books | ✅ |
+| Comics | ✅ |
+| Audiobooks | ✅ |
+| Music | ✅ |
+| Podcasts | ✅ |
+| Magazines | ✅ |
 
-Version    Date         Description
--------    ----------   ---------------------------------------------
+---
 
-1.0.0      2026-08-04   Initial Blueprint
+## 8. Infrastructure
 
-===============================================================================
-DOCUMENT APPROVAL
-===============================================================================
+| Component | Purpose |
+|---|---|
+| PostgreSQL | Primary database |
+| Supabase | Backend services |
+| Cloudinary | Image storage |
+| Render | Deployment |
+| TMDB | Metadata provider |
+| OMDb | Additional metadata |
+| Local Storage | Temporary files |
+| Cache | Performance optimization |
 
-Status...............: APPROVED
+---
 
-Quality Rating.......: ★★★★★ Enterprise Ready
+## 9. Expansion Strategy
 
-Approved By..........: Project Phoenix Team
+Future platform capabilities may include:
 
-Approval Date........: 2026-08-04
+- AI-assisted metadata
+- OCR
+- Subtitle management
+- Trailer management
+- Automatic collections
+- Recommendation engine
+- Multi-language support
+- Plugin system
+- Mobile applications
+- Web interface
 
-Next Review..........: TBD
+Every new feature shall integrate without modifying the Core architecture.
 
-===============================================================================
-END OF DOCUMENT
-===============================================================================
+---
+
+## 10. Architecture Principles
+
+| Principle | Description |
+|---|---|
+| Separation of Concerns | Every component has one responsibility |
+| Loose Coupling | Modules communicate through interfaces |
+| High Cohesion | Related functionality remains together |
+| Clean Architecture | Clear dependency flow |
+| Documentation First | Documentation before implementation |
+| Security by Design | Security considered from the beginning |
+
+---
+
+## 11. Dependency Philosophy
+
+Dependencies shall always point toward the Core.
+
+Modules may depend on the Core.
+
+The Core must never depend on modules.
+
+External services shall always be isolated behind dedicated service layers.
+
+---
+
+## 12. Future Vision
+
+Library Of Legends shall evolve into a complete media management ecosystem.
+
+The architecture is designed to support future technologies while preserving long-term maintainability.
+
+---
+
+## 13. Related Documents
+
+| Document ID | Title |
+|---|---|
+| LOL-DOC-0001 | Project Charter |
+| LOL-STD-0001 | Documentation Standard |
+| LOL-STD-0002 | Naming Convention |
+
+---
+
+## 14. Revision History
+
+| Version | Date | Description |
+|---|---|---|
+| 1.0.0 | 2026-08-04 | Initial Library Blueprint |
+
+---
+
+## 15. Approval
+
+| Role | Status |
+|---|---|
+| Project Phoenix Team | Approved |
+| Next Review | TBD |
+
+---
+
+## 16. End of Document
+
+**Document ID:** LOL-DOC-0002
+
+**Version:** 1.0.0
+
+**Status:** Approved
