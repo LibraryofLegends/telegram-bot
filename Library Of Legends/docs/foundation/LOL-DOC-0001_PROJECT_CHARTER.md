@@ -13,7 +13,7 @@ Version        1.0.0
 Status         Approved
 Quality        ★★★★★ Enterprise Ready
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Project.............: Library Of Legends
 Codename............: Project Phoenix
