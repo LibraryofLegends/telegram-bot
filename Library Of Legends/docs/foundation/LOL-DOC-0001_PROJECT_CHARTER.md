@@ -1,19 +1,19 @@
 /*
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━
 
                         LIBRARY OF LEGENDS
                            Project Phoenix
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━
 
-Project        Library Of Legends
-Document       Documentation Standard
-Document ID    LOL-STD-0001
-Version        1.0.0
-Status         Approved
-Quality        ★★★★★ Enterprise Ready
+Project     Library Of Legends
+Document    Documentation Standard
+Document ID LOL-STD-0001
+Version     1.0.0
+Status      Approved
+Quality     ★★★★★ Enterprise Ready
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━
 
 Project.............: Library Of Legends
 Codename............: Project Phoenix
