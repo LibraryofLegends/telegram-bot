@@ -1,0 +1,15 @@
+packages:
+
+  - "applications/*"
+
+  - "framework/*"
+
+  - "providers/*"
+
+  - "features/*"
+
+  - "packages/*"
+
+  - "tools/*"
+
+  - "tests/*"
