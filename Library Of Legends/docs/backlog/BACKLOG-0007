@@ -1,0 +1,15 @@
+📌 BACKLOG-0007
+
+Name:
+Template Validation
+
+Beschreibung:
+Ein automatischer Validator, der überprüft, ob neue Dokumente und Dateien
+vollständig auf den offiziellen Templates basieren und keine Pflichtfelder
+fehlen.
+
+Status:
+Geplant
+
+Umsetzung:
+Nach Abschluss der Project-Templates-Phase.
