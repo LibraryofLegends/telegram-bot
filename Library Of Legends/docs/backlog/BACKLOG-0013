@@ -1,0 +1,14 @@
+Name:
+Project Scaffolding Engine
+
+Beschreibung:
+Ein internes Scaffolding-System, das komplette Module, Features,
+Provider oder Framework-Komponenten anhand der offiziellen Templates
+automatisch erstellt und die passenden IDs, Header sowie
+Ordnerstrukturen vergibt.
+
+Status:
+Geplant
+
+Umsetzung:
+Nach Abschluss der Project-Templates-Phase.
