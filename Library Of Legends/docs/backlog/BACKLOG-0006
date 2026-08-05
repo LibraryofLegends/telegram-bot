@@ -1,0 +1,15 @@
+📌 BACKLOG-0006
+
+Name:
+Template Generator
+
+Beschreibung:
+Ein internes Tool, das automatisch neue Dateien und Dokumente aus den
+offiziellen Project-Templates erstellt und dabei IDs, Dateinamen,
+Header und Grundstruktur automatisch einsetzt.
+
+Status:
+Geplant
+
+Umsetzung:
+Nach Abschluss der Project-Templates-Phase.
