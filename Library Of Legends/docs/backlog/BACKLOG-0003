@@ -1,0 +1,14 @@
+📌 BACKLOG-0003
+
+Name:
+Automatic Code Formatting
+
+Beschreibung:
+Automatische Formatierung aller Dateien beim Commit über Git Hooks,
+damit der Coding Standard ohne manuellen Aufwand eingehalten wird.
+
+Status:
+Geplant
+
+Umsetzung:
+Nach Abschluss der Repository-Root-Phase.
