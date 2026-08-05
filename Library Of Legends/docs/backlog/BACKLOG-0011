@@ -1,0 +1,12 @@
+Name:
+Template CLI
+
+Beschreibung:
+Ein internes CLI-Werkzeug, das anhand der offiziellen Templates neue
+Klassen, Services, Provider, Features und Dokumente automatisch erzeugt.
+
+Status:
+Geplant
+
+Umsetzung:
+Nach Abschluss der Project-Templates-Phase.
