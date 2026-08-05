@@ -1,0 +1,13 @@
+Name:
+Service Lifecycle Manager
+
+Beschreibung:
+Ein Framework-Modul zur zentralen Verwaltung des Lebenszyklus aller
+Services (Initialisierung, Start, Stopp, Freigabe von Ressourcen und
+geordnetes Herunterfahren).
+
+Status:
+Geplant
+
+Umsetzung:
+Nach Abschluss der Framework-Core-Phase.
