@@ -1,0 +1,13 @@
+Name:
+Template Documentation Generator
+
+Beschreibung:
+Ein internes Tool, das aus allen offiziellen Templates automatisch
+eine Entwicklerdokumentation mit Beispielen und Anwendungsfällen
+erzeugt.
+
+Status:
+Geplant
+
+Umsetzung:
+Nach Abschluss der Project-Templates-Phase.
