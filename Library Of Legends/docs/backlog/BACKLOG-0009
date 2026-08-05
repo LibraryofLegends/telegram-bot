@@ -12,3 +12,123 @@ Geplant
 
 Umsetzung:
 Nach Abschluss der Project-Templates-Phase.
+
+ID.................. BACKLOG-0009
+
+Name................ Workflow Visualizer
+
+Kategorie........... Documentation Tools
+
+Epic................ Developer Toolchain
+
+Toolchain........... Documentation Automation
+
+Owner............... Documentation
+
+Status.............. 📋 Approved
+
+Priorität........... 🟡 P2 (Medium)
+
+Erstellt............ 2026-08-05
+
+Verantwortlich...... Project Phoenix
+
+Implementierungsaufwand
+
+⭐⭐⭐☆☆
+
+Mittel
+
+✅ Workflow Templates
+
+↓
+
+⬜ Framework Core
+
+↓
+
+⬜ Mehrere produktive Workflows
+
+Documentation Tools
+
+Nach Framework Core
+
+✅ Foundation
+
+✅ Standards
+
+✅ Workflow Templates
+
+⬜ Framework Core
+
+⬜ Erste produktive Workflows
+
+📝 Spezifiziert
+
+Status
+
+✅ Genehmigt
+
+Umsetzung
+
+Nach Framework Core
+
+Kurzfristig
+
+★★★☆☆
+
+Langfristig
+
+★★★★☆
+
+Nutzen
+
+★★★★☆
+
+Aufwand
+
+★★★☆☆
+
+Priorität
+
+🟡 P2
+
+• Gute Dokumentation ist nicht nur vollständig, sondern auch leicht verständlich.
+• Visualisierungen ergänzen Text und erleichtern die Kommunikation komplexer Abläufe.
+• Diagramme sollten automatisch aus der Dokumentation entstehen, damit sie immer aktuell bleiben.
+• Dokumentation und Visualisierung sollten aus derselben Quelle erzeugt werden ("Single Source of Truth").
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BACKLOG GOVERNANCE
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ BACKLOG-0001
+✅ BACKLOG-0002
+✅ BACKLOG-0003
+✅ BACKLOG-0004
+✅ BACKLOG-0005
+✅ BACKLOG-0006
+✅ BACKLOG-0007
+✅ BACKLOG-0008
+✅ BACKLOG-0009
+
+⬜ BACKLOG-0010
+⬜ BACKLOG-0011
+⬜ BACKLOG-0012
+⬜ BACKLOG-0013
+⬜ BACKLOG-0014
+⬜ BACKLOG-0015
+⬜ BACKLOG-0016
+⬜ BACKLOG-0017
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Progress
+
+████████░░
+
+53 %
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
