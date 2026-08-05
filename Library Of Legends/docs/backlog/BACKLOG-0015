@@ -1,0 +1,13 @@
+Name:
+Generic Repository Framework
+
+Beschreibung:
+Entwicklung einer gemeinsamen Repository-Basis mit Unterstützung für
+PostgreSQL, SQLite, JSON und zukünftige Speicherlösungen über eine
+einheitliche API.
+
+Status:
+Geplant
+
+Umsetzung:
+Nach Abschluss der Framework-Core-Phase.
