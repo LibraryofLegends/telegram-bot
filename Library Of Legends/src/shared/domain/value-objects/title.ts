@@ -33,22 +33,46 @@ Represents an immutable media title.
 ===============================================================================
 */
 
+import { ValueObject } from "./value-object";
+
 /**
  * Represents the title of a media item.
  */
-export class Title {
+export class Title extends ValueObject<string> {
 
     /**
-     * Internal title value.
+     * Maximum supported title length.
      */
-    public readonly value: string;
+    public static readonly MAX_LENGTH = 300;
 
     /**
-     * Creates a new title.
+     * Creates a new Title.
      *
-     * @param value Title text.
+     * @param value Raw title.
      */
     public constructor(value: string) {
+
+        super(
+            Title.normalize(
+                Title.validate(value)
+            )
+        );
+
+    }
+
+    /**
+     * Returns the title as a string.
+     */
+    public override toString(): string {
+
+        return this.getValue();
+
+    }
+
+    /**
+     * Validates the supplied title.
+     */
+    private static validate(value: string): string {
 
         const normalized = value.trim();
 
@@ -56,33 +80,22 @@ export class Title {
             throw new Error("Title cannot be empty.");
         }
 
-        if (normalized.length > 300) {
-            throw new Error("Title exceeds the maximum length.");
+        if (normalized.length > Title.MAX_LENGTH) {
+            throw new Error(
+                `Title exceeds ${Title.MAX_LENGTH} characters.`
+            );
         }
 
-        this.value = normalized;
-
-        Object.freeze(this);
+        return normalized;
 
     }
 
     /**
-     * Compares two titles.
-     *
-     * @param other Another title.
+     * Normalizes the title.
      */
-    public equals(other: Title): boolean {
+    private static normalize(value: string): string {
 
-        return this.value === other.value;
-
-    }
-
-    /**
-     * Returns the title as a string.
-     */
-    public toString(): string {
-
-        return this.value;
+        return value.replace(/\s+/g, " ");
 
     }
 
