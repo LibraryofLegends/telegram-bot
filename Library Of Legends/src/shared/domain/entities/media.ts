@@ -20,7 +20,7 @@ File................: media.ts
 Location............
 Library Of Legends/src/shared/domain/entities/
 
-Version.............: 1.0.0
+Version.............: 2.0.0
 
 Status..............: Stable
 
@@ -36,10 +36,8 @@ Base entity for all media types.
 import { Entity } from "./entity";
 
 import { MediaId } from "../identifiers/media-id";
-
 import { Title } from "../value-objects/title";
 import { Year } from "../value-objects/year";
-import { Runtime } from "../value-objects/runtime";
 
 /**
  * Base entity for all media.
@@ -49,8 +47,7 @@ export abstract class Media extends Entity<MediaId> {
     protected constructor(
         id: MediaId,
         public readonly title: Title,
-        public readonly year: Year,
-        public readonly runtime: Runtime
+        public readonly year: Year
     ) {
 
         super(id);
