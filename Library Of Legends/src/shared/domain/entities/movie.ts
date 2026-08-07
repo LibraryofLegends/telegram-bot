@@ -20,7 +20,7 @@ File................: movie.ts
 Location............
 Library Of Legends/src/shared/domain/entities/
 
-Version.............: 1.1.0
+Version.............: 2.0.0
 
 Status..............: Stable
 
@@ -37,6 +37,9 @@ import { Media } from "./media";
 
 import { MovieId } from "../identifiers/movie-id";
 
+import { Language } from "../value-objects/language";
+import { Rating } from "../value-objects/rating";
+import { Resolution } from "../value-objects/resolution";
 import { Runtime } from "../value-objects/runtime";
 import { Title } from "../value-objects/title";
 import { Year } from "../value-objects/year";
@@ -50,14 +53,16 @@ export class Movie extends Media {
         id: MovieId,
         title: Title,
         year: Year,
-        runtime: Runtime
+        public readonly runtime: Runtime,
+        public readonly language?: Language,
+        public readonly rating?: Rating,
+        public readonly resolution?: Resolution
     ) {
 
         super(
             id,
             title,
-            year,
-            runtime
+            year
         );
 
     }
