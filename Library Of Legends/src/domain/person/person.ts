@@ -20,7 +20,7 @@ File................: person.ts
 Location............
 Library Of Legends/src/domain/person/
 
-Version.............: 1.0.0
+Version.............: 2.0.0
 
 Status..............: Stable
 
@@ -36,8 +36,7 @@ Represents a person within the media library.
 import { Entity } from "../../shared/domain/entities/entity";
 
 import { PersonId } from "./person-id";
-
-import { Title } from "../../shared/domain/value-objects/title";
+import { PersonName } from "./person-name";
 
 /**
  * Represents a person.
@@ -46,10 +45,19 @@ export class Person extends Entity<PersonId> {
 
     public constructor(
         id: PersonId,
-        public readonly name: Title
+        public readonly name: PersonName
     ) {
 
         super(id);
+
+    }
+
+    /**
+     * Returns the person's display name.
+     */
+    public get displayName(): string {
+
+        return this.name.toString();
 
     }
 
