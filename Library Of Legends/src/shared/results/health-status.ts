@@ -13,7 +13,7 @@ Module..............: Shared Results
 
 Module ID...........: LOL-MOD-RES-0001
 
-LOL-ID..............: LOL-RES-0001
+LOL-ID..............: LOL-RES-0003
 
 File................: health-status.ts
 
@@ -28,15 +28,18 @@ Lifecycle...........: Development
 
 Description.........
 
-Represents the result of a runtime health check.
+Represents the result of a component health check.
 
 ===============================================================================
 */
 
+import type { OperationResult } from "./operation-result";
+
 /**
- * Represents the health state of a component.
+ * Represents the health status of a component.
  */
-export interface HealthStatus {
+export interface HealthStatus
+    extends OperationResult<void> {
 
     /**
      * Indicates whether the component is healthy.
@@ -44,13 +47,8 @@ export interface HealthStatus {
     readonly healthy: boolean;
 
     /**
-     * Optional status message.
+     * Optional component name.
      */
-    readonly message?: string;
-
-    /**
-     * Optional timestamp when the health check was performed.
-     */
-    readonly checkedAt: Date;
+    readonly component?: string;
 
 }
