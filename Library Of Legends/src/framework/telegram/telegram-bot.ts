@@ -20,48 +20,33 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 2.6.0
+Version.............: 3.0.0
 
-Status..............: Core
+Status..............: CORE SYSTEM (FILE-ID ENABLED)
 
-Lifecycle...........: Development
+Lifecycle...........: Production
 
 Description.........
 
 Telegram Bot with:
-- VIDEO + DOCUMENT support
-- TMDB integration
-- Channel routing (Movies / Series)
-- Database persistence (PostgreSQL)
-- /find command with interactive buttons
-- Callback system (Download vorbereitet)
+- File Upload Detection
+- Auto Save to Database
+- Search System (/find)
+- File-ID Playback System
 
 ===============================================================================
 */
 
 import { Telegraf } from "telegraf";
-
-import { MediaTypeDetector } from "../../domain/media/detection/media-type-detector";
-import { SeriesDetector } from "../../domain/media/detection/series-detector";
-
-import { SeriesTopicManager } from "./series-topic-manager";
-import { TMDBClient } from "../../infrastructure/api/tmdb/tmdb-client";
 import { LibraryRepository } from "../../infrastructure/database/library-repository";
+import { SearchCommand } from "./commands/search-command";
 
-import { FindCommand } from "../../application/telegram/commands/find-command";
-
-/**
- * Telegram Bot
- */
 export class TelegramBot {
 
     private bot: Telegraf;
-
     private adminIds: number[];
-    private movieChannelId: string;
-    private seriesChannelId: string;
 
-    public constructor(token: string) {
+    constructor(token: string) {
 
         this.bot = new Telegraf(token);
 
@@ -70,206 +55,72 @@ export class TelegramBot {
             .map(id => Number(id.trim()))
             .filter(id => !isNaN(id));
 
-        this.movieChannelId = process.env.MOVIE_GROUP_ID || "";
-        this.seriesChannelId = process.env.SERIES_GROUP_ID || "";
-
         this.setup();
     }
 
-    /**
-     * Setup bot handlers
-     */
     private setup(): void {
 
         // =========================================================================
         // START
         // =========================================================================
+
         this.bot.start((ctx) => {
             ctx.reply("🚀 Library Of Legends Bot (FULL SYSTEM AKTIV)");
         });
 
         // =========================================================================
-        // FIND COMMAND 🔍
+        // COMMANDS
         // =========================================================================
-        this.bot.command("find", async (ctx) => {
 
-            const text = ctx.message.text;
-            const query = text.replace("/find", "").trim();
-
-            const result = await FindCommand.execute(query);
-
-            await ctx.reply(result.text, {
-                reply_markup: {
-                    inline_keyboard: result.buttons
-                }
-            });
-
-        });
+        SearchCommand.register(this.bot);
 
         // =========================================================================
-        // CALLBACK HANDLER 🔥
+        // FILE UPLOAD
         // =========================================================================
-        this.bot.on("callback_query", async (ctx) => {
 
-            const data = (ctx.callbackQuery as any).data;
-
-            if (!data) return;
-
-            // DOWNLOAD BUTTON
-            if (data.startsWith("download_")) {
-
-                const id = data.replace("download_", "");
-
-                await ctx.answerCbQuery("📥 Download Feature kommt gleich 😉");
-
-                console.log("Download requested for ID:", id);
-
-                // 👉 Nächster Step:
-                // DB → Datei holen → Telegram senden
-
-            }
-
-        });
-
-        // =========================================================================
-        // DOCUMENT HANDLER
-        // =========================================================================
         this.bot.on("document", async (ctx) => {
 
-            const fileName = ctx.message.document.file_name;
-            await this.handleFile(ctx, fileName);
+            const userId = ctx.from?.id;
 
-        });
-
-        // =========================================================================
-        // VIDEO HANDLER 🔥
-        // =========================================================================
-        this.bot.on("video", async (ctx) => {
-
-            const video = ctx.message.video;
-
-            const fileName =
-                video.file_name || `video_${Date.now()}.mp4`;
-
-            await this.handleFile(ctx, fileName);
-
-        });
-
-    }
-
-    /**
-     * Core file handler
-     */
-    private async handleFile(ctx: any, fileName?: string) {
-
-        const userId = ctx.from?.id;
-
-        // 🔐 Admin Only
-        if (!userId || !this.adminIds.includes(userId)) {
-            return;
-        }
-
-        if (!fileName) {
-            return ctx.reply("❌ Kein Dateiname erkannt.");
-        }
-
-        try {
-
-            // =========================================================================
-            // DETECT TYPE
-            // =========================================================================
-            const type = MediaTypeDetector.detect(fileName);
-
-            let title = fileName;
-
-            if (type === "SERIES") {
-                const info = SeriesDetector.detect(fileName);
-                if (info) {
-                    title = info.title;
-                }
+            if (!userId || !this.adminIds.includes(userId)) {
+                return;
             }
 
-            // =========================================================================
-            // TMDB FETCH
-            // =========================================================================
-            let tmdb = null;
+            const file = ctx.message.document;
+            const fileName = file.file_name || "Unbekannt";
+            const fileId = file.file_id;
 
             try {
-                tmdb = type === "MOVIE"
-                    ? await TMDBClient.searchMovie(title)
-                    : await TMDBClient.searchSeries(title);
-            } catch (e) {
-                console.warn("TMDB Fehler:", e);
-            }
 
-            // =========================================================================
-            // BUILD CAPTION
-            // =========================================================================
-            let caption = `🎬 ${title}`;
+                const title = fileName.replace(/\.[^/.]+$/, "");
 
-            if (tmdb?.overview) {
-                caption += `\n\n📝 ${tmdb.overview.substring(0, 300)}...`;
-            }
+                const type = fileName.toLowerCase().includes("s01")
+                    ? "SERIES"
+                    : "MOVIE";
 
-            // =========================================================================
-            // SEND TO CHANNEL
-            // =========================================================================
-
-            if (type === "MOVIE") {
-
-                await this.bot.telegram.sendMessage(
-                    this.movieChannelId,
-                    caption
+                await LibraryRepository.save(
+                    title,
+                    fileName,
+                    type,
+                    fileId
                 );
 
-            } else if (type === "SERIES") {
+                await ctx.reply("✅ Datei verarbeitet & gespeichert!");
 
-                const seriesInfo = SeriesDetector.detect(fileName);
+            } catch (error) {
 
-                if (!seriesInfo) {
-                    throw new Error("❌ Series nicht erkannt");
-                }
+                console.error(error);
+                await ctx.reply("❌ Fehler beim Speichern.");
 
-                const threadId = await SeriesTopicManager.getOrCreateTopic(
-                    this.bot,
-                    this.seriesChannelId,
-                    seriesInfo.title
-                );
-
-                await this.bot.telegram.sendMessage(
-                    this.seriesChannelId,
-                    caption,
-                    {
-                        message_thread_id: threadId
-                    }
-                );
             }
 
-            // =========================================================================
-            // 💾 SAVE TO DATABASE
-            // =========================================================================
-            await LibraryRepository.save(title, fileName, type);
-
-            // =========================================================================
-            // RESPONSE
-            // =========================================================================
-            await ctx.reply("✅ Datei verarbeitet & gespeichert!");
-
-        } catch (error) {
-
-            console.error(error);
-            await ctx.reply("❌ Fehler beim Verarbeiten.");
-
-        }
+        });
 
     }
 
-    /**
-     * Launch bot
-     */
     public launch(): void {
         this.bot.launch();
-        console.log("🤖 Bot gestartet (FULL SYSTEM + BUTTONS)");
+        console.log("🤖 Bot gestartet (FULL SYSTEM)");
     }
 
 }
