@@ -20,7 +20,7 @@ File................: media-file.ts
 Location............
 Library Of Legends/src/domain/media/media-file/
 
-Version.............: 1.0.0
+Version.............: 2.0.0
 
 Status..............: Core
 
@@ -28,7 +28,8 @@ Lifecycle...........: Development
 
 Description.........
 
-Central media aggregate with intelligent scoring system.
+Central media aggregate with intelligent scoring system
++ multi-stream support + display engine.
 
 ===============================================================================
 */
@@ -192,10 +193,70 @@ export class MediaFile extends Entity<EntityId> {
         if (stream.language.isEnglish()) score += 60;
 
         // Format
-        if (stream.format.isImage()) score += 40; // PGS
+        if (stream.format.isImage()) score += 40;
         if (stream.format.isText()) score += 20;
 
         return score;
+
+    }
+
+    // =========================================================================
+    // DISPLAY ENGINE
+    // =========================================================================
+
+    public getVideoSummary(): string {
+
+        const video = this.getBestVideo();
+
+        if (!video) return "🎬 Unknown";
+
+        return `🎬 ${video.resolution.toString()} | ${video.codec.toString()}`;
+
+    }
+
+    public getAudioSummary(): string[] {
+
+        if (this.audioStreams.length === 0) return [];
+
+        const best = this.getBestAudio();
+
+        return this.audioStreams.map(stream => {
+
+            const isBest = best?.equals(stream);
+
+            return `🔊 ${stream.language.toString()} | ${stream.codec.toString()} ${stream.channels.toString()}${isBest ? " ⭐" : ""}`;
+
+        });
+
+    }
+
+    public getSubtitleSummary(): string[] {
+
+        if (this.subtitleStreams.length === 0) return [];
+
+        const best = this.getBestSubtitles();
+
+        return this.subtitleStreams.map(stream => {
+
+            const isBest = best?.equals(stream);
+
+            return `💬 ${stream.language.toString()} (${stream.type.toString()})${isBest ? " ⭐" : ""}`;
+
+        });
+
+    }
+
+    public toDisplayString(): string {
+
+        const lines: string[] = [];
+
+        lines.push(this.getVideoSummary());
+
+        lines.push(...this.getAudioSummary());
+
+        lines.push(...this.getSubtitleSummary());
+
+        return lines.join("\n");
 
     }
 
