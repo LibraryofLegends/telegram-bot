@@ -16,13 +16,7 @@
   },
 
   "include": [
-    "src/main.ts",
-    "src/framework/telegram/**/*",
-    "src/application/telegram/**/*",
-    "src/domain/media/media-file/**/*",
-    "src/domain/media/detection/**/*",
-    "src/domain/library/**/*",
-    "src/infrastructure/**/*"
+    "src/**/*"
   ],
 
   "exclude": [
