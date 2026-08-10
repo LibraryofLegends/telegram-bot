@@ -17,15 +17,19 @@
 
   "include": [
     "src/main.ts",
-    "src/framework/**/*",
-    "src/application/**/*",
-    "src/domain/media/**/*",
+    "src/framework/telegram/**/*",
+    "src/application/telegram/**/*",
+    "src/domain/media/media-file/**/*",
+    "src/domain/media/parser/**/*",
+    "src/domain/media/detection/**/*",
     "src/domain/library/**/*",
     "src/infrastructure/**/*"
   ],
 
   "exclude": [
     "**/*.test.ts",
+    "src/domain/media/episode/**/*",
+    "src/domain/media/season/**/*",
     "src/domain/catalog/**/*",
     "src/domain/movie/**/*",
     "src/domain/person/**/*",
@@ -33,6 +37,7 @@
     "src/domain/genre/**/*",
     "src/domain/collection/**/*",
     "src/domain/credit/**/*",
+    "src/framework/lifecycle/**/*",
     "src/shared/**/*",
     "node_modules",
     "dist"
