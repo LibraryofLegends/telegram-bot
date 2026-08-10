@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 2.3.0
+Version.............: 3.0.0
 
 Status..............: Core
 
@@ -28,7 +28,7 @@ Lifecycle...........: Development
 
 Description.........
 
-Telegram Bot with TMDB integration + Library Storage.
+Telegram Bot with TMDB + Database persistence.
 
 ===============================================================================
 */
@@ -44,7 +44,8 @@ import { SeriesPostBuilder } from "../../application/telegram/series-post-builde
 import { SeriesTopicManager } from "./series-topic-manager";
 import { TMDBClient } from "../../infrastructure/api/tmdb/tmdb-client";
 
-import { LibraryStore } from "../../domain/library/library-store";
+import { LibraryId } from "../../domain/library/library-id";
+import { LibraryRepository } from "../../infrastructure/database/library-repository";
 
 /**
  * Telegram Bot
@@ -75,7 +76,7 @@ export class TelegramBot {
     private setup(): void {
 
         this.bot.start((ctx) => {
-            ctx.reply("🚀 Library Of Legends Bot (Archiv aktiv).");
+            ctx.reply("🚀 Library Of Legends Bot (DB aktiv).");
         });
 
         this.bot.on("document", async (ctx) => {
@@ -97,7 +98,6 @@ export class TelegramBot {
 
                 const type = MediaTypeDetector.detect(fileName);
 
-                // 🔥 Titel bestimmen
                 let title = fileName;
 
                 if (type === "SERIES") {
@@ -108,13 +108,21 @@ export class TelegramBot {
                 }
 
                 // =========================================================================
-                // 🔥 SPEICHERN IN LIBRARY
+                // 🔥 DATABASE SAVE
                 // =========================================================================
 
-                const item = LibraryStore.add(title, type, fileName);
+                const item = {
+                    id: LibraryId.next(),
+                    title,
+                    type,
+                    fileName,
+                    createdAt: new Date()
+                };
+
+                await LibraryRepository.save(item);
 
                 // =========================================================================
-                // 🔥 DUMMY MEDIA (später ersetzen)
+                // BUILD POST
                 // =========================================================================
 
                 const media: any = {
@@ -123,23 +131,14 @@ export class TelegramBot {
                     getSubtitleSummary: () => []
                 };
 
-                // =========================================================================
-                // BUILD POST
-                // =========================================================================
+                let post = type === "MOVIE"
+                    ? TelegramPostBuilder.build(media, title)
+                    : SeriesPostBuilder.build(title, media);
 
-                let post = "";
-
-                if (type === "MOVIE") {
-                    post = TelegramPostBuilder.build(media, title);
-                } else {
-                    post = SeriesPostBuilder.build(title, media);
-                }
-
-                // 🔥 ID in Post einbauen
                 post += `\n\n🆔 ${item.id}`;
 
                 // =========================================================================
-                // TMDB FETCH
+                // TMDB
                 // =========================================================================
 
                 let tmdb = null;
@@ -164,11 +163,9 @@ export class TelegramBot {
 
                     if (tmdb?.posterPath) {
 
-                        const posterUrl = `https://image.tmdb.org/t/p/w500${tmdb.posterPath}`;
-
                         await this.bot.telegram.sendPhoto(
                             this.movieChannelId,
-                            posterUrl,
+                            `https://image.tmdb.org/t/p/w500${tmdb.posterPath}`,
                             { caption }
                         );
 
@@ -183,25 +180,23 @@ export class TelegramBot {
 
                 } else {
 
-                    const seriesInfo = SeriesDetector.detect(fileName);
+                    const info = SeriesDetector.detect(fileName);
 
-                    if (!seriesInfo) {
+                    if (!info) {
                         throw new Error("❌ Series nicht erkannt");
                     }
 
                     const threadId = await SeriesTopicManager.getOrCreateTopic(
                         this.bot,
                         this.seriesChannelId,
-                        seriesInfo.title
+                        info.title
                     );
 
                     if (tmdb?.posterPath) {
 
-                        const posterUrl = `https://image.tmdb.org/t/p/w500${tmdb.posterPath}`;
-
                         await this.bot.telegram.sendPhoto(
                             this.seriesChannelId,
-                            posterUrl,
+                            `https://image.tmdb.org/t/p/w500${tmdb.posterPath}`,
                             {
                                 caption,
                                 message_thread_id: threadId
@@ -222,7 +217,7 @@ export class TelegramBot {
 
                 }
 
-                await ctx.reply(`✅ Gespeichert: ${item.id}`);
+                await ctx.reply(`✅ Gespeichert (DB): ${item.id}`);
 
             } catch (error) {
 
@@ -235,9 +230,14 @@ export class TelegramBot {
 
     }
 
-    public launch(): void {
+    public async launch(): Promise<void> {
+
+        // 🔥 Tabelle initialisieren
+        await LibraryRepository.init();
+
         this.bot.launch();
-        console.log("🤖 Bot gestartet (Archiv aktiv)");
+
+        console.log("🤖 Bot gestartet (DB aktiv)");
     }
 
 }
