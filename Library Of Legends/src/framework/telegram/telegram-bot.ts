@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 2.3.0
+Version.............: 2.4.0
 
 Status..............: Core
 
@@ -28,7 +28,11 @@ Lifecycle...........: Development
 
 Description.........
 
-Telegram Bot (STABLE BUILD) – ohne MediaParser
+Telegram Bot with:
+- VIDEO + DOCUMENT support
+- TMDB integration
+- Channel routing (Movies / Series)
+- Auto database persistence (PostgreSQL)
 
 ===============================================================================
 */
@@ -40,7 +44,11 @@ import { SeriesDetector } from "../../domain/media/detection/series-detector";
 
 import { SeriesTopicManager } from "./series-topic-manager";
 import { TMDBClient } from "../../infrastructure/api/tmdb/tmdb-client";
+import { LibraryRepository } from "../../infrastructure/database/library-repository";
 
+/**
+ * Telegram Bot
+ */
 export class TelegramBot {
 
     private bot: Telegraf;
@@ -64,31 +72,49 @@ export class TelegramBot {
         this.setup();
     }
 
+    /**
+     * Setup bot handlers
+     */
     private setup(): void {
 
         this.bot.start((ctx) => {
-            ctx.reply("🚀 Library Of Legends Bot (STABLE)");
+            ctx.reply("🚀 Library Of Legends Bot (DB aktiv)");
         });
 
-        // DOCUMENT
+        // =========================================================================
+        // DOCUMENT HANDLER
+        // =========================================================================
         this.bot.on("document", async (ctx) => {
+
             const fileName = ctx.message.document.file_name;
             await this.handleFile(ctx, fileName);
+
         });
 
-        // VIDEO 🔥
+        // =========================================================================
+        // VIDEO HANDLER 🔥
+        // =========================================================================
         this.bot.on("video", async (ctx) => {
+
             const video = ctx.message.video;
-            const fileName = video.file_name || `video_${Date.now()}.mp4`;
+
+            const fileName =
+                video.file_name || `video_${Date.now()}.mp4`;
+
             await this.handleFile(ctx, fileName);
+
         });
 
     }
 
+    /**
+     * Core file handler
+     */
     private async handleFile(ctx: any, fileName?: string) {
 
         const userId = ctx.from?.id;
 
+        // 🔐 Admin Check
         if (!userId || !this.adminIds.includes(userId)) {
             return;
         }
@@ -98,6 +124,10 @@ export class TelegramBot {
         }
 
         try {
+
+            // =========================================================================
+            // DETECT TYPE
+            // =========================================================================
 
             const type = MediaTypeDetector.detect(fileName);
 
@@ -110,13 +140,23 @@ export class TelegramBot {
                 }
             }
 
+            // =========================================================================
+            // TMDB FETCH
+            // =========================================================================
+
             let tmdb = null;
 
             try {
                 tmdb = type === "MOVIE"
                     ? await TMDBClient.searchMovie(title)
                     : await TMDBClient.searchSeries(title);
-            } catch {}
+            } catch (e) {
+                console.warn("TMDB Fehler:", e);
+            }
+
+            // =========================================================================
+            // BUILD CAPTION
+            // =========================================================================
 
             let caption = `🎬 ${title}`;
 
@@ -124,7 +164,10 @@ export class TelegramBot {
                 caption += `\n\n📝 ${tmdb.overview.substring(0, 300)}...`;
             }
 
-            // SEND
+            // =========================================================================
+            // SEND TO CHANNEL
+            // =========================================================================
+
             if (type === "MOVIE") {
 
                 await this.bot.telegram.sendMessage(
@@ -155,7 +198,17 @@ export class TelegramBot {
                 );
             }
 
-            await ctx.reply("✅ Datei verarbeitet!");
+            // =========================================================================
+            // 💾 SAVE TO DATABASE
+            // =========================================================================
+
+            await LibraryRepository.save(title, fileName, type);
+
+            // =========================================================================
+            // RESPONSE
+            // =========================================================================
+
+            await ctx.reply("✅ Datei verarbeitet & gespeichert!");
 
         } catch (error) {
 
@@ -166,9 +219,12 @@ export class TelegramBot {
 
     }
 
+    /**
+     * Launch bot
+     */
     public launch(): void {
         this.bot.launch();
-        console.log("🤖 Bot gestartet (STABLE)");
+        console.log("🤖 Bot gestartet (DB aktiv)");
     }
 
 }
