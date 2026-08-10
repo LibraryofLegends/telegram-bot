@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 1.2.0
+Version.............: 1.3.0
 
 Status..............: Core
 
@@ -29,7 +29,7 @@ Lifecycle...........: Development
 Description.........
 
 Telegram Bot with admin protection, auto parsing,
-and intelligent channel routing (movie / series).
+media detection, intelligent routing and post builder selection.
 
 ===============================================================================
 */
@@ -37,8 +37,10 @@ and intelligent channel routing (movie / series).
 import { Telegraf } from "telegraf";
 
 import { MediaParser } from "../../domain/media/parser/media-parser";
-import { TelegramPostBuilder } from "../../application/telegram/telegram-post-builder";
 import { MediaTypeDetector } from "../../domain/media/detection/media-type-detector";
+
+import { TelegramPostBuilder } from "../../application/telegram/telegram-post-builder";
+import { SeriesPostBuilder } from "../../application/telegram/series-post-builder";
 
 /**
  * Telegram Bot
@@ -78,7 +80,7 @@ export class TelegramBot {
         // =========================================================================
 
         this.bot.start((ctx) => {
-            ctx.reply("🚀 Library Of Legends Bot aktiv (Routing aktiv).");
+            ctx.reply("🚀 Library Of Legends Bot aktiv (Smart System aktiv).");
         });
 
         // =========================================================================
@@ -89,7 +91,7 @@ export class TelegramBot {
 
             const userId = ctx.from?.id;
 
-            // ❌ Admin Check
+            // ❌ Admin Only
             if (!userId || !this.adminIds.includes(userId)) {
                 return;
             }
@@ -104,25 +106,33 @@ export class TelegramBot {
             try {
 
                 // =========================================================================
-                // DETECT TYPE 🔥
+                // DETECT TYPE
                 // =========================================================================
 
                 const type = MediaTypeDetector.detect(fileName);
 
                 // =========================================================================
-                // PARSE
+                // PARSE MEDIA
                 // =========================================================================
 
                 const media = MediaParser.parse(fileName);
 
                 // =========================================================================
-                // BUILD POST
+                // BUILD POST (SMART 🔥)
                 // =========================================================================
 
-                const post = TelegramPostBuilder.build(media, fileName);
+                let post = "";
+
+                if (type === "MOVIE") {
+                    post = TelegramPostBuilder.build(media, fileName);
+                }
+
+                if (type === "SERIES") {
+                    post = SeriesPostBuilder.build(fileName, media);
+                }
 
                 // =========================================================================
-                // ROUTING 🔥
+                // ROUTING
                 // =========================================================================
 
                 let targetChannel = "";
@@ -152,13 +162,13 @@ export class TelegramBot {
                 // FEEDBACK
                 // =========================================================================
 
-                await ctx.reply(`✅ ${type} wurde gepostet.`);
+                await ctx.reply(`✅ ${type} wurde intelligent gepostet.`);
 
             } catch (error) {
 
                 console.error(error);
 
-                await ctx.reply("❌ Fehler beim Posten.");
+                await ctx.reply("❌ Fehler beim Verarbeiten.");
 
             }
 
@@ -168,7 +178,7 @@ export class TelegramBot {
 
     public launch(): void {
         this.bot.launch();
-        console.log("🤖 Bot gestartet (Auto Routing aktiv)");
+        console.log("🤖 Bot gestartet (Smart Routing + Builder aktiv)");
     }
 
 }
