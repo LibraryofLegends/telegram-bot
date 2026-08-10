@@ -20,7 +20,7 @@ File................: library-repository.ts
 Location............
 Library Of Legends/src/infrastructure/database/
 
-Version.............: 9.0.0
+Version.............: 10.0.0
 
 Status..............: STABLE
 
@@ -29,6 +29,13 @@ Lifecycle...........: Production Ready
 Description.........
 
 FINAL stable PostgreSQL repository for Library Of Legends.
+
+NOW WITH:
+- Flexible getAll() filtering (Type + Limit)
+- Favorites system
+- Trending system
+- Telegram compatibility
+- Future-ready filtering
 
 ===============================================================================
 */
@@ -184,26 +191,52 @@ export class LibraryRepository {
     }
 
     // =========================================================================
-    // GET ALL (🔥 WICHTIG – FEHLTE!)
+    // 🔥 GET ALL (OPTION A – FIXED)
     // =========================================================================
 
-    public static async getAll() {
+    public static async getAll(
+        type?: LibraryMediaType,
+        limit?: number
+    ): Promise<LibraryRepositoryItem[]> {
 
         await this.init();
 
-        return (
-            await this.pool.query(`
-                SELECT * FROM library_items
-                ORDER BY created_at DESC
-            `)
-        ).rows;
+        let query = `
+            SELECT * FROM library_items
+        `;
+
+        const conditions: string[] = [];
+        const values: unknown[] = [];
+
+        // FILTER: TYPE
+        if (type) {
+            values.push(type);
+            conditions.push(`type = $${values.length}`);
+        }
+
+        // APPLY CONDITIONS
+        if (conditions.length > 0) {
+            query += ` WHERE ` + conditions.join(" AND ");
+        }
+
+        query += ` ORDER BY created_at DESC`;
+
+        // LIMIT
+        if (limit) {
+            values.push(limit);
+            query += ` LIMIT $${values.length}`;
+        }
+
+        const result = await this.pool.query(query, values);
+
+        return result.rows;
     }
 
     // =========================================================================
     // FAVORITES
     // =========================================================================
 
-    public static async getFavorites() {
+    public static async getFavorites(): Promise<LibraryRepositoryItem[]> {
 
         await this.init();
 
@@ -216,7 +249,7 @@ export class LibraryRepository {
         ).rows;
     }
 
-    public static async toggleFavorite(id: string) {
+    public static async toggleFavorite(id: string): Promise<void> {
 
         await this.init();
 
@@ -231,7 +264,7 @@ export class LibraryRepository {
     // SEARCH
     // =========================================================================
 
-    public static async search(query: string) {
+    public static async search(query: string): Promise<LibraryRepositoryItem[]> {
 
         await this.init();
 
@@ -249,37 +282,21 @@ export class LibraryRepository {
     // MOVIES / SERIES
     // =========================================================================
 
-    public static async getMovies() {
+    public static async getMovies(): Promise<LibraryRepositoryItem[]> {
 
-        await this.init();
-
-        return (
-            await this.pool.query(`
-                SELECT * FROM library_items
-                WHERE type = 'MOVIE'
-                ORDER BY created_at DESC
-            `)
-        ).rows;
+        return this.getAll("MOVIE");
     }
 
-    public static async getSeries() {
+    public static async getSeries(): Promise<LibraryRepositoryItem[]> {
 
-        await this.init();
-
-        return (
-            await this.pool.query(`
-                SELECT * FROM library_items
-                WHERE type = 'SERIES'
-                ORDER BY created_at DESC
-            `)
-        ).rows;
+        return this.getAll("SERIES");
     }
 
     // =========================================================================
     // TRENDING
     // =========================================================================
 
-    public static async getTrending() {
+    public static async getTrending(): Promise<LibraryRepositoryItem[]> {
 
         await this.init();
 
@@ -296,7 +313,7 @@ export class LibraryRepository {
     // VIEWS
     // =========================================================================
 
-    public static async increaseViews(id: string) {
+    public static async increaseViews(id: string): Promise<void> {
 
         await this.init();
 
