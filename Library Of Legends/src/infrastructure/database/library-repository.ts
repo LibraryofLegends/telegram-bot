@@ -5,22 +5,22 @@
 
 ===============================================================================
 
-Component...........: TopicRepository
+Component...........: LibraryRepository
 
 Architecture Layer..: Infrastructure
 
 Module..............: Database
 
-Module ID...........: LOL-MOD-DB-0002
+Module ID...........: LOL-MOD-DB-0001
 
-LOL-ID..............: LOL-DB-TOPIC-0001
+LOL-ID..............: LOL-DB-0001
 
-File................: topic-repository.ts
+File................: library-repository.ts
 
 Location............
 Library Of Legends/src/infrastructure/database/
 
-Version.............: 4.0.0
+Version.............: 9.0.0
 
 Status..............: STABLE
 
@@ -28,17 +28,7 @@ Lifecycle...........: Production Ready
 
 Description.........
 
-PostgreSQL Topic Repository for Library Of Legends.
-
-Responsibilities:
-
-- Persist Telegram forum topics
-- Prevent duplicate topics per chat
-- Store normalized names
-- Provide fast lookup (chat + series)
-- Provide thread ID mapping
-- Provide statistics
-- Handle migrations automatically
+FINAL stable PostgreSQL repository for Library Of Legends.
 
 ===============================================================================
 */
@@ -49,18 +39,22 @@ import { Pool } from "pg";
 // TYPES
 // ============================================================================
 
-export interface TopicEntity {
+export type LibraryMediaType =
+    | "MOVIE"
+    | "SERIES";
 
+export interface LibraryRepositoryItem {
     id: string;
-
-    chat_id: string;
-
-    name: string;
-
-    normalized_name: string;
-
-    message_thread_id: number;
-
+    title: string;
+    file_name: string;
+    type: LibraryMediaType;
+    file_id: string;
+    genre: string;
+    archive_id?: string;
+    telegram_chat_id?: string;
+    topic_id?: number;
+    views: number;
+    is_favorite: boolean;
     created_at: Date;
 }
 
@@ -68,7 +62,7 @@ export interface TopicEntity {
 // CLASS
 // ============================================================================
 
-export class TopicRepository {
+export class LibraryRepository {
 
     private static pool = new Pool({
         connectionString: process.env.DATABASE_URL,
@@ -90,218 +84,226 @@ export class TopicRepository {
         `);
 
         await this.pool.query(`
-            CREATE TABLE IF NOT EXISTS topics (
+            CREATE TABLE IF NOT EXISTS library_items (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-                chat_id TEXT NOT NULL,
-                name TEXT NOT NULL,
-                normalized_name TEXT NOT NULL,
-                message_thread_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                file_name TEXT UNIQUE NOT NULL,
+                type TEXT NOT NULL,
 
-                created_at TIMESTAMPTZ DEFAULT NOW(),
+                file_id TEXT NOT NULL,
+                genre TEXT DEFAULT 'Unbekannt',
 
-                UNIQUE(chat_id, normalized_name)
+                archive_id TEXT,
+                telegram_chat_id TEXT,
+                topic_id INTEGER,
+
+                views INTEGER DEFAULT 0,
+                is_favorite BOOLEAN DEFAULT FALSE,
+
+                created_at TIMESTAMPTZ DEFAULT NOW()
             );
         `);
 
-        await this.pool.query(`
-            CREATE INDEX IF NOT EXISTS idx_topics_chat
-            ON topics(chat_id);
-        `);
-
-        console.log("📌 Topic DB bereit.");
+        console.log("💾 DB bereit.");
         this.initialized = true;
     }
 
     // =========================================================================
-    // SAVE / UPSERT
+    // SAVE
     // =========================================================================
 
     public static async save(
-        chatId: string,
-        name: string,
-        normalizedName: string,
-        threadId: number
+        title: string,
+        fileName: string,
+        type: LibraryMediaType,
+        fileId: string,
+        options: {
+            genre?: string;
+            archiveId?: string;
+            telegramChatId?: string;
+            topicId?: number;
+        } = {}
     ): Promise<void> {
 
         await this.init();
 
+        const existing = await this.pool.query(
+            `SELECT * FROM library_items WHERE file_id = $1 LIMIT 1`,
+            [fileId]
+        );
+
+        if (existing.rows.length > 0) {
+
+            await this.pool.query(`
+                UPDATE library_items SET
+                    title = $1,
+                    file_name = $2,
+                    type = $3,
+                    genre = $4,
+                    archive_id = COALESCE($5, archive_id),
+                    telegram_chat_id = COALESCE($6, telegram_chat_id),
+                    topic_id = COALESCE($7, topic_id)
+                WHERE file_id = $8
+            `, [
+                title,
+                fileName,
+                type,
+                options.genre || "Unbekannt",
+                options.archiveId || null,
+                options.telegramChatId || null,
+                options.topicId || null,
+                fileId
+            ]);
+
+            return;
+        }
+
         await this.pool.query(`
-            INSERT INTO topics (
-                chat_id,
-                name,
-                normalized_name,
-                message_thread_id
+            INSERT INTO library_items (
+                title,
+                file_name,
+                type,
+                file_id,
+                genre,
+                archive_id,
+                telegram_chat_id,
+                topic_id
             )
-            VALUES ($1,$2,$3,$4)
-            ON CONFLICT (chat_id, normalized_name)
-            DO UPDATE SET
-                name = EXCLUDED.name,
-                message_thread_id = EXCLUDED.message_thread_id
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
         `, [
-            chatId,
-            name,
-            normalizedName,
-            threadId
+            title,
+            fileName,
+            type,
+            fileId,
+            options.genre || "Unbekannt",
+            options.archiveId || null,
+            options.telegramChatId || null,
+            options.topicId || null
         ]);
-
-        console.log("📌 Topic gespeichert/aktualisiert.");
     }
 
     // =========================================================================
-    // FIND BY SERIES
+    // GET ALL (🔥 WICHTIG – FEHLTE!)
     // =========================================================================
 
-    public static async find(
-        chatId: string,
-        normalizedName: string
-    ): Promise<TopicEntity | undefined> {
+    public static async getAll() {
 
         await this.init();
 
-        const result = await this.pool.query(`
-            SELECT * FROM topics
-            WHERE chat_id = $1
-            AND normalized_name = $2
-            LIMIT 1
-        `, [chatId, normalizedName]);
-
-        return result.rows[0];
+        return (
+            await this.pool.query(`
+                SELECT * FROM library_items
+                ORDER BY created_at DESC
+            `)
+        ).rows;
     }
 
     // =========================================================================
-    // FIND BY THREAD ID
+    // FAVORITES
     // =========================================================================
 
-    public static async findByThreadId(
-        chatId: string,
-        threadId: number
-    ): Promise<TopicEntity | undefined> {
+    public static async getFavorites() {
 
         await this.init();
 
-        const result = await this.pool.query(`
-            SELECT * FROM topics
-            WHERE chat_id = $1
-            AND message_thread_id = $2
-            LIMIT 1
-        `, [chatId, threadId]);
+        return (
+            await this.pool.query(`
+                SELECT * FROM library_items
+                WHERE is_favorite = true
+                ORDER BY created_at DESC
+            `)
+        ).rows;
+    }
 
-        return result.rows[0];
+    public static async toggleFavorite(id: string) {
+
+        await this.init();
+
+        await this.pool.query(`
+            UPDATE library_items
+            SET is_favorite = NOT is_favorite
+            WHERE id = $1
+        `, [id]);
     }
 
     // =========================================================================
-    // GET ALL FOR CHAT
+    // SEARCH
     // =========================================================================
 
-    public static async getAllForChat(
-        chatId: string
-    ): Promise<TopicEntity[]> {
+    public static async search(query: string) {
 
         await this.init();
 
-        const result = await this.pool.query(`
-            SELECT * FROM topics
-            WHERE chat_id = $1
-            ORDER BY name ASC
-        `, [chatId]);
-
-        return result.rows;
+        return (
+            await this.pool.query(`
+                SELECT * FROM library_items
+                WHERE LOWER(title) LIKE LOWER($1)
+                ORDER BY created_at DESC
+                LIMIT 20
+            `, [`%${query}%`])
+        ).rows;
     }
 
     // =========================================================================
-    // DELETE
+    // MOVIES / SERIES
     // =========================================================================
 
-    public static async remove(
-        chatId: string,
-        normalizedName: string
-    ): Promise<boolean> {
+    public static async getMovies() {
 
         await this.init();
 
-        const result = await this.pool.query(`
-            DELETE FROM topics
-            WHERE chat_id = $1
-            AND normalized_name = $2
-        `, [chatId, normalizedName]);
+        return (
+            await this.pool.query(`
+                SELECT * FROM library_items
+                WHERE type = 'MOVIE'
+                ORDER BY created_at DESC
+            `)
+        ).rows;
+    }
 
-        return result.rowCount > 0;
+    public static async getSeries() {
+
+        await this.init();
+
+        return (
+            await this.pool.query(`
+                SELECT * FROM library_items
+                WHERE type = 'SERIES'
+                ORDER BY created_at DESC
+            `)
+        ).rows;
     }
 
     // =========================================================================
-    // CLEAR CHAT
+    // TRENDING
     // =========================================================================
 
-    public static async clearChat(
-        chatId: string
-    ): Promise<number> {
+    public static async getTrending() {
 
         await this.init();
 
-        const result = await this.pool.query(`
-            DELETE FROM topics
-            WHERE chat_id = $1
-        `, [chatId]);
-
-        return result.rowCount ?? 0;
+        return (
+            await this.pool.query(`
+                SELECT * FROM library_items
+                ORDER BY views DESC
+                LIMIT 10
+            `)
+        ).rows;
     }
 
     // =========================================================================
-    // COUNT ALL
+    // VIEWS
     // =========================================================================
 
-    public static async count(): Promise<number> {
+    public static async increaseViews(id: string) {
 
         await this.init();
 
-        const result = await this.pool.query(`
-            SELECT COUNT(*)::int AS count FROM topics
-        `);
-
-        return result.rows[0]?.count ?? 0;
-    }
-
-    // =========================================================================
-    // COUNT PER CHAT
-    // =========================================================================
-
-    public static async countForChat(
-        chatId: string
-    ): Promise<number> {
-
-        await this.init();
-
-        const result = await this.pool.query(`
-            SELECT COUNT(*)::int AS count
-            FROM topics
-            WHERE chat_id = $1
-        `, [chatId]);
-
-        return result.rows[0]?.count ?? 0;
-    }
-
-    // =========================================================================
-    // STATISTICS
-    // =========================================================================
-
-    public static async getStatistics(): Promise<{
-        total: number;
-        chats: number;
-    }> {
-
-        await this.init();
-
-        const total = await this.count();
-
-        const chatsResult = await this.pool.query(`
-            SELECT COUNT(DISTINCT chat_id)::int AS count
-            FROM topics
-        `);
-
-        return {
-            total,
-            chats: chatsResult.rows[0]?.count ?? 0
-        };
+        await this.pool.query(`
+            UPDATE library_items
+            SET views = views + 1
+            WHERE id = $1
+        `, [id]);
     }
 }
