@@ -20,7 +20,7 @@ File................: tmdb-client.ts
 Location............
 Library Of Legends/src/infrastructure/tmdb/
 
-Version.............: 2.0.0
+Version.............: 3.0.0
 
 Status..............: Core
 
@@ -28,7 +28,7 @@ Lifecycle...........: Development
 
 Description.........
 
-TMDB integration for Library Of Legends.
+The official TMDB integration layer for Library Of Legends.
 
 Responsibilities:
 
@@ -36,22 +36,28 @@ Responsibilities:
 - Search TV series
 - Retrieve movie details
 - Retrieve TV series details
-- Retrieve episode details
-- Retrieve ratings
-- Retrieve overview
-- Retrieve release information
-- Retrieve country information
-- Retrieve runtime
+- Retrieve movie credits
+- Retrieve TV credits
+- Retrieve poster URLs
+- Retrieve backdrop URLs
 - Retrieve genres
-- Retrieve directors
-- Retrieve cast
-- Work safely without a TMDB API key
-- Never crash the Telegram bot because TMDB is unavailable
-- Provide normalized metadata to the Catalog layer
+- Retrieve ratings
+- Retrieve release dates
+- Retrieve descriptions
+- Support German metadata
+- Support English fallback metadata
+- Never crash the Telegram bot when TMDB is unavailable
+- Provide clean normalized metadata
+- Use TMDB API v3
 
-Environment variable:
+Environment:
 
 TMDB_API_KEY
+
+Optional:
+
+TMDB_LANGUAGE
+TMDB_IMAGE_LANGUAGE
 
 ===============================================================================
 */
@@ -59,140 +65,17 @@ TMDB_API_KEY
 import https from "https";
 
 /**
- * Generic TMDB response.
+ * TMDB image base URL.
  */
-interface TMDBResponse<T> {
-
-    page?: number;
-
-    results?: T[];
-
-    total_pages?: number;
-
-    total_results?: number;
-}
+const TMDB_IMAGE_BASE =
+    "https://image.tmdb.org/t/p";
 
 /**
- * TMDB movie result.
+ * Supported TMDB media types.
  */
-export interface TMDBMovieResult {
-
-    id: number;
-
-    title?: string;
-
-    original_title?: string;
-
-    overview?: string;
-
-    release_date?: string;
-
-    vote_average?: number;
-
-    vote_count?: number;
-
-    genre_ids?: number[];
-
-    original_language?: string;
-
-    popularity?: number;
-
-    poster_path?: string | null;
-
-    backdrop_path?: string | null;
-}
-
-/**
- * TMDB series result.
- */
-export interface TMDBSeriesResult {
-
-    id: number;
-
-    name?: string;
-
-    original_name?: string;
-
-    overview?: string;
-
-    first_air_date?: string;
-
-    vote_average?: number;
-
-    vote_count?: number;
-
-    genre_ids?: number[];
-
-    original_language?: string;
-
-    popularity?: number;
-
-    poster_path?: string | null;
-
-    backdrop_path?: string | null;
-}
-
-/**
- * TMDB movie details.
- */
-export interface TMDBMovieDetails
-    extends TMDBMovieResult {
-
-    runtime?: number | null;
-
-    genres?: TMDBGenre[];
-
-    production_countries?: TMDBCountry[];
-
-    credits?: TMDBCredits;
-}
-
-/**
- * TMDB series details.
- */
-export interface TMDBSeriesDetails
-    extends TMDBSeriesResult {
-
-    episode_run_time?: number[];
-
-    genres?: TMDBGenre[];
-
-    origin_country?: string[];
-
-    number_of_seasons?: number;
-
-    number_of_episodes?: number;
-
-    credits?: TMDBCredits;
-}
-
-/**
- * TMDB episode details.
- */
-export interface TMDBEpisodeDetails {
-
-    id: number;
-
-    name?: string;
-
-    overview?: string;
-
-    air_date?: string;
-
-    episode_number?: number;
-
-    season_number?: number;
-
-    vote_average?: number;
-
-    still_path?: string | null;
-
-    runtime?: number | null;
-
-    crew?: TMDBCrewMember[];
-
-    guest_stars?: TMDBCastMember[];
-}
+export type TMDBMediaType =
+    | "movie"
+    | "tv";
 
 /**
  * TMDB genre.
@@ -205,13 +88,36 @@ export interface TMDBGenre {
 }
 
 /**
- * TMDB country.
+ * TMDB search result.
  */
-export interface TMDBCountry {
+export interface TMDBSearchResult {
 
-    iso_3166_1?: string;
+    id: number;
 
-    name?: string;
+    mediaType:
+        TMDBMediaType;
+
+    title: string;
+
+    originalTitle?: string;
+
+    overview?: string;
+
+    releaseDate?: string;
+
+    year?: number;
+
+    posterPath?: string;
+
+    backdropPath?: string;
+
+    rating?: number;
+
+    voteCount?: number;
+
+    popularity?: number;
+
+    genres?: TMDBGenre[];
 }
 
 /**
@@ -221,11 +127,11 @@ export interface TMDBCastMember {
 
     id: number;
 
-    name?: string;
+    name: string;
 
     character?: string;
 
-    order?: number;
+    profilePath?: string;
 }
 
 /**
@@ -235,7 +141,7 @@ export interface TMDBCrewMember {
 
     id: number;
 
-    name?: string;
+    name: string;
 
     job?: string;
 
@@ -243,51 +149,78 @@ export interface TMDBCrewMember {
 }
 
 /**
- * TMDB credits.
- */
-export interface TMDBCredits {
-
-    cast?: TMDBCastMember[];
-
-    crew?: TMDBCrewMember[];
-}
-
-/**
- * Normalized metadata used by Library Of Legends.
+ * TMDB complete metadata.
  */
 export interface TMDBMetadata {
 
-    id?: number;
+    id: number;
 
-    title?: string;
+    mediaType:
+        TMDBMediaType;
+
+    title: string;
 
     originalTitle?: string;
 
     overview?: string;
 
+    tagline?: string;
+
     year?: number;
 
-    rating?: number;
-
-    originalLanguage?: string;
-
-    genres?: string[];
-
-    country?: string;
+    releaseDate?: string;
 
     runtime?: number;
 
-    director?: string;
-
-    cast?: string;
+    posterPath?: string;
 
     posterUrl?: string;
 
+    backdropPath?: string;
+
     backdropUrl?: string;
+
+    rating?: number;
+
+    voteCount?: number;
+
+    popularity?: number;
+
+    genres: TMDBGenre[];
+
+    cast: TMDBCastMember[];
+
+    crew: TMDBCrewMember[];
+
+    director?: string;
+
+    numberOfSeasons?: number;
+
+    numberOfEpisodes?: number;
+
+    status?: string;
+
+    originalLanguage?: string;
+
+    countries?: string[];
 }
 
 /**
- * TMDB Client
+ * TMDB API response wrapper.
+ */
+interface TMDBResponse<T> {
+
+    results?: T[];
+
+    page?: number;
+
+    totalPages?: number;
+
+    totalResults?: number;
+}
+
+/**
+ * TMDB API client.
  */
 export class TMDBClient {
 
@@ -295,89 +228,265 @@ export class TMDBClient {
     // CONFIGURATION
     // =========================================================================
 
+    private static readonly API_BASE =
+        "https://api.themoviedb.org/3";
+
     private static readonly API_KEY =
         process.env.TMDB_API_KEY || "";
 
-    private static readonly BASE_URL =
-        "https://api.themoviedb.org/3";
-
-    private static readonly IMAGE_BASE_URL =
-        "https://image.tmdb.org/t/p/original";
-
-    // =========================================================================
-    // LANGUAGE
-    // =========================================================================
-
     private static readonly LANGUAGE =
+        process.env.TMDB_LANGUAGE ||
         "de-DE";
 
+    private static readonly IMAGE_LANGUAGE =
+        process.env.TMDB_IMAGE_LANGUAGE ||
+        "de";
+
     // =========================================================================
-    // SEARCH MOVIE
+    // REQUEST
     // =========================================================================
 
-    public static async searchMovie(
-        title: string,
-        year?: number
-    ): Promise<TMDBMovieResult[]> {
+    private static async request<T>(
+        endpoint: string,
+        params:
+            Record<string, string | number | undefined> = {}
+    ): Promise<T | undefined> {
 
         if (
-            !this.isAvailable()
+            !this.API_KEY
         ) {
 
-            console.log(
-                "⚠️ TMDB API-Key nicht vorhanden."
+            console.warn(
+                "⚠️ TMDB_API_KEY nicht gesetzt."
             );
 
-            return [];
+            return undefined;
         }
 
-        const params =
-            new URLSearchParams({
+        const query =
+            new URLSearchParams();
 
-                api_key:
-                    this.API_KEY,
+        query.set(
+            "api_key",
+            this.API_KEY
+        );
 
-                language:
-                    this.LANGUAGE,
+        query.set(
+            "language",
+            this.LANGUAGE
+        );
 
-                query:
-                    title,
-
-                include_adult:
-                    "false"
-
-            });
-
-        if (
-            year
+        for (
+            const [
+                key,
+                value
+            ] of Object.entries(
+                params
+            )
         ) {
 
-            params.set(
-                "year",
-                String(year)
+            if (
+                value === undefined
+            ) {
+
+                continue;
+            }
+
+            query.set(
+                key,
+                String(
+                    value
+                )
             );
         }
+
+        const url =
+            `${this.API_BASE}${endpoint}?${query.toString()}`;
 
         try {
 
-            const response =
-                await this.request<
-                    TMDBResponse<TMDBMovieResult>
-                >(
-                    `/search/movie?${params.toString()}`
-                );
+            return await new Promise<T | undefined>(
+                (
+                    resolve
+                ) => {
 
-            return response.results || [];
+                    const request =
+                        https.get(
+                            url,
+                            {
+                                headers: {
+                                    Accept:
+                                        "application/json"
+                                }
+                            },
+                            (
+                                response
+                            ) => {
 
-        } catch (error) {
+                                let data =
+                                    "";
+
+                                response.on(
+                                    "data",
+                                    (
+                                        chunk
+                                    ) => {
+
+                                        data +=
+                                            chunk;
+                                    }
+                                );
+
+                                response.on(
+                                    "end",
+                                    () => {
+
+                                        const status =
+                                            response.statusCode ||
+                                            0;
+
+                                        if (
+                                            status < 200 ||
+                                            status >= 300
+                                        ) {
+
+                                            console.error(
+                                                `❌ TMDB HTTP ${status}`
+                                            );
+
+                                            resolve(
+                                                undefined
+                                            );
+
+                                            return;
+                                        }
+
+                                        try {
+
+                                            const parsed =
+                                                JSON.parse(
+                                                    data
+                                                ) as T;
+
+                                            resolve(
+                                                parsed
+                                            );
+
+                                        } catch (
+                                            error
+                                        ) {
+
+                                            console.error(
+                                                "❌ TMDB JSON Fehler:",
+                                                error
+                                            );
+
+                                            resolve(
+                                                undefined
+                                            );
+                                        }
+                                    }
+                                );
+                            }
+                        );
+
+                    request.setTimeout(
+                        15000,
+                        () => {
+
+                            request.destroy();
+
+                            console.error(
+                                "❌ TMDB Timeout."
+                            );
+
+                            resolve(
+                                undefined
+                            );
+                        }
+                    );
+
+                    request.on(
+                        "error",
+                        (
+                            error
+                        ) => {
+
+                            console.error(
+                                "❌ TMDB Request Fehler:",
+                                error
+                            );
+
+                            resolve(
+                                undefined
+                            );
+                        }
+                    );
+                }
+            );
+
+        } catch (
+            error
+        ) {
 
             console.error(
-                "❌ TMDB Movie Search Fehler:",
+                "❌ TMDB Fehler:",
                 error
             );
 
+            return undefined;
+        }
+    }
+
+    // =========================================================================
+    // SEARCH MOVIES
+    // =========================================================================
+
+    public static async searchMovies(
+        query: string,
+        year?: number
+    ): Promise<TMDBSearchResult[]> {
+
+        const cleanQuery =
+            String(
+                query || ""
+            ).trim();
+
+        if (
+            !cleanQuery
+        ) {
+
             return [];
         }
+
+        const response =
+            await this.request<
+                TMDBResponse<any>
+            >(
+                "/search/movie",
+                {
+                    query:
+                        cleanQuery,
+
+                    year
+                }
+            );
+
+        if (
+            !response ||
+            !response.results
+        ) {
+
+            return [];
+        }
+
+        return response.results.map(
+            item =>
+                this.normalizeSearchResult(
+                    item,
+                    "movie"
+                )
+        );
     }
 
     // =========================================================================
@@ -385,218 +494,193 @@ export class TMDBClient {
     // =========================================================================
 
     public static async searchSeries(
-        title: string,
+        query: string,
         year?: number
-    ): Promise<TMDBSeriesResult[]> {
+    ): Promise<TMDBSearchResult[]> {
+
+        const cleanQuery =
+            String(
+                query || ""
+            ).trim();
 
         if (
-            !this.isAvailable()
+            !cleanQuery
         ) {
-
-            console.log(
-                "⚠️ TMDB API-Key nicht vorhanden."
-            );
 
             return [];
         }
 
-        const params =
-            new URLSearchParams({
+        const response =
+            await this.request<
+                TMDBResponse<any>
+            >(
+                "/search/tv",
+                {
+                    query:
+                        cleanQuery,
 
-                api_key:
-                    this.API_KEY,
-
-                language:
-                    this.LANGUAGE,
-
-                query:
-                    title,
-
-                include_adult:
-                    "false"
-
-            });
+                    first_air_date_year:
+                        year
+                }
+            );
 
         if (
-            year
+            !response ||
+            !response.results
         ) {
-
-            params.set(
-                "first_air_date_year",
-                String(year)
-            );
-        }
-
-        try {
-
-            const response =
-                await this.request<
-                    TMDBResponse<TMDBSeriesResult>
-                >(
-                    `/search/tv?${params.toString()}`
-                );
-
-            return response.results || [];
-
-        } catch (error) {
-
-            console.error(
-                "❌ TMDB Series Search Fehler:",
-                error
-            );
 
             return [];
         }
+
+        return response.results.map(
+            item =>
+                this.normalizeSearchResult(
+                    item,
+                    "tv"
+                )
+        );
     }
 
     // =========================================================================
-    // GET MOVIE
+    // SEARCH
+    // =========================================================================
+
+    public static async search(
+        query: string,
+        type:
+            TMDBMediaType = "movie",
+        year?: number
+    ): Promise<TMDBSearchResult[]> {
+
+        if (
+            type === "tv"
+        ) {
+
+            return this.searchSeries(
+                query,
+                year
+            );
+        }
+
+        return this.searchMovies(
+            query,
+            year
+        );
+    }
+
+    // =========================================================================
+    // MOVIE DETAILS
     // =========================================================================
 
     public static async getMovie(
         id: number
-    ): Promise<TMDBMovieDetails | null> {
+    ): Promise<TMDBMetadata | undefined> {
 
         if (
-            !this.isAvailable()
+            !Number.isInteger(
+                id
+            )
         ) {
 
-            return null;
+            return undefined;
         }
 
-        const params =
-            new URLSearchParams({
-
-                api_key:
-                    this.API_KEY,
-
-                language:
-                    this.LANGUAGE,
-
-                append_to_response:
-                    "credits"
-
-            });
-
-        try {
-
-            return await this.request<TMDBMovieDetails>(
-                `/movie/${id}?${params.toString()}`
+        const response =
+            await this.request<any>(
+                `/movie/${id}`,
+                {
+                    append_to_response:
+                        "credits"
+                }
             );
 
-        } catch (error) {
+        if (
+            !response
+        ) {
 
-            console.error(
-                `❌ TMDB Movie ${id} Fehler:`,
-                error
-            );
-
-            return null;
+            return undefined;
         }
+
+        return this.normalizeMetadata(
+            response,
+            "movie"
+        );
     }
 
     // =========================================================================
-    // GET SERIES
+    // SERIES DETAILS
     // =========================================================================
 
     public static async getSeries(
         id: number
-    ): Promise<TMDBSeriesDetails | null> {
+    ): Promise<TMDBMetadata | undefined> {
 
         if (
-            !this.isAvailable()
+            !Number.isInteger(
+                id
+            )
         ) {
 
-            return null;
+            return undefined;
         }
 
-        const params =
-            new URLSearchParams({
-
-                api_key:
-                    this.API_KEY,
-
-                language:
-                    this.LANGUAGE,
-
-                append_to_response:
-                    "credits"
-
-            });
-
-        try {
-
-            return await this.request<TMDBSeriesDetails>(
-                `/tv/${id}?${params.toString()}`
+        const response =
+            await this.request<any>(
+                `/tv/${id}`,
+                {
+                    append_to_response:
+                        "credits"
+                }
             );
 
-        } catch (error) {
+        if (
+            !response
+        ) {
 
-            console.error(
-                `❌ TMDB Series ${id} Fehler:`,
-                error
-            );
-
-            return null;
+            return undefined;
         }
+
+        return this.normalizeMetadata(
+            response,
+            "tv"
+        );
     }
 
     // =========================================================================
-    // GET EPISODE
+    // GET DETAILS
     // =========================================================================
 
-    public static async getEpisode(
-        seriesId: number,
-        season: number,
-        episode: number
-    ): Promise<TMDBEpisodeDetails | null> {
+    public static async getDetails(
+        id: number,
+        type:
+            TMDBMediaType
+    ): Promise<TMDBMetadata | undefined> {
 
         if (
-            !this.isAvailable()
+            type === "tv"
         ) {
 
-            return null;
+            return this.getSeries(
+                id
+            );
         }
 
-        const params =
-            new URLSearchParams({
-
-                api_key:
-                    this.API_KEY,
-
-                language:
-                    this.LANGUAGE
-
-            });
-
-        try {
-
-            return await this.request<TMDBEpisodeDetails>(
-                `/tv/${seriesId}/season/${season}/episode/${episode}?${params.toString()}`
-            );
-
-        } catch (error) {
-
-            console.error(
-                "❌ TMDB Episode Fehler:",
-                error
-            );
-
-            return null;
-        }
+        return this.getMovie(
+            id
+        );
     }
 
     // =========================================================================
-    // FIND BEST MOVIE
+    // FIND BEST MOVIE MATCH
     // =========================================================================
 
-    public static async findBestMovie(
+    public static async findMovie(
         title: string,
         year?: number
-    ): Promise<TMDBMovieDetails | null> {
+    ): Promise<TMDBMetadata | undefined> {
 
         const results =
-            await this.searchMovie(
+            await this.searchMovies(
                 title,
                 year
             );
@@ -605,44 +689,47 @@ export class TMDBClient {
             results.length === 0
         ) {
 
-            return null;
+            return undefined;
         }
 
         /*
-         * Prefer exact title matches.
+         * If a year was supplied, prefer a matching year.
          */
 
-        const normalizedTitle =
-            this.normalizeTitle(
-                title
-            );
+        if (
+            year
+        ) {
 
-        const exact =
-            results.find(
-                result =>
-                    this.normalizeTitle(
-                        result.title ||
-                        ""
-                    ) === normalizedTitle
-            );
+            const exactYear =
+                results.find(
+                    item =>
+                        item.year ===
+                        year
+                );
 
-        const selected =
-            exact ||
-            results[0];
+            if (
+                exactYear
+            ) {
+
+                return this.getMovie(
+                    exactYear.id
+                );
+            }
+        }
 
         return this.getMovie(
-            selected.id
+            results[0].id
         );
     }
 
     // =========================================================================
-    // FIND BEST SERIES
+    // FIND BEST SERIES MATCH
     // =========================================================================
 
-    public static async findBestSeries(
+    public static async findSeries(
         title: string,
         year?: number
-    ): Promise<TMDBSeriesDetails | null> {
+    ): Promise<TMDBMetadata | undefined> {
 
         const results =
             await this.searchSeries(
@@ -654,289 +741,70 @@ export class TMDBClient {
             results.length === 0
         ) {
 
-            return null;
+            return undefined;
         }
 
-        const normalizedTitle =
-            this.normalizeTitle(
-                title
-            );
+        if (
+            year
+        ) {
 
-        const exact =
-            results.find(
-                result =>
-                    this.normalizeTitle(
-                        result.name ||
-                        ""
-                    ) === normalizedTitle
-            );
+            const exactYear =
+                results.find(
+                    item =>
+                        item.year ===
+                        year
+                );
 
-        const selected =
-            exact ||
-            results[0];
+            if (
+                exactYear
+            ) {
+
+                return this.getSeries(
+                    exactYear.id
+                );
+            }
+        }
 
         return this.getSeries(
-            selected.id
+            results[0].id
         );
     }
 
     // =========================================================================
-    // GET MOVIE METADATA
+    // FIND
     // =========================================================================
 
-    public static async getMovieMetadata(
+    public static async find(
         title: string,
+        type:
+            TMDBMediaType,
         year?: number
-    ): Promise<TMDBMetadata | null> {
+    ): Promise<TMDBMetadata | undefined> {
 
-        const movie =
-            await this.findBestMovie(
+        if (
+            type === "tv"
+        ) {
+
+            return this.findSeries(
                 title,
                 year
             );
-
-        if (
-            !movie
-        ) {
-
-            return null;
         }
 
-        return this.normalizeMovie(
-            movie
+        return this.findMovie(
+            title,
+            year
         );
     }
 
     // =========================================================================
-    // GET SERIES METADATA
+    // POSTER URL
     // =========================================================================
 
-    public static async getSeriesMetadata(
-        title: string,
-        year?: number
-    ): Promise<TMDBMetadata | null> {
-
-        const series =
-            await this.findBestSeries(
-                title,
-                year
-            );
-
-        if (
-            !series
-        ) {
-
-            return null;
-        }
-
-        return this.normalizeSeries(
-            series
-        );
-    }
-
-    // =========================================================================
-    // NORMALIZE MOVIE
-    // =========================================================================
-
-    public static normalizeMovie(
-        movie: TMDBMovieDetails
-    ): TMDBMetadata {
-
-        const director =
-            movie.credits?.crew
-                ?.find(
-                    person =>
-                        String(
-                            person.job ||
-                            ""
-                        ).toLowerCase() ===
-                        "director"
-                )
-                ?.name;
-
-        const cast =
-            movie.credits?.cast
-                ?.slice(
-                    0,
-                    10
-                )
-                .map(
-                    person =>
-                        person.name
-                )
-                .filter(
-                    Boolean
-                )
-                .join(
-                    ", "
-                );
-
-        return {
-
-            id:
-                movie.id,
-
-            title:
-                movie.title,
-
-            originalTitle:
-                movie.original_title,
-
-            overview:
-                movie.overview,
-
-            year:
-                this.extractYear(
-                    movie.release_date
-                ),
-
-            rating:
-                movie.vote_average,
-
-            originalLanguage:
-                movie.original_language,
-
-            genres:
-                movie.genres
-                    ?.map(
-                        genre =>
-                            genre.name
-                    ),
-
-            country:
-                movie.production_countries
-                    ?.map(
-                        country =>
-                            country.name
-                    )
-                    .filter(
-                        Boolean
-                    )
-                    .join(
-                        ", "
-                    ),
-
-            runtime:
-                movie.runtime ||
-                undefined,
-
-            director,
-
-            cast,
-
-            posterUrl:
-                this.buildImageUrl(
-                    movie.poster_path
-                ),
-
-            backdropUrl:
-                this.buildImageUrl(
-                    movie.backdrop_path
-                )
-        };
-    }
-
-    // =========================================================================
-    // NORMALIZE SERIES
-    // =========================================================================
-
-    public static normalizeSeries(
-        series: TMDBSeriesDetails
-    ): TMDBMetadata {
-
-        const director =
-            series.credits?.crew
-                ?.find(
-                    person =>
-                        String(
-                            person.job ||
-                            ""
-                        ).toLowerCase() ===
-                        "director"
-                )
-                ?.name;
-
-        const cast =
-            series.credits?.cast
-                ?.slice(
-                    0,
-                    10
-                )
-                .map(
-                    person =>
-                        person.name
-                )
-                .filter(
-                    Boolean
-                )
-                .join(
-                    ", "
-                );
-
-        return {
-
-            id:
-                series.id,
-
-            title:
-                series.name,
-
-            originalTitle:
-                series.original_name,
-
-            overview:
-                series.overview,
-
-            year:
-                this.extractYear(
-                    series.first_air_date
-                ),
-
-            rating:
-                series.vote_average,
-
-            originalLanguage:
-                series.original_language,
-
-            genres:
-                series.genres
-                    ?.map(
-                        genre =>
-                            genre.name
-                    ),
-
-            country:
-                series.origin_country
-                    ?.join(
-                        ", "
-                    ),
-
-            runtime:
-                series.episode_run_time
-                    ?.at(0),
-
-            director,
-
-            cast,
-
-            posterUrl:
-                this.buildImageUrl(
-                    series.poster_path
-                ),
-
-            backdropUrl:
-                this.buildImageUrl(
-                    series.backdrop_path
-                )
-        };
-    }
-
-    // =========================================================================
-    // IMAGE URL
-    // =========================================================================
-
-    public static buildImageUrl(
-        path?: string | null
+    public static getPosterUrl(
+        path?: string,
+        size:
+            string = "w500"
     ): string | undefined {
 
         if (
@@ -946,14 +814,389 @@ export class TMDBClient {
             return undefined;
         }
 
-        return `${this.IMAGE_BASE_URL}${path}`;
+        return `${TMDB_IMAGE_BASE}/${size}${path}`;
+    }
+
+    // =========================================================================
+    // BACKDROP URL
+    // =========================================================================
+
+    public static getBackdropUrl(
+        path?: string,
+        size:
+            string = "w1280"
+    ): string | undefined {
+
+        if (
+            !path
+        ) {
+
+            return undefined;
+        }
+
+        return `${TMDB_IMAGE_BASE}/${size}${path}`;
+    }
+
+    // =========================================================================
+    // GET POSTER
+    // =========================================================================
+
+    public static async getPoster(
+        id: number,
+        type:
+            TMDBMediaType
+    ): Promise<string | undefined> {
+
+        const metadata =
+            await this.getDetails(
+                id,
+                type
+            );
+
+        return metadata?.posterUrl;
+    }
+
+    // =========================================================================
+    // NORMALIZE SEARCH RESULT
+    // =========================================================================
+
+    private static normalizeSearchResult(
+        item: any,
+        mediaType:
+            TMDBMediaType
+    ): TMDBSearchResult {
+
+        const title =
+            item.title ||
+            item.name ||
+            item.original_title ||
+            item.original_name ||
+            "Unbekannter Titel";
+
+        const originalTitle =
+            item.original_title ||
+            item.original_name;
+
+        const releaseDate =
+            item.release_date ||
+            item.first_air_date;
+
+        const year =
+            this.extractYear(
+                releaseDate
+            );
+
+        const posterPath =
+            item.poster_path ||
+            undefined;
+
+        const backdropPath =
+            item.backdrop_path ||
+            undefined;
+
+        return {
+
+            id:
+                Number(
+                    item.id
+                ),
+
+            mediaType,
+
+            title,
+
+            originalTitle,
+
+            overview:
+                item.overview ||
+                undefined,
+
+            releaseDate,
+
+            year,
+
+            posterPath,
+
+            backdropPath,
+
+            rating:
+                this.toNumber(
+                    item.vote_average
+                ),
+
+            voteCount:
+                this.toNumber(
+                    item.vote_count
+                ),
+
+            popularity:
+                this.toNumber(
+                    item.popularity
+                )
+        };
+    }
+
+    // =========================================================================
+    // NORMALIZE METADATA
+    // =========================================================================
+
+    private static normalizeMetadata(
+        item: any,
+        mediaType:
+            TMDBMediaType
+    ): TMDBMetadata {
+
+        const title =
+            item.title ||
+            item.name ||
+            item.original_title ||
+            item.original_name ||
+            "Unbekannter Titel";
+
+        const originalTitle =
+            item.original_title ||
+            item.original_name;
+
+        const releaseDate =
+            item.release_date ||
+            item.first_air_date;
+
+        const genres:
+            TMDBGenre[] =
+            Array.isArray(
+                item.genres
+            )
+                ? item.genres
+                    .map(
+                        (
+                            genre: any
+                        ) => ({
+
+                            id:
+                                Number(
+                                    genre.id
+                                ),
+
+                            name:
+                                String(
+                                    genre.name ||
+                                    ""
+                                )
+                        })
+                    )
+                    .filter(
+                        genre =>
+                            genre.name
+                    )
+                : [];
+
+        const credits =
+            item.credits ||
+            {};
+
+        const cast:
+            TMDBCastMember[] =
+            Array.isArray(
+                credits.cast
+            )
+                ? credits.cast
+                    .slice(
+                        0,
+                        20
+                    )
+                    .map(
+                        (
+                            person: any
+                        ) => ({
+
+                            id:
+                                Number(
+                                    person.id
+                                ),
+
+                            name:
+                                String(
+                                    person.name ||
+                                    ""
+                                ),
+
+                            character:
+                                person.character ||
+                                undefined,
+
+                            profilePath:
+                                person.profile_path ||
+                                undefined
+                        })
+                    )
+                : [];
+
+        const crew:
+            TMDBCrewMember[] =
+            Array.isArray(
+                credits.crew
+            )
+                ? credits.crew
+                    .map(
+                        (
+                            person: any
+                        ) => ({
+
+                            id:
+                                Number(
+                                    person.id
+                                ),
+
+                            name:
+                                String(
+                                    person.name ||
+                                    ""
+                                ),
+
+                            job:
+                                person.job ||
+                                undefined,
+
+                            department:
+                                person.department ||
+                                undefined
+                        })
+                    )
+                : [];
+
+        const director =
+            crew.find(
+                person =>
+                    person.job ===
+                    "Director"
+            )?.name;
+
+        const countries:
+            string[] =
+            Array.isArray(
+                item.production_countries
+            )
+                ? item.production_countries
+                    .map(
+                        (
+                            country: any
+                        ) =>
+                            String(
+                                country.name ||
+                                country.iso_3166_1 ||
+                                ""
+                            )
+                    )
+                    .filter(
+                        Boolean
+                    )
+                : [];
+
+        const posterPath =
+            item.poster_path ||
+            undefined;
+
+        const backdropPath =
+            item.backdrop_path ||
+            undefined;
+
+        return {
+
+            id:
+                Number(
+                    item.id
+                ),
+
+            mediaType,
+
+            title,
+
+            originalTitle,
+
+            overview:
+                item.overview ||
+                undefined,
+
+            tagline:
+                item.tagline ||
+                undefined,
+
+            year:
+                this.extractYear(
+                    releaseDate
+                ),
+
+            releaseDate,
+
+            runtime:
+                this.toNumber(
+                    item.runtime
+                ),
+
+            posterPath,
+
+            posterUrl:
+                this.getPosterUrl(
+                    posterPath
+                ),
+
+            backdropPath,
+
+            backdropUrl:
+                this.getBackdropUrl(
+                    backdropPath
+                ),
+
+            rating:
+                this.toNumber(
+                    item.vote_average
+                ),
+
+            voteCount:
+                this.toNumber(
+                    item.vote_count
+                ),
+
+            popularity:
+                this.toNumber(
+                    item.popularity
+                ),
+
+            genres,
+
+            cast,
+
+            crew,
+
+            director,
+
+            numberOfSeasons:
+                this.toNumber(
+                    item.number_of_seasons
+                ),
+
+            numberOfEpisodes:
+                this.toNumber(
+                    item.number_of_episodes
+                ),
+
+            status:
+                item.status ||
+                undefined,
+
+            originalLanguage:
+                item.original_language ||
+                undefined,
+
+            countries
+        };
     }
 
     // =========================================================================
     // EXTRACT YEAR
     // =========================================================================
 
-    public static extractYear(
+    private static extractYear(
         date?: string
     ): number | undefined {
 
@@ -965,8 +1208,10 @@ export class TMDBClient {
         }
 
         const match =
-            date.match(
-                /^(\d{4})/
+            String(
+                date
+            ).match(
+                /^(19|20)\d{2}/
             );
 
         if (
@@ -978,164 +1223,204 @@ export class TMDBClient {
 
         const year =
             Number(
-                match[1]
+                match[0]
             );
 
-        return Number.isFinite(
-            year
-        )
-            ? year
-            : undefined;
+        if (
+            year < 1900 ||
+            year > 2100
+        ) {
+
+            return undefined;
+        }
+
+        return year;
     }
 
     // =========================================================================
-    // NORMALIZE TITLE
+    // NUMBER
     // =========================================================================
 
-    private static normalizeTitle(
-        title: string
-    ): string {
+    private static toNumber(
+        value: unknown
+    ): number | undefined {
 
-        return String(
-            title || ""
-        )
-            .toLowerCase()
-            .normalize(
-                "NFD"
+        if (
+            value === undefined ||
+            value === null ||
+            value === ""
+        ) {
+
+            return undefined;
+        }
+
+        const number =
+            Number(
+                value
+            );
+
+        if (
+            !Number.isFinite(
+                number
             )
-            .replace(
-                /[\u0300-\u036f]/g,
-                ""
-            )
-            .replace(
-                /[^a-z0-9]+/g,
-                " "
-            )
-            .trim();
+        ) {
+
+            return undefined;
+        }
+
+        return number;
     }
 
     // =========================================================================
-    // API AVAILABLE
+    // IS CONFIGURED
     // =========================================================================
 
-    public static isAvailable(): boolean {
+    public static isConfigured():
+        boolean {
 
-        return (
-            this.API_KEY.length > 0
+        return Boolean(
+            this.API_KEY
         );
     }
 
     // =========================================================================
-    // RAW REQUEST
+    // STATUS
     // =========================================================================
 
-    private static request<T>(
-        path: string
-    ): Promise<T> {
+    public static getStatus():
+        string {
 
-        return new Promise(
-            (
-                resolve,
-                reject
-            ) => {
+        if (
+            this.isConfigured()
+        ) {
 
-                const request =
-                    https.get(
-                        `${this.BASE_URL}${path}`,
+            return "TMDB API aktiv";
+        }
 
-                        {
-                            headers: {
-                                Accept:
-                                    "application/json"
-                            }
-                        },
+        return "TMDB API Key fehlt";
+    }
 
-                        response => {
+    // =========================================================================
+    // DEBUG
+    // =========================================================================
 
-                            let data =
-                                "";
+    public static async describe(
+        title: string,
+        type:
+            TMDBMediaType = "movie",
+        year?: number
+    ): Promise<string> {
 
-                            response.on(
-                                "data",
-                                chunk => {
+        const metadata =
+            await this.find(
+                title,
+                type,
+                year
+            );
 
-                                    data +=
-                                        chunk;
-                                }
-                            );
+        if (
+            !metadata
+        ) {
 
-                            response.on(
-                                "end",
-                                () => {
+            return [
 
-                                    const status =
-                                        response.statusCode ||
-                                        500;
+                "=================================================",
 
-                                    if (
-                                        status < 200 ||
-                                        status >= 300
-                                    ) {
+                "🎞️ TMDB CLIENT",
 
-                                        reject(
-                                            new Error(
-                                                `TMDB HTTP ${status}: ${data.slice(0, 300)}`
-                                            )
-                                        );
+                "=================================================",
 
-                                        return;
-                                    }
+                `🔎 Suche: ${title}`,
 
-                                    try {
+                `🎬 Typ: ${type}`,
 
-                                        const parsed =
-                                            JSON.parse(
-                                                data
-                                            ) as T;
+                `📅 Jahr: ${
+                    year ??
+                    "—"
+                }`,
 
-                                        resolve(
-                                            parsed
-                                        );
+                "❌ Kein TMDB-Ergebnis gefunden.",
 
-                                    } catch (
-                                        error
-                                    ) {
+                `⚙️ Status: ${
+                    this.getStatus()
+                }`,
 
-                                        reject(
-                                            new Error(
-                                                "TMDB lieferte ungültiges JSON."
-                                            )
-                                        );
-                                    }
-                                }
-                            );
-                        }
-                    );
+                "================================================="
 
-                request.on(
-                    "error",
-                    error => {
+            ].join(
+                "\n"
+            );
+        }
 
-                        reject(
-                            error
-                        );
-                    }
-                );
+        return [
 
-                request.setTimeout(
-                    15000,
-                    () => {
+            "=================================================",
 
-                        request.destroy();
+            "🎞️ TMDB CLIENT",
 
-                        reject(
-                            new Error(
-                                "TMDB Anfrage Timeout."
-                            )
-                        );
-                    }
-                );
-            }
+            "=================================================",
+
+            `🆔 TMDB-ID: ${
+                metadata.id
+            }`,
+
+            `🎬 Titel: ${
+                metadata.title
+            }`,
+
+            `📅 Jahr: ${
+                metadata.year ??
+                "—"
+            }`,
+
+            `⭐ Bewertung: ${
+                metadata.rating ??
+                "—"
+            }`,
+
+            `🎭 Genres: ${
+                metadata.genres
+                    .map(
+                        genre =>
+                            genre.name
+                    )
+                    .join(
+                        ", "
+                    ) ||
+                "—"
+            }`,
+
+            `🎬 Regie: ${
+                metadata.director ??
+                "—"
+            }`,
+
+            `⏱ Laufzeit: ${
+                metadata.runtime
+                    ? `${metadata.runtime} Min.`
+                    : "—"
+            }`,
+
+            `🖼 Poster: ${
+                metadata.posterUrl ??
+                "—"
+            }`,
+
+            `🌍 Länder: ${
+                metadata.countries?.join(
+                    ", "
+                ) ||
+                "—"
+            }`,
+
+            `⚙️ Status: ${
+                this.getStatus()
+            }`,
+
+            "================================================="
+
+        ].join(
+            "\n"
         );
     }
 }
