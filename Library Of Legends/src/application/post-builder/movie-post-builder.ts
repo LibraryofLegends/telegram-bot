@@ -20,7 +20,7 @@ File................: movie-post-builder.ts
 Location............
 Library Of Legends/src/application/post-builder/
 
-Version.............: 2.0.0
+Version.............: 3.0.0
 
 Status..............: Core
 
@@ -28,93 +28,118 @@ Lifecycle...........: Development
 
 Description.........
 
-Builds the final Telegram archive post for movies.
+Telegram movie post builder for Library Of Legends.
 
 Responsibilities:
 
-- Build standardized movie archive posts
-- Display title and year
-- Display Archive-ID
-- Display genre
-- Display category
-- Display quality
-- Display resolution
-- Display source
-- Display audio
-- Display video codec
-- Display file size
-- Display country
-- Display runtime
-- Display FSK
-- Display director
-- Display TMDB information
-- Generate consistent Library Of Legends formatting
-- Keep missing metadata clean
-- Support Telegram Markdown formatting
+- Build standardized movie posts
+- Format movie metadata
+- Display archive IDs
+- Display genres
+- Display TMDB metadata
+- Display technical media information
+- Build Telegram captions
+- Build inline keyboard data
+- Keep presentation logic outside TelegramBot
+- Provide safe fallbacks for missing metadata
 
 ===============================================================================
 */
 
+import {
+    MovieCatalogEntry
+} from "../../domain/catalog/movie-catalog";
+
+import {
+    TMDBMetadata
+} from "../../infrastructure/tmdb/tmdb-client";
+
 /**
- * Movie information used to build an archive post.
+ * Options for movie post generation.
  */
-export interface MoviePostData {
+export interface MoviePostOptions {
 
-    title: string;
+    /**
+     * Optional TMDB metadata.
+     */
+    tmdb?: TMDBMetadata;
 
-    year?: number;
+    /**
+     * Whether technical information should be shown.
+     */
+    showTechnicalInfo?: boolean;
 
-    archiveId?: string;
+    /**
+     * Whether archive information should be shown.
+     */
+    showArchiveInfo?: boolean;
 
-    genre?: string;
+    /**
+     * Whether the synopsis should be shown.
+     */
+    showSynopsis?: boolean;
 
-    category?: string;
+    /**
+     * Whether the cast should be shown.
+     */
+    showCast?: boolean;
 
-    quality?: string;
+    /**
+     * Whether a TMDB link should be shown.
+     */
+    showTmdbLink?: boolean;
 
-    resolution?: string;
-
-    source?: string;
-
-    audio?: string;
-
-    videoCodec?: string;
-
-    audioCodec?: string;
-
-    audioChannels?: string;
-
-    hdr?: string;
-
-    fileSize?: number | string;
-
-    country?: string;
-
-    runtime?: number | string;
-
-    fsk?: string | number;
-
-    director?: string;
-
-    cast?: string;
-
-    tmdbId?: string | number;
-
-    tmdbRating?: string | number;
-
-    overview?: string;
-
-    originalLanguage?: string;
-
-    fileName?: string;
-
-    libraryId?: string;
-
-    telegramFileId?: string;
+    /**
+     * Telegram bot username.
+     */
+    botUsername?: string;
 }
 
 /**
- * Movie Post Builder
+ * Telegram button definition.
+ */
+export interface MoviePostButton {
+
+    text: string;
+
+    callbackData?: string;
+
+    url?: string;
+}
+
+/**
+ * Complete generated movie post.
+ */
+export interface MoviePost {
+
+    /**
+     * Telegram caption.
+     */
+    caption: string;
+
+    /**
+     * Inline keyboard.
+     */
+    buttons: MoviePostButton[][];
+
+    /**
+     * Poster URL.
+     */
+    posterUrl?: string;
+
+    /**
+     * Backdrop URL.
+     */
+    backdropUrl?: string;
+
+    /**
+     * Parse mode.
+     */
+    parseMode: "HTML";
+}
+
+/**
+ * Movie post builder.
  */
 export class MoviePostBuilder {
 
@@ -123,250 +148,298 @@ export class MoviePostBuilder {
     // =========================================================================
 
     public static build(
-        movie: MoviePostData
-    ): string {
+        movie: MovieCatalogEntry,
+        options:
+            MoviePostOptions = {}
+    ): MoviePost {
 
-        const title =
-            this.clean(
-                movie.title
-            ) ||
-            "Unbekannter Film";
+        const tmdb =
+            options.tmdb;
 
-        const lines: string[] = [];
+        const showTechnical =
+            options.showTechnicalInfo !==
+            false;
+
+        const showArchive =
+            options.showArchiveInfo !==
+            false;
+
+        const showSynopsis =
+            options.showSynopsis !==
+            false;
+
+        const showCast =
+            options.showCast ===
+            true;
+
+        const showTmdbLink =
+            options.showTmdbLink !==
+            false;
+
+        const sections:
+            string[] = [];
 
         // =====================================================================
         // HEADER
         // =====================================================================
 
-        lines.push(
-            "🎬 *LIBRARY OF LEGENDS*"
-        );
-
-        lines.push(
-            ""
-        );
-
-        lines.push(
-            `🎞️ *${this.escapeMarkdown(title)}*`
+        sections.push(
+            this.buildHeader(
+                movie,
+                tmdb
+            )
         );
 
         // =====================================================================
-        // YEAR
+        // BASIC INFORMATION
+        // =====================================================================
+
+        sections.push(
+            this.buildBasicInfo(
+                movie,
+                tmdb
+            )
+        );
+
+        // =====================================================================
+        // SYNOPSIS
         // =====================================================================
 
         if (
-            movie.year
+            showSynopsis &&
+            tmdb?.overview
         ) {
 
-            lines.push(
-                `📅 Jahr: ${movie.year}`
+            sections.push(
+                this.buildSynopsis(
+                    tmdb.overview
+                )
             );
         }
 
         // =====================================================================
-        // ARCHIVE ID
+        // CAST
         // =====================================================================
 
         if (
-            movie.archiveId
+            showCast &&
+            tmdb?.cast?.length
         ) {
 
-            lines.push(
-                `🗃️ Archiv: \`${this.clean(movie.archiveId)}\``
+            sections.push(
+                this.buildCast(
+                    tmdb
+                )
             );
         }
 
         // =====================================================================
-        // GENRE
+        // TECHNICAL
         // =====================================================================
 
         if (
-            movie.genre
+            showTechnical
         ) {
 
-            lines.push(
-                `🏷️ Genre: ${this.clean(movie.genre)}`
+            sections.push(
+                this.buildTechnicalInfo(
+                    movie
+                )
             );
         }
 
         // =====================================================================
-        // CATEGORY
+        // ARCHIVE
         // =====================================================================
 
         if (
-            movie.category
+            showArchive
         ) {
 
-            lines.push(
-                `📂 Kategorie: ${this.clean(movie.category)}`
+            sections.push(
+                this.buildArchiveInfo(
+                    movie
+                )
             );
-        }
-
-        // =====================================================================
-        // TECHNICAL INFORMATION
-        // =====================================================================
-
-        const technical =
-            this.buildTechnicalSection(
-                movie
-            );
-
-        if (
-            technical.length > 0
-        ) {
-
-            lines.push(
-                ""
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                "📊 *TECHNISCHE DATEN*"
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                ...technical
-            );
-        }
-
-        // =====================================================================
-        // CONTENT INFORMATION
-        // =====================================================================
-
-        const content =
-            this.buildContentSection(
-                movie
-            );
-
-        if (
-            content.length > 0
-        ) {
-
-            lines.push(
-                ""
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                "🎬 *FILM-INFORMATIONEN*"
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                ...content
-            );
-        }
-
-        // =====================================================================
-        // TMDB
-        // =====================================================================
-
-        const tmdb =
-            this.buildTmdbSection(
-                movie
-            );
-
-        if (
-            tmdb.length > 0
-        ) {
-
-            lines.push(
-                ""
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                "🎞️ *TMDB*"
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                ...tmdb
-            );
-        }
-
-        // =====================================================================
-        // FILE INFORMATION
-        // =====================================================================
-
-        if (
-            movie.fileName ||
-            movie.fileSize
-        ) {
-
-            lines.push(
-                ""
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                "📁 *DATEI*"
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            if (
-                movie.fileName
-            ) {
-
-                lines.push(
-                    `📄 Datei: \`${this.clean(movie.fileName)}\``
-                );
-            }
-
-            if (
-                movie.fileSize
-            ) {
-
-                lines.push(
-                    `💾 Größe: ${this.formatFileSize(movie.fileSize)}`
-                );
-            }
         }
 
         // =====================================================================
         // FOOTER
         // =====================================================================
 
-        lines.push(
-            ""
+        sections.push(
+            this.buildFooter()
         );
 
-        lines.push(
+        // =====================================================================
+        // BUTTONS
+        // =====================================================================
+
+        const buttons =
+            this.buildButtons(
+                movie,
+                tmdb,
+                options
+            );
+
+        return {
+
+            caption:
+                sections
+                    .filter(
+                        Boolean
+                    )
+                    .join(
+                        "\n\n"
+                    ),
+
+            buttons,
+
+            posterUrl:
+                tmdb?.posterUrl,
+
+            backdropUrl:
+                tmdb?.backdropUrl,
+
+            parseMode:
+                "HTML"
+        };
+    }
+
+    // =========================================================================
+    // HEADER
+    // =========================================================================
+
+    private static buildHeader(
+        movie: MovieCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): string {
+
+        const title =
+            this.escapeHtml(
+                tmdb?.title ||
+                movie.title
+            );
+
+        const year =
+            tmdb?.year ||
+            movie.year;
+
+        const yearText =
+            year
+                ? ` <b>(${year})</b>`
+                : "";
+
+        return [
+
+            `🎬 <b>${title}</b>${yearText}`,
+
             "━━━━━━━━━━━━━━━━━━"
-        );
 
-        lines.push(
-            "🏛️ *LIBRARY OF LEGENDS*"
+        ].join(
+            "\n"
         );
+    }
 
-        lines.push(
-            "🎬 Filmarchiv"
-        );
+    // =========================================================================
+    // BASIC INFORMATION
+    // =========================================================================
+
+    private static buildBasicInfo(
+        movie: MovieCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): string {
+
+        const lines:
+            string[] = [];
+
+        // =====================================================================
+        // GENRE
+        // =====================================================================
+
+        if (
+            movie.genres.length > 0
+        ) {
+
+            lines.push(
+                `🏷️ <b>Genre:</b> ${
+                    this.escapeHtml(
+                        movie.genres.join(
+                            " • "
+                        )
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // RATING
+        // =====================================================================
+
+        if (
+            tmdb?.rating !== undefined
+        ) {
+
+            lines.push(
+                `⭐ <b>Bewertung:</b> ${
+                    tmdb.rating.toFixed(
+                        1
+                    )
+                } / 10`
+            );
+        }
+
+        // =====================================================================
+        // COUNTRY
+        // =====================================================================
+
+        if (
+            tmdb?.countries &&
+            tmdb.countries.length > 0
+        ) {
+
+            lines.push(
+                `🌍 <b>Land:</b> ${
+                    this.escapeHtml(
+                        tmdb.countries.join(
+                            ", "
+                        )
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // RUNTIME
+        // =====================================================================
+
+        if (
+            tmdb?.runtime
+        ) {
+
+            lines.push(
+                `⏱️ <b>Laufzeit:</b> ${
+                    tmdb.runtime
+                } Min.`
+            );
+        }
+
+        // =====================================================================
+        // DIRECTOR
+        // =====================================================================
+
+        if (
+            tmdb?.director
+        ) {
+
+            lines.push(
+                `🎥 <b>Regie:</b> ${
+                    this.escapeHtml(
+                        tmdb.director
+                    )
+                }`
+            );
+        }
 
         return lines.join(
             "\n"
@@ -374,233 +447,498 @@ export class MoviePostBuilder {
     }
 
     // =========================================================================
-    // TECHNICAL SECTION
+    // SYNOPSIS
     // =========================================================================
 
-    private static buildTechnicalSection(
-        movie: MoviePostData
-    ): string[] {
+    private static buildSynopsis(
+        overview: string
+    ): string {
 
-        const lines: string[] = [];
+        const text =
+            this.escapeHtml(
+                this.limitText(
+                    overview,
+                    1500
+                )
+            );
+
+        return [
+
+            "📖 <b>Story</b>",
+
+            text
+
+        ].join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // CAST
+    // =========================================================================
+
+    private static buildCast(
+        tmdb: TMDBMetadata
+    ): string {
+
+        const cast =
+            tmdb.cast
+                .slice(
+                    0,
+                    8
+                )
+                .map(
+                    person =>
+                        this.escapeHtml(
+                            person.name
+                        )
+                )
+                .join(
+                    " • "
+                );
+
+        if (
+            !cast
+        ) {
+
+            return "";
+        }
+
+        return [
+
+            "🎭 <b>Besetzung</b>",
+
+            cast
+
+        ].join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // TECHNICAL INFORMATION
+    // =========================================================================
+
+    private static buildTechnicalInfo(
+        movie: MovieCatalogEntry
+    ): string {
+
+        const lines:
+            string[] = [];
+
+        lines.push(
+            "📊 <b>Technische Informationen</b>"
+        );
+
+        // =====================================================================
+        // QUALITY
+        // =====================================================================
 
         if (
             movie.quality
         ) {
 
             lines.push(
-                `🔥 Qualität: ${this.clean(movie.quality)}`
+                `🔥 Qualität: ${
+                    this.escapeHtml(
+                        movie.quality
+                    )
+                }`
             );
         }
+
+        // =====================================================================
+        // RESOLUTION
+        // =====================================================================
 
         if (
             movie.resolution
         ) {
 
             lines.push(
-                `📺 Auflösung: ${this.clean(movie.resolution)}`
+                `📺 Auflösung: ${
+                    this.escapeHtml(
+                        movie.resolution
+                    )
+                }`
             );
         }
+
+        // =====================================================================
+        // SOURCE
+        // =====================================================================
 
         if (
             movie.source
         ) {
 
             lines.push(
-                `💿 Quelle: ${this.clean(movie.source)}`
+                `💿 Quelle: ${
+                    this.escapeHtml(
+                        movie.source
+                    )
+                }`
             );
         }
 
-        if (
-            movie.audio
-        ) {
-
-            lines.push(
-                `🔊 Audio: ${this.clean(movie.audio)}`
-            );
-        }
-
-        if (
-            movie.audioCodec
-        ) {
-
-            lines.push(
-                `🎧 Audio-Codec: ${this.clean(movie.audioCodec)}`
-            );
-        }
-
-        if (
-            movie.audioChannels
-        ) {
-
-            lines.push(
-                `🔈 Tonkanäle: ${this.clean(movie.audioChannels)}`
-            );
-        }
+        // =====================================================================
+        // VIDEO CODEC
+        // =====================================================================
 
         if (
             movie.videoCodec
         ) {
 
             lines.push(
-                `🎥 Video-Codec: ${this.clean(movie.videoCodec)}`
+                `🎥 Video: ${
+                    this.escapeHtml(
+                        movie.videoCodec
+                    )
+                }`
             );
         }
+
+        // =====================================================================
+        // AUDIO
+        // =====================================================================
+
+        if (
+            movie.audio
+        ) {
+
+            lines.push(
+                `🔊 Audio: ${
+                    this.escapeHtml(
+                        movie.audio
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // AUDIO CODEC
+        // =====================================================================
+
+        if (
+            movie.audioCodec
+        ) {
+
+            lines.push(
+                `🎧 Audio-Codec: ${
+                    this.escapeHtml(
+                        movie.audioCodec
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // AUDIO CHANNELS
+        // =====================================================================
+
+        if (
+            movie.audioChannels
+        ) {
+
+            lines.push(
+                `🔈 Kanäle: ${
+                    this.escapeHtml(
+                        movie.audioChannels
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // HDR
+        // =====================================================================
 
         if (
             movie.hdr
         ) {
 
             lines.push(
-                `🌈 HDR: ${this.clean(movie.hdr)}`
+                `🌈 HDR: ${
+                    this.escapeHtml(
+                        movie.hdr
+                    )
+                }`
             );
         }
 
-        return lines;
+        // =====================================================================
+        // FILE SIZE
+        // =====================================================================
+
+        if (
+            movie.fileSize
+        ) {
+
+            lines.push(
+                `💾 Größe: ${
+                    this.formatFileSize(
+                        movie.fileSize
+                    )
+                }`
+            );
+        }
+
+        return lines.join(
+            "\n"
+        );
     }
 
     // =========================================================================
-    // CONTENT SECTION
+    // ARCHIVE INFORMATION
     // =========================================================================
 
-    private static buildContentSection(
-        movie: MoviePostData
-    ): string[] {
-
-        const lines: string[] = [];
-
-        if (
-            movie.country
-        ) {
-
-            lines.push(
-                `🌍 Land: ${this.clean(movie.country)}`
-            );
-        }
-
-        if (
-            movie.originalLanguage
-        ) {
-
-            lines.push(
-                `🗣️ Originalsprache: ${this.clean(movie.originalLanguage)}`
-            );
-        }
-
-        if (
-            movie.runtime
-        ) {
-
-            lines.push(
-                `⏱️ Laufzeit: ${this.formatRuntime(movie.runtime)}`
-            );
-        }
-
-        if (
-            movie.fsk !== undefined &&
-            movie.fsk !== null &&
-            String(movie.fsk).trim()
-        ) {
-
-            lines.push(
-                `🔞 FSK: ${this.clean(String(movie.fsk))}`
-            );
-        }
-
-        if (
-            movie.director
-        ) {
-
-            lines.push(
-                `🎥 Regie: ${this.clean(movie.director)}`
-            );
-        }
-
-        if (
-            movie.cast
-        ) {
-
-            lines.push(
-                `🎭 Besetzung: ${this.clean(movie.cast)}`
-            );
-        }
-
-        if (
-            movie.overview
-        ) {
-
-            lines.push(
-                ""
-            );
-
-            lines.push(
-                `📝 *Story*`
-            );
-
-            lines.push(
-                this.clean(
-                    movie.overview
-                )
-            );
-        }
-
-        return lines;
-    }
-
-    // =========================================================================
-    // TMDB SECTION
-    // =========================================================================
-
-    private static buildTmdbSection(
-        movie: MoviePostData
-    ): string[] {
-
-        const lines: string[] = [];
-
-        if (
-            movie.tmdbId
-        ) {
-
-            lines.push(
-                `🆔 TMDB-ID: ${this.clean(String(movie.tmdbId))}`
-            );
-        }
-
-        if (
-            movie.tmdbRating !== undefined &&
-            movie.tmdbRating !== null &&
-            String(movie.tmdbRating).trim()
-        ) {
-
-            lines.push(
-                `⭐ TMDB Bewertung: ${this.clean(String(movie.tmdbRating))}`
-            );
-        }
-
-        return lines;
-    }
-
-    // =========================================================================
-    // FILE SIZE
-    // =========================================================================
-
-    public static formatFileSize(
-        value: number | string
+    private static buildArchiveInfo(
+        movie: MovieCatalogEntry
     ): string {
 
-        const bytes =
-            typeof value === "number"
-                ? value
-                : Number(
-                    String(value)
-                        .replace(
-                            ",",
-                            "."
-                        )
-                        .replace(
-                            /[^0-9.]/g,
-                            ""
-                        )
-                );
+        return [
+
+            "🗃️ <b>Library Of Legends</b>",
+
+            `🆔 Archive-ID: <code>${
+                this.escapeHtml(
+                    movie.archiveId
+                )
+            }</code>`,
+
+            `📂 Kategorie: ${
+                this.escapeHtml(
+                    movie.categoryTitle
+                )
+            }`
+
+        ].join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // FOOTER
+    // =========================================================================
+
+    private static buildFooter(): string {
+
+        return [
+
+            "━━━━━━━━━━━━━━━━━━",
+
+            "🎬 <b>Library Of Legends</b>"
+
+        ].join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // BUTTONS
+    // =========================================================================
+
+    private static buildButtons(
+        movie: MovieCatalogEntry,
+        tmdb: TMDBMetadata | undefined,
+        options: MoviePostOptions
+    ): MoviePostButton[][] {
+
+        const rows:
+            MoviePostButton[][] = [];
+
+        // =====================================================================
+        // FAVORITE
+        // =====================================================================
+
+        rows.push(
+            [
+                {
+                    text:
+                        "⭐ Favorit",
+
+                    callbackData:
+                        `fav_${movie.archiveId}`
+                }
+            ]
+        );
+
+        // =====================================================================
+        // TMDB
+        // =====================================================================
+
+        if (
+            tmdb &&
+            options.showTmdbLink !==
+            false
+        ) {
+
+            rows.push(
+                [
+                    {
+                        text:
+                            "🎞️ TMDB",
+
+                        url:
+                            `https://www.themoviedb.org/${tmdb.mediaType}/${tmdb.id}`
+                    }
+                ]
+            );
+        }
+
+        return rows;
+    }
+
+    // =========================================================================
+    // SHORT VERSION
+    // =========================================================================
+
+    public static buildShort(
+        movie: MovieCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): MoviePost {
+
+        return this.build(
+            movie,
+            {
+                tmdb,
+
+                showTechnicalInfo:
+                    false,
+
+                showArchiveInfo:
+                    true,
+
+                showSynopsis:
+                    true,
+
+                showCast:
+                    false,
+
+                showTmdbLink:
+                    true
+            }
+        );
+    }
+
+    // =========================================================================
+    // FULL VERSION
+    // =========================================================================
+
+    public static buildFull(
+        movie: MovieCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): MoviePost {
+
+        return this.build(
+            movie,
+            {
+                tmdb,
+
+                showTechnicalInfo:
+                    true,
+
+                showArchiveInfo:
+                    true,
+
+                showSynopsis:
+                    true,
+
+                showCast:
+                    true,
+
+                showTmdbLink:
+                    true
+            }
+        );
+    }
+
+    // =========================================================================
+    // CAPTION ONLY
+    // =========================================================================
+
+    public static buildCaption(
+        movie: MovieCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): string {
+
+        return this.buildFull(
+            movie,
+            tmdb
+        ).caption;
+    }
+
+    // =========================================================================
+    // ESCAPE HTML
+    // =========================================================================
+
+    private static escapeHtml(
+        value: string
+    ): string {
+
+        return String(
+            value
+        )
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#39;"
+            );
+    }
+
+    // =========================================================================
+    // LIMIT TEXT
+    // =========================================================================
+
+    private static limitText(
+        value: string,
+        maxLength: number
+    ): string {
+
+        const text =
+            String(
+                value || ""
+            ).trim();
+
+        if (
+            text.length <=
+            maxLength
+        ) {
+
+            return text;
+        }
+
+        return (
+            text.slice(
+                0,
+                maxLength - 1
+            ).trim() +
+            "…"
+        );
+    }
+
+    // =========================================================================
+    // FORMAT FILE SIZE
+    // =========================================================================
+
+    private static formatFileSize(
+        bytes: number
+    ): string {
 
         if (
             !Number.isFinite(
@@ -609,130 +947,83 @@ export class MoviePostBuilder {
             bytes <= 0
         ) {
 
-            return String(
-                value
-            );
+            return "—";
         }
 
-        const units = [
-            "B",
-            "KB",
-            "MB",
-            "GB",
-            "TB"
-        ];
+        const units =
+            [
+                "B",
+                "KB",
+                "MB",
+                "GB",
+                "TB"
+            ];
 
-        let size =
+        let value =
             bytes;
 
         let index =
             0;
 
         while (
-            size >= 1024 &&
+            value >= 1024 &&
             index <
-            units.length - 1
+                units.length - 1
         ) {
 
-            size /=
+            value /=
                 1024;
 
             index++;
         }
 
-        return `${size.toFixed(2)} ${units[index]}`;
+        return `${value.toFixed(
+            index === 0
+                ? 0
+                : 2
+        )} ${units[index]}`;
     }
 
     // =========================================================================
-    // RUNTIME
+    // DEBUG
     // =========================================================================
 
-    public static formatRuntime(
-        value: number | string
+    public static describe(
+        movie: MovieCatalogEntry,
+        tmdb?: TMDBMetadata
     ): string {
 
-        const minutes =
-            Number(
-                String(value)
-                    .replace(
-                        /[^0-9.]/g,
-                        ""
-                    )
+        const post =
+            this.buildFull(
+                movie,
+                tmdb
             );
 
-        if (
-            !Number.isFinite(
-                minutes
-            ) ||
-            minutes <= 0
-        ) {
+        return [
 
-            return String(
-                value
-            );
-        }
+            "=================================================",
 
-        const hours =
-            Math.floor(
-                minutes / 60
-            );
+            "📝 MOVIE POST BUILDER",
 
-        const remainingMinutes =
-            Math.round(
-                minutes % 60
-            );
+            "=================================================",
 
-        if (
-            hours <= 0
-        ) {
+            post.caption,
 
-            return `${remainingMinutes} Min.`;
-        }
+            "=================================================",
 
-        if (
-            remainingMinutes === 0
-        ) {
+            `🔘 Button-Zeilen: ${
+                post.buttons.length
+            }`,
 
-            return `${hours} Std.`;
-        }
+            `🖼 Poster: ${
+                post.posterUrl ??
+                "—"
+            }`,
 
-        return `${hours} Std. ${remainingMinutes} Min.`;
-    }
+            "================================================="
 
-    // =========================================================================
-    // CLEAN
-    // =========================================================================
-
-    private static clean(
-        value: unknown
-    ): string {
-
-        return String(
-            value ?? ""
-        )
-            .trim()
-            .replace(
-                /\r\n/g,
-                "\n"
-            )
-            .replace(
-                /\r/g,
-                "\n"
-            );
-    }
-
-    // =========================================================================
-    // MARKDOWN ESCAPE
-    // =========================================================================
-
-    private static escapeMarkdown(
-        value: string
-    ): string {
-
-        return value
-            .replace(
-                /([_*[\]()~`>#+\-=|{}.!])/g,
-                "\\$1"
-            );
+        ].join(
+            "\n"
+        );
     }
 }
