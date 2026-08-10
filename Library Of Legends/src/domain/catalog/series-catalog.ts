@@ -20,7 +20,7 @@ File................: series-catalog.ts
 Location............
 Library Of Legends/src/domain/catalog/
 
-Version.............: 1.0.0
+Version.............: 3.0.0
 
 Status..............: Core
 
@@ -28,33 +28,72 @@ Lifecycle...........: Development
 
 Description.........
 
-Represents the structured catalog model for series inside
-the Library Of Legends archive system.
+Series catalog system for Library Of Legends.
 
-The SeriesCatalog combines parsed filename information,
-genre information and episode metadata into a normalized
-series representation.
+Responsibilities:
 
-This component does not communicate with Telegram,
-TMDB or PostgreSQL directly.
+- Create series catalog entries
+- Detect series information
+- Extract season and episode
+- Detect genres
+- Route series to Telegram categories
+- Generate series archive IDs
+- Generate episode archive IDs
+- Preserve Telegram File-ID
+- Preserve original filename
+- Normalize series titles
+- Prepare series data for database storage
+- Prepare topic information
+- Support multiple episodes per series
+
+The catalog does NOT directly access Telegram.
+
+The catalog does NOT directly access PostgreSQL.
+
+Those responsibilities belong to the framework and infrastructure layers.
 
 ===============================================================================
 */
 
 import {
-    ParsedFilename,
+    ParsedMedia,
     FilenameParser
 } from "../detection/filename-parser";
 
 import {
-    GenreDetector,
-    LibraryGenre
+    MediaTypeDetector
+} from "../detection/media-type-detector";
+
+import {
+    GenreDetector
 } from "../detection/genre-detector";
 
+import {
+    LibraryGenre
+} from "../detection/genre-detector-types";
+
+import {
+    GenreRouter,
+    GenreRoute
+} from "../../application/routing/genre-router";
+
+import {
+    TopicManager
+} from "../../application/routing/topic-manager";
+
+import {
+    ArchiveIdGenerator
+} from "../archive/archive-id-generator";
+
 /**
- * Structured series catalog entry.
+ * Input required to create a series catalog entry.
  */
-export interface SeriesCatalogItem {
+export interface SeriesCatalogInput {
+
+    /**
+     * Telegram File-ID.
+     */
+    fileId: string;
 
     /**
      * Original Telegram filename.
@@ -62,14 +101,70 @@ export interface SeriesCatalogItem {
     fileName: string;
 
     /**
+     * Optional file size.
+     */
+    fileSize?: number;
+
+    /**
+     * Optional Telegram chat ID.
+     */
+    chatId?: string;
+
+    /**
+     * Optional Telegram message ID.
+     */
+    messageId?: number;
+}
+
+/**
+ * Complete series catalog entry.
+ */
+export interface SeriesCatalogEntry {
+
+    /**
+     * Series archive ID.
+     */
+    seriesId: string;
+
+    /**
+     * Episode archive ID.
+     */
+    episodeId?: string;
+
+    /**
+     * Media type.
+     */
+    type: "SERIES";
+
+    /**
      * Clean series title.
      */
     title: string;
 
     /**
-     * Release year if detected.
+     * Original filename.
      */
-    year?: number;
+    originalFileName: string;
+
+    /**
+     * Telegram File-ID.
+     */
+    fileId: string;
+
+    /**
+     * File size.
+     */
+    fileSize?: number;
+
+    /**
+     * Season.
+     */
+    season?: number;
+
+    /**
+     * Episode.
+     */
+    episode?: number;
 
     /**
      * Detected genres.
@@ -82,34 +177,49 @@ export interface SeriesCatalogItem {
     primaryGenre: LibraryGenre;
 
     /**
-     * Season number.
+     * Telegram category.
      */
-    season?: number;
+    category: string;
 
     /**
-     * Episode number.
+     * Telegram category title.
      */
-    episode?: number;
+    categoryTitle: string;
 
     /**
-     * Media quality.
+     * Archive code.
+     */
+    archiveCode: string;
+
+    /**
+     * Quality.
      */
     quality?: string;
 
     /**
-     * Video resolution.
+     * Resolution.
      */
     resolution?: string;
 
     /**
-     * Media source.
+     * Source.
      */
     source?: string;
 
     /**
-     * Audio information.
+     * Audio.
      */
     audio?: string;
+
+    /**
+     * Audio codec.
+     */
+    audioCodec?: string;
+
+    /**
+     * Audio channels.
+     */
+    audioChannels?: string;
 
     /**
      * Video codec.
@@ -117,77 +227,278 @@ export interface SeriesCatalogItem {
     videoCodec?: string;
 
     /**
+     * HDR.
+     */
+    hdr?: string;
+
+    /**
      * File extension.
      */
     extension?: string;
 
     /**
-     * Media type.
+     * Telegram source chat.
      */
-    type: "SERIES";
+    chatId?: string;
+
+    /**
+     * Telegram source message.
+     */
+    messageId?: number;
+
+    /**
+     * Creation timestamp.
+     */
+    createdAt: number;
 }
 
 /**
- * Series Catalog
+ * Series information independent from an episode.
+ */
+export interface SeriesInfo {
+
+    seriesId: string;
+
+    title: string;
+
+    genres: LibraryGenre[];
+
+    primaryGenre: LibraryGenre;
+
+    category: string;
+
+    categoryTitle: string;
+
+    archiveCode: string;
+
+    createdAt: number;
+}
+
+/**
+ * Series Catalog.
  */
 export class SeriesCatalog {
 
     // =========================================================================
-    // CREATE FROM FILENAME
+    // INTERNAL SEQUENCE
+    // =========================================================================
+
+    private static seriesSequence =
+        0;
+
+    // =========================================================================
+    // SERIES CACHE
+    // =========================================================================
+
+    private static seriesCache:
+        Map<string, SeriesInfo> =
+        new Map();
+
+    // =========================================================================
+    // CREATE
     // =========================================================================
 
     public static create(
-        fileName: string
-    ): SeriesCatalogItem {
+        input: SeriesCatalogInput
+    ): SeriesCatalogEntry {
 
-        const parsed =
+        const fileId =
+            String(
+                input.fileId || ""
+            ).trim();
+
+        const fileName =
+            String(
+                input.fileName || ""
+            ).trim();
+
+        if (
+            !fileId
+        ) {
+
+            throw new Error(
+                "SeriesCatalog: Telegram File-ID fehlt."
+            );
+        }
+
+        if (
+            !fileName
+        ) {
+
+            throw new Error(
+                "SeriesCatalog: Dateiname fehlt."
+            );
+        }
+
+        // =====================================================================
+        // PARSE
+        // =====================================================================
+
+        const parsed:
+            ParsedMedia =
             FilenameParser.parse(
                 fileName
             );
 
+        // =====================================================================
+        // ENSURE SERIES
+        // =====================================================================
+
+        if (
+            parsed.type !==
+            "SERIES"
+        ) {
+
+            throw new Error(
+                `SeriesCatalog: Datei wurde als ${parsed.type} erkannt und ist keine Serie.`
+            );
+        }
+
         return this.createFromParsed(
-            parsed
+            parsed,
+            fileId,
+            input.fileSize,
+            input.chatId,
+            input.messageId
         );
     }
 
     // =========================================================================
-    // CREATE FROM PARSED DATA
+    // CREATE FROM PARSED
     // =========================================================================
 
     public static createFromParsed(
-        parsed: ParsedFilename
-    ): SeriesCatalogItem {
+        parsed: ParsedMedia,
+        fileId: string,
+        fileSize?: number,
+        chatId?: string,
+        messageId?: number
+    ): SeriesCatalogEntry {
+
+        if (
+            parsed.type !==
+            "SERIES"
+        ) {
+
+            throw new Error(
+                "SeriesCatalog: ParsedMedia ist keine Serie."
+            );
+        }
+
+        const title =
+            this.normalizeSeriesTitle(
+                parsed.title
+            );
+
+        if (
+            !title
+        ) {
+
+            throw new Error(
+                "SeriesCatalog: Serienname konnte nicht erkannt werden."
+            );
+        }
+
+        // =====================================================================
+        // GENRE
+        // =====================================================================
 
         const genres =
             GenreDetector.detect(
-                parsed.title
+                title
             );
 
         const primaryGenre =
             GenreDetector.detectPrimary(
-                parsed.title
+                title
             );
+
+        // =====================================================================
+        // ROUTING
+        // =====================================================================
+
+        const route:
+            GenreRoute =
+            GenreRouter.route(
+                genres
+            );
+
+        // =====================================================================
+        // SERIES ID
+        // =====================================================================
+
+        const seriesInfo =
+            this.getOrCreateSeries(
+                title,
+                genres,
+                primaryGenre,
+                route
+            );
+
+        // =====================================================================
+        // EPISODE ID
+        // =====================================================================
+
+        let episodeId:
+            string | undefined;
+
+        if (
+            parsed.season !== undefined &&
+            parsed.episode !== undefined
+        ) {
+
+            episodeId =
+                ArchiveIdGenerator.generateEpisodeId(
+                    seriesInfo.seriesId,
+                    parsed.season,
+                    parsed.episode
+                );
+        }
+
+        // =====================================================================
+        // BUILD ENTRY
+        // =====================================================================
 
         return {
 
-            fileName:
-                parsed.originalFileName,
+            seriesId:
+                seriesInfo.seriesId,
+
+            episodeId,
+
+            type:
+                "SERIES",
 
             title:
-                parsed.title,
+                seriesInfo.title,
 
-            year:
-                parsed.year,
+            originalFileName:
+                parsed.originalFileName,
 
-            genres,
+            fileId,
 
-            primaryGenre,
+            fileSize,
 
             season:
                 parsed.season,
 
             episode:
                 parsed.episode,
+
+            genres:
+                seriesInfo.genres,
+
+            primaryGenre:
+                seriesInfo.primaryGenre,
+
+            category:
+                seriesInfo.category,
+
+            categoryTitle:
+                seriesInfo.categoryTitle,
+
+            archiveCode:
+                seriesInfo.archiveCode,
 
             quality:
                 parsed.quality,
@@ -201,85 +512,238 @@ export class SeriesCatalog {
             audio:
                 parsed.audio,
 
+            audioCodec:
+                parsed.audioCodec,
+
+            audioChannels:
+                parsed.audioChannels,
+
             videoCodec:
                 parsed.videoCodec,
+
+            hdr:
+                parsed.hdr,
 
             extension:
                 parsed.extension,
 
-            type:
-                "SERIES"
+            chatId,
+
+            messageId,
+
+            createdAt:
+                Date.now()
         };
     }
 
     // =========================================================================
-    // IS SERIES
+    // GET OR CREATE SERIES
     // =========================================================================
 
-    public static isSeries(
-        fileName: string
-    ): boolean {
+    public static getOrCreateSeries(
+        title: string,
+        genres?: LibraryGenre[],
+        primaryGenre?: LibraryGenre,
+        route?: GenreRoute
+    ): SeriesInfo {
 
-        const parsed =
-            FilenameParser.parse(
-                fileName
+        const normalizedTitle =
+            this.normalizeSeriesTitle(
+                title
             );
 
-        return (
-            parsed.type === "SERIES"
+        const key =
+            TopicManager.normalizeName(
+                normalizedTitle
+            );
+
+        const existing =
+            this.seriesCache.get(
+                key
+            );
+
+        if (
+            existing
+        ) {
+
+            return existing;
+        }
+
+        const detectedGenres =
+            genres &&
+            genres.length > 0
+                ? genres
+                : GenreDetector.detect(
+                    normalizedTitle
+                );
+
+        const detectedPrimary =
+            primaryGenre ||
+            GenreDetector.detectPrimary(
+                normalizedTitle
+            );
+
+        const detectedRoute =
+            route ||
+            GenreRouter.route(
+                detectedGenres
+            );
+
+        const seriesNumber =
+            this.nextSeriesSequence();
+
+        const seriesId =
+            ArchiveIdGenerator.generateSeriesId(
+                seriesNumber
+            );
+
+        const series:
+            SeriesInfo = {
+
+            seriesId,
+
+            title:
+                normalizedTitle,
+
+            genres:
+                detectedGenres,
+
+            primaryGenre:
+                detectedPrimary,
+
+            category:
+                detectedRoute.category,
+
+            categoryTitle:
+                detectedRoute.categoryTitle,
+
+            archiveCode:
+                detectedRoute.archiveCode,
+
+            createdAt:
+                Date.now()
+        };
+
+        this.seriesCache.set(
+            key,
+            series
+        );
+
+        return series;
+    }
+
+    // =========================================================================
+    // FIND SERIES
+    // =========================================================================
+
+    public static findSeries(
+        title: string
+    ): SeriesInfo | undefined {
+
+        const key =
+            TopicManager.normalizeName(
+                title
+            );
+
+        return this.seriesCache.get(
+            key
         );
     }
 
     // =========================================================================
-    // GET TITLE
+    // FIND BY SERIES ID
     // =========================================================================
 
-    public static getTitle(
-        fileName: string
+    public static findBySeriesId(
+        seriesId: string
+    ): SeriesInfo | undefined {
+
+        const normalized =
+            String(
+                seriesId || ""
+            )
+                .trim()
+                .toUpperCase();
+
+        for (
+            const series of
+            this.seriesCache.values()
+        ) {
+
+            if (
+                series.seriesId ===
+                normalized
+            ) {
+
+                return series;
+            }
+        }
+
+        return undefined;
+    }
+
+    // =========================================================================
+    // NORMALIZE TITLE
+    // =========================================================================
+
+    public static normalizeSeriesTitle(
+        title: string
     ): string {
 
-        return this.create(
-            fileName
-        ).title;
+        return TopicManager.normalizeSeriesTitle(
+            title
+        );
     }
 
     // =========================================================================
-    // GET GENRES
+    // NEXT SERIES SEQUENCE
     // =========================================================================
 
-    public static getGenres(
-        fileName: string
-    ): LibraryGenre[] {
+    private static nextSeriesSequence():
+        number {
 
-        return this.create(
-            fileName
-        ).genres;
+        this.seriesSequence++;
+
+        return this.seriesSequence;
     }
 
     // =========================================================================
-    // GET PRIMARY GENRE
+    // SET SERIES SEQUENCE
     // =========================================================================
 
-    public static getPrimaryGenre(
-        fileName: string
-    ): LibraryGenre {
+    public static setSeriesSequence(
+        value: number
+    ): void {
 
-        return this.create(
-            fileName
-        ).primaryGenre;
+        const numeric =
+            Number(
+                value
+            );
+
+        if (
+            !Number.isFinite(
+                numeric
+            ) ||
+            numeric < 0
+        ) {
+
+            return;
+        }
+
+        this.seriesSequence =
+            Math.floor(
+                numeric
+            );
     }
 
     // =========================================================================
-    // GET SEASON
+    // GET SERIES SEQUENCE
     // =========================================================================
 
-    public static getSeason(
-        fileName: string
-    ): number | undefined {
+    public static getSeriesSequence():
+        number {
 
-        return this.create(
-            fileName
-        ).season;
+        return this.seriesSequence;
     }
 
     // =========================================================================
@@ -287,102 +751,430 @@ export class SeriesCatalog {
     // =========================================================================
 
     public static getEpisode(
-        fileName: string
+        entry: SeriesCatalogEntry
     ): number | undefined {
 
-        return this.create(
-            fileName
-        ).episode;
+        return entry.episode;
     }
 
     // =========================================================================
-    // FORMAT EPISODE
+    // GET SEASON
     // =========================================================================
 
-    public static formatEpisode(
-        season?: number,
-        episode?: number
+    public static getSeason(
+        entry: SeriesCatalogEntry
+    ): number | undefined {
+
+        return entry.season;
+    }
+
+    // =========================================================================
+    // GET TOPIC NAME
+    // =========================================================================
+
+    public static getTopicName(
+        entry: SeriesCatalogEntry
     ): string {
 
-        if (
-            season === undefined ||
-            episode === undefined
-        ) {
-
-            return "";
-        }
-
-        return (
-            `S${String(season).padStart(2, "0")}` +
-            `E${String(episode).padStart(2, "0")}`
+        return TopicManager.cleanTopicName(
+            entry.title
         );
     }
 
     // =========================================================================
-    // NORMALIZE TITLE
+    // BUILD TOPIC REQUEST
     // =========================================================================
 
-    public static normalizeTitle(
-        title: string
-    ): string {
+    public static buildTopicRequest(
+        entry: SeriesCatalogEntry,
+        chatId: string
+    ) {
 
-        return title
-            .replace(/[._]+/g, " ")
-            .replace(/\s+/g, " ")
-            .trim();
+        return TopicManager.buildRequest(
+            chatId,
+            entry.title
+        );
     }
 
     // =========================================================================
-    // TO JSON
+    // IS SERIES
     // =========================================================================
 
-    public static toJSON(
-        series: SeriesCatalogItem
+    public static isSeries(
+        entry: SeriesCatalogEntry
+    ): boolean {
+
+        return (
+            entry.type ===
+            "SERIES"
+        );
+    }
+
+    // =========================================================================
+    // HAS EPISODE
+    // =========================================================================
+
+    public static hasEpisode(
+        entry: SeriesCatalogEntry
+    ): boolean {
+
+        return (
+            entry.season !== undefined &&
+            entry.episode !== undefined
+        );
+    }
+
+    // =========================================================================
+    // HAS GENRE
+    // =========================================================================
+
+    public static hasGenre(
+        entry: SeriesCatalogEntry,
+        genre: LibraryGenre
+    ): boolean {
+
+        return entry.genres.includes(
+            genre
+        );
+    }
+
+    // =========================================================================
+    // SEARCH MATCH
+    // =========================================================================
+
+    public static matchesSearch(
+        entry: SeriesCatalogEntry,
+        query: string
+    ): boolean {
+
+        const normalizedQuery =
+            String(
+                query || ""
+            )
+                .toLowerCase()
+                .trim();
+
+        if (
+            !normalizedQuery
+        ) {
+
+            return true;
+        }
+
+        const searchable =
+            [
+
+                entry.title,
+
+                entry.originalFileName,
+
+                entry.seriesId,
+
+                entry.episodeId ||
+                    "",
+
+                entry.primaryGenre,
+
+                ...entry.genres
+
+            ]
+                .join(
+                    " "
+                )
+                .toLowerCase();
+
+        return searchable.includes(
+            normalizedQuery
+        );
+    }
+
+    // =========================================================================
+    // TO DATABASE OBJECT
+    // =========================================================================
+
+    public static toDatabaseObject(
+        entry: SeriesCatalogEntry
     ): Record<string, unknown> {
 
         return {
 
-            type:
-                series.type,
+            libraryId:
+                entry.episodeId ||
+                entry.seriesId,
+
+            seriesId:
+                entry.seriesId,
+
+            episodeId:
+                entry.episodeId,
 
             title:
-                series.title,
-
-            year:
-                series.year ?? null,
-
-            genres:
-                series.genres,
-
-            primaryGenre:
-                series.primaryGenre,
-
-            season:
-                series.season ?? null,
-
-            episode:
-                series.episode ?? null,
+                entry.title,
 
             fileName:
-                series.fileName,
+                entry.originalFileName,
+
+            fileId:
+                entry.fileId,
+
+            type:
+                entry.type,
+
+            season:
+                entry.season,
+
+            episode:
+                entry.episode,
+
+            genre:
+                entry.primaryGenre,
+
+            genres:
+                entry.genres,
+
+            category:
+                entry.category,
 
             quality:
-                series.quality ?? null,
+                entry.quality,
 
             resolution:
-                series.resolution ?? null,
+                entry.resolution,
 
             source:
-                series.source ?? null,
+                entry.source,
 
             audio:
-                series.audio ?? null,
+                entry.audio,
+
+            audioCodec:
+                entry.audioCodec,
+
+            audioChannels:
+                entry.audioChannels,
 
             videoCodec:
-                series.videoCodec ?? null,
+                entry.videoCodec,
+
+            hdr:
+                entry.hdr,
 
             extension:
-                series.extension ?? null
+                entry.extension,
+
+            fileSize:
+                entry.fileSize,
+
+            chatId:
+                entry.chatId,
+
+            messageId:
+                entry.messageId
         };
+    }
+
+    // =========================================================================
+    // GET DISPLAY TITLE
+    // =========================================================================
+
+    public static getDisplayTitle(
+        entry: SeriesCatalogEntry
+    ): string {
+
+        let result =
+            entry.title;
+
+        if (
+            entry.season !== undefined
+        ) {
+
+            result +=
+                ` · S${String(
+                    entry.season
+                ).padStart(
+                    2,
+                    "0"
+                )}`;
+        }
+
+        if (
+            entry.episode !== undefined
+        ) {
+
+            result +=
+                `E${String(
+                    entry.episode
+                ).padStart(
+                    2,
+                    "0"
+                )}`;
+        }
+
+        return result;
+    }
+
+    // =========================================================================
+    // DESCRIBE
+    // =========================================================================
+
+    public static describe(
+        entry: SeriesCatalogEntry
+    ): string {
+
+        return [
+
+            "=================================================",
+
+            "📺 SERIES CATALOG",
+
+            "=================================================",
+
+            `🆔 Serien-ID: ${
+                entry.seriesId
+            }`,
+
+            `🗃️ Episoden-ID: ${
+                entry.episodeId ??
+                "—"
+            }`,
+
+            `📺 Serie: ${
+                entry.title
+            }`,
+
+            `📚 Staffel: ${
+                entry.season ??
+                "—"
+            }`,
+
+            `🎬 Episode: ${
+                entry.episode ??
+                "—"
+            }`,
+
+            `🏷️ Genres: ${
+                entry.genres.join(
+                    ", "
+                )
+            }`,
+
+            `⭐ Hauptgenre: ${
+                entry.primaryGenre
+            }`,
+
+            `📂 Kategorie: ${
+                entry.categoryTitle
+            }`,
+
+            `🔥 Qualität: ${
+                entry.quality ??
+                "—"
+            }`,
+
+            `📺 Auflösung: ${
+                entry.resolution ??
+                "—"
+            }`,
+
+            `💿 Quelle: ${
+                entry.source ??
+                "—"
+            }`,
+
+            `🔊 Audio: ${
+                entry.audio ??
+                "—"
+            }`,
+
+            `🎧 Audio-Codec: ${
+                entry.audioCodec ??
+                "—"
+            }`,
+
+            `🔈 Kanäle: ${
+                entry.audioChannels ??
+                "—"
+            }`,
+
+            `🎥 Video-Codec: ${
+                entry.videoCodec ??
+                "—"
+            }`,
+
+            `🌈 HDR: ${
+                entry.hdr ??
+                "—"
+            }`,
+
+            `🆔 File-ID: ${
+                entry.fileId
+            }`,
+
+            "================================================="
+
+        ].join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // GET ALL SERIES
+    // =========================================================================
+
+    public static getAllSeries():
+        SeriesInfo[] {
+
+        return Array.from(
+            this.seriesCache.values()
+        );
+    }
+
+    // =========================================================================
+    // COUNT SERIES
+    // =========================================================================
+
+    public static countSeries():
+        number {
+
+        return this.seriesCache.size;
+    }
+
+    // =========================================================================
+    // CLEAR CACHE
+    // =========================================================================
+
+    public static clearCache():
+        void {
+
+        this.seriesCache.clear();
+
+        this.seriesSequence =
+            0;
+    }
+
+    // =========================================================================
+    // DEBUG PARSER
+    // =========================================================================
+
+    public static detect(
+        fileName: string
+    ): ParsedMedia {
+
+        return FilenameParser.parse(
+            fileName
+        );
+    }
+
+    // =========================================================================
+    // IS SERIES FILE
+    // =========================================================================
+
+    public static isSeriesFile(
+        fileName: string
+    ): boolean {
+
+        return MediaTypeDetector.isSeries(
+            fileName
+        );
     }
 }
