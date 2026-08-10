@@ -11,9 +11,9 @@ Architecture Layer..: Domain
 
 Module..............: Media
 
-Module ID...........: LOL-MOD-SDT-0001
+Module ID...........: LOL-MOD-MED-0002
 
-LOL-ID..............: LOL-SDT-0001
+LOL-ID..............: LOL-MED-0002
 
 File................: series-detector.ts
 
@@ -28,14 +28,16 @@ Lifecycle...........: Development
 
 Description.........
 
-Extracts series name, season, and episode from filename.
+Detects and extracts structured information from series file names:
+- Title
+- Season
+- Episode
+
+Supports multiple common naming patterns.
 
 ===============================================================================
 */
 
-/**
- * Series Info Result
- */
 export interface SeriesInfo {
     title: string;
     season: number;
@@ -47,58 +49,61 @@ export interface SeriesInfo {
  */
 export class SeriesDetector {
 
+    /**
+     * Detect series info from filename
+     */
     public static detect(fileName: string): SeriesInfo | null {
 
-        const name = fileName.replace(/\./g, " ");
+        const clean = fileName.replace(/\.[^/.]+$/, "");
+        const lower = clean.toLowerCase();
 
         // =========================================================================
-        // S01E01 Pattern
+        // PATTERN 1: S01E01
         // =========================================================================
 
-        const match = name.match(/(.*?)[\s\-_.]?S(\d{1,2})E(\d{1,2})/i);
+        const sxe = lower.match(/s(\d{1,2})e(\d{1,2})/);
 
-        if (match) {
+        if (sxe) {
+            const season = parseInt(sxe[1]);
+            const episode = parseInt(sxe[2]);
 
-            const title = match[1]
-                .replace(/\d{3,4}/g, "") // remove year
-                .trim();
+            const title = this.extractTitle(clean, sxe[0]);
 
-            const season = parseInt(match[2], 10);
-            const episode = parseInt(match[3], 10);
-
-            return {
-                title: title,
-                season,
-                episode
-            };
-
+            return { title, season, episode };
         }
 
         // =========================================================================
-        // 1x01 Pattern
+        // PATTERN 2: 1x01
         // =========================================================================
 
-        const altMatch = name.match(/(.*?)[\s\-_.]?(\d{1,2})x(\d{1,2})/i);
+        const xPattern = lower.match(/(\d{1,2})x(\d{1,2})/);
 
-        if (altMatch) {
+        if (xPattern) {
+            const season = parseInt(xPattern[1]);
+            const episode = parseInt(xPattern[2]);
 
-            const title = altMatch[1]
-                .replace(/\d{3,4}/g, "")
-                .trim();
+            const title = this.extractTitle(clean, xPattern[0]);
 
-            const season = parseInt(altMatch[2], 10);
-            const episode = parseInt(altMatch[3], 10);
-
-            return {
-                title,
-                season,
-                episode
-            };
-
+            return { title, season, episode };
         }
+
+        // =========================================================================
+        // NOT A SERIES
+        // =========================================================================
 
         return null;
+    }
 
+    /**
+     * Extract clean title
+     */
+    private static extractTitle(fileName: string, match: string): string {
+
+        return fileName
+            .replace(match, "")
+            .replace(/[._-]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
     }
 
 }
