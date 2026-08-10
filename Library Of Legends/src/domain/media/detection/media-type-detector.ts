@@ -11,9 +11,9 @@ Architecture Layer..: Domain
 
 Module..............: Media
 
-Module ID...........: LOL-MOD-MTD-0001
+Module ID...........: LOL-MOD-MED-0001
 
-LOL-ID..............: LOL-MTD-0001
+LOL-ID..............: LOL-MED-0001
 
 File................: media-type-detector.ts
 
@@ -28,15 +28,11 @@ Lifecycle...........: Development
 
 Description.........
 
-Detects whether a media file is a movie or a series episode
-based on filename patterns.
+Detects whether a file is a MOVIE or a SERIES based on filename patterns.
 
 ===============================================================================
 */
 
-/**
- * Media Types
- */
 export type MediaType = "MOVIE" | "SERIES";
 
 /**
@@ -45,35 +41,31 @@ export type MediaType = "MOVIE" | "SERIES";
 export class MediaTypeDetector {
 
     /**
-     * Detect media type from file name
+     * Detect media type
      */
     public static detect(fileName: string): MediaType {
 
-        const name = fileName.toUpperCase();
+        const lower = fileName.toLowerCase();
 
         // =========================================================================
         // SERIES PATTERNS
         // =========================================================================
 
-        const seriesPatterns = [
-            /S\d{1,2}E\d{1,2}/,     // S01E01
-            /\d{1,2}x\d{1,2}/,      // 1x01
-            /SEASON\s?\d/,          // Season 1
-            /EPISODE\s?\d/          // Episode 1
-        ];
+        const isSeries =
+            /s\d{1,2}e\d{1,2}/.test(lower) ||   // S01E01
+            /\d{1,2}x\d{1,2}/.test(lower) ||    // 1x01
+            /season\s?\d+/.test(lower) ||       // Season 1
+            /episode\s?\d+/.test(lower);        // Episode 1
 
-        for (const pattern of seriesPatterns) {
-            if (pattern.test(name)) {
-                return "SERIES";
-            }
+        if (isSeries) {
+            return "SERIES";
         }
 
         // =========================================================================
-        // DEFAULT
+        // DEFAULT → MOVIE
         // =========================================================================
 
         return "MOVIE";
-
     }
 
 }
