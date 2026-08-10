@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 2.0.0
+Version.............: 2.1.0
 
 Status..............: Core
 
@@ -28,9 +28,8 @@ Lifecycle...........: Development
 
 Description.........
 
-Telegram Bot with admin protection, auto parsing,
-media detection, intelligent routing, post builder selection
-and series topic (thread) system.
+Telegram Bot with TMDB integration (poster + description),
+series threads, intelligent routing and post building.
 
 ===============================================================================
 */
@@ -45,6 +44,7 @@ import { TelegramPostBuilder } from "../../application/telegram/telegram-post-bu
 import { SeriesPostBuilder } from "../../application/telegram/series-post-builder";
 
 import { SeriesTopicManager } from "./series-topic-manager";
+import { TMDBClient } from "../../infrastructure/api/tmdb/tmdb-client";
 
 /**
  * Telegram Bot
@@ -61,10 +61,6 @@ export class TelegramBot {
 
         this.bot = new Telegraf(token);
 
-        // =========================================================================
-        // ENV CONFIG
-        // =========================================================================
-
         this.adminIds = (process.env.ADMIN_IDS || "")
             .split(",")
             .map(id => Number(id.trim()))
@@ -74,28 +70,18 @@ export class TelegramBot {
         this.seriesChannelId = process.env.SERIES_GROUP_ID || "";
 
         this.setup();
-
     }
 
     private setup(): void {
 
-        // =========================================================================
-        // START
-        // =========================================================================
-
         this.bot.start((ctx) => {
-            ctx.reply("🚀 Library Of Legends Bot aktiv (Level 2 aktiv).");
+            ctx.reply("🚀 Library Of Legends Bot (TMDB aktiv).");
         });
-
-        // =========================================================================
-        // DOCUMENT HANDLER
-        // =========================================================================
 
         this.bot.on("document", async (ctx) => {
 
             const userId = ctx.from?.id;
 
-            // ❌ Admin Only
             if (!userId || !this.adminIds.includes(userId)) {
                 return;
             }
@@ -109,23 +95,15 @@ export class TelegramBot {
 
             try {
 
-                // =========================================================================
-                // DETECT TYPE
-                // =========================================================================
-
                 const type = MediaTypeDetector.detect(fileName);
-
-                // =========================================================================
-                // PARSE MEDIA
-                // =========================================================================
-
                 const media = MediaParser.parse(fileName);
 
-                // =========================================================================
-                // BUILD POST
-                // =========================================================================
-
                 let post = "";
+                let title = fileName;
+
+                // =========================================================================
+                // BUILD BASE POST
+                // =========================================================================
 
                 if (type === "MOVIE") {
                     post = TelegramPostBuilder.build(media, fileName);
@@ -133,60 +111,110 @@ export class TelegramBot {
 
                 if (type === "SERIES") {
                     post = SeriesPostBuilder.build(fileName, media);
+
+                    const info = SeriesDetector.detect(fileName);
+                    if (info) {
+                        title = info.title;
+                    }
                 }
 
                 // =========================================================================
-                // ROUTING + THREAD SYSTEM 🔥
+                // TMDB FETCH 🔥
+                // =========================================================================
+
+                let tmdb = null;
+
+                try {
+                    tmdb = type === "MOVIE"
+                        ? await TMDBClient.searchMovie(title)
+                        : await TMDBClient.searchSeries(title);
+                } catch (e) {
+                    console.warn("TMDB Fehler:", e);
+                }
+
+                let caption = post;
+
+                if (tmdb) {
+
+                    const overview = tmdb.overview
+                        ? `\n\n📝 ${tmdb.overview.substring(0, 300)}...`
+                        : "";
+
+                    caption = `${post}${overview}`;
+                }
+
+                // =========================================================================
+                // ROUTING + SEND 🔥
                 // =========================================================================
 
                 if (type === "MOVIE") {
 
-                    await this.bot.telegram.sendMessage(
-                        this.movieChannelId,
-                        post
-                    );
+                    if (tmdb?.posterPath) {
+
+                        const posterUrl = `https://image.tmdb.org/t/p/w500${tmdb.posterPath}`;
+
+                        await this.bot.telegram.sendPhoto(
+                            this.movieChannelId,
+                            posterUrl,
+                            { caption }
+                        );
+
+                    } else {
+
+                        await this.bot.telegram.sendMessage(
+                            this.movieChannelId,
+                            caption
+                        );
+
+                    }
 
                 } else if (type === "SERIES") {
 
                     const seriesInfo = SeriesDetector.detect(fileName);
 
                     if (!seriesInfo) {
-                        throw new Error("❌ Series konnte nicht erkannt werden");
+                        throw new Error("❌ Series nicht erkannt");
                     }
 
-                    // 🔥 Topic holen oder erstellen
                     const threadId = await SeriesTopicManager.getOrCreateTopic(
                         this.bot,
                         this.seriesChannelId,
                         seriesInfo.title
                     );
 
-                    // 🔥 In Thread posten
-                    await this.bot.telegram.sendMessage(
-                        this.seriesChannelId,
-                        post,
-                        {
-                            message_thread_id: threadId
-                        }
-                    );
+                    if (tmdb?.posterPath) {
 
-                } else {
+                        const posterUrl = `https://image.tmdb.org/t/p/w500${tmdb.posterPath}`;
 
-                    throw new Error("❌ Unbekannter Medientyp");
+                        await this.bot.telegram.sendPhoto(
+                            this.seriesChannelId,
+                            posterUrl,
+                            {
+                                caption,
+                                message_thread_id: threadId
+                            }
+                        );
+
+                    } else {
+
+                        await this.bot.telegram.sendMessage(
+                            this.seriesChannelId,
+                            caption,
+                            {
+                                message_thread_id: threadId
+                            }
+                        );
+
+                    }
 
                 }
 
-                // =========================================================================
-                // FEEDBACK
-                // =========================================================================
-
-                await ctx.reply(`✅ ${type} wurde gepostet.`);
+                await ctx.reply("✅ Mit TMDB gepostet.");
 
             } catch (error) {
 
                 console.error(error);
-
-                await ctx.reply("❌ Fehler beim Verarbeiten.");
+                await ctx.reply("❌ Fehler beim Posten.");
 
             }
 
@@ -196,7 +224,7 @@ export class TelegramBot {
 
     public launch(): void {
         this.bot.launch();
-        console.log("🤖 Bot gestartet (Level 2: Threads aktiv)");
+        console.log("🤖 Bot gestartet (TMDB aktiv)");
     }
 
 }
