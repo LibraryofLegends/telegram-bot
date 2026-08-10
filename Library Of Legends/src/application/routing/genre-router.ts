@@ -20,7 +20,7 @@ File................: genre-router.ts
 Location............
 Library Of Legends/src/application/routing/
 
-Version.............: 1.0.0
+Version.............: 1.0.1
 
 Status..............: Core
 
@@ -30,9 +30,6 @@ Description.........
 
 Determines the correct Library Of Legends destination category
 for movies and series based on detected genres.
-
-The router converts domain genres into the configured Telegram
-archive categories.
 
 Responsibilities:
 
@@ -73,37 +70,16 @@ export type LibraryCategory =
  */
 export interface GenreRoute {
 
-    /**
-     * Primary archive category.
-     */
     category: LibraryCategory;
 
-    /**
-     * Human-readable category title.
-     */
     categoryTitle: string;
 
-    /**
-     * Detected genres.
-     */
     genres: LibraryGenre[];
 
-    /**
-     * Primary detected genre.
-     */
     primaryGenre: LibraryGenre;
 
-    /**
-     * Telegram destination.
-     *
-     * The actual value is supplied through environment
-     * configuration and is therefore optional here.
-     */
     telegramChatId?: string;
 
-    /**
-     * Telegram topic identifier if applicable.
-     */
     topicId?: number;
 }
 
@@ -113,7 +89,7 @@ export interface GenreRoute {
 export class GenreRouter {
 
     // =========================================================================
-    // CATEGORY MAP
+    // CATEGORY TITLES
     // =========================================================================
 
     private static readonly CATEGORY_TITLES: Record<
@@ -166,12 +142,12 @@ export class GenreRouter {
         genres: LibraryGenre[]
     ): GenreRoute {
 
-        const safeGenres =
+        const safeGenres: LibraryGenre[] =
             genres.length > 0
                 ? genres
-                : ["Unbekannt"];
+                : ["Unbekannt" as LibraryGenre];
 
-        const primaryGenre =
+        const primaryGenre: LibraryGenre =
             safeGenres[0];
 
         const category =
@@ -209,7 +185,7 @@ export class GenreRouter {
     ): LibraryCategory {
 
         const normalized =
-            new Set(
+            new Set<LibraryGenre>(
                 genres
             );
 
