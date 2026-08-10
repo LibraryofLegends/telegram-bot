@@ -1,28 +1,21 @@
 {
   "name": "library-of-legends",
   "version": "2.2.0",
-  "description": "Library Of Legends Telegram Bot System",
   "main": "dist/index.js",
-
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
   "engines": {
     "node": "20.x"
   },
-
-  "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
-  },
-
   "dependencies": {
     "better-sqlite3": "^9.4.0",
-    "dotenv": "^16.4.5"
+    "pg": "^8.11.5",
+    "telegraf": "^4.16.3"
   },
-
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.9",
-    "@types/node": "^20.11.30",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.0"
   }
 }
