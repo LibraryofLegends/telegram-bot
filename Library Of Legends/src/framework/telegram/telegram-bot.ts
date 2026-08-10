@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 2.4.0
+Version.............: 2.5.0
 
 Status..............: Core
 
@@ -32,7 +32,8 @@ Telegram Bot with:
 - VIDEO + DOCUMENT support
 - TMDB integration
 - Channel routing (Movies / Series)
-- Auto database persistence (PostgreSQL)
+- Database persistence (PostgreSQL)
+- /find command (search system)
 
 ===============================================================================
 */
@@ -45,6 +46,8 @@ import { SeriesDetector } from "../../domain/media/detection/series-detector";
 import { SeriesTopicManager } from "./series-topic-manager";
 import { TMDBClient } from "../../infrastructure/api/tmdb/tmdb-client";
 import { LibraryRepository } from "../../infrastructure/database/library-repository";
+
+import { FindCommand } from "../../application/telegram/commands/find-command";
 
 /**
  * Telegram Bot
@@ -77,8 +80,25 @@ export class TelegramBot {
      */
     private setup(): void {
 
+        // =========================================================================
+        // START
+        // =========================================================================
         this.bot.start((ctx) => {
-            ctx.reply("🚀 Library Of Legends Bot (DB aktiv)");
+            ctx.reply("🚀 Library Of Legends Bot (FULL SYSTEM AKTIV)");
+        });
+
+        // =========================================================================
+        // FIND COMMAND 🔍
+        // =========================================================================
+        this.bot.command("find", async (ctx) => {
+
+            const text = ctx.message.text;
+            const query = text.replace("/find", "").trim();
+
+            const result = await FindCommand.execute(query);
+
+            await ctx.reply(result);
+
         });
 
         // =========================================================================
@@ -114,7 +134,7 @@ export class TelegramBot {
 
         const userId = ctx.from?.id;
 
-        // 🔐 Admin Check
+        // 🔐 Admin Only
         if (!userId || !this.adminIds.includes(userId)) {
             return;
         }
@@ -128,7 +148,6 @@ export class TelegramBot {
             // =========================================================================
             // DETECT TYPE
             // =========================================================================
-
             const type = MediaTypeDetector.detect(fileName);
 
             let title = fileName;
@@ -143,7 +162,6 @@ export class TelegramBot {
             // =========================================================================
             // TMDB FETCH
             // =========================================================================
-
             let tmdb = null;
 
             try {
@@ -157,7 +175,6 @@ export class TelegramBot {
             // =========================================================================
             // BUILD CAPTION
             // =========================================================================
-
             let caption = `🎬 ${title}`;
 
             if (tmdb?.overview) {
@@ -201,13 +218,11 @@ export class TelegramBot {
             // =========================================================================
             // 💾 SAVE TO DATABASE
             // =========================================================================
-
             await LibraryRepository.save(title, fileName, type);
 
             // =========================================================================
             // RESPONSE
             // =========================================================================
-
             await ctx.reply("✅ Datei verarbeitet & gespeichert!");
 
         } catch (error) {
@@ -224,7 +239,7 @@ export class TelegramBot {
      */
     public launch(): void {
         this.bot.launch();
-        console.log("🤖 Bot gestartet (DB aktiv)");
+        console.log("🤖 Bot gestartet (FULL SYSTEM)");
     }
 
 }
