@@ -17,26 +17,11 @@ LOL-ID..............: LOL-MAIN-0001
 
 File................: main.ts
 
-Location............
-Library Of Legends/src/
-
-Version.............: 1.1.0
-
-Status..............: Core
-
-Lifecycle...........: Production Ready
-
-Description.........
-
-Application entry point.
-Bootstraps the Telegram Bot using environment variables.
-
-(⚠️ dotenv entfernt – Render nutzt direkte ENV Variablen)
-
 ===============================================================================
 */
 
 import { TelegramBot } from "./framework/telegram/telegram-bot";
+import http from "http";
 
 /**
  * Bootstrap Application
@@ -50,13 +35,20 @@ function bootstrap(): void {
     }
 
     const bot = new TelegramBot(token);
-
     bot.launch();
 
-    console.log("🚀 Library Of Legends gestartet");
+    console.log("🤖 Bot gestartet (TMDB aktiv)");
+
+    // 🔥 WICHTIG: Fake Web Server für Render
+    const port = process.env.PORT || 3000;
+
+    http.createServer((req, res) => {
+        res.writeHead(200);
+        res.end("Library Of Legends Bot läuft 🚀");
+    }).listen(port, () => {
+        console.log(`🌐 Webserver läuft auf Port ${port}`);
+    });
+
 }
 
-/**
- * Start App
- */
 bootstrap();
