@@ -20,58 +20,69 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 5.0.0
+Version.............: 6.0.0
 
-Status..............: FULL SYSTEM (PAGINATION UI)
+Status..............: Core
 
 Lifecycle...........: Production
 
 Description.........
 
-Telegram Bot with:
-- File Upload Detection
-- Database Storage (file_id)
-- Search System (/find)
-- Netflix UI
-- Pagination System
+Telegram Bot with Netflix-style user interface.
+
+Responsibilities:
+- Netflix-style start screen
+- Genre navigation preparation
+- Trending media
+- Favorite media
+- Media pagination integration
+- View tracking
+- Telegram File-ID playback
+- Interactive inline buttons
 
 ===============================================================================
 */
 
 import { Telegraf, Markup } from "telegraf";
-import { LibraryRepository } from "../../infrastructure/database/library-repository";
-import { SearchCommand } from "./commands/search-command";
 
+import { LibraryRepository } from "../../infrastructure/database/library-repository";
+
+/**
+ * Telegram Bot
+ */
 export class TelegramBot {
 
     private bot: Telegraf;
-    private adminIds: number[];
 
-    constructor(token: string) {
+    /**
+     * Creates the Telegram Bot instance.
+     */
+    public constructor(token: string) {
 
         this.bot = new Telegraf(token);
-
-        this.adminIds = (process.env.ADMIN_IDS || "")
-            .split(",")
-            .map(id => Number(id.trim()))
-            .filter(id => !isNaN(id));
 
         this.setup();
     }
 
+    // =========================================================================
+    // BOT SETUP
+    // =========================================================================
+
     private setup(): void {
 
         // =========================================================================
-        // START MENU
+        // START SCREEN
         // =========================================================================
 
         this.bot.start((ctx) => {
 
             ctx.reply(
-                "🎬 *Library Of Legends*\n\nWähle eine Option:",
+                "🎬 *Library Of Legends*\n\nNetflix Style UI",
                 {
                     parse_mode: "Markdown",
+
                     ...Markup.keyboard([
+                        ["🔥 Trending", "⭐ Favoriten"],
                         ["🎬 Filme", "🔎 Suche"]
                     ]).resize()
                 }
@@ -80,27 +91,106 @@ export class TelegramBot {
         });
 
         // =========================================================================
-        // SEARCH
+        // TRENDING
         // =========================================================================
 
-        SearchCommand.register(this.bot);
+        this.bot.hears("🔥 Trending", async (ctx) => {
 
-        // =========================================================================
-        // MOVIES LIST (PAGE 1)
-        // =========================================================================
+            try {
 
-        this.bot.hears("🎬 Filme", async (ctx) => {
-            await this.sendMoviePage(ctx, 0);
+                const movies =
+                    await LibraryRepository.getTrending();
+
+                if (movies.length === 0) {
+
+                    await ctx.reply(
+                        "🔥 Trending\n\n❌ Noch keine Titel vorhanden."
+                    );
+
+                    return;
+                }
+
+                const buttons = movies.map((movie) => [
+
+                    Markup.button.callback(
+                        movie.title,
+                        `movie_${movie.id}`
+                    )
+
+                ]);
+
+                await ctx.reply(
+                    "🔥 *Trending*\n\nWähle einen Titel:",
+                    {
+                        parse_mode: "Markdown",
+                        ...Markup.inlineKeyboard(buttons)
+                    }
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "❌ Fehler beim Laden von Trending:",
+                    error
+                );
+
+                await ctx.reply(
+                    "❌ Trending konnte nicht geladen werden."
+                );
+
+            }
+
         });
 
         // =========================================================================
-        // PAGINATION BUTTONS
+        // FAVORITES
         // =========================================================================
 
-        this.bot.action(/page_(\d+)/, async (ctx) => {
+        this.bot.hears("⭐ Favoriten", async (ctx) => {
 
-            const page = Number(ctx.match[1]);
-            await this.sendMoviePage(ctx, page);
+            try {
+
+                const movies =
+                    await LibraryRepository.getFavorites();
+
+                if (movies.length === 0) {
+
+                    await ctx.reply(
+                        "⭐ Favoriten\n\n❌ Noch keine Favoriten vorhanden."
+                    );
+
+                    return;
+                }
+
+                const buttons = movies.map((movie) => [
+
+                    Markup.button.callback(
+                        movie.title,
+                        `movie_${movie.id}`
+                    )
+
+                ]);
+
+                await ctx.reply(
+                    "⭐ *Favoriten*\n\nWähle einen Titel:",
+                    {
+                        parse_mode: "Markdown",
+                        ...Markup.inlineKeyboard(buttons)
+                    }
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "❌ Fehler beim Laden der Favoriten:",
+                    error
+                );
+
+                await ctx.reply(
+                    "❌ Favoriten konnten nicht geladen werden."
+                );
+
+            }
 
         });
 
@@ -110,58 +200,100 @@ export class TelegramBot {
 
         this.bot.action(/movie_(.+)/, async (ctx) => {
 
-            const id = ctx.match[1];
-
-            const results = await LibraryRepository.getAll(100, 0);
-            const movie = results.find(m => String(m.id) === String(id));
-
-            if (!movie) {
-                return ctx.answerCbQuery("❌ Film nicht gefunden");
-            }
-
-            await ctx.replyWithDocument(movie.file_id, {
-                caption: `🎬 ${movie.title}`
-            });
-
-        });
-
-        // =========================================================================
-        // FILE UPLOAD
-        // =========================================================================
-
-        this.bot.on("document", async (ctx) => {
-
-            const userId = ctx.from?.id;
-
-            if (!userId || !this.adminIds.includes(userId)) {
-                return;
-            }
-
-            const file = ctx.message.document;
-            const fileName = file.file_name || "Unbekannt";
-            const fileId = file.file_id;
-
             try {
 
-                const title = fileName.replace(/\.[^/.]+$/, "");
+                const id = ctx.match[1];
 
-                const type = fileName.toLowerCase().includes("s01")
-                    ? "SERIES"
-                    : "MOVIE";
+                const movies =
+                    await LibraryRepository.getAll(100, 0);
 
-                await LibraryRepository.save(
-                    title,
-                    fileName,
-                    type,
-                    fileId
+                const movie =
+                    movies.find(
+                        (item) =>
+                            String(item.id) === String(id)
+                    );
+
+                if (!movie) {
+
+                    await ctx.answerCbQuery(
+                        "❌ Titel nicht gefunden."
+                    );
+
+                    return;
+                }
+
+                // =================================================================
+                // VIEW TRACKING
+                // =================================================================
+
+                await LibraryRepository.increaseViews(id);
+
+                // =================================================================
+                // SEND FILE
+                // =================================================================
+
+                await ctx.replyWithDocument(
+                    movie.file_id,
+                    {
+                        caption:
+                            `🎬 ${movie.title}`,
+
+                        ...Markup.inlineKeyboard([
+                            [
+                                Markup.button.callback(
+                                    "⭐ Favorit",
+                                    `fav_${id}`
+                                )
+                            ]
+                        ])
+                    }
                 );
 
-                await ctx.reply("✅ Datei gespeichert!");
+                await ctx.answerCbQuery(
+                    "🎬 Wird gesendet..."
+                );
 
             } catch (error) {
 
-                console.error(error);
-                await ctx.reply("❌ Fehler.");
+                console.error(
+                    "❌ Fehler beim Abrufen des Mediums:",
+                    error
+                );
+
+                await ctx.answerCbQuery(
+                    "❌ Medium konnte nicht geladen werden."
+                );
+
+            }
+
+        });
+
+        // =========================================================================
+        // FAVORITE BUTTON
+        // =========================================================================
+
+        this.bot.action(/fav_(.+)/, async (ctx) => {
+
+            try {
+
+                const id = ctx.match[1];
+
+                await LibraryRepository.toggleFavorite(id);
+
+                await ctx.answerCbQuery(
+                    "⭐ Favorit gespeichert"
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "❌ Fehler beim Speichern des Favoriten:",
+                    error
+                );
+
+                await ctx.answerCbQuery(
+                    "❌ Favorit konnte nicht gespeichert werden."
+                );
 
             }
 
@@ -170,48 +302,17 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // PAGINATION FUNCTION 🔥
+    // LAUNCH
     // =========================================================================
 
-    private async sendMoviePage(ctx: any, page: number) {
+    public launch(): void {
 
-        const limit = 5;
-        const offset = page * limit;
+        this.bot.launch();
 
-        const movies = await LibraryRepository.getAll(limit, offset);
-
-        if (movies.length === 0) {
-            return ctx.reply("❌ Keine weiteren Filme.");
-        }
-
-        const buttons = movies.map((movie) => [
-            Markup.button.callback(movie.title, `movie_${movie.id}`)
-        ]);
-
-        // Navigation
-        const nav = [];
-
-        if (page > 0) {
-            nav.push(Markup.button.callback("⬅️ Zurück", `page_${page - 1}`));
-        }
-
-        if (movies.length === limit) {
-            nav.push(Markup.button.callback("➡️ Weiter", `page_${page + 1}`));
-        }
-
-        await ctx.reply(
-            `🎬 Filme (Seite ${page + 1})`,
-            Markup.inlineKeyboard([
-                ...buttons,
-                nav
-            ])
+        console.log(
+            "🔥 Library Of Legends Netflix System aktiv"
         );
 
-    }
-
-    public launch(): void {
-        this.bot.launch();
-        console.log("🤖 Bot gestartet (PAGINATION SYSTEM)");
     }
 
 }
