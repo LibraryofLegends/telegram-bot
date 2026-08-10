@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 10.0.0
+Version.............: 11.0.0
 
 Status..............: Core
 
@@ -35,39 +35,47 @@ Responsibilities:
 - Start Telegram bot
 - Receive Telegram videos
 - Receive Telegram documents
+- Detect supported media files
+- Parse filenames
 - Detect movies
 - Detect series
-- Parse filenames
 - Detect genres
 - Route movies to genre groups
-- Route series to the series group
+- Route series to series group
 - Create and reuse series topics
-- Generate archive IDs
+- Generate catalog entries
+- Generate archive information
 - Store Telegram File-IDs
 - Query TMDB
 - Build movie posts
 - Build series posts
 - Provide Netflix-style start menu
-- Provide search
 - Provide /find
-- Provide trending
-- Provide favorites
+- Provide /search
+- Provide /movies
+- Provide /series
+- Provide /trending
+- Provide /favorites
+- Handle inline movie actions
+- Handle favorites
+- Handle series actions
 - Track views
-- Handle duplicate media
-- Never crash the complete bot because of one media error
+- Handle errors without stopping the bot
+- Keep Telegram UI logic centralized
 
 Environment variables:
 
 TOKEN
+BOT_TOKEN
 DATABASE_URL
 TMDB_API_KEY
 
-Telegram destination variables:
+Telegram destinations:
 
 MOVIE_GROUP_ID
 SERIES_GROUP_ID
 
-Optional genre-specific groups:
+Optional genre groups:
 
 ACTION_GROUP_ID
 HORROR_GROUP_ID
@@ -90,29 +98,19 @@ import {
 } from "telegraf";
 
 import {
-    Update
-} from "telegraf/types";
-
-import {
     LibraryRepository
 } from "../../infrastructure/database/library-repository";
 
 import {
-    FilenameParser,
-    ParsedMedia
+    FilenameParser
 } from "../../domain/detection/filename-parser";
-
-import {
-    MediaTypeDetector
-} from "../../domain/detection/media-type-detector";
 
 import {
     GenreDetector
 } from "../../domain/detection/genre-detector";
 
 import {
-    GenreRouter,
-    GenreRoute
+    GenreRouter
 } from "../../application/routing/genre-router";
 
 import {
@@ -120,30 +118,27 @@ import {
 } from "../../application/routing/topic-manager";
 
 import {
-    MovieCatalog,
-    MovieCatalogEntry
+    MovieCatalog
 } from "../../domain/catalog/movie-catalog";
 
 import {
-    SeriesCatalog,
-    SeriesCatalogEntry
+    SeriesCatalog
 } from "../../domain/catalog/series-catalog";
 
 import {
-    TMDBClient,
-    TMDBMetadata
+    TMDBClient
 } from "../../infrastructure/tmdb/tmdb-client";
 
 import {
     MoviePostBuilder
-} from "../../application/post-builder/movie-post-builder";
+} from "../../application/telegram/movie-post-builder";
 
 import {
     SeriesPostBuilder
-} from "../../application/post-builder/series-post-builder";
+} from "../../application/telegram/series-post-builder";
 
 /**
- * Generic Telegram media information.
+ * Telegram media information.
  */
 interface TelegramMedia {
 
@@ -176,7 +171,7 @@ interface TelegramDestination {
 export class TelegramBot {
 
     // =========================================================================
-    // TELEGRAM BOT
+    // BOT
     // =========================================================================
 
     private readonly bot:
@@ -190,17 +185,17 @@ export class TelegramBot {
         string;
 
     // =========================================================================
-    // STARTED
+    // STATE
     // =========================================================================
 
-    private started =
-        false;
+    private started:
+        boolean = false;
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
-    constructor(
+    public constructor(
         token: string
     ) {
 
@@ -222,6 +217,10 @@ export class TelegramBot {
             new Telegraf<Context>(
                 this.token
             );
+
+        console.log(
+            "🔧 TelegramBot erfolgreich erstellt"
+        );
 
         this.setup();
     }
@@ -256,14 +255,15 @@ export class TelegramBot {
                 ctx
             ) => {
 
-                await ctx.reply(
+                await this.safeReply(
+                    ctx,
                     this.buildHelpText()
                 );
             }
         );
 
         // =====================================================================
-        // FIND COMMAND
+        // FIND
         // =====================================================================
 
         this.bot.command(
@@ -279,7 +279,7 @@ export class TelegramBot {
         );
 
         // =====================================================================
-        // SEARCH COMMAND
+        // SEARCH
         // =====================================================================
 
         this.bot.command(
@@ -411,7 +411,39 @@ export class TelegramBot {
         );
 
         // =====================================================================
-        // INLINE MOVIE
+        // VIDEO HANDLER
+        // =====================================================================
+
+        this.bot.on(
+            "video",
+            async (
+                ctx
+            ) => {
+
+                await this.handleMedia(
+                    ctx
+                );
+            }
+        );
+
+        // =====================================================================
+        // DOCUMENT HANDLER
+        // =====================================================================
+
+        this.bot.on(
+            "document",
+            async (
+                ctx
+            ) => {
+
+                await this.handleMedia(
+                    ctx
+                );
+            }
+        );
+
+        // =====================================================================
+        // MOVIE CALLBACK
         // =====================================================================
 
         this.bot.action(
@@ -427,7 +459,7 @@ export class TelegramBot {
         );
 
         // =====================================================================
-        // INLINE FAVORITE
+        // FAVORITE CALLBACK
         // =====================================================================
 
         this.bot.action(
@@ -443,7 +475,7 @@ export class TelegramBot {
         );
 
         // =====================================================================
-        // INLINE SERIES
+        // SERIES CALLBACK
         // =====================================================================
 
         this.bot.action(
@@ -459,7 +491,7 @@ export class TelegramBot {
         );
 
         // =====================================================================
-        // CALLBACK ERROR HANDLER
+        // GLOBAL ERROR HANDLER
         // =====================================================================
 
         this.bot.catch(
@@ -469,8 +501,19 @@ export class TelegramBot {
             ) => {
 
                 console.error(
-                    "❌ TelegramBot Fehler:",
+                    "================================================="
+                );
+
+                console.error(
+                    "❌ TELEGRAM BOT FEHLER"
+                );
+
+                console.error(
                     error
+                );
+
+                console.error(
+                    "================================================="
                 );
 
                 try {
@@ -480,14 +523,14 @@ export class TelegramBot {
                     );
 
                 } catch {
-                    // Telegram context may no longer be available.
+                    // Telegram context may no longer exist.
                 }
             }
         );
     }
 
     // =========================================================================
-    // START
+    // LAUNCH
     // =========================================================================
 
     public launch(): void {
@@ -548,6 +591,18 @@ export class TelegramBot {
         console.log(
             "🗃️ Archive ID System aktiv"
         );
+
+        console.log(
+            "🎥 Telegram VIDEO Handler aktiv"
+        );
+
+        console.log(
+            "📄 Telegram DOCUMENT Handler aktiv"
+        );
+
+        console.log(
+            "🔎 /find System aktiv"
+        );
     }
 
     // =========================================================================
@@ -576,7 +631,7 @@ export class TelegramBot {
         ) {
 
             console.error(
-                "❌ Fehler beim Stoppen des TelegramBots:",
+                "❌ Fehler beim Stoppen:",
                 error
             );
         }
@@ -605,11 +660,15 @@ export class TelegramBot {
                 "",
                 "🎞️ Willkommen im Medienarchiv!",
                 "",
-                "Hier kannst du Filme und Serien durchsuchen.",
+                "🔎 Suche Filme und Serien",
+                "📚 Durchsuche das Archiv",
+                "🔥 Entdecke Trending-Inhalte",
+                "⭐ Verwalte deine Favoriten",
                 "",
-                "🔎 Nutze <code>/find TITEL</code> für eine Suche.",
+                "━━━━━━━━━━━━━━━━━━",
                 "",
-                "━━━━━━━━━━━━━━━━━━"
+                "💡 Suche:",
+                "<code>/find Superman</code>"
             ].join(
                 "\n"
             ),
@@ -640,19 +699,32 @@ export class TelegramBot {
     private buildHelpText(): string {
 
         return [
+
             "🎬 <b>Library Of Legends</b>",
+
             "",
-            "📚 Befehle:",
+
+            "━━━━━━━━━━━━━━━━━━",
+
+            "📚 <b>Befehle</b>",
+
             "",
+
             "🔎 <code>/find TITEL</code>",
             "🔎 <code>/search TITEL</code>",
+
             "🎬 <code>/movies</code>",
             "📺 <code>/series</code>",
+
             "🔥 <code>/trending</code>",
             "⭐ <code>/favorites</code>",
+
             "",
+
             "━━━━━━━━━━━━━━━━━━",
+
             "🤖 Automatische Medienerkennung aktiv."
+
         ].join(
             "\n"
         );
@@ -686,7 +758,7 @@ export class TelegramBot {
             ) {
 
                 console.log(
-                    "⚠️ Keine unterstützte Mediendatei gefunden."
+                    "⚠️ Keine unterstützte Mediendatei."
                 );
 
                 return;
@@ -716,11 +788,12 @@ export class TelegramBot {
             );
 
             // =================================================================
-            // PARSE
+            // PARSER
             // =================================================================
 
-            const parsed =
-                FilenameParser.parse(
+            const parsed:
+                any =
+                (FilenameParser as any).parse(
                     media.fileName
                 );
 
@@ -729,12 +802,31 @@ export class TelegramBot {
                 parsed
             );
 
+            if (
+                !parsed
+            ) {
+
+                throw new Error(
+                    "FilenameParser konnte die Datei nicht analysieren."
+                );
+            }
+
             // =================================================================
-            // ROUTE
+            // TYPE SAFETY FALLBACK
+            // =================================================================
+
+            const parsedType =
+                String(
+                    parsed.type ||
+                    ""
+                ).toUpperCase();
+
+            // =================================================================
+            // SERIES
             // =================================================================
 
             if (
-                parsed.type ===
+                parsedType ===
                 "SERIES"
             ) {
 
@@ -745,6 +837,10 @@ export class TelegramBot {
                 );
 
             } else {
+
+                // =============================================================
+                // MOVIE
+                // =============================================================
 
                 await this.processMovie(
                     ctx,
@@ -762,15 +858,10 @@ export class TelegramBot {
                 error
             );
 
-            try {
-
-                await ctx.reply(
-                    "❌ Die Datei konnte nicht verarbeitet werden."
-                );
-
-            } catch {
-                // Ignore secondary Telegram error.
-            }
+            await this.safeReply(
+                ctx,
+                "❌ Die Datei konnte nicht verarbeitet werden."
+            );
 
         } finally {
 
@@ -790,7 +881,7 @@ export class TelegramBot {
 
         const message:
             any =
-            ctx.message;
+            (ctx as any).message;
 
         if (
             !message
@@ -807,14 +898,16 @@ export class TelegramBot {
             message.video
         ) {
 
+            const fileName =
+                message.video.file_name ||
+                `video_${message.video.file_unique_id}.mp4`;
+
             return {
 
                 fileId:
                     message.video.file_id,
 
-                fileName:
-                    message.video.file_name ||
-                    `video_${message.video.file_unique_id}.mp4`,
+                fileName,
 
                 fileSize:
                     message.video.file_size,
@@ -841,6 +934,10 @@ export class TelegramBot {
                     fileName
                 )
             ) {
+
+                console.log(
+                    `⚠️ Nicht unterstützte Datei: ${fileName}`
+                );
 
                 return undefined;
             }
@@ -885,56 +982,188 @@ export class TelegramBot {
     private async processMovie(
         ctx: Context,
         media: TelegramMedia,
-        parsed: ParsedMedia
+        parsed: any
     ): Promise<void> {
 
+        const title =
+            String(
+                parsed.title ||
+                media.fileName
+            ).trim();
+
         console.log(
-            `🎬 Film erkannt: ${parsed.title}`
+            `🎬 Film erkannt: ${title}`
         );
 
         // =====================================================================
         // GENRE
         // =====================================================================
 
-        const genres =
-            GenreDetector.detect(
-                parsed.title
+        let genres:
+            any[] = [];
+
+        try {
+
+            genres =
+                (GenreDetector as any).detect(
+                    title
+                ) || [];
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "⚠️ Genre-Erkennung fehlgeschlagen:",
+                error
+            );
+        }
+
+        // =====================================================================
+        // ROUTING
+        // =====================================================================
+
+        let route:
+            any = {};
+
+        try {
+
+            route =
+                (GenreRouter as any).route(
+                    genres
+                ) || {};
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "⚠️ Genre-Routing fehlgeschlagen:",
+                error
+            );
+        }
+
+        const primaryGenre =
+            String(
+                route.primaryGenre ||
+                genres[0] ||
+                "Unknown"
             );
 
-        const route:
-            GenreRoute =
-            GenreRouter.route(
-                genres
+        const category =
+            String(
+                route.category ||
+                route.categoryId ||
+                "general"
+            );
+
+        const categoryTitle =
+            String(
+                route.categoryTitle ||
+                "📚 Allgemein"
             );
 
         console.log(
-            `🏷️ Genre: ${route.primaryGenre}`
+            `🏷️ Genre: ${primaryGenre}`
         );
 
         console.log(
-            `📂 Kategorie: ${route.categoryTitle}`
+            `📂 Kategorie: ${categoryTitle}`
         );
 
         // =====================================================================
         // CATALOG
         // =====================================================================
 
-        const movie:
-            MovieCatalogEntry =
-            MovieCatalog.createFromParsed(
-                parsed,
-                media.fileId,
-                media.fileSize,
-                this.getChatId(
-                    ctx
-                ),
-                this.getMessageId(
-                    ctx
-                )
+        let movie:
+            any;
+
+        try {
+
+            movie =
+                await (
+                    MovieCatalog as any
+                ).createFromParsed(
+                    parsed,
+                    media.fileId,
+                    media.fileSize,
+                    this.getChatId(
+                        ctx
+                    ),
+                    this.getMessageId(
+                        ctx
+                    )
+                );
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "⚠️ MovieCatalog konnte nicht erstellt werden:",
+                error
             );
 
+            /*
+             * Fallback object.
+             *
+             * This keeps the Telegram pipeline alive even if the
+             * catalog implementation changes.
+             */
+
+            movie = {
+
+                title,
+
+                year:
+                    parsed.year,
+
+                type:
+                    "MOVIE",
+
+                originalFileName:
+                    media.fileName,
+
+                fileId:
+                    media.fileId,
+
+                fileSize:
+                    media.fileSize,
+
+                genres:
+                    genres,
+
+                archiveId:
+                    `LL-${Date.now()}`,
+
+                category,
+
+                categoryTitle,
+
+                quality:
+                    parsed.quality,
+
+                resolution:
+                    parsed.resolution,
+
+                source:
+                    parsed.source,
+
+                audio:
+                    parsed.audio,
+
+                videoCodec:
+                    parsed.videoCodec
+            };
+        }
+
         console.log(
-            `🗃️ Archive-ID: ${movie.archiveId}`
+            `🗃️ Archive-ID: ${
+                movie.archiveId ||
+                movie.libraryId ||
+                movie.id ||
+                "—"
+            }`
         );
 
         // =====================================================================
@@ -942,15 +1171,15 @@ export class TelegramBot {
         // =====================================================================
 
         let tmdb:
-            TMDBMetadata | undefined;
+            any = undefined;
 
         try {
 
             tmdb =
-                await TMDBClient.find(
-                    movie.title,
+                await this.findTMDB(
+                    title,
                     "movie",
-                    movie.year
+                    parsed.year
                 );
 
             if (
@@ -958,7 +1187,10 @@ export class TelegramBot {
             ) {
 
                 console.log(
-                    `🎞️ TMDB gefunden: ${tmdb.title} (${tmdb.id})`
+                    `🎞️ TMDB gefunden: ${
+                        tmdb.title ||
+                        title
+                    }`
                 );
 
             } else {
@@ -984,8 +1216,19 @@ export class TelegramBot {
 
         try {
 
-            await this.saveMovie(
-                movie
+            await LibraryRepository.save(
+
+                title,
+
+                media.fileName,
+
+                "MOVIE",
+
+                media.fileId
+            );
+
+            console.log(
+                "💾 Film in Datenbank gespeichert."
             );
 
         } catch (
@@ -996,23 +1239,51 @@ export class TelegramBot {
                 "❌ Datenbankfehler:",
                 error
             );
-
-            /*
-             * Do NOT stop the entire Telegram processing.
-             *
-             * The media can still be routed and posted.
-             */
         }
 
         // =====================================================================
-        // POST
+        // POST BUILDER
         // =====================================================================
 
-        const post =
-            MoviePostBuilder.buildFull(
-                movie,
-                tmdb
+        let post:
+            any;
+
+        try {
+
+            post =
+                (MoviePostBuilder as any).buildFull(
+                    movie,
+                    tmdb
+                );
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "⚠️ MoviePostBuilder Fehler:",
+                error
             );
+
+            post = {
+
+                caption:
+                    this.buildMovieFallbackCaption(
+                        movie,
+                        tmdb,
+                        categoryTitle
+                    ),
+
+                buttons:
+                    [],
+
+                posterUrl:
+                    tmdb?.posterUrl,
+
+                parseMode:
+                    "HTML"
+            };
+        }
 
         // =====================================================================
         // DESTINATION
@@ -1020,7 +1291,7 @@ export class TelegramBot {
 
         const destination =
             this.resolveMovieDestination(
-                route
+                category
             );
 
         if (
@@ -1028,7 +1299,7 @@ export class TelegramBot {
         ) {
 
             console.error(
-                "❌ Keine Movie-Zielgruppe konfiguriert."
+                "❌ Keine Film-Zielgruppe konfiguriert."
             );
 
             await this.safeReply(
@@ -1037,11 +1308,12 @@ export class TelegramBot {
                     "⚠️ <b>Film verarbeitet</b>",
                     "",
                     `🎬 ${this.escapeHtml(
-                        movie.title
+                        title
                     )}`,
-                    `🆔 ${movie.archiveId}`,
                     "",
-                    "❌ Keine Zielgruppe konfiguriert."
+                    "❌ Keine Zielgruppe konfiguriert.",
+                    "",
+                    "Bitte MOVIE_GROUP_ID oder eine Genre-Gruppen-ID setzen."
                 ].join(
                     "\n"
                 )
@@ -1054,15 +1326,37 @@ export class TelegramBot {
         // SEND
         // =====================================================================
 
-        await this.sendMoviePost(
-            ctx,
+        await this.sendMovie(
             destination,
             movie,
             post
         );
 
+        // =====================================================================
+        // CONFIRMATION
+        // =====================================================================
+
+        await this.safeReply(
+            ctx,
+            [
+                "✅ <b>Film verarbeitet</b>",
+                "",
+                `🎬 ${this.escapeHtml(
+                    title
+                )}`,
+                `🏷️ ${this.escapeHtml(
+                    primaryGenre
+                )}`,
+                `📂 ${this.escapeHtml(
+                    categoryTitle
+                )}`
+            ].join(
+                "\n"
+            )
+        );
+
         console.log(
-            `✅ Film vollständig verarbeitet: ${movie.title}`
+            `✅ Film vollständig verarbeitet: ${title}`
         );
     }
 
@@ -1073,56 +1367,180 @@ export class TelegramBot {
     private async processSeries(
         ctx: Context,
         media: TelegramMedia,
-        parsed: ParsedMedia
+        parsed: any
     ): Promise<void> {
 
+        const title =
+            String(
+                parsed.title ||
+                media.fileName
+            ).trim();
+
         console.log(
-            `📺 Serie erkannt: ${parsed.title}`
+            `📺 Serie erkannt: ${title}`
         );
 
         // =====================================================================
         // GENRE
         // =====================================================================
 
-        const genres =
-            GenreDetector.detect(
-                parsed.title
-            );
+        let genres:
+            any[] = [];
 
-        const route:
-            GenreRoute =
-            GenreRouter.route(
-                genres
+        try {
+
+            genres =
+                (GenreDetector as any).detect(
+                    title
+                ) || [];
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "⚠️ Genre-Erkennung fehlgeschlagen:",
+                error
+            );
+        }
+
+        // =====================================================================
+        // ROUTING
+        // =====================================================================
+
+        let route:
+            any = {};
+
+        try {
+
+            route =
+                (GenreRouter as any).route(
+                    genres
+                ) || {};
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "⚠️ Genre-Routing fehlgeschlagen:",
+                error
+            );
+        }
+
+        const categoryTitle =
+            String(
+                route.categoryTitle ||
+                "📺 Serien"
             );
 
         console.log(
-            `🏷️ Genre: ${route.primaryGenre}`
+            `🏷️ Genre: ${
+                route.primaryGenre ||
+                genres[0] ||
+                "Unknown"
+            }`
         );
 
         console.log(
-            `📂 Kategorie: ${route.categoryTitle}`
+            `📂 Kategorie: ${categoryTitle}`
         );
 
         // =====================================================================
         // CATALOG
         // =====================================================================
 
-        const series:
-            SeriesCatalogEntry =
-            SeriesCatalog.createFromParsed(
-                parsed,
-                media.fileId,
-                media.fileSize,
-                this.getChatId(
-                    ctx
-                ),
-                this.getMessageId(
-                    ctx
-                )
+        let series:
+            any;
+
+        try {
+
+            series =
+                await (
+                    SeriesCatalog as any
+                ).createFromParsed(
+                    parsed,
+                    media.fileId,
+                    media.fileSize,
+                    this.getChatId(
+                        ctx
+                    ),
+                    this.getMessageId(
+                        ctx
+                    )
+                );
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "⚠️ SeriesCatalog konnte nicht erstellt werden:",
+                error
             );
 
+            series = {
+
+                title,
+
+                year:
+                    parsed.year,
+
+                type:
+                    "SERIES",
+
+                season:
+                    parsed.season,
+
+                episode:
+                    parsed.episode,
+
+                originalFileName:
+                    media.fileName,
+
+                fileId:
+                    media.fileId,
+
+                fileSize:
+                    media.fileSize,
+
+                genres,
+
+                seriesId:
+                    `SER-${Date.now()}`,
+
+                episodeId:
+                    `EP-${Date.now()}`,
+
+                category:
+                    route.category ||
+                    "general",
+
+                categoryTitle,
+
+                quality:
+                    parsed.quality,
+
+                resolution:
+                    parsed.resolution,
+
+                source:
+                    parsed.source,
+
+                audio:
+                    parsed.audio,
+
+                videoCodec:
+                    parsed.videoCodec
+            };
+        }
+
         console.log(
-            `🆔 Serien-ID: ${series.seriesId}`
+            `🆔 Serien-ID: ${
+                series.seriesId ||
+                series.id ||
+                "—"
+            }`
         );
 
         console.log(
@@ -1137,14 +1555,15 @@ export class TelegramBot {
         // =====================================================================
 
         let tmdb:
-            TMDBMetadata | undefined;
+            any = undefined;
 
         try {
 
             tmdb =
-                await TMDBClient.find(
-                    series.title,
-                    "tv"
+                await this.findTMDB(
+                    title,
+                    "tv",
+                    parsed.year
                 );
 
             if (
@@ -1152,7 +1571,10 @@ export class TelegramBot {
             ) {
 
                 console.log(
-                    `🎞️ TMDB gefunden: ${tmdb.title} (${tmdb.id})`
+                    `🎞️ TMDB Serie gefunden: ${
+                        tmdb.title ||
+                        title
+                    }`
                 );
 
             } else {
@@ -1178,8 +1600,19 @@ export class TelegramBot {
 
         try {
 
-            await this.saveSeries(
-                series
+            await LibraryRepository.save(
+
+                title,
+
+                media.fileName,
+
+                "SERIES",
+
+                media.fileId
+            );
+
+            console.log(
+                "💾 Serie in Datenbank gespeichert."
             );
 
         } catch (
@@ -1196,23 +1629,57 @@ export class TelegramBot {
         // POST
         // =====================================================================
 
-        const post =
-            SeriesPostBuilder.buildFull(
-                series,
-                tmdb
+        let post:
+            any;
+
+        try {
+
+            post =
+                (SeriesPostBuilder as any).buildFull(
+                    series,
+                    tmdb
+                );
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "⚠️ SeriesPostBuilder Fehler:",
+                error
             );
 
+            post = {
+
+                caption:
+                    this.buildSeriesFallbackCaption(
+                        series,
+                        tmdb,
+                        categoryTitle
+                    ),
+
+                buttons:
+                    [],
+
+                posterUrl:
+                    tmdb?.posterUrl,
+
+                parseMode:
+                    "HTML"
+            };
+        }
+
         // =====================================================================
-        // DESTINATION
+        // SERIES GROUP
         // =====================================================================
 
-        const seriesChatId =
+        const seriesGroup =
             this.getEnv(
                 "SERIES_GROUP_ID"
             );
 
         if (
-            !seriesChatId
+            !seriesGroup
         ) {
 
             console.error(
@@ -1233,72 +1700,108 @@ export class TelegramBot {
 
         const threadId =
             await this.getOrCreateSeriesTopic(
-                seriesChatId,
-                series.title
+                seriesGroup,
+                title
             );
 
         // =====================================================================
-        // SEND SERIES
+        // SEND
         // =====================================================================
 
-        await this.sendSeriesPost(
-            seriesChatId,
+        await this.sendSeries(
+            seriesGroup,
             threadId,
             series,
             post
         );
 
+        // =====================================================================
+        // CONFIRMATION
+        // =====================================================================
+
+        await this.safeReply(
+            ctx,
+            [
+                "✅ <b>Serie verarbeitet</b>",
+                "",
+                `📺 ${this.escapeHtml(
+                    title
+                )}`,
+                `🎬 ${this.escapeHtml(
+                    this.formatSeasonEpisode(
+                        series.season,
+                        series.episode
+                    )
+                )}`,
+                `📌 Topic: ${
+                    threadId !== undefined
+                        ? threadId
+                        : "Allgemein"
+                }`
+            ].join(
+                "\n"
+            )
+        );
+
         console.log(
-            `✅ Serie vollständig verarbeitet: ${series.title}`
+            `✅ Serie vollständig verarbeitet: ${title}`
         );
     }
 
     // =========================================================================
-    // SAVE MOVIE
+    // TMDB
     // =========================================================================
 
-    private async saveMovie(
-        movie: MovieCatalogEntry
-    ): Promise<void> {
+    private async findTMDB(
+        title: string,
+        type: "movie" | "tv",
+        year?: number
+    ): Promise<any> {
 
-        await LibraryRepository.save(
+        const client:
+            any =
+            TMDBClient as any;
 
-            movie.title,
+        /*
+         * Support both the current search methods and the newer unified
+         * find() method.
+         */
 
-            movie.originalFileName,
+        if (
+            typeof client.find ===
+            "function"
+        ) {
 
-            "MOVIE",
+            return await client.find(
+                title,
+                type,
+                year
+            );
+        }
 
-            movie.fileId
-        );
+        if (
+            type === "movie" &&
+            typeof client.searchMovie ===
+                "function"
+        ) {
 
-        console.log(
-            "💾 Film in Datenbank gespeichert."
-        );
-    }
+            return await client.searchMovie(
+                title
+            );
+        }
 
-    // =========================================================================
-    // SAVE SERIES
-    // =========================================================================
+        if (
+            type === "tv" &&
+            typeof client.searchSeries ===
+                "function"
+        ) {
 
-    private async saveSeries(
-        series: SeriesCatalogEntry
-    ): Promise<void> {
+            return await client.searchSeries(
+                title
+            );
+        }
 
-        await LibraryRepository.save(
-
-            series.title,
-
-            series.originalFileName,
-
-            "SERIES",
-
-            series.fileId
-        );
-
-        console.log(
-            "💾 Serie in Datenbank gespeichert."
-        );
+        return undefined;
     }
 
     // =========================================================================
@@ -1306,43 +1809,120 @@ export class TelegramBot {
     // =========================================================================
 
     private resolveMovieDestination(
-        route: GenreRoute
+        category: string
     ): TelegramDestination | undefined {
 
-        const envName =
-            this.getGenreEnvironmentName(
-                route.category
-            );
+        const normalized =
+            String(
+                category || "general"
+            )
+                .toLowerCase()
+                .trim();
 
-        const specificGroup =
-            this.getEnv(
-                envName
-            );
+        const mapping:
+            Record<
+                string,
+                string
+            > = {
 
-        /*
-         * Prefer genre-specific group.
-         */
+            action:
+                "ACTION_GROUP_ID",
+
+            adventure:
+                "ACTION_GROUP_ID",
+
+            horror:
+                "HORROR_GROUP_ID",
+
+            thriller:
+                "HORROR_GROUP_ID",
+
+            scifi:
+                "SCIFI_GROUP_ID",
+
+            "sci-fi":
+                "SCIFI_GROUP_ID",
+
+            fantasy:
+                "SCIFI_GROUP_ID",
+
+            drama:
+                "DRAMA_GROUP_ID",
+
+            romance:
+                "DRAMA_GROUP_ID",
+
+            comedy:
+                "COMEDY_GROUP_ID",
+
+            family:
+                "COMEDY_GROUP_ID",
+
+            animation:
+                "ANIMATION_GROUP_ID",
+
+            anime:
+                "ANIMATION_GROUP_ID",
+
+            crime:
+                "CRIME_GROUP_ID",
+
+            mystery:
+                "CRIME_GROUP_ID",
+
+            documentary:
+                "DOCUMENTARY_GROUP_ID",
+
+            biography:
+                "DOCUMENTARY_GROUP_ID",
+
+            kids:
+                "KIDS_GROUP_ID",
+
+            children:
+                "KIDS_GROUP_ID",
+
+            general:
+                "GENERAL_GROUP_ID"
+        };
+
+        const specificVariable =
+            mapping[
+                normalized
+            ];
 
         if (
-            specificGroup
+            specificVariable
         ) {
 
-            return {
+            const specificGroup =
+                this.getEnv(
+                    specificVariable
+                );
 
-                chatId:
-                    specificGroup,
+            if (
+                specificGroup
+            ) {
 
-                category:
-                    route.category,
+                return {
 
-                categoryTitle:
-                    route.categoryTitle
-            };
+                    chatId:
+                        specificGroup,
+
+                    category:
+                        normalized,
+
+                    categoryTitle:
+                        this.categoryTitle(
+                            normalized
+                        )
+                };
+            }
         }
 
-        /*
-         * Fallback to general movie group.
-         */
+        // =====================================================================
+        // MOVIE FALLBACK
+        // =====================================================================
 
         const movieGroup =
             this.getEnv(
@@ -1359,16 +1939,18 @@ export class TelegramBot {
                     movieGroup,
 
                 category:
-                    route.category,
+                    normalized,
 
                 categoryTitle:
-                    route.categoryTitle
+                    this.categoryTitle(
+                        normalized
+                    )
             };
         }
 
-        /*
-         * Final fallback.
-         */
+        // =====================================================================
+        // GENERAL FALLBACK
+        // =====================================================================
 
         const generalGroup =
             this.getEnv(
@@ -1396,52 +1978,85 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // ENVIRONMENT NAME
+    // CATEGORY TITLE
     // =========================================================================
 
-    private getGenreEnvironmentName(
+    private categoryTitle(
         category: string
     ): string {
 
-        const mapping:
-            Record<string, string> = {
+        const titles:
+            Record<
+                string,
+                string
+            > = {
 
             action:
-                "ACTION_GROUP_ID",
+                "🎬 Action & Abenteuer",
+
+            adventure:
+                "🎬 Action & Abenteuer",
 
             horror:
-                "HORROR_GROUP_ID",
+                "👻 Horror & Thriller",
+
+            thriller:
+                "👻 Horror & Thriller",
 
             scifi:
-                "SCIFI_GROUP_ID",
+                "🤖 Sci-Fi & Fantasy",
+
+            "sci-fi":
+                "🤖 Sci-Fi & Fantasy",
+
+            fantasy:
+                "🤖 Sci-Fi & Fantasy",
 
             drama:
-                "DRAMA_GROUP_ID",
+                "🎭 Drama & Romantik",
+
+            romance:
+                "🎭 Drama & Romantik",
 
             comedy:
-                "COMEDY_GROUP_ID",
+                "😂 Komödie & Familienfilme",
+
+            family:
+                "😂 Komödie & Familienfilme",
 
             animation:
-                "ANIMATION_GROUP_ID",
+                "🎨 Animation & Anime",
+
+            anime:
+                "🎨 Animation & Anime",
 
             crime:
-                "CRIME_GROUP_ID",
+                "🕵️ Mystery / Krimi",
+
+            mystery:
+                "🕵️ Mystery / Krimi",
 
             documentary:
-                "DOCUMENTARY_GROUP_ID",
+                "🏞️ Dokumentationen / Biografien",
+
+            biography:
+                "🏞️ Dokumentationen / Biografien",
 
             kids:
-                "KIDS_GROUP_ID",
+                "🧸 Kinderfilme",
+
+            children:
+                "🧸 Kinderfilme",
 
             general:
-                "GENERAL_GROUP_ID"
+                "📚 Allgemein"
         };
 
         return (
-            mapping[
+            titles[
                 category
             ] ||
-            "GENERAL_GROUP_ID"
+            "📚 Allgemein"
         );
     }
 
@@ -1449,31 +2064,28 @@ export class TelegramBot {
     // SEND MOVIE
     // =========================================================================
 
-    private async sendMoviePost(
-        ctx: Context,
+    private async sendMovie(
         destination: TelegramDestination,
-        movie: MovieCatalogEntry,
-        post: ReturnType<
-            typeof MoviePostBuilder.buildFull
-        >
+        movie: any,
+        post: any
     ): Promise<void> {
+
+        const keyboard =
+            this.buildInlineKeyboard(
+                post.buttons || []
+            );
 
         try {
 
-            const buttons =
-                this.convertButtons(
-                    post.buttons
-                );
-
-            /*
-             * Prefer poster when available.
-             */
+            // =================================================================
+            // POSTER
+            // =================================================================
 
             if (
                 post.posterUrl
             ) {
 
-                await ctx.telegram.sendPhoto(
+                await this.bot.telegram.sendPhoto(
                     destination.chatId,
                     post.posterUrl,
                     {
@@ -1483,48 +2095,61 @@ export class TelegramBot {
                         parse_mode:
                             "HTML",
 
-                        reply_markup:
-                            buttons
-                    }
-                );
-
-                /*
-                 * Send the actual file separately.
-                 */
-
-                await ctx.telegram.sendDocument(
-                    destination.chatId,
-                    movie.fileId,
-                    {
-                        caption:
-                            `🎬 <b>${this.escapeHtml(
-                                movie.title
-                            )}</b>\n🆔 <code>${this.escapeHtml(
-                                movie.archiveId
-                            )}</code>`,
-
-                        parse_mode:
-                            "HTML"
+                        ...keyboard
                     }
                 );
 
             } else {
 
-                await ctx.telegram.sendDocument(
+                await this.bot.telegram.sendMessage(
                     destination.chatId,
-                    movie.fileId,
+                    post.caption,
                     {
-                        caption:
-                            post.caption,
-
                         parse_mode:
                             "HTML",
 
-                        reply_markup:
-                            buttons
+                        ...keyboard
                     }
                 );
             }
+
+            // =================================================================
+            // FILE
+            // =================================================================
+
+            await this.bot.telegram.sendDocument(
+                destination.chatId,
+                movie.fileId,
+                {
+                    caption:
+                        [
+                            `🎬 <b>${this.escapeHtml(
+                                String(
+                                    movie.title
+                                )
+                            )}</b>`,
+
+                            movie.archiveId ||
+                            movie.libraryId
+                                ? `🆔 <code>${this.escapeHtml(
+                                    String(
+                                        movie.archiveId ||
+                                        movie.libraryId
+                                    )
+                                )}</code>`
+                                : ""
+                        ]
+                            .filter(
+                                Boolean
+                            )
+                            .join(
+                                "\n"
+                            ),
+
+                    parse_mode:
+                        "HTML"
+                }
+            );
 
             console.log(
                 `📤 Film gesendet → ${destination.chatId}`
@@ -1539,18 +2164,7 @@ export class TelegramBot {
                 error
             );
 
-            await this.safeReply(
-                ctx,
-                [
-                    "⚠️ Film wurde verarbeitet, konnte aber nicht in die Zielgruppe gesendet werden.",
-                    "",
-                    `🎬 ${this.escapeHtml(
-                        movie.title
-                    )}`
-                ].join(
-                    "\n"
-                )
-            );
+            throw error;
         }
     }
 
@@ -1558,37 +2172,38 @@ export class TelegramBot {
     // SEND SERIES
     // =========================================================================
 
-    private async sendSeriesPost(
+    private async sendSeries(
         chatId: string,
         threadId: number | undefined,
-        series: SeriesCatalogEntry,
-        post: ReturnType<
-            typeof SeriesPostBuilder.buildFull
-        >
+        series: any,
+        post: any
     ): Promise<void> {
 
-        const buttons =
-            this.convertButtons(
-                post.buttons
+        const keyboard =
+            this.buildInlineKeyboard(
+                post.buttons || []
             );
 
-        const extra:
-            Record<string, unknown> =
+        const topicOptions:
+            Record<
+                string,
+                any
+            > =
             {};
 
         if (
             threadId !== undefined
         ) {
 
-            extra.message_thread_id =
+            topicOptions.message_thread_id =
                 threadId;
         }
 
         try {
 
-            /*
-             * Poster first.
-             */
+            // =================================================================
+            // POST
+            // =================================================================
 
             if (
                 post.posterUrl
@@ -1604,11 +2219,10 @@ export class TelegramBot {
                         parse_mode:
                             "HTML",
 
-                        reply_markup:
-                            buttons,
+                        ...keyboard,
 
-                        ...extra
-                    } as any
+                        ...topicOptions
+                    }
                 );
 
             } else {
@@ -1620,17 +2234,16 @@ export class TelegramBot {
                         parse_mode:
                             "HTML",
 
-                        reply_markup:
-                            buttons,
+                        ...keyboard,
 
-                        ...extra
-                    } as any
+                        ...topicOptions
+                    }
                 );
             }
 
-            /*
-             * Actual episode file.
-             */
+            // =================================================================
+            // EPISODE FILE
+            // =================================================================
 
             await this.bot.telegram.sendDocument(
                 chatId,
@@ -1639,19 +2252,23 @@ export class TelegramBot {
                     caption:
                         [
                             `📺 <b>${this.escapeHtml(
-                                series.title
+                                String(
+                                    series.title
+                                )
                             )}</b>`,
 
-                            `🎬 ${
+                            `🎬 ${this.escapeHtml(
                                 this.formatSeasonEpisode(
                                     series.season,
                                     series.episode
                                 )
-                            }`,
+                            )}`,
 
                             series.episodeId
                                 ? `🆔 <code>${this.escapeHtml(
-                                    series.episodeId
+                                    String(
+                                        series.episodeId
+                                    )
                                 )}</code>`
                                 : ""
                         ]
@@ -1665,12 +2282,15 @@ export class TelegramBot {
                     parse_mode:
                         "HTML",
 
-                    ...extra
-                } as any
+                    ...topicOptions
+                }
             );
 
             console.log(
-                `📤 Serie gesendet → ${chatId} / Topic ${threadId ?? "general"}`
+                `📤 Episode gesendet → ${chatId} / Topic ${
+                    threadId ??
+                    "Allgemein"
+                }`
             );
 
         } catch (
@@ -1681,7 +2301,67 @@ export class TelegramBot {
                 "❌ Fehler beim Senden der Serie:",
                 error
             );
+
+            throw error;
         }
+    }
+
+    // =========================================================================
+    // INLINE KEYBOARD
+    // =========================================================================
+
+    private buildInlineKeyboard(
+        buttons: Array<
+            Array<{
+                text: string;
+                callbackData?: string;
+                url?: string;
+            }>
+        >
+    ): ReturnType<
+        typeof Markup.inlineKeyboard
+    > {
+
+        const telegramButtons =
+            buttons.map(
+                row =>
+                    row.map(
+                        button => {
+
+                            if (
+                                button.url
+                            ) {
+
+                                return Markup.button.url(
+                                    button.text,
+                                    button.url
+                                );
+                            }
+
+                            return Markup.button.callback(
+                                button.text,
+                                button.callbackData ||
+                                "noop"
+                            );
+                        }
+                    )
+            );
+
+        /*
+         * IMPORTANT:
+         *
+         * We return Markup.inlineKeyboard(...)
+         * instead of a raw any[][].
+         *
+         * This fixes the TypeScript errors:
+         *
+         * Type 'any[][]' is not assignable to
+         * type 'InlineKeyboardMarkup ...'
+         */
+
+        return Markup.inlineKeyboard(
+            telegramButtons
+        );
     }
 
     // =========================================================================
@@ -1690,39 +2370,52 @@ export class TelegramBot {
 
     private async getOrCreateSeriesTopic(
         chatId: string,
-        seriesTitle: string
+        title: string
     ): Promise<number | undefined> {
-
-        // =====================================================================
-        // EXISTING MEMORY TOPIC
-        // =====================================================================
-
-        const existing =
-            TopicManager.getThreadId(
-                chatId,
-                seriesTitle
-            );
-
-        if (
-            existing !== undefined
-        ) {
-
-            console.log(
-                `📌 Topic gefunden: ${seriesTitle} → ${existing}`
-            );
-
-            return existing;
-        }
-
-        // =====================================================================
-        // CREATE TELEGRAM TOPIC
-        // =====================================================================
 
         try {
 
+            const manager:
+                any =
+                TopicManager as any;
+
+            // =================================================================
+            // MEMORY LOOKUP
+            // =================================================================
+
+            if (
+                typeof manager.getThreadId ===
+                "function"
+            ) {
+
+                const existing =
+                    manager.getThreadId(
+                        chatId,
+                        title
+                    );
+
+                if (
+                    existing !== undefined &&
+                    existing !== null
+                ) {
+
+                    console.log(
+                        `📌 Topic gefunden: ${title} → ${existing}`
+                    );
+
+                    return Number(
+                        existing
+                    );
+                }
+            }
+
+            // =================================================================
+            // CREATE TOPIC
+            // =================================================================
+
             const topicName =
-                TopicManager.cleanTopicName(
-                    seriesTitle
+                this.cleanTopicName(
+                    title
                 );
 
             const result =
@@ -1734,12 +2427,22 @@ export class TelegramBot {
             const threadId =
                 result.message_thread_id;
 
-            TopicManager.registerTopic(
-                chatId,
-                seriesTitle,
-                threadId,
-                topicName
-            );
+            // =================================================================
+            // REGISTER
+            // =================================================================
+
+            if (
+                typeof manager.registerTopic ===
+                "function"
+            ) {
+
+                manager.registerTopic(
+                    chatId,
+                    title,
+                    threadId,
+                    topicName
+                );
+            }
 
             console.log(
                 `📌 Neues Topic erstellt: ${topicName} → ${threadId}`
@@ -1757,8 +2460,13 @@ export class TelegramBot {
             );
 
             /*
-             * If topics are disabled or the bot lacks admin permission,
-             * return undefined and use the general forum.
+             * Topics require:
+             *
+             * - Supergroup
+             * - Forum mode
+             * - Bot admin permissions
+             *
+             * If any of these are missing, use the general chat.
              */
 
             return undefined;
@@ -1766,7 +2474,34 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // MOVIES LIST
+    // CLEAN TOPIC NAME
+    // =========================================================================
+
+    private cleanTopicName(
+        title: string
+    ): string {
+
+        return String(
+            title || "Serie"
+        )
+            .replace(
+                /[\r\n\t]+/g,
+                " "
+            )
+            .replace(
+                /\s+/g,
+                " "
+            )
+            .trim()
+            .slice(
+                0,
+                128
+            ) ||
+            "Serie";
+    }
+
+    // =========================================================================
+    // MOVIES
     // =========================================================================
 
     private async handleMovies(
@@ -1781,11 +2516,23 @@ export class TelegramBot {
                     0
                 );
 
+            const filtered =
+                (movies as any[]).filter(
+                    movie =>
+                        String(
+                            movie.type ||
+                            ""
+                        ).toUpperCase() !==
+                        "SERIES"
+                );
+
             if (
-                movies.length === 0
+                filtered.length ===
+                0
             ) {
 
-                await ctx.reply(
+                await this.safeReply(
+                    ctx,
                     "🎬 Noch keine Filme im Archiv."
                 );
 
@@ -1793,13 +2540,13 @@ export class TelegramBot {
             }
 
             const buttons =
-                movies.map(
-                    (
-                        movie: any
-                    ) => [
+                filtered.map(
+                    movie => [
 
                         Markup.button.callback(
-                            `🎬 ${movie.title}`,
+                            `🎬 ${String(
+                                movie.title
+                            )}`,
                             `movie_${movie.id}`
                         )
 
@@ -1827,14 +2574,15 @@ export class TelegramBot {
                 error
             );
 
-            await ctx.reply(
+            await this.safeReply(
+                ctx,
                 "❌ Filme konnten nicht geladen werden."
             );
         }
     }
 
     // =========================================================================
-    // SERIES LIST
+    // SERIES
     // =========================================================================
 
     private async handleSeries(
@@ -1843,17 +2591,15 @@ export class TelegramBot {
 
         try {
 
-            const series =
+            const items =
                 await LibraryRepository.getAll(
-                    20,
+                    100,
                     0
                 );
 
-            const filtered =
-                series.filter(
-                    (
-                        item: any
-                    ) =>
+            const series =
+                (items as any[]).filter(
+                    item =>
                         String(
                             item.type ||
                             ""
@@ -1862,11 +2608,12 @@ export class TelegramBot {
                 );
 
             if (
-                filtered.length ===
+                series.length ===
                 0
             ) {
 
-                await ctx.reply(
+                await this.safeReply(
+                    ctx,
                     "📺 Noch keine Serien im Archiv."
                 );
 
@@ -1874,13 +2621,13 @@ export class TelegramBot {
             }
 
             const buttons =
-                filtered.map(
-                    (
-                        item: any
-                    ) => [
+                series.map(
+                    item => [
 
                         Markup.button.callback(
-                            `📺 ${item.title}`,
+                            `📺 ${String(
+                                item.title
+                            )}`,
                             `series_${item.id}`
                         )
 
@@ -1908,7 +2655,8 @@ export class TelegramBot {
                 error
             );
 
-            await ctx.reply(
+            await this.safeReply(
+                ctx,
                 "❌ Serien konnten nicht geladen werden."
             );
         }
@@ -1932,7 +2680,8 @@ export class TelegramBot {
                 0
             ) {
 
-                await ctx.reply(
+                await this.safeReply(
+                    ctx,
                     "🔥 Noch keine Trending-Inhalte vorhanden."
                 );
 
@@ -1940,13 +2689,13 @@ export class TelegramBot {
             }
 
             const buttons =
-                movies.map(
-                    (
-                        movie: any
-                    ) => [
+                (movies as any[]).map(
+                    movie => [
 
                         Markup.button.callback(
-                            `🔥 ${movie.title}`,
+                            `🔥 ${String(
+                                movie.title
+                            )}`,
                             `movie_${movie.id}`
                         )
 
@@ -1974,7 +2723,8 @@ export class TelegramBot {
                 error
             );
 
-            await ctx.reply(
+            await this.safeReply(
+                ctx,
                 "❌ Trending konnte nicht geladen werden."
             );
         }
@@ -1998,7 +2748,8 @@ export class TelegramBot {
                 0
             ) {
 
-                await ctx.reply(
+                await this.safeReply(
+                    ctx,
                     "⭐ Noch keine Favoriten."
                 );
 
@@ -2006,13 +2757,13 @@ export class TelegramBot {
             }
 
             const buttons =
-                movies.map(
-                    (
-                        movie: any
-                    ) => [
+                (movies as any[]).map(
+                    movie => [
 
                         Markup.button.callback(
-                            `⭐ ${movie.title}`,
+                            `⭐ ${String(
+                                movie.title
+                            )}`,
                             `movie_${movie.id}`
                         )
 
@@ -2040,23 +2791,29 @@ export class TelegramBot {
                 error
             );
 
-            await ctx.reply(
+            await this.safeReply(
+                ctx,
                 "❌ Favoriten konnten nicht geladen werden."
             );
         }
     }
 
     // =========================================================================
-    // FIND
+    // FIND COMMAND
     // =========================================================================
 
     private async handleFindCommand(
         ctx: Context
     ): Promise<void> {
 
+        const message:
+            any =
+            (ctx as any).message;
+
         const text =
-            this.getMessageText(
-                ctx
+            String(
+                message?.text ||
+                ""
             );
 
         const query =
@@ -2071,19 +2828,16 @@ export class TelegramBot {
             !query
         ) {
 
-            await ctx.reply(
+            await this.safeReply(
+                ctx,
                 [
-                    "🔎 <b>Filmsuche</b>",
+                    "🔎 <b>Library Of Legends Suche</b>",
                     "",
                     "Verwendung:",
                     "<code>/find Superman</code>"
                 ].join(
                     "\n"
-                ),
-                {
-                    parse_mode:
-                        "HTML"
-                }
+                )
             );
 
             return;
@@ -2096,16 +2850,21 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // SEARCH
+    // SEARCH COMMAND
     // =========================================================================
 
     private async handleSearchCommand(
         ctx: Context
     ): Promise<void> {
 
+        const message:
+            any =
+            (ctx as any).message;
+
         const text =
-            this.getMessageText(
-                ctx
+            String(
+                message?.text ||
+                ""
             );
 
         const query =
@@ -2120,12 +2879,9 @@ export class TelegramBot {
             !query
         ) {
 
-            await ctx.reply(
-                "🔎 Verwendung: <code>/search TITEL</code>",
-                {
-                    parse_mode:
-                        "HTML"
-                }
+            await this.safeReply(
+                ctx,
+                "🔎 Verwendung: <code>/search TITEL</code>"
             );
 
             return;
@@ -2138,7 +2894,7 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // PERFORM SEARCH
+    // SEARCH
     // =========================================================================
 
     private async performSearch(
@@ -2158,27 +2914,24 @@ export class TelegramBot {
                 0
             ) {
 
-                await ctx.reply(
+                await this.safeReply(
+                    ctx,
                     `🔎 Keine Treffer für <b>${this.escapeHtml(
                         query
-                    )}</b>.`,
-                    {
-                        parse_mode:
-                            "HTML"
-                    }
+                    )}</b>.`
                 );
 
                 return;
             }
 
             const buttons =
-                results.map(
-                    (
-                        item: any
-                    ) => [
+                (results as any[]).map(
+                    item => [
 
                         Markup.button.callback(
-                            `🎬 ${item.title}`,
+                            `🎬 ${String(
+                                item.title
+                            )}`,
                             `movie_${item.id}`
                         )
 
@@ -2214,7 +2967,8 @@ export class TelegramBot {
                 error
             );
 
-            await ctx.reply(
+            await this.safeReply(
+                ctx,
                 "❌ Suche fehlgeschlagen."
             );
         }
@@ -2228,19 +2982,21 @@ export class TelegramBot {
         ctx: Context
     ): Promise<void> {
 
-        const callback =
-            ctx.callbackQuery;
+        const callback:
+            any =
+            (ctx as any).callbackQuery;
 
         if (
-            !callback ||
-            !("data" in callback)
+            !callback?.data
         ) {
 
             return;
         }
 
         const id =
-            callback.data.replace(
+            String(
+                callback.data
+            ).replace(
                 /^movie_/,
                 ""
             );
@@ -2254,10 +3010,8 @@ export class TelegramBot {
                 );
 
             const movie =
-                movies.find(
-                    (
-                        item: any
-                    ) =>
+                (movies as any[]).find(
+                    item =>
                         String(
                             item.id
                         ) ===
@@ -2290,7 +3044,9 @@ export class TelegramBot {
                 {
                     caption:
                         `🎬 <b>${this.escapeHtml(
-                            movie.title
+                            String(
+                                movie.title
+                            )
                         )}</b>`,
 
                     parse_mode:
@@ -2332,19 +3088,21 @@ export class TelegramBot {
         ctx: Context
     ): Promise<void> {
 
-        const callback =
-            ctx.callbackQuery;
+        const callback:
+            any =
+            (ctx as any).callbackQuery;
 
         if (
-            !callback ||
-            !("data" in callback)
+            !callback?.data
         ) {
 
             return;
         }
 
         const id =
-            callback.data.replace(
+            String(
+                callback.data
+            ).replace(
                 /^fav_/,
                 ""
             );
@@ -2382,130 +3140,158 @@ export class TelegramBot {
         ctx: Context
     ): Promise<void> {
 
-        await ctx.answerCbQuery(
-            "📺 Serienansicht ist vorbereitet."
-        );
-    }
-
-    // =========================================================================
-    // CONVERT BUTTONS
-    // =========================================================================
-
-    private convertButtons(
-        rows: Array<
-            Array<{
-                text: string;
-                callbackData?: string;
-                url?: string;
-            }>
-        >
-    ): any[][] {
-
-        return rows.map(
-            row =>
-                row.map(
-                    button => {
-
-                        if (
-                            button.url
-                        ) {
-
-                            return Markup.button.url(
-                                button.text,
-                                button.url
-                            );
-                        }
-
-                        return Markup.button.callback(
-                            button.text,
-                            button.callbackData ||
-                            "noop"
-                        );
-                    }
-                )
-        );
-    }
-
-    // =========================================================================
-    // GET CHAT ID
-    // =========================================================================
-
-    private getChatId(
-        ctx: Context
-    ): string | undefined {
-
-        const chat =
-            ctx.chat;
+        const callback:
+            any =
+            (ctx as any).callbackQuery;
 
         if (
-            !chat
+            !callback?.data
         ) {
 
-            return undefined;
+            return;
         }
 
-        return String(
-            chat.id
+        const id =
+            String(
+                callback.data
+            ).replace(
+                /^series_/,
+                ""
+            );
+
+        await ctx.answerCbQuery(
+            `📺 Serie ${id} geöffnet.`
         );
     }
 
     // =========================================================================
-    // GET MESSAGE ID
+    // FALLBACK MOVIE CAPTION
     // =========================================================================
 
-    private getMessageId(
-        ctx: Context
-    ): number | undefined {
-
-        const message:
-            any =
-            ctx.message;
-
-        return message?.message_id;
-    }
-
-    // =========================================================================
-    // GET TEXT
-    // =========================================================================
-
-    private getMessageText(
-        ctx: Context
+    private buildMovieFallbackCaption(
+        movie: any,
+        tmdb: any,
+        categoryTitle: string
     ): string {
 
-        const message:
-            any =
-            ctx.message;
+        return [
 
-        return String(
-            message?.text ||
-            ""
-        );
+            `🎬 <b>${this.escapeHtml(
+                String(
+                    tmdb?.title ||
+                    movie.title ||
+                    "Unbekannter Film"
+                )
+            )}</b>`,
+
+            movie.year
+                ? `📅 Jahr: ${movie.year}`
+                : "",
+
+            movie.genres?.length
+                ? `🏷️ Genre: ${this.escapeHtml(
+                    movie.genres.join(
+                        " • "
+                    )
+                )}`
+                : "",
+
+            tmdb?.rating !== undefined
+                ? `⭐ Bewertung: ${tmdb.rating}`
+                : "",
+
+            tmdb?.overview
+                ? `📖 ${this.escapeHtml(
+                    this.limitText(
+                        tmdb.overview,
+                        1000
+                    )
+                )}`
+                : "",
+
+            "━━━━━━━━━━━━━━━━━━",
+
+            "🗃️ <b>Library Of Legends</b>",
+
+            `📂 Kategorie: ${this.escapeHtml(
+                categoryTitle
+            )}`
+
+        ]
+            .filter(
+                Boolean
+            )
+            .join(
+                "\n"
+            );
     }
 
     // =========================================================================
-    // GET ENV
+    // FALLBACK SERIES CAPTION
     // =========================================================================
 
-    private getEnv(
-        name: string
-    ): string | undefined {
+    private buildSeriesFallbackCaption(
+        series: any,
+        tmdb: any,
+        categoryTitle: string
+    ): string {
 
-        const value =
-            process.env[
-                name
-            ];
+        return [
 
-        if (
-            !value
-        ) {
+            `📺 <b>${this.escapeHtml(
+                String(
+                    tmdb?.title ||
+                    series.title ||
+                    "Unbekannte Serie"
+                )
+            )}</b>`,
 
-            return undefined;
-        }
+            this.formatSeasonEpisode(
+                series.season,
+                series.episode
+            )
+                ? `🎬 ${this.formatSeasonEpisode(
+                    series.season,
+                    series.episode
+                )}`
+                : "",
 
-        return String(
-            value
-        ).trim() ||
-            undefined;
+            series.genres?.length
+                ? `🏷️ Genre: ${this.escapeHtml(
+                    series.genres.join(
+                        " • "
+                    )
+                )}`
+                : "",
+
+            tmdb?.rating !== undefined
+                ? `⭐ Bewertung: ${tmdb.rating}`
+                : "",
+
+            tmdb?.overview
+                ? `📖 ${this.escapeHtml(
+                    this.limitText(
+                        tmdb.overview,
+                        1000
+                    )
+                )}`
+                : "",
+
+            "━━━━━━━━━━━━━━━━━━",
+
+            "🗃️ <b>Library Of Legends</b>",
+
+            `📂 Kategorie: ${this.escapeHtml(
+                categoryTitle
+            )}`
+
+        ]
+            .filter(
+                Boolean
+            )
+            .join(
+                "\n"
+            );
     }
 
     // =========================================================================
@@ -2539,6 +3325,74 @@ export class TelegramBot {
     }
 
     // =========================================================================
+    // GET ENV
+    // =========================================================================
+
+    private getEnv(
+        name: string
+    ): string | undefined {
+
+        const value =
+            process.env[
+                name
+            ];
+
+        if (
+            !value
+        ) {
+
+            return undefined;
+        }
+
+        const result =
+            String(
+                value
+            ).trim();
+
+        return result ||
+            undefined;
+    }
+
+    // =========================================================================
+    // GET CHAT ID
+    // =========================================================================
+
+    private getChatId(
+        ctx: Context
+    ): string | undefined {
+
+        const chat:
+            any =
+            (ctx as any).chat;
+
+        if (
+            !chat
+        ) {
+
+            return undefined;
+        }
+
+        return String(
+            chat.id
+        );
+    }
+
+    // =========================================================================
+    // GET MESSAGE ID
+    // =========================================================================
+
+    private getMessageId(
+        ctx: Context
+    ): number | undefined {
+
+        const message:
+            any =
+            (ctx as any).message;
+
+        return message?.message_id;
+    }
+
+    // =========================================================================
     // FORMAT SEASON / EPISODE
     // =========================================================================
 
@@ -2552,7 +3406,7 @@ export class TelegramBot {
             episode === undefined
         ) {
 
-            return "Episode";
+            return "";
         }
 
         if (
@@ -2591,6 +3445,39 @@ export class TelegramBot {
             2,
             "0"
         )}`;
+    }
+
+    // =========================================================================
+    // LIMIT TEXT
+    // =========================================================================
+
+    private limitText(
+        value: string,
+        maxLength: number
+    ): string {
+
+        const text =
+            String(
+                value || ""
+            ).trim();
+
+        if (
+            text.length <=
+            maxLength
+        ) {
+
+            return text;
+        }
+
+        return (
+            text
+                .slice(
+                    0,
+                    maxLength - 1
+                )
+                .trim() +
+            "…"
+        );
     }
 
     // =========================================================================
