@@ -11,16 +11,16 @@ Architecture Layer..: Application
 
 Module..............: Routing
 
-Module ID...........: LOL-MOD-ROU-0002
+Module ID...........: LOL-MOD-ROUT-0002
 
-LOL-ID..............: LOL-ROU-TOP-0001
+LOL-ID..............: LOL-ROUT-TOPIC-0001
 
 File................: topic-manager.ts
 
 Location............
 Library Of Legends/src/application/routing/
 
-Version.............: 2.0.0
+Version.............: 3.0.0
 
 Status..............: Core
 
@@ -28,92 +28,105 @@ Lifecycle...........: Development
 
 Description.........
 
-Telegram Forum Topic Manager for Library Of Legends.
+Telegram Forum Topic management for Library Of Legends.
 
 Responsibilities:
 
+- Create series topics
+- Find existing series topics
 - Normalize topic names
-- Create Telegram forum topics
-- Reuse existing topics
-- Cache topic identifiers
-- Create series-specific topics
-- Create movie-specific topics when required
-- Handle Telegram topic creation errors
-- Provide topic information to TelegramBot
-- Prevent duplicate topics during runtime
+- Prevent duplicate topics
+- Store topic references in memory
+- Support multiple Telegram chats
+- Provide topic lookup
+- Prepare topic routing for TelegramBot
+- Keep Telegram-specific topic logic isolated
 
-Primary use case:
+Important:
 
-SERIES
-    ↓
-Series title
-    ↓
-Telegram category group
-    ↓
-Existing topic?
-    ├── YES → reuse topic
-    └── NO  → create topic
-                 ↓
-             save in cache
+Telegram forum topics can only be created in a Telegram supergroup
+with Topics enabled.
 
-Telegram communication itself is handled through the
-Telegraf Telegram API instance passed to this component.
+The TelegramBot layer is responsible for actually calling Telegram.
+
+This class manages the topic information and provides helper methods
+for the Telegram integration.
 
 ===============================================================================
 */
 
-import {
-    Telegraf
-} from "telegraf";
-
 /**
- * Information about a Telegram forum topic.
+ * Stored Telegram topic information.
  */
-export interface TopicInfo {
+export interface SeriesTopic {
 
     /**
-     * Telegram chat identifier.
+     * Telegram chat ID.
      */
     chatId: string;
 
     /**
-     * Telegram forum topic identifier.
+     * Telegram message thread ID.
      */
-    topicId: number;
+    messageThreadId: number;
 
     /**
-     * Human-readable topic name.
+     * Topic name shown in Telegram.
      */
     name: string;
 
     /**
-     * Timestamp when the topic was cached.
+     * Normalized series title.
+     */
+    normalizedName: string;
+
+    /**
+     * Creation timestamp.
      */
     createdAt: number;
+
+    /**
+     * Last access timestamp.
+     */
+    updatedAt: number;
 }
 
 /**
- * Topic Manager
+ * Topic creation request.
+ */
+export interface TopicRequest {
+
+    chatId: string;
+
+    seriesTitle: string;
+
+    topicName?: string;
+}
+
+/**
+ * Topic Manager.
  */
 export class TopicManager {
 
     // =========================================================================
-    // TOPIC CACHE
+    // TOPIC STORAGE
     // =========================================================================
 
-    private static readonly topicCache =
-        new Map<string, TopicInfo>();
+    private static topics:
+        Map<string, SeriesTopic> =
+        new Map();
 
     // =========================================================================
-    // TOPIC CREATION LOCK
+    // TOPIC KEY
     // =========================================================================
 
-    /**
-     * Prevents two simultaneous requests from creating
-     * the same Telegram topic twice.
-     */
-    private static readonly creationLocks =
-        new Map<string, Promise<number>>();
+    private static buildKey(
+        chatId: string,
+        seriesTitle: string
+    ): string {
+
+        return `${chatId}:${this.normalizeName(seriesTitle)}`;
+    }
 
     // =========================================================================
     // NORMALIZE NAME
@@ -126,10 +139,37 @@ export class TopicManager {
         return String(
             name || ""
         )
-            .normalize("NFD")
+            .normalize(
+                "NFD"
+            )
             .replace(
                 /[\u0300-\u036f]/g,
                 ""
+            )
+            .toLowerCase()
+            .replace(
+                /\.(mp4|mkv|avi|mov|webm)$/i,
+                ""
+            )
+            .replace(
+                /\bS\d{1,3}E\d{1,4}\b/gi,
+                ""
+            )
+            .replace(
+                /\bStaffel\s*\d{1,3}\b/gi,
+                ""
+            )
+            .replace(
+                /\bSeason\s*\d{1,3}\b/gi,
+                ""
+            )
+            .replace(
+                /\b(?:Folge|Episode)\s*\d{1,4}\b/gi,
+                ""
+            )
+            .replace(
+                /[_./\\|()[\]{}:;,!?]+/g,
+                " "
             )
             .replace(
                 /\s+/g,
@@ -139,326 +179,22 @@ export class TopicManager {
     }
 
     // =========================================================================
-    // CACHE KEY
+    // CLEAN TOPIC NAME
     // =========================================================================
 
-    private static getCacheKey(
-        chatId: string,
-        topicName: string
-    ): string {
-
-        return [
-            String(chatId).trim(),
-            this.normalizeName(
-                topicName
-            ).toLowerCase()
-        ].join(
-            ":"
-        );
-    }
-
-    // =========================================================================
-    // GET CACHED TOPIC
-    // =========================================================================
-
-    public static getCachedTopic(
-        chatId: string,
-        topicName: string
-    ): TopicInfo | undefined {
-
-        return this.topicCache.get(
-            this.getCacheKey(
-                chatId,
-                topicName
-            )
-        );
-    }
-
-    // =========================================================================
-    // STORE TOPIC
-    // =========================================================================
-
-    public static storeTopic(
-        info: TopicInfo
-    ): void {
-
-        this.topicCache.set(
-            this.getCacheKey(
-                info.chatId,
-                info.name
-            ),
-            info
-        );
-    }
-
-    // =========================================================================
-    // GET OR CREATE TOPIC
-    // =========================================================================
-
-    public static async getOrCreateTopic(
-        bot: Telegraf,
-        chatId: string,
-        topicName: string
-    ): Promise<number> {
-
-        const normalizedName =
-            this.normalizeName(
-                topicName
-            );
-
-        const normalizedChatId =
-            String(
-                chatId || ""
-            ).trim();
-
-        // ---------------------------------------------------------------------
-        // VALIDATION
-        // ---------------------------------------------------------------------
-
-        if (
-            !normalizedChatId
-        ) {
-
-            throw new Error(
-                "❌ Telegram Chat-ID fehlt."
-            );
-        }
-
-        if (
-            !normalizedName
-        ) {
-
-            throw new Error(
-                "❌ Telegram Topic-Name darf nicht leer sein."
-            );
-        }
-
-        // ---------------------------------------------------------------------
-        // CACHE
-        // ---------------------------------------------------------------------
-
-        const cached =
-            this.getCachedTopic(
-                normalizedChatId,
-                normalizedName
-            );
-
-        if (
-            cached
-        ) {
-
-            console.log(
-                `📌 Topic aus Cache verwendet: ${normalizedName} (${cached.topicId})`
-            );
-
-            return cached.topicId;
-        }
-
-        // ---------------------------------------------------------------------
-        // CREATION LOCK
-        // ---------------------------------------------------------------------
-
-        const cacheKey =
-            this.getCacheKey(
-                normalizedChatId,
-                normalizedName
-            );
-
-        const existingCreation =
-            this.creationLocks.get(
-                cacheKey
-            );
-
-        if (
-            existingCreation
-        ) {
-
-            return existingCreation;
-        }
-
-        // ---------------------------------------------------------------------
-        // CREATE TOPIC
-        // ---------------------------------------------------------------------
-
-        const creationPromise =
-            this.createTopic(
-                bot,
-                normalizedChatId,
-                normalizedName
-            );
-
-        this.creationLocks.set(
-            cacheKey,
-            creationPromise
-        );
-
-        try {
-
-            return await creationPromise;
-
-        } finally {
-
-            this.creationLocks.delete(
-                cacheKey
-            );
-        }
-    }
-
-    // =========================================================================
-    // CREATE TOPIC
-    // =========================================================================
-
-    private static async createTopic(
-        bot: Telegraf,
-        chatId: string,
-        topicName: string
-    ): Promise<number> {
-
-        try {
-
-            console.log(
-                "================================================="
-            );
-
-            console.log(
-                "📌 TELEGRAM TOPIC ROUTING"
-            );
-
-            console.log(
-                `📨 Chat-ID: ${chatId}`
-            );
-
-            console.log(
-                `📝 Topic: ${topicName}`
-            );
-
-            console.log(
-                "================================================="
-            );
-
-            const result =
-                await bot.telegram.callApi(
-                    "createForumTopic",
-                    {
-                        chat_id:
-                            chatId,
-
-                        name:
-                            topicName
-                    }
-                );
-
-            const topicId =
-                result.message_thread_id;
-
-            if (
-                !topicId ||
-                !Number.isInteger(
-                    topicId
-                )
-            ) {
-
-                throw new Error(
-                    "❌ Telegram hat keine gültige Topic-ID zurückgegeben."
-                );
-            }
-
-            const info: TopicInfo = {
-
-                chatId,
-
-                topicId,
-
-                name:
-                    topicName,
-
-                createdAt:
-                    Date.now()
-            };
-
-            this.storeTopic(
-                info
-            );
-
-            console.log(
-                `✅ Telegram Topic erstellt: ${topicName}`
-            );
-
-            console.log(
-                `📌 Topic-ID: ${topicId}`
-            );
-
-            return topicId;
-
-        } catch (error) {
-
-            console.error(
-                `❌ Fehler beim Erstellen des Topics "${topicName}":`,
-                error
-            );
-
-            throw error;
-        }
-    }
-
-    // =========================================================================
-    // SERIES TOPIC
-    // =========================================================================
-
-    public static async getOrCreateSeriesTopic(
-        bot: Telegraf,
-        chatId: string,
-        seriesTitle: string
-    ): Promise<number> {
-
-        const topicName =
-            this.buildSeriesTopicName(
-                seriesTitle
-            );
-
-        return this.getOrCreateTopic(
-            bot,
-            chatId,
-            topicName
-        );
-    }
-
-    // =========================================================================
-    // MOVIE TOPIC
-    // =========================================================================
-
-    public static async getOrCreateMovieTopic(
-        bot: Telegraf,
-        chatId: string,
-        movieTitle: string,
-        year?: number
-    ): Promise<number> {
-
-        const topicName =
-            this.buildMovieTopicName(
-                movieTitle,
-                year
-            );
-
-        return this.getOrCreateTopic(
-            bot,
-            chatId,
-            topicName
-        );
-    }
-
-    // =========================================================================
-    // BUILD SERIES TOPIC NAME
-    // =========================================================================
-
-    public static buildSeriesTopicName(
-        title: string
+    public static cleanTopicName(
+        name: string
     ): string {
 
         const normalized =
-            this.normalizeName(
-                title
-            );
+            String(
+                name || ""
+            )
+                .replace(
+                    /\s+/g,
+                    " "
+                )
+                .trim();
 
         if (
             !normalized
@@ -467,43 +203,58 @@ export class TopicManager {
             return "Unbekannte Serie";
         }
 
-        return normalized;
+        /*
+         * Telegram topic names have practical display limits.
+         * Keep the title readable instead of cutting in the middle
+         * of an important prefix.
+         */
+
+        const MAX_LENGTH =
+            128;
+
+        if (
+            normalized.length <=
+            MAX_LENGTH
+        ) {
+
+            return normalized;
+        }
+
+        return normalized.slice(
+            0,
+            MAX_LENGTH - 1
+        ).trim() + "…";
     }
 
     // =========================================================================
-    // BUILD MOVIE TOPIC NAME
+    // GET EXISTING TOPIC
     // =========================================================================
 
-    public static buildMovieTopicName(
-        title: string,
-        year?: number
-    ): string {
+    public static getTopic(
+        chatId: string,
+        seriesTitle: string
+    ): SeriesTopic | undefined {
 
-        const normalized =
-            this.normalizeName(
-                title
+        const key =
+            this.buildKey(
+                chatId,
+                seriesTitle
+            );
+
+        const topic =
+            this.topics.get(
+                key
             );
 
         if (
-            !normalized
+            topic
         ) {
 
-            return year
-                ? `Unbekannter Film (${year})`
-                : "Unbekannter Film";
+            topic.updatedAt =
+                Date.now();
         }
 
-        if (
-            year &&
-            Number.isInteger(
-                year
-            )
-        ) {
-
-            return `${normalized} (${year})`;
-        }
-
-        return normalized;
+        return topic;
     }
 
     // =========================================================================
@@ -512,12 +263,12 @@ export class TopicManager {
 
     public static findTopic(
         chatId: string,
-        topicName: string
-    ): TopicInfo | undefined {
+        seriesTitle: string
+    ): SeriesTopic | undefined {
 
-        return this.getCachedTopic(
+        return this.getTopic(
             chatId,
-            topicName
+            seriesTitle
         );
     }
 
@@ -527,104 +278,464 @@ export class TopicManager {
 
     public static hasTopic(
         chatId: string,
-        topicName: string
+        seriesTitle: string
     ): boolean {
 
-        return (
-            this.getCachedTopic(
+        return Boolean(
+            this.getTopic(
                 chatId,
-                topicName
-            ) !== undefined
-        );
-    }
-
-    // =========================================================================
-    // REMOVE TOPIC FROM CACHE
-    // =========================================================================
-
-    public static removeCachedTopic(
-        chatId: string,
-        topicName: string
-    ): boolean {
-
-        return this.topicCache.delete(
-            this.getCacheKey(
-                chatId,
-                topicName
+                seriesTitle
             )
         );
     }
 
     // =========================================================================
-    // CLEAR CACHE
+    // REGISTER TOPIC
     // =========================================================================
 
-    public static clearCache(): void {
+    public static registerTopic(
+        chatId: string,
+        seriesTitle: string,
+        messageThreadId: number,
+        topicName?: string
+    ): SeriesTopic {
 
-        this.topicCache.clear();
+        const normalizedName =
+            this.normalizeName(
+                seriesTitle
+            );
 
-        this.creationLocks.clear();
+        const cleanName =
+            this.cleanTopicName(
+                topicName ||
+                seriesTitle
+            );
 
-        console.log(
-            "🧹 Telegram Topic-Cache geleert."
+        const key =
+            this.buildKey(
+                chatId,
+                seriesTitle
+            );
+
+        const existing =
+            this.topics.get(
+                key
+            );
+
+        if (
+            existing
+        ) {
+
+            existing.messageThreadId =
+                messageThreadId;
+
+            existing.name =
+                cleanName;
+
+            existing.updatedAt =
+                Date.now();
+
+            return existing;
+        }
+
+        const now =
+            Date.now();
+
+        const topic:
+            SeriesTopic = {
+
+            chatId:
+                String(
+                    chatId
+                ),
+
+            messageThreadId,
+
+            name:
+                cleanName,
+
+            normalizedName,
+
+            createdAt:
+                now,
+
+            updatedAt:
+                now
+        };
+
+        this.topics.set(
+            key,
+            topic
+        );
+
+        return topic;
+    }
+
+    // =========================================================================
+    // REMOVE TOPIC
+    // =========================================================================
+
+    public static removeTopic(
+        chatId: string,
+        seriesTitle: string
+    ): boolean {
+
+        const key =
+            this.buildKey(
+                chatId,
+                seriesTitle
+            );
+
+        return this.topics.delete(
+            key
         );
     }
 
     // =========================================================================
-    // GET ALL CACHED TOPICS
+    // CLEAR CHAT
     // =========================================================================
 
-    public static getAllCachedTopics(): TopicInfo[] {
+    public static clearChat(
+        chatId: string
+    ): number {
+
+        const prefix =
+            `${chatId}:`;
+
+        let removed =
+            0;
+
+        for (
+            const key of
+            this.topics.keys()
+        ) {
+
+            if (
+                key.startsWith(
+                    prefix
+                )
+            ) {
+
+                this.topics.delete(
+                    key
+                );
+
+                removed++;
+            }
+        }
+
+        return removed;
+    }
+
+    // =========================================================================
+    // GET TOPIC THREAD ID
+    // =========================================================================
+
+    public static getThreadId(
+        chatId: string,
+        seriesTitle: string
+    ): number | undefined {
+
+        return this.getTopic(
+            chatId,
+            seriesTitle
+        )?.messageThreadId;
+    }
+
+    // =========================================================================
+    // GET OR CREATE DATA
+    // =========================================================================
+
+    public static getOrCreateData(
+        request: TopicRequest
+    ): SeriesTopic | undefined {
+
+        const existing =
+            this.getTopic(
+                request.chatId,
+                request.seriesTitle
+            );
+
+        if (
+            existing
+        ) {
+
+            return existing;
+        }
+
+        /*
+         * A Telegram message_thread_id cannot be invented.
+         *
+         * The actual Telegram topic must be created by TelegramBot.
+         *
+         * Therefore this method only returns undefined when the topic
+         * has not yet been registered.
+         */
+
+        return undefined;
+    }
+
+    // =========================================================================
+    // BUILD TOPIC REQUEST
+    // =========================================================================
+
+    public static buildRequest(
+        chatId: string,
+        seriesTitle: string
+    ): TopicRequest {
+
+        return {
+
+            chatId:
+                String(
+                    chatId
+                ),
+
+            seriesTitle:
+                this.normalizeSeriesTitle(
+                    seriesTitle
+                ),
+
+            topicName:
+                this.cleanTopicName(
+                    seriesTitle
+                )
+        };
+    }
+
+    // =========================================================================
+    // NORMALIZE SERIES TITLE
+    // =========================================================================
+
+    public static normalizeSeriesTitle(
+        title: string
+    ): string {
+
+        let value =
+            String(
+                title || ""
+            )
+                .trim();
+
+        /*
+         * Remove file extension.
+         */
+
+        value =
+            value.replace(
+                /\.(mp4|mkv|avi|mov|webm|m4v|ts|m2ts)$/i,
+                ""
+            );
+
+        /*
+         * Remove S01E01 notation.
+         */
+
+        value =
+            value.replace(
+                /\bS\d{1,3}E\d{1,4}\b/gi,
+                ""
+            );
+
+        /*
+         * Remove Season / Staffel.
+         */
+
+        value =
+            value.replace(
+                /\bSeason\s*\d{1,3}\b/gi,
+                ""
+            );
+
+        value =
+            value.replace(
+                /\bStaffel\s*\d{1,3}\b/gi,
+                ""
+            );
+
+        /*
+         * Remove episode information.
+         */
+
+        value =
+            value.replace(
+                /\b(?:Episode|Folge)\s*\d{1,4}\b/gi,
+                ""
+            );
+
+        /*
+         * Remove common separators.
+         */
+
+        value =
+            value.replace(
+                /[_]+/g,
+                " "
+            );
+
+        value =
+            value.replace(
+                /\.+/g,
+                " "
+            );
+
+        value =
+            value.replace(
+                /\s*\|\s*/g,
+                " "
+            );
+
+        value =
+            value.replace(
+                /\s+/g,
+                " "
+            );
+
+        return value.trim();
+    }
+
+    // =========================================================================
+    // FIND BY THREAD ID
+    // =========================================================================
+
+    public static findByThreadId(
+        chatId: string,
+        messageThreadId: number
+    ): SeriesTopic | undefined {
+
+        for (
+            const topic of
+            this.topics.values()
+        ) {
+
+            if (
+                topic.chatId ===
+                String(
+                    chatId
+                ) &&
+                topic.messageThreadId ===
+                messageThreadId
+            ) {
+
+                topic.updatedAt =
+                    Date.now();
+
+                return topic;
+            }
+        }
+
+        return undefined;
+    }
+
+    // =========================================================================
+    // GET ALL FOR CHAT
+    // =========================================================================
+
+    public static getAllForChat(
+        chatId: string
+    ): SeriesTopic[] {
+
+        const result:
+            SeriesTopic[] = [];
+
+        for (
+            const topic of
+            this.topics.values()
+        ) {
+
+            if (
+                topic.chatId ===
+                String(
+                    chatId
+                )
+            ) {
+
+                result.push(
+                    topic
+                );
+            }
+        }
+
+        return result.sort(
+            (
+                a,
+                b
+            ) =>
+                a.name.localeCompare(
+                    b.name,
+                    "de"
+                )
+        );
+    }
+
+    // =========================================================================
+    // GET ALL
+    // =========================================================================
+
+    public static getAll(): SeriesTopic[] {
 
         return Array.from(
-            this.topicCache.values()
+            this.topics.values()
         );
     }
 
     // =========================================================================
-    // GET TOPICS FOR CHAT
+    // COUNT
     // =========================================================================
 
-    public static getTopicsForChat(
-        chatId: string
-    ): TopicInfo[] {
+    public static count(): number {
 
-        const normalizedChatId =
-            String(
-                chatId || ""
-            ).trim();
-
-        return this
-            .getAllCachedTopics()
-            .filter(
-                topic =>
-                    topic.chatId ===
-                    normalizedChatId
-            );
+        return this.topics.size;
     }
 
     // =========================================================================
-    // COUNT TOPICS
+    // TOPIC NAME EXISTS
     // =========================================================================
 
-    public static countTopics(): number {
+    public static topicNameExists(
+        chatId: string,
+        topicName: string
+    ): boolean {
 
-        return this.topicCache.size;
+        const normalized =
+            this.normalizeName(
+                topicName
+            );
+
+        for (
+            const topic of
+            this.topics.values()
+        ) {
+
+            if (
+                topic.chatId ===
+                String(
+                    chatId
+                ) &&
+                topic.normalizedName ===
+                normalized
+            ) {
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // =========================================================================
     // DEBUG
     // =========================================================================
 
-    public static describeTopic(
+    public static describe(
         chatId: string,
-        topicName: string
+        seriesTitle: string
     ): string {
 
         const topic =
-            this.getCachedTopic(
+            this.getTopic(
                 chatId,
-                topicName
+                seriesTitle
             );
 
         if (
@@ -632,36 +743,62 @@ export class TopicManager {
         ) {
 
             return [
-                "📌 Topic",
 
-                `📨 Chat: ${chatId}`,
+                "=================================================",
 
-                `📝 Name: ${
-                    this.normalizeName(
-                        topicName
+                "📌 TOPIC MANAGER",
+
+                "=================================================",
+
+                `📺 Serie: ${
+                    this.normalizeSeriesTitle(
+                        seriesTitle
                     )
                 }`,
 
-                "❌ Nicht im Cache"
+                "❌ Topic noch nicht erstellt.",
+
+                "================================================="
+
             ].join(
                 "\n"
             );
         }
 
         return [
-            "📌 Topic",
 
-            `📨 Chat: ${topic.chatId}`,
+            "=================================================",
 
-            `📝 Name: ${topic.name}`,
+            "📌 TOPIC MANAGER",
 
-            `🆔 Topic-ID: ${topic.topicId}`,
+            "=================================================",
 
-            `🕐 Erstellt: ${
+            `📺 Serie: ${
+                topic.name
+            }`,
+
+            `💬 Chat-ID: ${
+                topic.chatId
+            }`,
+
+            `🧵 Thread-ID: ${
+                topic.messageThreadId
+            }`,
+
+            `📅 Erstellt: ${
                 new Date(
                     topic.createdAt
                 ).toISOString()
-            }`
+            }`,
+
+            `🔄 Aktualisiert: ${
+                new Date(
+                    topic.updatedAt
+                ).toISOString()
+            }`,
+
+            "================================================="
+
         ].join(
             "\n"
         );
