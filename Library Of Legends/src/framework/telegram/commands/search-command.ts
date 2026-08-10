@@ -9,26 +9,26 @@ Component...........: SearchCommand
 
 Architecture Layer..: Framework
 
-Module..............: Telegram
+Module..............: Telegram Commands
 
-Module ID...........: LOL-MOD-TGB-0003
+Module ID...........: LOL-MOD-TGC-0001
 
-LOL-ID..............: LOL-TGB-0003
+LOL-ID..............: LOL-TGC-0001
 
 File................: search-command.ts
 
 Location............
 Library Of Legends/src/framework/telegram/commands/
 
-Version.............: 1.0.0
+Version.............: 3.0.0
 
-Status..............: Core
+Status..............: CORE
 
-Lifecycle...........: Development
+Lifecycle...........: Production
 
 Description.........
 
-Provides /find command to search library items.
+Handles /find command and returns media with file_id.
 
 ===============================================================================
 */
@@ -36,45 +36,36 @@ Provides /find command to search library items.
 import { Telegraf } from "telegraf";
 import { LibraryRepository } from "../../../infrastructure/database/library-repository";
 
-/**
- * Register Search Command
- */
-export function registerSearchCommand(bot: Telegraf): void {
+export class SearchCommand {
 
-    bot.command("find", async (ctx) => {
+    public static register(bot: Telegraf) {
 
-        const query = ctx.message.text.split(" ").slice(1).join(" ");
+        bot.command("find", async (ctx) => {
 
-        if (!query) {
-            return ctx.reply("❌ Bitte Suchbegriff eingeben.\n\nBeispiel:\n/find matrix");
-        }
+            const query = ctx.message.text.split(" ").slice(1).join(" ");
 
-        try {
+            if (!query) {
+                return ctx.reply("❌ Bitte Suchbegriff eingeben.");
+            }
 
-            const items = await LibraryRepository.getAll();
-
-            const results = items.filter(item =>
-                item.title.toLowerCase().includes(query.toLowerCase())
-            );
+            const results = await LibraryRepository.search(query);
 
             if (results.length === 0) {
                 return ctx.reply("❌ Keine Ergebnisse gefunden.");
             }
 
-            const message = results
-                .slice(0, 10)
-                .map(item => `🎬 ${item.title}\n🆔 ${item.id}`)
-                .join("\n\n");
+            await ctx.reply(`🔍 Ergebnisse für: "${query}"`);
 
-            await ctx.reply(`🔎 Ergebnisse:\n\n${message}`);
+            for (const item of results) {
 
-        } catch (error) {
+                await ctx.replyWithDocument(item.file_id, {
+                    caption: `🎬 ${item.title}`
+                });
 
-            console.error(error);
-            await ctx.reply("❌ Fehler bei der Suche.");
+            }
 
-        }
+        });
 
-    });
+    }
 
 }
