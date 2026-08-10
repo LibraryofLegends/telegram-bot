@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 7.0.0
+Version.............: 7.1.0
 
 Status..............: Core
 
@@ -33,18 +33,29 @@ automatic media archive.
 
 Responsibilities:
 
-- Receive media files from administrators
+- Receive Telegram documents
+- Receive Telegram videos
 - Detect movies and series
+- Read Telegram File-IDs
 - Parse filenames
+- Read captions when Telegram videos have no filename
 - Build catalog entries
 - Search TMDB
 - Generate archive IDs
+- Detect genres
 - Route media to the correct category
 - Create series topics
-- Store Telegram File-IDs
 - Store archive metadata
 - Publish standardized archive posts
-- Provide the Netflix-style user interface
+- Provide Netflix-style user interface
+
+IMPORTANT:
+
+Telegram videos and Telegram documents are handled separately.
+
+Telegram video files are NOT downloaded.
+
+The original Telegram File-ID is used directly.
 
 ===============================================================================
 */
@@ -97,6 +108,29 @@ import {
 import {
     LibraryRepository
 } from "../../infrastructure/database/library-repository";
+
+/**
+ * Telegram media source.
+ */
+type TelegramMediaType =
+    | "document"
+    | "video";
+
+/**
+ * Normalized Telegram media information.
+ */
+interface NormalizedMedia {
+
+    fileId: string;
+
+    fileName: string;
+
+    mediaType: TelegramMediaType;
+
+    caption?: string;
+
+    fileSize?: number;
+}
 
 /**
  * Telegram Bot
@@ -162,6 +196,8 @@ export class TelegramBot {
 
         this.registerMovieMenu();
 
+        this.registerSeriesMenu();
+
         this.registerTrending();
 
         this.registerFavorites();
@@ -171,6 +207,8 @@ export class TelegramBot {
         this.registerFindCommand();
 
         this.registerDocumentHandler();
+
+        this.registerVideoHandler();
 
         this.registerCallbacks();
     }
@@ -473,7 +511,7 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // SEARCH BUTTON
+    // SEARCH
     // =========================================================================
 
     private registerSearch(): void {
@@ -502,7 +540,7 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // FIND COMMAND
+    // FIND
     // =========================================================================
 
     private registerFindCommand(): void {
@@ -616,35 +654,214 @@ export class TelegramBot {
                     return;
                 }
 
-                await this.handleFile(
-                    ctx
+                const document =
+                    ctx.message.document;
+
+                const media: NormalizedMedia = {
+
+                    fileId:
+                        document.file_id,
+
+                    fileName:
+                        document.file_name ||
+                        "Unbekannte Datei",
+
+                    mediaType:
+                        "document",
+
+                    caption:
+                        ctx.message.caption,
+
+                    fileSize:
+                        document.file_size
+                };
+
+                await this.handleMedia(
+                    ctx,
+                    media
                 );
             }
         );
     }
 
     // =========================================================================
-    // HANDLE FILE
+    // VIDEO HANDLER
     // =========================================================================
 
-    private async handleFile(
-        ctx: any
+    private registerVideoHandler(): void {
+
+        this.bot.on(
+            "video",
+            async ctx => {
+
+                const userId =
+                    ctx.from?.id;
+
+                if (
+                    !userId ||
+                    !this.isAdmin(userId)
+                ) {
+
+                    await ctx.reply(
+                        "⛔ Nur Administratoren dürfen Medien archivieren."
+                    );
+
+                    return;
+                }
+
+                const video =
+                    ctx.message.video;
+
+                /*
+                 * Telegram Video-Objekte besitzen nicht zuverlässig
+                 * den ursprünglichen Dateinamen.
+                 *
+                 * Deshalb verwenden wir:
+                 *
+                 * 1. caption
+                 * 2. generierten Dateinamen
+                 *
+                 * Die File-ID bleibt dabei vollständig erhalten.
+                 */
+
+                const caption =
+                    ctx.message.caption ||
+                    "";
+
+                const extractedName =
+                    this.extractFilenameFromCaption(
+                        caption
+                    );
+
+                const media: NormalizedMedia = {
+
+                    fileId:
+                        video.file_id,
+
+                    fileName:
+                        extractedName ||
+                        "Telegram-Video.mp4",
+
+                    mediaType:
+                        "video",
+
+                    caption,
+
+                    fileSize:
+                        video.file_size
+                };
+
+                await this.handleMedia(
+                    ctx,
+                    media
+                );
+            }
+        );
+    }
+
+    // =========================================================================
+    // EXTRACT FILENAME FROM CAPTION
+    // =========================================================================
+
+    private extractFilenameFromCaption(
+        caption: string
+    ): string | undefined {
+
+        if (!caption) {
+
+            return undefined;
+        }
+
+        let text =
+            caption.trim();
+
+        /*
+         * Entfernt beispielsweise:
+         *
+         * /movie Superman II – Allein gegen alle | 1980
+         */
+
+        text =
+            text.replace(
+                /^\/movie\s*/i,
+                ""
+            ).trim();
+
+        text =
+            text.replace(
+                /^\/start\s*/i,
+                ""
+            ).trim();
+
+        if (!text) {
+
+            return undefined;
+        }
+
+        /*
+         * Falls die Caption bereits eine Dateiendung enthält,
+         * übernehmen wir sie unverändert.
+         */
+
+        if (
+            /\.(mp4|mkv|avi|mov|m4v|webm)$/i.test(
+                text
+            )
+        ) {
+
+            return text;
+        }
+
+        /*
+         * Andernfalls erzeugen wir einen brauchbaren
+         * Dateinamen für die interne Verarbeitung.
+         */
+
+        return `${text}.mp4`;
+    }
+
+    // =========================================================================
+    // COMMON MEDIA HANDLER
+    // =========================================================================
+
+    private async handleMedia(
+        ctx: any,
+        media: NormalizedMedia
     ): Promise<void> {
 
         try {
 
-            const file =
-                ctx.message.document;
-
-            const fileName =
-                file.file_name ||
-                "Unbekannte Datei";
-
-            const fileId =
-                file.file_id;
+            console.log(
+                "================================================="
+            );
 
             console.log(
-                `📥 Datei empfangen: ${fileName}`
+                "📥 TELEGRAM MEDIA EMPFANGEN"
+            );
+
+            console.log(
+                `📄 Dateiname: ${media.fileName}`
+            );
+
+            console.log(
+                `🆔 File-ID: ${media.fileId}`
+            );
+
+            console.log(
+                `🎞️ Typ: ${media.mediaType}`
+            );
+
+            if (
+                media.fileSize
+            ) {
+
+                console.log(
+                    `📦 Größe: ${media.fileSize} Bytes`
+                );
+            }
+
+            console.log(
+                "================================================="
             );
 
             // =================================================================
@@ -653,7 +870,7 @@ export class TelegramBot {
 
             const parsed =
                 FilenameParser.parse(
-                    fileName
+                    media.fileName
                 );
 
             console.log(
@@ -674,6 +891,10 @@ export class TelegramBot {
                 GenreDetector.detectPrimary(
                     parsed.title
                 );
+
+            console.log(
+                `🏷️ Genre: ${primaryGenre}`
+            );
 
             // =================================================================
             // ROUTING
@@ -696,104 +917,12 @@ export class TelegramBot {
                 parsed.type === "MOVIE"
             ) {
 
-                const movie =
-                    MovieCatalog.createFromParsed(
-                        parsed
-                    );
-
-                let tmdb = null;
-
-                try {
-
-                    tmdb =
-                        await TMDBClient.searchMovie(
-                            movie.title
-                        );
-
-                } catch (error) {
-
-                    console.warn(
-                        "⚠️ TMDB Movie Suche fehlgeschlagen:",
-                        error
-                    );
-                }
-
-                const archiveId =
-                    ArchiveIdGenerator.generate(
-                        primaryGenre,
-                        await this.getNextArchiveNumber()
-                    );
-
-                const caption =
-                    MoviePostBuilder.build(
-                        movie,
-                        tmdb,
-                        {
-                            archiveId
-                        }
-                    );
-
-                const chatId =
-                    route.telegramChatId;
-
-                await LibraryRepository.save(
-                    movie.title,
-                    fileName,
-                    "MOVIE",
-                    fileId,
-                    {
-                        genre:
-                            primaryGenre,
-
-                        archiveId,
-
-                        telegramChatId:
-                            chatId
-                    }
-                );
-
-                if (
-                    chatId
-                ) {
-
-                    const poster =
-                        MoviePostBuilder.getPosterUrl(
-                            tmdb
-                        );
-
-                    if (
-                        poster
-                    ) {
-
-                        await this.bot.telegram.sendPhoto(
-                            chatId,
-                            poster,
-                            {
-                                caption
-                            }
-                        );
-
-                    } else {
-
-                        await this.bot.telegram.sendMessage(
-                            chatId,
-                            caption
-                        );
-                    }
-
-                }
-
-                await ctx.reply(
-                    [
-                        "✅ *Film archiviert*",
-                        "",
-                        `🎬 ${movie.title}`,
-                        `🗂 ${archiveId}`,
-                        `📂 ${route.categoryTitle}`
-                    ].join("\n"),
-                    {
-                        parse_mode: "Markdown"
-                    }
+                await this.processMovie(
+                    ctx,
+                    media,
+                    parsed,
+                    primaryGenre,
+                    route
                 );
 
                 return;
@@ -807,136 +936,12 @@ export class TelegramBot {
                 parsed.type === "SERIES"
             ) {
 
-                const series =
-                    SeriesCatalog.createFromParsed(
-                        parsed
-                    );
-
-                let tmdb = null;
-
-                try {
-
-                    tmdb =
-                        await TMDBClient.searchSeries(
-                            series.title
-                        );
-
-                } catch (error) {
-
-                    console.warn(
-                        "⚠️ TMDB Series Suche fehlgeschlagen:",
-                        error
-                    );
-                }
-
-                const archiveId =
-                    ArchiveIdGenerator.generate(
-                        primaryGenre,
-                        await this.getNextArchiveNumber()
-                    );
-
-                const chatId =
-                    route.telegramChatId;
-
-                let topicId:
-                    number | undefined;
-
-                if (
-                    chatId
-                ) {
-
-                    topicId =
-                        await TopicManager.getOrCreateSeriesTopic(
-                            this.bot,
-                            chatId,
-                            series.title
-                        );
-                }
-
-                const caption =
-                    SeriesPostBuilder.build(
-                        series,
-                        tmdb,
-                        {
-                            archiveId
-                        }
-                    );
-
-                await LibraryRepository.save(
-                    series.title,
-                    fileName,
-                    "SERIES",
-                    fileId,
-                    {
-                        genre:
-                            primaryGenre,
-
-                        archiveId,
-
-                        telegramChatId:
-                            chatId,
-
-                        topicId
-                    }
-                );
-
-                if (
-                    chatId
-                ) {
-
-                    const poster =
-                        SeriesPostBuilder.getPosterUrl(
-                            tmdb
-                        );
-
-                    if (
-                        poster
-                    ) {
-
-                        await this.bot.telegram.sendPhoto(
-                            chatId,
-                            poster,
-                            {
-                                caption,
-
-                                ...(topicId
-                                    ? {
-                                        message_thread_id:
-                                            topicId
-                                    }
-                                    : {})
-                            }
-                        );
-
-                    } else {
-
-                        await this.bot.telegram.sendMessage(
-                            chatId,
-                            caption,
-                            {
-                                ...(topicId
-                                    ? {
-                                        message_thread_id:
-                                            topicId
-                                    }
-                                    : {})
-                            }
-                        );
-                    }
-                }
-
-                await ctx.reply(
-                    [
-                        "✅ *Serie archiviert*",
-                        "",
-                        `📺 ${series.title}`,
-                        `🗂 ${archiveId}`,
-                        `📂 ${route.categoryTitle}`,
-                        `📌 Topic: ${topicId ?? "—"}`
-                    ].join("\n"),
-                    {
-                        parse_mode: "Markdown"
-                    }
+                await this.processSeries(
+                    ctx,
+                    media,
+                    parsed,
+                    primaryGenre,
+                    route
                 );
 
                 return;
@@ -954,9 +959,397 @@ export class TelegramBot {
             );
 
             await ctx.reply(
-                "❌ Die Datei konnte nicht archiviert werden."
+                "❌ Die Datei konnte nicht verarbeitet werden."
             );
         }
+    }
+
+    // =========================================================================
+    // PROCESS MOVIE
+    // =========================================================================
+
+    private async processMovie(
+        ctx: any,
+        media: NormalizedMedia,
+        parsed: any,
+        primaryGenre: any,
+        route: any
+    ): Promise<void> {
+
+        const movie =
+            MovieCatalog.createFromParsed(
+                parsed
+            );
+
+        console.log(
+            `🎬 Film erkannt: ${movie.title}`
+        );
+
+        // =====================================================================
+        // TMDB
+        // =====================================================================
+
+        let tmdb = null;
+
+        try {
+
+            tmdb =
+                await TMDBClient.searchMovie(
+                    movie.title
+                );
+
+        } catch (error) {
+
+            console.warn(
+                "⚠️ TMDB Movie Suche fehlgeschlagen:",
+                error
+            );
+        }
+
+        // =====================================================================
+        // ARCHIVE ID
+        // =====================================================================
+
+        const archiveId =
+            ArchiveIdGenerator.generate(
+                primaryGenre,
+                await this.getNextArchiveNumber()
+            );
+
+        // =====================================================================
+        // POST
+        // =====================================================================
+
+        const caption =
+            MoviePostBuilder.build(
+                movie,
+                tmdb,
+                {
+                    archiveId
+                }
+            );
+
+        // =====================================================================
+        // TARGET
+        // =====================================================================
+
+        const chatId =
+            route.telegramChatId;
+
+        // =====================================================================
+        // DATABASE
+        // =====================================================================
+
+        await LibraryRepository.save(
+            movie.title,
+            media.fileName,
+            "MOVIE",
+            media.fileId,
+            {
+                genre:
+                    primaryGenre,
+
+                archiveId,
+
+                telegramChatId:
+                    chatId
+            }
+        );
+
+        console.log(
+            "💾 Film in Datenbank gespeichert."
+        );
+
+        // =====================================================================
+        // TELEGRAM ARCHIVE
+        // =====================================================================
+
+        if (
+            chatId
+        ) {
+
+            await this.publishMovie(
+                chatId,
+                media,
+                caption
+            );
+
+            console.log(
+                `📂 Film nach Telegram verschoben: ${chatId}`
+            );
+        }
+
+        // =====================================================================
+        // CONFIRMATION
+        // =====================================================================
+
+        await ctx.reply(
+            [
+                "✅ *Film verarbeitet & gespeichert!*",
+                "",
+                `🎬 ${movie.title}`,
+                `🗃️ ${archiveId}`,
+                `🏷️ ${primaryGenre}`,
+                `📂 ${route.categoryTitle}`,
+                "",
+                `🆔 File-ID gespeichert`,
+                `🎞️ Quelle: ${media.mediaType}`
+            ].join("\n"),
+            {
+                parse_mode: "Markdown"
+            }
+        );
+    }
+
+    // =========================================================================
+    // PROCESS SERIES
+    // =========================================================================
+
+    private async processSeries(
+        ctx: any,
+        media: NormalizedMedia,
+        parsed: any,
+        primaryGenre: any,
+        route: any
+    ): Promise<void> {
+
+        const series =
+            SeriesCatalog.createFromParsed(
+                parsed
+            );
+
+        console.log(
+            `📺 Serie erkannt: ${series.title}`
+        );
+
+        // =====================================================================
+        // TMDB
+        // =====================================================================
+
+        let tmdb = null;
+
+        try {
+
+            tmdb =
+                await TMDBClient.searchSeries(
+                    series.title
+                );
+
+        } catch (error) {
+
+            console.warn(
+                "⚠️ TMDB Series Suche fehlgeschlagen:",
+                error
+            );
+        }
+
+        // =====================================================================
+        // ARCHIVE ID
+        // =====================================================================
+
+        const archiveId =
+            ArchiveIdGenerator.generate(
+                primaryGenre,
+                await this.getNextArchiveNumber()
+            );
+
+        // =====================================================================
+        // TARGET
+        // =====================================================================
+
+        const chatId =
+            route.telegramChatId;
+
+        // =====================================================================
+        // TOPIC
+        // =====================================================================
+
+        let topicId:
+            number | undefined;
+
+        if (
+            chatId
+        ) {
+
+            topicId =
+                await TopicManager.getOrCreateSeriesTopic(
+                    this.bot,
+                    chatId,
+                    series.title
+                );
+        }
+
+        // =====================================================================
+        // POST
+        // =====================================================================
+
+        const caption =
+            SeriesPostBuilder.build(
+                series,
+                tmdb,
+                {
+                    archiveId
+                }
+            );
+
+        // =====================================================================
+        // DATABASE
+        // =====================================================================
+
+        await LibraryRepository.save(
+            series.title,
+            media.fileName,
+            "SERIES",
+            media.fileId,
+            {
+                genre:
+                    primaryGenre,
+
+                archiveId,
+
+                telegramChatId:
+                    chatId,
+
+                topicId
+            }
+        );
+
+        console.log(
+            "💾 Serie in Datenbank gespeichert."
+        );
+
+        // =====================================================================
+        // TELEGRAM ARCHIVE
+        // =====================================================================
+
+        if (
+            chatId
+        ) {
+
+            await this.publishSeries(
+                chatId,
+                topicId,
+                media,
+                caption
+            );
+
+            console.log(
+                `📂 Serie nach Telegram verschoben: ${chatId}`
+            );
+        }
+
+        // =====================================================================
+        // CONFIRMATION
+        // =====================================================================
+
+        await ctx.reply(
+            [
+                "✅ *Serie verarbeitet & gespeichert!*",
+                "",
+                `📺 ${series.title}`,
+                `🗃️ ${archiveId}`,
+                `🏷️ ${primaryGenre}`,
+                `📂 ${route.categoryTitle}`,
+                `📌 Topic: ${topicId ?? "—"}`,
+                "",
+                `🆔 File-ID gespeichert`,
+                `🎞️ Quelle: ${media.mediaType}`
+            ].join("\n"),
+            {
+                parse_mode: "Markdown"
+            }
+        );
+    }
+
+    // =========================================================================
+    // PUBLISH MOVIE
+    // =========================================================================
+
+    private async publishMovie(
+        chatId: string,
+        media: NormalizedMedia,
+        caption: string
+    ): Promise<void> {
+
+        /*
+         * Telegram Video:
+         *
+         * sendVideo()
+         *
+         * Telegram Document:
+         *
+         * sendDocument()
+         */
+
+        if (
+            media.mediaType === "video"
+        ) {
+
+            await this.bot.telegram.sendVideo(
+                chatId,
+                media.fileId,
+                {
+                    caption
+                }
+            );
+
+            return;
+        }
+
+        await this.bot.telegram.sendDocument(
+            chatId,
+            media.fileId,
+            {
+                caption
+            }
+        );
+    }
+
+    // =========================================================================
+    // PUBLISH SERIES
+    // =========================================================================
+
+    private async publishSeries(
+        chatId: string,
+        topicId: number | undefined,
+        media: NormalizedMedia,
+        caption: string
+    ): Promise<void> {
+
+        const topicOptions =
+            topicId
+                ? {
+                    message_thread_id:
+                        topicId
+                }
+                : {};
+
+        if (
+            media.mediaType === "video"
+        ) {
+
+            await this.bot.telegram.sendVideo(
+                chatId,
+                media.fileId,
+                {
+                    caption,
+
+                    ...topicOptions
+                }
+            );
+
+            return;
+        }
+
+        await this.bot.telegram.sendDocument(
+            chatId,
+            media.fileId,
+            {
+                caption,
+
+                ...topicOptions
+            }
+        );
     }
 
     // =========================================================================
@@ -966,7 +1359,7 @@ export class TelegramBot {
     private registerCallbacks(): void {
 
         // ---------------------------------------------------------------------
-        // MOVIE / SERIES
+        // MEDIA CLICK
         // ---------------------------------------------------------------------
 
         this.bot.action(
@@ -1008,13 +1401,14 @@ export class TelegramBot {
                             "",
                             `🏷️ ${item.genre}`,
                             item.archive_id
-                                ? `🗂 ${item.archive_id}`
+                                ? `🗃️ ${item.archive_id}`
                                 : "",
                             "",
                             "Was möchtest du tun?"
                         ]
                             .filter(
-                                line => line !== ""
+                                line =>
+                                    line !== ""
                             )
                             .join("\n"),
                         {
@@ -1084,14 +1478,41 @@ export class TelegramBot {
                         "📥 Datei wird gesendet..."
                     );
 
-                    await this.bot.telegram.sendDocument(
-                        ctx.chat!.id,
-                        item.file_id,
-                        {
-                            caption:
-                                `🎬 ${item.title}`
-                        }
-                    );
+                    /*
+                     * Aktuell wird das gespeicherte Medium
+                     * anhand der Archivierung als Video oder
+                     * Dokument behandelt.
+                     *
+                     * Bei klassischen MP4-Videos ist sendVideo
+                     * der korrekte Telegram-Weg.
+                     */
+
+                    if (
+                        /\.mp4$/i.test(
+                            item.file_name
+                        )
+                    ) {
+
+                        await this.bot.telegram.sendVideo(
+                            ctx.chat!.id,
+                            item.file_id,
+                            {
+                                caption:
+                                    `🎬 ${item.title}`
+                            }
+                        );
+
+                    } else {
+
+                        await this.bot.telegram.sendDocument(
+                            ctx.chat!.id,
+                            item.file_id,
+                            {
+                                caption:
+                                    `🎬 ${item.title}`
+                            }
+                        );
+                    }
 
                 } catch (error) {
 
@@ -1160,7 +1581,7 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // ARCHIVE NUMBER
+    // NEXT ARCHIVE NUMBER
     // =========================================================================
 
     private async getNextArchiveNumber(): Promise<number> {
@@ -1213,6 +1634,14 @@ export class TelegramBot {
 
         console.log(
             "🗃️ Archive ID System aktiv"
+        );
+
+        console.log(
+            "🎥 Telegram VIDEO Handler aktiv"
+        );
+
+        console.log(
+            "📄 Telegram DOCUMENT Handler aktiv"
         );
     }
 }
