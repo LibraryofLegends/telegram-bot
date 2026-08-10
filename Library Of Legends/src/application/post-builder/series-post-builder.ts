@@ -20,7 +20,7 @@ File................: series-post-builder.ts
 Location............
 Library Of Legends/src/application/post-builder/
 
-Version.............: 2.0.0
+Version.............: 3.0.0
 
 Status..............: Core
 
@@ -28,125 +28,115 @@ Lifecycle...........: Development
 
 Description.........
 
-Builds the final Telegram archive post for series episodes.
+Telegram series post builder for Library Of Legends.
 
 Responsibilities:
 
-- Build standardized series archive posts
-- Display series title
+- Build standardized series posts
+- Display series metadata
 - Display season and episode
-- Display Archive-ID
-- Display genre
-- Display category
-- Display quality
-- Display resolution
-- Display source
-- Display audio
-- Display video codec
-- Display file size
-- Display country
-- Display runtime
-- Display FSK
-- Display TMDB information
-- Display episode information
-- Generate consistent Library Of Legends formatting
-- Keep missing metadata clean
-- Support Telegram Markdown formatting
+- Display series archive ID
+- Display episode archive ID
+- Display genres
+- Display TMDB metadata
+- Display technical media information
+- Build Telegram captions
+- Build inline keyboard data
+- Keep presentation logic outside TelegramBot
+- Provide safe fallbacks for missing metadata
 
 ===============================================================================
 */
 
-export interface SeriesPostData {
+import {
+    SeriesCatalogEntry
+} from "../../domain/catalog/series-catalog";
 
-    // =========================================================================
-    // BASIC INFORMATION
-    // =========================================================================
+import {
+    TMDBMetadata
+} from "../../infrastructure/tmdb/tmdb-client";
 
-    title: string;
+/**
+ * Options for series post generation.
+ */
+export interface SeriesPostOptions {
 
-    year?: number;
+    /**
+     * Optional TMDB metadata.
+     */
+    tmdb?: TMDBMetadata;
 
-    archiveId?: string;
+    /**
+     * Whether technical information should be displayed.
+     */
+    showTechnicalInfo?: boolean;
 
-    genre?: string;
+    /**
+     * Whether archive information should be displayed.
+     */
+    showArchiveInfo?: boolean;
 
-    category?: string;
+    /**
+     * Whether synopsis should be displayed.
+     */
+    showSynopsis?: boolean;
 
-    // =========================================================================
-    // SERIES INFORMATION
-    // =========================================================================
+    /**
+     * Whether cast should be displayed.
+     */
+    showCast?: boolean;
 
-    season?: number;
-
-    episode?: number;
-
-    episodeTitle?: string;
-
-    seasonEpisode?: string;
-
-    seriesId?: string | number;
-
-    // =========================================================================
-    // TECHNICAL INFORMATION
-    // =========================================================================
-
-    quality?: string;
-
-    resolution?: string;
-
-    source?: string;
-
-    audio?: string;
-
-    audioCodec?: string;
-
-    audioChannels?: string;
-
-    videoCodec?: string;
-
-    hdr?: string;
-
-    // =========================================================================
-    // CONTENT INFORMATION
-    // =========================================================================
-
-    fileSize?: number | string;
-
-    country?: string;
-
-    runtime?: number | string;
-
-    fsk?: string | number;
-
-    director?: string;
-
-    cast?: string;
-
-    overview?: string;
-
-    originalLanguage?: string;
-
-    // =========================================================================
-    // TMDB
-    // =========================================================================
-
-    tmdbId?: string | number;
-
-    tmdbRating?: string | number;
-
-    episodeTmdbId?: string | number;
-
-    // =========================================================================
-    // FILE
-    // =========================================================================
-
-    fileName?: string;
-
-    telegramFileId?: string;
+    /**
+     * Whether TMDB button should be displayed.
+     */
+    showTmdbLink?: boolean;
 }
 
 /**
- * Series Post Builder
+ * Telegram button definition.
+ */
+export interface SeriesPostButton {
+
+    text: string;
+
+    callbackData?: string;
+
+    url?: string;
+}
+
+/**
+ * Complete generated series post.
+ */
+export interface SeriesPost {
+
+    /**
+     * Telegram caption.
+     */
+    caption: string;
+
+    /**
+     * Inline keyboard.
+     */
+    buttons: SeriesPostButton[][];
+
+    /**
+     * Poster URL.
+     */
+    posterUrl?: string;
+
+    /**
+     * Backdrop URL.
+     */
+    backdropUrl?: string;
+
+    /**
+     * Telegram parse mode.
+     */
+    parseMode: "HTML";
+}
+
+/**
+ * Series post builder.
  */
 export class SeriesPostBuilder {
 
@@ -155,87 +145,215 @@ export class SeriesPostBuilder {
     // =========================================================================
 
     public static build(
-        series: SeriesPostData
-    ): string {
+        series: SeriesCatalogEntry,
+        options:
+            SeriesPostOptions = {}
+    ): SeriesPost {
 
-        const title =
-            this.clean(
-                series.title
-            ) ||
-            "Unbekannte Serie";
+        const tmdb =
+            options.tmdb;
 
-        const lines: string[] = [];
+        const showTechnical =
+            options.showTechnicalInfo !==
+            false;
+
+        const showArchive =
+            options.showArchiveInfo !==
+            false;
+
+        const showSynopsis =
+            options.showSynopsis !==
+            false;
+
+        const showCast =
+            options.showCast ===
+            true;
+
+        const sections:
+            string[] = [];
 
         // =====================================================================
         // HEADER
         // =====================================================================
 
-        lines.push(
-            "📺 *LIBRARY OF LEGENDS*"
-        );
-
-        lines.push(
-            ""
-        );
-
-        lines.push(
-            `📺 *${this.escapeMarkdown(title)}*`
+        sections.push(
+            this.buildHeader(
+                series,
+                tmdb
+            )
         );
 
         // =====================================================================
-        // YEAR
+        // BASIC INFORMATION
+        // =====================================================================
+
+        sections.push(
+            this.buildBasicInfo(
+                series,
+                tmdb
+            )
+        );
+
+        // =====================================================================
+        // SYNOPSIS
         // =====================================================================
 
         if (
-            series.year
+            showSynopsis &&
+            tmdb?.overview
         ) {
 
-            lines.push(
-                `📅 Jahr: ${series.year}`
+            sections.push(
+                this.buildSynopsis(
+                    tmdb.overview
+                )
             );
         }
+
+        // =====================================================================
+        // CAST
+        // =====================================================================
+
+        if (
+            showCast &&
+            tmdb?.cast?.length
+        ) {
+
+            sections.push(
+                this.buildCast(
+                    tmdb
+                )
+            );
+        }
+
+        // =====================================================================
+        // TECHNICAL
+        // =====================================================================
+
+        if (
+            showTechnical
+        ) {
+
+            sections.push(
+                this.buildTechnicalInfo(
+                    series
+                )
+            );
+        }
+
+        // =====================================================================
+        // ARCHIVE
+        // =====================================================================
+
+        if (
+            showArchive
+        ) {
+
+            sections.push(
+                this.buildArchiveInfo(
+                    series
+                )
+            );
+        }
+
+        // =====================================================================
+        // FOOTER
+        // =====================================================================
+
+        sections.push(
+            this.buildFooter()
+        );
+
+        // =====================================================================
+        // BUTTONS
+        // =====================================================================
+
+        const buttons =
+            this.buildButtons(
+                series,
+                tmdb
+            );
+
+        return {
+
+            caption:
+                sections
+                    .filter(
+                        Boolean
+                    )
+                    .join(
+                        "\n\n"
+                    ),
+
+            buttons,
+
+            posterUrl:
+                tmdb?.posterUrl,
+
+            backdropUrl:
+                tmdb?.backdropUrl,
+
+            parseMode:
+                "HTML"
+        };
+    }
+
+    // =========================================================================
+    // HEADER
+    // =========================================================================
+
+    private static buildHeader(
+        series: SeriesCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): string {
+
+        const title =
+            this.escapeHtml(
+                tmdb?.title ||
+                series.title
+            );
+
+        return [
+
+            `📺 <b>${title}</b>`,
+
+            "━━━━━━━━━━━━━━━━━━"
+
+        ].join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // BASIC INFORMATION
+    // =========================================================================
+
+    private static buildBasicInfo(
+        series: SeriesCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): string {
+
+        const lines:
+            string[] = [];
 
         // =====================================================================
         // SEASON / EPISODE
         // =====================================================================
 
-        const episodeLabel =
-            this.buildEpisodeLabel(
-                series
+        const seasonEpisode =
+            this.formatSeasonEpisode(
+                series.season,
+                series.episode
             );
 
         if (
-            episodeLabel
+            seasonEpisode
         ) {
 
             lines.push(
-                `🎞️ ${episodeLabel}`
-            );
-        }
-
-        // =====================================================================
-        // EPISODE TITLE
-        // =====================================================================
-
-        if (
-            series.episodeTitle
-        ) {
-
-            lines.push(
-                `📝 Episode: ${this.clean(series.episodeTitle)}`
-            );
-        }
-
-        // =====================================================================
-        // ARCHIVE ID
-        // =====================================================================
-
-        if (
-            series.archiveId
-        ) {
-
-            lines.push(
-                `🗃️ Archiv: \`${this.clean(series.archiveId)}\``
+                `🎬 <b>Episode:</b> ${
+                    seasonEpisode
+                }`
             );
         }
 
@@ -244,191 +362,402 @@ export class SeriesPostBuilder {
         // =====================================================================
 
         if (
-            series.genre
+            series.genres.length > 0
         ) {
 
             lines.push(
-                `🏷️ Genre: ${this.clean(series.genre)}`
+                `🏷️ <b>Genre:</b> ${
+                    this.escapeHtml(
+                        series.genres.join(
+                            " • "
+                        )
+                    )
+                }`
             );
         }
 
         // =====================================================================
-        // CATEGORY
+        // RATING
         // =====================================================================
 
         if (
-            series.category
+            tmdb?.rating !== undefined
         ) {
 
             lines.push(
-                `📂 Kategorie: ${this.clean(series.category)}`
+                `⭐ <b>Bewertung:</b> ${
+                    tmdb.rating.toFixed(
+                        1
+                    )
+                } / 10`
             );
         }
 
         // =====================================================================
-        // TECHNICAL INFORMATION
+        // YEAR
         // =====================================================================
 
-        const technical =
-            this.buildTechnicalSection(
-                series
-            );
-
         if (
-            technical.length > 0
+            tmdb?.year
         ) {
 
             lines.push(
-                ""
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                "📊 *TECHNISCHE DATEN*"
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                ...technical
+                `📅 <b>Startjahr:</b> ${
+                    tmdb.year
+                }`
             );
         }
 
         // =====================================================================
-        // SERIES INFORMATION
+        // SEASONS
         // =====================================================================
 
-        const information =
-            this.buildInformationSection(
-                series
-            );
-
         if (
-            information.length > 0
+            tmdb?.numberOfSeasons
         ) {
 
             lines.push(
-                ""
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                "📺 *SERIEN-INFORMATIONEN*"
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                ...information
+                `📚 <b>Staffeln:</b> ${
+                    tmdb.numberOfSeasons
+                }`
             );
         }
 
         // =====================================================================
-        // TMDB
+        // EPISODES
         // =====================================================================
 
-        const tmdb =
-            this.buildTmdbSection(
-                series
-            );
-
         if (
-            tmdb.length > 0
+            tmdb?.numberOfEpisodes
         ) {
 
             lines.push(
-                ""
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                "🎞️ *TMDB*"
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                ...tmdb
+                `🎞️ <b>Episoden:</b> ${
+                    tmdb.numberOfEpisodes
+                }`
             );
         }
 
         // =====================================================================
-        // FILE INFORMATION
+        // STATUS
         // =====================================================================
 
         if (
-            series.fileName ||
+            tmdb?.status
+        ) {
+
+            lines.push(
+                `📡 <b>Status:</b> ${
+                    this.escapeHtml(
+                        tmdb.status
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // COUNTRIES
+        // =====================================================================
+
+        if (
+            tmdb?.countries &&
+            tmdb.countries.length > 0
+        ) {
+
+            lines.push(
+                `🌍 <b>Land:</b> ${
+                    this.escapeHtml(
+                        tmdb.countries.join(
+                            ", "
+                        )
+                    )
+                }`
+            );
+        }
+
+        return lines.join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // SYNOPSIS
+    // =========================================================================
+
+    private static buildSynopsis(
+        overview: string
+    ): string {
+
+        return [
+
+            "📖 <b>Story</b>",
+
+            this.escapeHtml(
+                this.limitText(
+                    overview,
+                    1500
+                )
+            )
+
+        ].join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // CAST
+    // =========================================================================
+
+    private static buildCast(
+        tmdb: TMDBMetadata
+    ): string {
+
+        const cast =
+            tmdb.cast
+                .slice(
+                    0,
+                    8
+                )
+                .map(
+                    person =>
+                        this.escapeHtml(
+                            person.name
+                        )
+                )
+                .join(
+                    " • "
+                );
+
+        if (
+            !cast
+        ) {
+
+            return "";
+        }
+
+        return [
+
+            "🎭 <b>Besetzung</b>",
+
+            cast
+
+        ].join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // TECHNICAL INFORMATION
+    // =========================================================================
+
+    private static buildTechnicalInfo(
+        series: SeriesCatalogEntry
+    ): string {
+
+        const lines:
+            string[] = [];
+
+        lines.push(
+            "📊 <b>Technische Informationen</b>"
+        );
+
+        // =====================================================================
+        // QUALITY
+        // =====================================================================
+
+        if (
+            series.quality
+        ) {
+
+            lines.push(
+                `🔥 Qualität: ${
+                    this.escapeHtml(
+                        series.quality
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // RESOLUTION
+        // =====================================================================
+
+        if (
+            series.resolution
+        ) {
+
+            lines.push(
+                `📺 Auflösung: ${
+                    this.escapeHtml(
+                        series.resolution
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // SOURCE
+        // =====================================================================
+
+        if (
+            series.source
+        ) {
+
+            lines.push(
+                `💿 Quelle: ${
+                    this.escapeHtml(
+                        series.source
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // VIDEO CODEC
+        // =====================================================================
+
+        if (
+            series.videoCodec
+        ) {
+
+            lines.push(
+                `🎥 Video: ${
+                    this.escapeHtml(
+                        series.videoCodec
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // AUDIO
+        // =====================================================================
+
+        if (
+            series.audio
+        ) {
+
+            lines.push(
+                `🔊 Audio: ${
+                    this.escapeHtml(
+                        series.audio
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // AUDIO CODEC
+        // =====================================================================
+
+        if (
+            series.audioCodec
+        ) {
+
+            lines.push(
+                `🎧 Audio-Codec: ${
+                    this.escapeHtml(
+                        series.audioCodec
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // AUDIO CHANNELS
+        // =====================================================================
+
+        if (
+            series.audioChannels
+        ) {
+
+            lines.push(
+                `🔈 Kanäle: ${
+                    this.escapeHtml(
+                        series.audioChannels
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // HDR
+        // =====================================================================
+
+        if (
+            series.hdr
+        ) {
+
+            lines.push(
+                `🌈 HDR: ${
+                    this.escapeHtml(
+                        series.hdr
+                    )
+                }`
+            );
+        }
+
+        // =====================================================================
+        // FILE SIZE
+        // =====================================================================
+
+        if (
             series.fileSize
         ) {
 
             lines.push(
-                ""
+                `💾 Größe: ${
+                    this.formatFileSize(
+                        series.fileSize
+                    )
+                }`
             );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                "📁 *DATEI*"
-            );
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            if (
-                series.fileName
-            ) {
-
-                lines.push(
-                    `📄 Datei: \`${this.clean(series.fileName)}\``
-                );
-            }
-
-            if (
-                series.fileSize
-            ) {
-
-                lines.push(
-                    `💾 Größe: ${this.formatFileSize(series.fileSize)}`
-                );
-            }
         }
 
-        // =====================================================================
-        // FOOTER
-        // =====================================================================
-
-        lines.push(
-            ""
+        return lines.join(
+            "\n"
         );
+    }
+
+    // =========================================================================
+    // ARCHIVE INFORMATION
+    // =========================================================================
+
+    private static buildArchiveInfo(
+        series: SeriesCatalogEntry
+    ): string {
+
+        const lines:
+            string[] = [
+
+            "🗃️ <b>Library Of Legends</b>",
+
+            `📚 Serien-ID: <code>${
+                this.escapeHtml(
+                    series.seriesId
+                )
+            }</code>`
+        ];
+
+        if (
+            series.episodeId
+        ) {
+
+            lines.push(
+                `🎬 Episoden-ID: <code>${
+                    this.escapeHtml(
+                        series.episodeId
+                    )
+                }</code>`
+            );
+        }
 
         lines.push(
-            "━━━━━━━━━━━━━━━━━━"
-        );
-
-        lines.push(
-            "🏛️ *LIBRARY OF LEGENDS*"
-        );
-
-        lines.push(
-            "📺 Serienarchiv"
+            `📂 Kategorie: ${
+                this.escapeHtml(
+                    series.categoryTitle
+                )
+            }`
         );
 
         return lines.join(
@@ -437,293 +766,295 @@ export class SeriesPostBuilder {
     }
 
     // =========================================================================
-    // EPISODE LABEL
+    // FOOTER
     // =========================================================================
 
-    private static buildEpisodeLabel(
-        series: SeriesPostData
+    private static buildFooter(): string {
+
+        return [
+
+            "━━━━━━━━━━━━━━━━━━",
+
+            "📺 <b>Library Of Legends</b>"
+
+        ].join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // BUTTONS
+    // =========================================================================
+
+    private static buildButtons(
+        series: SeriesCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): SeriesPostButton[][] {
+
+        const rows:
+            SeriesPostButton[][] = [];
+
+        // =====================================================================
+        // SERIES BUTTON
+        // =====================================================================
+
+        rows.push(
+            [
+                {
+                    text:
+                        "📺 Serie",
+
+                    callbackData:
+                        `series_${series.seriesId}`
+                }
+            ]
+        );
+
+        // =====================================================================
+        // FAVORITE
+        // =====================================================================
+
+        rows.push(
+            [
+                {
+                    text:
+                        "⭐ Favorit",
+
+                    callbackData:
+                        `fav_${series.episodeId || series.seriesId}`
+                }
+            ]
+        );
+
+        // =====================================================================
+        // TMDB
+        // =====================================================================
+
+        if (
+            tmdb
+        ) {
+
+            rows.push(
+                [
+                    {
+                        text:
+                            "🎞️ TMDB",
+
+                        url:
+                            `https://www.themoviedb.org/${tmdb.mediaType}/${tmdb.id}`
+                    }
+                ]
+            );
+        }
+
+        return rows;
+    }
+
+    // =========================================================================
+    // SHORT VERSION
+    // =========================================================================
+
+    public static buildShort(
+        series: SeriesCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): SeriesPost {
+
+        return this.build(
+            series,
+            {
+                tmdb,
+
+                showTechnicalInfo:
+                    false,
+
+                showArchiveInfo:
+                    true,
+
+                showSynopsis:
+                    true,
+
+                showCast:
+                    false,
+
+                showTmdbLink:
+                    true
+            }
+        );
+    }
+
+    // =========================================================================
+    // FULL VERSION
+    // =========================================================================
+
+    public static buildFull(
+        series: SeriesCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): SeriesPost {
+
+        return this.build(
+            series,
+            {
+                tmdb,
+
+                showTechnicalInfo:
+                    true,
+
+                showArchiveInfo:
+                    true,
+
+                showSynopsis:
+                    true,
+
+                showCast:
+                    true,
+
+                showTmdbLink:
+                    true
+            }
+        );
+    }
+
+    // =========================================================================
+    // CAPTION ONLY
+    // =========================================================================
+
+    public static buildCaption(
+        series: SeriesCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): string {
+
+        return this.buildFull(
+            series,
+            tmdb
+        ).caption;
+    }
+
+    // =========================================================================
+    // FORMAT SEASON / EPISODE
+    // =========================================================================
+
+    private static formatSeasonEpisode(
+        season?: number,
+        episode?: number
     ): string {
 
         if (
-            series.seasonEpisode
+            season === undefined &&
+            episode === undefined
         ) {
 
-            return this.clean(
-                series.seasonEpisode
-            );
+            return "";
         }
 
         if (
-            series.season !== undefined &&
-            series.episode !== undefined
+            season !== undefined &&
+            episode !== undefined
         ) {
 
-            return `Staffel ${series.season} · Episode ${series.episode}`;
+            return `S${String(
+                season
+            ).padStart(
+                2,
+                "0"
+            )}E${String(
+                episode
+            ).padStart(
+                2,
+                "0"
+            )}`;
         }
 
         if (
-            series.season !== undefined
+            season !== undefined
         ) {
 
-            return `Staffel ${series.season}`;
+            return `S${String(
+                season
+            ).padStart(
+                2,
+                "0"
+            )}`;
         }
 
-        if (
-            series.episode !== undefined
-        ) {
-
-            return `Episode ${series.episode}`;
-        }
-
-        return "";
+        return `E${String(
+            episode
+        ).padStart(
+            2,
+            "0"
+        )}`;
     }
 
     // =========================================================================
-    // TECHNICAL SECTION
+    // ESCAPE HTML
     // =========================================================================
 
-    private static buildTechnicalSection(
-        series: SeriesPostData
-    ): string[] {
-
-        const lines: string[] = [];
-
-        if (
-            series.quality
-        ) {
-
-            lines.push(
-                `🔥 Qualität: ${this.clean(series.quality)}`
-            );
-        }
-
-        if (
-            series.resolution
-        ) {
-
-            lines.push(
-                `📺 Auflösung: ${this.clean(series.resolution)}`
-            );
-        }
-
-        if (
-            series.source
-        ) {
-
-            lines.push(
-                `💿 Quelle: ${this.clean(series.source)}`
-            );
-        }
-
-        if (
-            series.audio
-        ) {
-
-            lines.push(
-                `🔊 Audio: ${this.clean(series.audio)}`
-            );
-        }
-
-        if (
-            series.audioCodec
-        ) {
-
-            lines.push(
-                `🎧 Audio-Codec: ${this.clean(series.audioCodec)}`
-            );
-        }
-
-        if (
-            series.audioChannels
-        ) {
-
-            lines.push(
-                `🔈 Tonkanäle: ${this.clean(series.audioChannels)}`
-            );
-        }
-
-        if (
-            series.videoCodec
-        ) {
-
-            lines.push(
-                `🎥 Video-Codec: ${this.clean(series.videoCodec)}`
-            );
-        }
-
-        if (
-            series.hdr
-        ) {
-
-            lines.push(
-                `🌈 HDR: ${this.clean(series.hdr)}`
-            );
-        }
-
-        return lines;
-    }
-
-    // =========================================================================
-    // INFORMATION SECTION
-    // =========================================================================
-
-    private static buildInformationSection(
-        series: SeriesPostData
-    ): string[] {
-
-        const lines: string[] = [];
-
-        if (
-            series.country
-        ) {
-
-            lines.push(
-                `🌍 Land: ${this.clean(series.country)}`
-            );
-        }
-
-        if (
-            series.originalLanguage
-        ) {
-
-            lines.push(
-                `🗣️ Originalsprache: ${this.clean(series.originalLanguage)}`
-            );
-        }
-
-        if (
-            series.runtime
-        ) {
-
-            lines.push(
-                `⏱️ Laufzeit: ${this.formatRuntime(series.runtime)}`
-            );
-        }
-
-        if (
-            series.fsk !== undefined &&
-            series.fsk !== null &&
-            String(series.fsk).trim()
-        ) {
-
-            lines.push(
-                `🔞 FSK: ${this.clean(String(series.fsk))}`
-            );
-        }
-
-        if (
-            series.director
-        ) {
-
-            lines.push(
-                `🎥 Regie: ${this.clean(series.director)}`
-            );
-        }
-
-        if (
-            series.cast
-        ) {
-
-            lines.push(
-                `🎭 Besetzung: ${this.clean(series.cast)}`
-            );
-        }
-
-        if (
-            series.seriesId
-        ) {
-
-            lines.push(
-                `🆔 Serien-ID: ${this.clean(String(series.seriesId))}`
-            );
-        }
-
-        if (
-            series.overview
-        ) {
-
-            lines.push(
-                ""
-            );
-
-            lines.push(
-                "📝 *Story*"
-            );
-
-            lines.push(
-                this.clean(
-                    series.overview
-                )
-            );
-        }
-
-        return lines;
-    }
-
-    // =========================================================================
-    // TMDB SECTION
-    // =========================================================================
-
-    private static buildTmdbSection(
-        series: SeriesPostData
-    ): string[] {
-
-        const lines: string[] = [];
-
-        if (
-            series.tmdbId
-        ) {
-
-            lines.push(
-                `🆔 TMDB Serien-ID: ${this.clean(String(series.tmdbId))}`
-            );
-        }
-
-        if (
-            series.episodeTmdbId
-        ) {
-
-            lines.push(
-                `🎞️ TMDB Episode-ID: ${this.clean(String(series.episodeTmdbId))}`
-            );
-        }
-
-        if (
-            series.tmdbRating !== undefined &&
-            series.tmdbRating !== null &&
-            String(series.tmdbRating).trim()
-        ) {
-
-            lines.push(
-                `⭐ TMDB Bewertung: ${this.clean(String(series.tmdbRating))}`
-            );
-        }
-
-        return lines;
-    }
-
-    // =========================================================================
-    // FILE SIZE
-    // =========================================================================
-
-    public static formatFileSize(
-        value: number | string
+    private static escapeHtml(
+        value: string
     ): string {
 
-        const bytes =
-            typeof value === "number"
-                ? value
-                : Number(
-                    String(value)
-                        .replace(
-                            ",",
-                            "."
-                        )
-                        .replace(
-                            /[^0-9.]/g,
-                            ""
-                        )
-                );
+        return String(
+            value
+        )
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#39;"
+            );
+    }
+
+    // =========================================================================
+    // LIMIT TEXT
+    // =========================================================================
+
+    private static limitText(
+        value: string,
+        maxLength: number
+    ): string {
+
+        const text =
+            String(
+                value || ""
+            ).trim();
+
+        if (
+            text.length <=
+            maxLength
+        ) {
+
+            return text;
+        }
+
+        return (
+            text.slice(
+                0,
+                maxLength - 1
+            ).trim() +
+            "…"
+        );
+    }
+
+    // =========================================================================
+    // FORMAT FILE SIZE
+    // =========================================================================
+
+    private static formatFileSize(
+        bytes: number
+    ): string {
 
         if (
             !Number.isFinite(
@@ -732,130 +1063,83 @@ export class SeriesPostBuilder {
             bytes <= 0
         ) {
 
-            return String(
-                value
-            );
+            return "—";
         }
 
-        const units = [
-            "B",
-            "KB",
-            "MB",
-            "GB",
-            "TB"
-        ];
+        const units =
+            [
+                "B",
+                "KB",
+                "MB",
+                "GB",
+                "TB"
+            ];
 
-        let size =
+        let value =
             bytes;
 
         let index =
             0;
 
         while (
-            size >= 1024 &&
+            value >= 1024 &&
             index <
-            units.length - 1
+                units.length - 1
         ) {
 
-            size /=
+            value /=
                 1024;
 
             index++;
         }
 
-        return `${size.toFixed(2)} ${units[index]}`;
+        return `${value.toFixed(
+            index === 0
+                ? 0
+                : 2
+        )} ${units[index]}`;
     }
 
     // =========================================================================
-    // RUNTIME
+    // DEBUG
     // =========================================================================
 
-    public static formatRuntime(
-        value: number | string
+    public static describe(
+        series: SeriesCatalogEntry,
+        tmdb?: TMDBMetadata
     ): string {
 
-        const minutes =
-            Number(
-                String(value)
-                    .replace(
-                        /[^0-9.]/g,
-                        ""
-                    )
+        const post =
+            this.buildFull(
+                series,
+                tmdb
             );
 
-        if (
-            !Number.isFinite(
-                minutes
-            ) ||
-            minutes <= 0
-        ) {
+        return [
 
-            return String(
-                value
-            );
-        }
+            "=================================================",
 
-        const hours =
-            Math.floor(
-                minutes / 60
-            );
+            "📝 SERIES POST BUILDER",
 
-        const remainingMinutes =
-            Math.round(
-                minutes % 60
-            );
+            "=================================================",
 
-        if (
-            hours <= 0
-        ) {
+            post.caption,
 
-            return `${remainingMinutes} Min.`;
-        }
+            "=================================================",
 
-        if (
-            remainingMinutes === 0
-        ) {
+            `🔘 Button-Zeilen: ${
+                post.buttons.length
+            }`,
 
-            return `${hours} Std.`;
-        }
+            `🖼 Poster: ${
+                post.posterUrl ??
+                "—"
+            }`,
 
-        return `${hours} Std. ${remainingMinutes} Min.`;
-    }
+            "================================================="
 
-    // =========================================================================
-    // CLEAN
-    // =========================================================================
-
-    private static clean(
-        value: unknown
-    ): string {
-
-        return String(
-            value ?? ""
-        )
-            .trim()
-            .replace(
-                /\r\n/g,
-                "\n"
-            )
-            .replace(
-                /\r/g,
-                "\n"
-            );
-    }
-
-    // =========================================================================
-    // MARKDOWN ESCAPE
-    // =========================================================================
-
-    private static escapeMarkdown(
-        value: string
-    ): string {
-
-        return value
-            .replace(
-                /([_*[\]()~`>#+\-=|{}.!])/g,
-                "\\$1"
-            );
+        ].join(
+            "\n"
+        );
     }
 }
