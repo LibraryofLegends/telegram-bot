@@ -20,7 +20,7 @@ File................: genre-router.ts
 Location............
 Library Of Legends/src/application/routing/
 
-Version.............: 3.0.0
+Version.............: 4.0.0
 
 Status..............: Core
 
@@ -42,6 +42,9 @@ Responsibilities:
 - Prepare routing information for TelegramBot
 - Provide fallback category
 - Keep routing independent from Telegram implementation
+- Support superhero content
+- Support multiple archive categories
+- Provide stable archive codes
 
 Telegram categories:
 
@@ -62,7 +65,6 @@ Telegram categories:
 import {
     LibraryGenre,
     GenreDefinition,
-    GENRE_DEFINITIONS,
     getGenreDefinition
 } from "../../domain/detection/genre-detector-types";
 
@@ -162,7 +164,9 @@ export class GenreRouter {
 
                 "Western",
 
-                "Kriegsfilm"
+                "Kriegsfilm",
+
+                "Superhelden"
             ]
         },
 
@@ -192,7 +196,7 @@ export class GenreRouter {
         },
 
         // =====================================================================
-        // SCI-FI
+        // SCI-FI / FANTASY
         // =====================================================================
 
         {
@@ -248,7 +252,7 @@ export class GenreRouter {
         },
 
         // =====================================================================
-        // COMEDY
+        // COMEDY / FAMILY
         // =====================================================================
 
         {
@@ -273,7 +277,7 @@ export class GenreRouter {
         },
 
         // =====================================================================
-        // ANIMATION
+        // ANIMATION / ANIME
         // =====================================================================
 
         {
@@ -323,7 +327,7 @@ export class GenreRouter {
         },
 
         // =====================================================================
-        // DOCUMENTARY
+        // DOCUMENTARY / BIOGRAPHY
         // =====================================================================
 
         {
@@ -402,22 +406,26 @@ export class GenreRouter {
         genres: LibraryGenre[]
     ): GenreRoute {
 
-        const normalized =
+        const normalized:
+            LibraryGenre[] =
             this.normalizeGenres(
                 genres
             );
 
-        const primaryGenre =
+        const primaryGenre:
+            LibraryGenre =
             this.detectPrimaryGenre(
                 normalized
             );
 
-        const primaryCategory =
+        const primaryCategory:
+            GenreCategory =
             this.getCategoryForGenre(
                 primaryGenre
             );
 
-        const categoryIds =
+        const categoryIds:
+            string[] =
             this.getCategoryIds(
                 normalized
             );
@@ -453,9 +461,11 @@ export class GenreRouter {
         genre: LibraryGenre
     ): GenreRoute {
 
-        return this.route([
-            genre
-        ]);
+        return this.route(
+            [
+                genre
+            ]
+        );
     }
 
     // =========================================================================
@@ -492,11 +502,19 @@ export class GenreRouter {
         categoryId: string
     ): GenreCategory {
 
+        const normalizedId =
+            String(
+                categoryId ||
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
         const category =
             this.CATEGORIES.find(
                 item =>
                     item.id ===
-                    categoryId
+                    normalizedId
             );
 
         return (
@@ -513,9 +531,11 @@ export class GenreRouter {
         genre: LibraryGenre
     ): string {
 
-        return this.getCategoryForGenre(
-            genre
-        ).title;
+        return this
+            .getCategoryForGenre(
+                genre
+            )
+            .title;
     }
 
     // =========================================================================
@@ -526,9 +546,11 @@ export class GenreRouter {
         genre: LibraryGenre
     ): string {
 
-        return this.getCategoryForGenre(
-            genre
-        ).id;
+        return this
+            .getCategoryForGenre(
+                genre
+            )
+            .id;
     }
 
     // =========================================================================
@@ -539,9 +561,11 @@ export class GenreRouter {
         genre: LibraryGenre
     ): string {
 
-        return this.getCategoryForGenre(
-            genre
-        ).emoji;
+        return this
+            .getCategoryForGenre(
+                genre
+            )
+            .emoji;
     }
 
     // =========================================================================
@@ -552,9 +576,11 @@ export class GenreRouter {
         genre: LibraryGenre
     ): string {
 
-        return this.getCategoryForGenre(
-            genre
-        ).archiveCode;
+        return this
+            .getCategoryForGenre(
+                genre
+            )
+            .archiveCode;
     }
 
     // =========================================================================
@@ -565,10 +591,16 @@ export class GenreRouter {
         genres: LibraryGenre[]
     ): LibraryGenre {
 
-        const normalized =
+        const normalized:
+            LibraryGenre[] =
             this.normalizeGenres(
                 genres
             );
+
+        /*
+         * Priority determines which genre becomes the primary
+         * archive category when multiple genres are detected.
+         */
 
         const priority:
             LibraryGenre[] = [
@@ -650,7 +682,8 @@ export class GenreRouter {
         genres: LibraryGenre[]
     ): string[] {
 
-        const normalized =
+        const normalized:
+            LibraryGenre[] =
             this.normalizeGenres(
                 genres
             );
@@ -663,7 +696,8 @@ export class GenreRouter {
             normalized
         ) {
 
-            const category =
+            const category:
+                GenreCategory =
                 this.getCategoryForGenre(
                     genre
                 );
@@ -681,7 +715,8 @@ export class GenreRouter {
         }
 
         if (
-            ids.length === 0
+            ids.length ===
+            0
         ) {
 
             ids.push(
@@ -703,17 +738,24 @@ export class GenreRouter {
         const result:
             LibraryGenre[] = [];
 
+        if (
+            !Array.isArray(
+                genres
+            )
+        ) {
+
+            return [
+                "Unbekannt"
+            ];
+        }
+
         for (
             const genre of
             genres
         ) {
 
-            /*
-             * Because this method receives LibraryGenre[],
-             * we intentionally validate the value again.
-             */
-
-            const normalized =
+            const normalized:
+                LibraryGenre =
                 this.normalizeGenre(
                     genre
                 );
@@ -731,7 +773,8 @@ export class GenreRouter {
         }
 
         if (
-            result.length === 0
+            result.length ===
+            0
         ) {
 
             result.push(
@@ -755,32 +798,104 @@ export class GenreRouter {
         ) {
 
             case "Action":
+
+                return "Action";
+
             case "Abenteuer":
+
+                return "Abenteuer";
+
             case "Horror":
+
+                return "Horror";
+
             case "Thriller":
+
+                return "Thriller";
+
             case "Sci-Fi":
+
+                return "Sci-Fi";
+
             case "Fantasy":
+
+                return "Fantasy";
+
             case "Drama":
+
+                return "Drama";
+
             case "Romantik":
+
+                return "Romantik";
+
             case "Komödie":
+
+                return "Komödie";
+
             case "Familie":
+
+                return "Familie";
+
             case "Krimi":
+
+                return "Krimi";
+
             case "Mystery":
+
+                return "Mystery";
+
             case "Animation":
+
+                return "Animation";
+
             case "Anime":
+
+                return "Anime";
+
             case "Dokumentation":
+
+                return "Dokumentation";
+
             case "Biografie":
+
+                return "Biografie";
+
             case "Superhelden":
+
+                return "Superhelden";
+
             case "Kinder":
+
+                return "Kinder";
+
             case "Western":
+
+                return "Western";
+
             case "Musik":
+
+                return "Musik";
+
             case "Historisch":
+
+                return "Historisch";
+
             case "Kriegsfilm":
+
+                return "Kriegsfilm";
+
             case "Sport":
+
+                return "Sport";
+
             case "Abenteuerfilm":
+
+                return "Abenteuerfilm";
+
             case "Unbekannt":
 
-                return genre;
+                return "Unbekannt";
 
             default:
 
@@ -837,6 +952,48 @@ export class GenreRouter {
     }
 
     // =========================================================================
+    // GET CATEGORY BY ID
+    // =========================================================================
+
+    public static getCategoryById(
+        categoryId: string
+    ): GenreCategory {
+
+        return this.getCategory(
+            categoryId
+        );
+    }
+
+    // =========================================================================
+    // GET CATEGORY BY ARCHIVE CODE
+    // =========================================================================
+
+    public static getCategoryByArchiveCode(
+        archiveCode: string
+    ): GenreCategory {
+
+        const normalizedCode =
+            String(
+                archiveCode ||
+                ""
+            )
+                .trim()
+                .toUpperCase();
+
+        const category =
+            this.CATEGORIES.find(
+                item =>
+                    item.archiveCode ===
+                    normalizedCode
+            );
+
+        return (
+            category ||
+            this.getGeneralCategory()
+        );
+    }
+
+    // =========================================================================
     // GENERAL CATEGORY
     // =========================================================================
 
@@ -870,7 +1027,8 @@ export class GenreRouter {
         categoryId: string
     ): boolean {
 
-        const category =
+        const category:
+            GenreCategory =
             this.getCategory(
                 categoryId
             );
@@ -881,6 +1039,212 @@ export class GenreRouter {
     }
 
     // =========================================================================
+    // IS VALID GENRE
+    // =========================================================================
+
+    public static isValidGenre(
+        genre: LibraryGenre
+    ): boolean {
+
+        return (
+            genre !==
+            "Unbekannt"
+        );
+    }
+
+    // =========================================================================
+    // ROUTE FROM UNKNOWN INPUT
+    // =========================================================================
+
+    public static routeSafe(
+        genres: unknown
+    ): GenreRoute {
+
+        /*
+         * This method is intentionally defensive.
+         *
+         * The normal route() method remains strongly typed.
+         * routeSafe() can be used by TelegramBot when data comes
+         * from filename parsing or external metadata.
+         */
+
+        if (
+            !Array.isArray(
+                genres
+            )
+        ) {
+
+            return this.route(
+                [
+                    "Unbekannt"
+                ]
+            );
+        }
+
+        const validGenres:
+            LibraryGenre[] = [];
+
+        for (
+            const value of
+            genres
+        ) {
+
+            if (
+                typeof value !==
+                "string"
+            ) {
+
+                continue;
+            }
+
+            const normalized =
+                this.normalizeUnknownGenre(
+                    value
+                );
+
+            if (
+                !validGenres.includes(
+                    normalized
+                )
+            ) {
+
+                validGenres.push(
+                    normalized
+                );
+            }
+        }
+
+        return this.route(
+            validGenres
+        );
+    }
+
+    // =========================================================================
+    // NORMALIZE UNKNOWN INPUT
+    // =========================================================================
+
+    private static normalizeUnknownGenre(
+        genre: string
+    ): LibraryGenre {
+
+        const value =
+            String(
+                genre
+            )
+                .trim()
+                .toLowerCase();
+
+        switch (
+            value
+        ) {
+
+            case "action":
+                return "Action";
+
+            case "abenteuer":
+            case "adventure":
+                return "Abenteuer";
+
+            case "abenteuerfilm":
+                return "Abenteuerfilm";
+
+            case "horror":
+                return "Horror";
+
+            case "thriller":
+                return "Thriller";
+
+            case "sci-fi":
+            case "sci fi":
+            case "science fiction":
+            case "science-fiction":
+                return "Sci-Fi";
+
+            case "fantasy":
+                return "Fantasy";
+
+            case "superheld":
+            case "superhelden":
+            case "superhero":
+            case "superheroes":
+                return "Superhelden";
+
+            case "drama":
+                return "Drama";
+
+            case "romantik":
+            case "romance":
+                return "Romantik";
+
+            case "komödie":
+            case "komoedie":
+            case "comedy":
+                return "Komödie";
+
+            case "familie":
+            case "family":
+                return "Familie";
+
+            case "krimi":
+            case "crime":
+                return "Krimi";
+
+            case "mystery":
+                return "Mystery";
+
+            case "animation":
+                return "Animation";
+
+            case "anime":
+                return "Anime";
+
+            case "dokumentation":
+            case "dokumentarfilm":
+            case "documentary":
+                return "Dokumentation";
+
+            case "biografie":
+            case "biography":
+                return "Biografie";
+
+            case "kinder":
+            case "kinderfilm":
+            case "kids":
+            case "children":
+                return "Kinder";
+
+            case "western":
+                return "Western";
+
+            case "musik":
+            case "music":
+                return "Musik";
+
+            case "historisch":
+            case "history":
+            case "historical":
+                return "Historisch";
+
+            case "kriegsfilm":
+            case "krieg":
+            case "war":
+                return "Kriegsfilm";
+
+            case "sport":
+                return "Sport";
+
+            case "unbekannt":
+            case "unknown":
+            case "undefined":
+            case "":
+                return "Unbekannt";
+
+            default:
+                return "Unbekannt";
+        }
+    }
+
+    // =========================================================================
     // DEBUG
     // =========================================================================
 
@@ -888,7 +1252,8 @@ export class GenreRouter {
         genres: LibraryGenre[]
     ): string {
 
-        const route =
+        const route:
+            GenreRoute =
             this.route(
                 genres
             );
