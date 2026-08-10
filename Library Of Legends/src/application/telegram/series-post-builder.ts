@@ -20,7 +20,7 @@ File................: series-post-builder.ts
 Location............
 Library Of Legends/src/application/telegram/
 
-Version.............: 4.0.0
+Version.............: 4.1.0
 
 Status..............: Core
 
@@ -56,6 +56,14 @@ Responsibilities:
 - Keep Telegram presentation logic centralized
 - Return Telegram-compatible post data
 
+Compatibility:
+
+- Uses SeriesCatalogEntry
+- Does not require SeriesCatalogEntry.year
+- Supports optional year through dynamic catalog metadata
+- Supports TMDB year
+- Supports optional technical metadata
+
 ===============================================================================
 */
 
@@ -72,34 +80,16 @@ import {
  */
 export interface SeriesPostOptions {
 
-    /**
-     * Optional TMDB metadata.
-     */
     tmdb?: TMDBMetadata;
 
-    /**
-     * Show technical information.
-     */
     showTechnicalInfo?: boolean;
 
-    /**
-     * Show archive information.
-     */
     showArchiveInfo?: boolean;
 
-    /**
-     * Show series synopsis.
-     */
     showSynopsis?: boolean;
 
-    /**
-     * Show cast.
-     */
     showCast?: boolean;
 
-    /**
-     * Show TMDB button.
-     */
     showTmdbLink?: boolean;
 }
 
@@ -180,12 +170,20 @@ export class SeriesPostBuilder {
         // BASIC INFORMATION
         // =====================================================================
 
-        sections.push(
+        const basicInfo =
             this.buildBasicInfo(
                 series,
                 tmdb
-            )
-        );
+            );
+
+        if (
+            basicInfo
+        ) {
+
+            sections.push(
+                basicInfo
+            );
+        }
 
         // =====================================================================
         // STORY
@@ -227,11 +225,19 @@ export class SeriesPostBuilder {
             showTechnicalInfo
         ) {
 
-            sections.push(
+            const technicalInfo =
                 this.buildTechnicalInfo(
                     series
-                )
-            );
+                );
+
+            if (
+                technicalInfo
+            ) {
+
+                sections.push(
+                    technicalInfo
+                );
+            }
         }
 
         // =====================================================================
@@ -310,9 +316,34 @@ export class SeriesPostBuilder {
                 series.title
             );
 
+        /*
+         * SeriesCatalogEntry currently does not expose "year".
+         *
+         * Therefore we intentionally read it as optional metadata.
+         *
+         * This avoids:
+         *
+         * TS2339:
+         * Property 'year' does not exist on type 'SeriesCatalogEntry'.
+         */
+
+        const seriesData =
+            series as unknown as Record<
+                string,
+                unknown
+            >;
+
+        const catalogYear =
+            seriesData.year;
+
         const year =
             tmdb?.year ||
-            series.year;
+            (
+                typeof catalogYear ===
+                "number"
+                    ? catalogYear
+                    : undefined
+            );
 
         const yearText =
             year
@@ -373,16 +404,10 @@ export class SeriesPostBuilder {
                     )
                 }`
             );
-        }
 
-        // =====================================================================
-        // TMDB GENRE FALLBACK
-        // =====================================================================
-
-        if (
-            (!series.genres ||
-                series.genres.length === 0) &&
-            tmdb?.genres?.length
+        } else if (
+            tmdb?.genres &&
+            tmdb.genres.length > 0
         ) {
 
             lines.push(
@@ -454,7 +479,7 @@ export class SeriesPostBuilder {
         }
 
         // =====================================================================
-        // NUMBER OF SEASONS
+        // SEASONS
         // =====================================================================
 
         if (
@@ -469,7 +494,7 @@ export class SeriesPostBuilder {
         }
 
         // =====================================================================
-        // NUMBER OF EPISODES
+        // EPISODES
         // =====================================================================
 
         if (
@@ -573,6 +598,14 @@ export class SeriesPostBuilder {
         tmdb: TMDBMetadata
     ): string {
 
+        if (
+            !tmdb.cast ||
+            tmdb.cast.length === 0
+        ) {
+
+            return "";
+        }
+
         const cast =
             tmdb.cast
                 .slice(
@@ -629,11 +662,13 @@ export class SeriesPostBuilder {
         series: SeriesCatalogEntry
     ): string {
 
-        const lines: string[] = [];
+        const seriesData =
+            series as unknown as Record<
+                string,
+                unknown
+            >;
 
-        lines.push(
-            "📊 <b>Technische Informationen</b>"
-        );
+        const lines: string[] = [];
 
         // =====================================================================
         // QUALITY
@@ -644,7 +679,7 @@ export class SeriesPostBuilder {
         ) {
 
             lines.push(
-                `🔥 Qualität: ${
+                `🔥 <b>Qualität:</b> ${
                     this.escapeHtml(
                         String(
                             series.quality
@@ -663,7 +698,7 @@ export class SeriesPostBuilder {
         ) {
 
             lines.push(
-                `📺 Auflösung: ${
+                `📺 <b>Auflösung:</b> ${
                     this.escapeHtml(
                         String(
                             series.resolution
@@ -682,7 +717,7 @@ export class SeriesPostBuilder {
         ) {
 
             lines.push(
-                `💿 Quelle: ${
+                `💿 <b>Quelle:</b> ${
                     this.escapeHtml(
                         String(
                             series.source
@@ -701,7 +736,7 @@ export class SeriesPostBuilder {
         ) {
 
             lines.push(
-                `🎥 Video-Codec: ${
+                `🎥 <b>Video-Codec:</b> ${
                     this.escapeHtml(
                         String(
                             series.videoCodec
@@ -720,7 +755,7 @@ export class SeriesPostBuilder {
         ) {
 
             lines.push(
-                `🔊 Audio: ${
+                `🔊 <b>Audio:</b> ${
                     this.escapeHtml(
                         String(
                             series.audio
@@ -739,7 +774,7 @@ export class SeriesPostBuilder {
         ) {
 
             lines.push(
-                `🎧 Audio-Codec: ${
+                `🎧 <b>Audio-Codec:</b> ${
                     this.escapeHtml(
                         String(
                             series.audioCodec
@@ -758,7 +793,7 @@ export class SeriesPostBuilder {
         ) {
 
             lines.push(
-                `🔈 Audiokanäle: ${
+                `🔈 <b>Audiokanäle:</b> ${
                     this.escapeHtml(
                         String(
                             series.audioChannels
@@ -777,7 +812,7 @@ export class SeriesPostBuilder {
         ) {
 
             lines.push(
-                `🌈 HDR: ${
+                `🌈 <b>HDR:</b> ${
                     this.escapeHtml(
                         String(
                             series.hdr
@@ -791,21 +826,15 @@ export class SeriesPostBuilder {
         // FSK
         // =====================================================================
 
-        const seriesAny =
-            series as unknown as Record<
-                string,
-                unknown
-            >;
-
         if (
-            seriesAny.fsk
+            seriesData.fsk
         ) {
 
             lines.push(
-                `🔞 FSK: ${
+                `🔞 <b>FSK:</b> ${
                     this.escapeHtml(
                         String(
-                            seriesAny.fsk
+                            seriesData.fsk
                         )
                     )
                 }`
@@ -821,7 +850,7 @@ export class SeriesPostBuilder {
         ) {
 
             lines.push(
-                `💾 Dateigröße: ${
+                `💾 <b>Dateigröße:</b> ${
                     this.formatFileSize(
                         Number(
                             series.fileSize
@@ -840,7 +869,7 @@ export class SeriesPostBuilder {
         ) {
 
             lines.push(
-                `📄 Datei: <code>${
+                `📄 <b>Datei:</b> <code>${
                     this.escapeHtml(
                         series.originalFileName
                     )
@@ -848,7 +877,20 @@ export class SeriesPostBuilder {
             );
         }
 
-        return lines.join(
+        if (
+            lines.length === 0
+        ) {
+
+            return "";
+        }
+
+        return [
+
+            "📊 <b>Technische Informationen</b>",
+
+            ...lines
+
+        ].join(
             "\n"
         );
     }
@@ -861,34 +903,34 @@ export class SeriesPostBuilder {
         series: SeriesCatalogEntry
     ): string {
 
-        const seriesAny =
+        const seriesData =
             series as unknown as Record<
                 string,
                 unknown
             >;
 
         const seriesId =
-            seriesAny.seriesId ||
-            seriesAny.libraryId ||
-            seriesAny.archiveId ||
-            seriesAny.id ||
+            seriesData.seriesId ||
+            seriesData.libraryId ||
+            seriesData.archiveId ||
+            seriesData.id ||
             "—";
 
         const episodeId =
-            seriesAny.episodeId ||
-            seriesAny.episodeArchiveId ||
+            seriesData.episodeId ||
+            seriesData.episodeArchiveId ||
             "";
 
         const categoryTitle =
-            seriesAny.categoryTitle ||
-            seriesAny.category ||
+            seriesData.categoryTitle ||
+            seriesData.category ||
             "📚 Allgemein";
 
         const lines: string[] = [
 
             "🗃️ <b>Library Of Legends</b>",
 
-            `📚 Serien-ID: <code>${
+            `📚 <b>Serien-ID:</b> <code>${
                 this.escapeHtml(
                     String(
                         seriesId
@@ -903,7 +945,7 @@ export class SeriesPostBuilder {
         ) {
 
             lines.push(
-                `🎬 Episoden-ID: <code>${
+                `🎬 <b>Episoden-ID:</b> <code>${
                     this.escapeHtml(
                         String(
                             episodeId
@@ -914,7 +956,7 @@ export class SeriesPostBuilder {
         }
 
         lines.push(
-            `📂 Kategorie: ${
+            `📂 <b>Kategorie:</b> ${
                 this.escapeHtml(
                     String(
                         categoryTitle
@@ -958,7 +1000,7 @@ export class SeriesPostBuilder {
         const rows:
             SeriesPostButton[][] = [];
 
-        const seriesAny =
+        const seriesData =
             series as unknown as Record<
                 string,
                 unknown
@@ -966,17 +1008,17 @@ export class SeriesPostBuilder {
 
         const seriesId =
             String(
-                seriesAny.seriesId ||
-                seriesAny.libraryId ||
-                seriesAny.archiveId ||
-                seriesAny.id ||
+                seriesData.seriesId ||
+                seriesData.libraryId ||
+                seriesData.archiveId ||
+                seriesData.id ||
                 ""
             );
 
         const episodeId =
             String(
-                seriesAny.episodeId ||
-                seriesAny.episodeArchiveId ||
+                seriesData.episodeId ||
+                seriesData.episodeArchiveId ||
                 ""
             );
 
