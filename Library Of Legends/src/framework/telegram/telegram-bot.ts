@@ -20,9 +20,9 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 3.0.0
+Version.............: 4.0.0
 
-Status..............: CORE SYSTEM (FILE-ID ENABLED)
+Status..............: FULL SYSTEM (UI + FILE-ID + DATABASE)
 
 Lifecycle...........: Production
 
@@ -33,11 +33,12 @@ Telegram Bot with:
 - Auto Save to Database
 - Search System (/find)
 - File-ID Playback System
+- Netflix Style UI (Buttons + Navigation)
 
 ===============================================================================
 */
 
-import { Telegraf } from "telegraf";
+import { Telegraf, Markup } from "telegraf";
 import { LibraryRepository } from "../../infrastructure/database/library-repository";
 import { SearchCommand } from "./commands/search-command";
 
@@ -61,21 +62,75 @@ export class TelegramBot {
     private setup(): void {
 
         // =========================================================================
-        // START
+        // START MENU (UI)
         // =========================================================================
 
         this.bot.start((ctx) => {
-            ctx.reply("🚀 Library Of Legends Bot (FULL SYSTEM AKTIV)");
+
+            ctx.reply(
+                "🎬 *Library Of Legends*\n\nWähle eine Option:",
+                {
+                    parse_mode: "Markdown",
+                    ...Markup.keyboard([
+                        ["🎬 Filme", "🔎 Suche"]
+                    ]).resize()
+                }
+            );
+
         });
 
         // =========================================================================
-        // COMMANDS
+        // SEARCH COMMAND (/find)
         // =========================================================================
 
         SearchCommand.register(this.bot);
 
         // =========================================================================
-        // FILE UPLOAD
+        // MOVIES BUTTON (UI)
+        // =========================================================================
+
+        this.bot.hears("🎬 Filme", async (ctx) => {
+
+            const movies = await LibraryRepository.search("");
+
+            if (movies.length === 0) {
+                return ctx.reply("❌ Keine Filme vorhanden.");
+            }
+
+            const buttons = movies.map((movie) => [
+                Markup.button.callback(movie.title, `movie_${movie.id}`)
+            ]);
+
+            await ctx.reply(
+                "🎬 Filme auswählen:",
+                Markup.inlineKeyboard(buttons)
+            );
+
+        });
+
+        // =========================================================================
+        // MOVIE CLICK (SEND FILE)
+        // =========================================================================
+
+        this.bot.action(/movie_(.+)/, async (ctx) => {
+
+            const id = ctx.match[1];
+
+            const results = await LibraryRepository.search("");
+            const movie = results.find(m => String(m.id) === String(id));
+
+            if (!movie) {
+                return ctx.answerCbQuery("❌ Film nicht gefunden");
+            }
+
+            await ctx.replyWithDocument(movie.file_id, {
+                caption: `🎬 ${movie.title}`
+            });
+
+        });
+
+        // =========================================================================
+        // FILE UPLOAD (ADMIN ONLY)
         // =========================================================================
 
         this.bot.on("document", async (ctx) => {
@@ -120,7 +175,7 @@ export class TelegramBot {
 
     public launch(): void {
         this.bot.launch();
-        console.log("🤖 Bot gestartet (FULL SYSTEM)");
+        console.log("🤖 Bot gestartet (FULL SYSTEM + UI)");
     }
 
 }
