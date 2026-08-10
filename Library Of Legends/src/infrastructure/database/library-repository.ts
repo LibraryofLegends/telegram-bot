@@ -28,105 +28,58 @@ Lifecycle...........: Development
 
 Description.........
 
-Handles persistence of Library Items using PostgreSQL.
+Handles persistence of library items (save + search).
+Uses PostgreSQL via pg Pool.
 
 ===============================================================================
 */
 
 import { Pool } from "pg";
-import { LibraryItem } from "../../domain/library/library-item";
-
-/**
- * Database Connection Pool
- */
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL
-});
 
 /**
  * Library Repository
  */
 export class LibraryRepository {
 
-    /**
-     * Initialize table
-     */
-    public static async init(): Promise<void> {
-
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS library (
-                id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                type TEXT NOT NULL,
-                file_name TEXT NOT NULL,
-                created_at TIMESTAMP NOT NULL
-            );
-        `);
-
-    }
+    private static pool = new Pool({
+        connectionString: process.env.DATABASE_URL
+    });
 
     /**
-     * Save item
+     * Save media item to database
      */
-    public static async save(item: LibraryItem): Promise<void> {
+    public static async save(
+        title: string,
+        fileName: string,
+        type: string
+    ): Promise<void> {
 
-        await pool.query(
+        await this.pool.query(
             `
-            INSERT INTO library (id, title, type, file_name, created_at)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO library_items (title, file_name, type)
+            VALUES ($1, $2, $3)
             `,
-            [
-                item.id,
-                item.title,
-                item.type,
-                item.fileName,
-                item.createdAt
-            ]
+            [title, fileName, type]
         );
-
     }
 
     /**
-     * Get all items
+     * Search media items
      */
-    public static async getAll(): Promise<LibraryItem[]> {
+    public static async search(query: string): Promise<any[]> {
 
-        const result = await pool.query(`SELECT * FROM library ORDER BY created_at DESC`);
-
-        return result.rows.map(row => ({
-            id: row.id,
-            title: row.title,
-            type: row.type,
-            fileName: row.file_name,
-            createdAt: new Date(row.created_at)
-        }));
-
-    }
-
-    /**
-     * Find by ID
-     */
-    public static async findById(id: string): Promise<LibraryItem | null> {
-
-        const result = await pool.query(
-            `SELECT * FROM library WHERE id = $1 LIMIT 1`,
-            [id]
+        const result = await this.pool.query(
+            `
+            SELECT *
+            FROM library_items
+            WHERE LOWER(title) LIKE LOWER($1)
+            ORDER BY created_at DESC
+            LIMIT 10
+            `,
+            [`%${query}%`]
         );
 
-        if (result.rows.length === 0) {
-            return null;
-        }
-
-        const row = result.rows[0];
-
-        return {
-            id: row.id,
-            title: row.title,
-            type: row.type,
-            fileName: row.file_name,
-            createdAt: new Date(row.created_at)
-        };
-
+        return result.rows;
     }
 
 }
