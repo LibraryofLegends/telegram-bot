@@ -20,7 +20,7 @@ File................: library-repository.ts
 Location............
 Library Of Legends/src/infrastructure/database/
 
-Version.............: 3.0.0
+Version.............: 4.0.0
 
 Status..............: CORE
 
@@ -29,6 +29,7 @@ Lifecycle...........: Production
 Description.........
 
 Handles saving, searching and retrieving media in database.
+Includes pagination support.
 
 ===============================================================================
 */
@@ -39,9 +40,7 @@ export class LibraryRepository {
 
     private static pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: {
-            rejectUnauthorized: false
-        }
+        ssl: { rejectUnauthorized: false }
     });
 
     // =========================================================================
@@ -79,6 +78,24 @@ export class LibraryRepository {
             LIMIT 10
             `,
             [`%${query}%`]
+        );
+
+        return result.rows;
+    }
+
+    // =========================================================================
+    // GET ALL (PAGINATION 🔥)
+    // =========================================================================
+
+    public static async getAll(limit: number = 10, offset: number = 0) {
+
+        const result = await this.pool.query(
+            `
+            SELECT * FROM library_items
+            ORDER BY created_at DESC
+            LIMIT $1 OFFSET $2
+            `,
+            [limit, offset]
         );
 
         return result.rows;
