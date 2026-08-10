@@ -20,7 +20,7 @@ File................: main.ts
 Location............
 Library Of Legends/src/
 
-Version.............: 1.0.0
+Version.............: 1.2.0
 
 Status..............: Core
 
@@ -29,10 +29,12 @@ Lifecycle...........: Development
 Description.........
 
 Application entry point.
-Initializes and starts the Telegram bot.
+Initializes and starts the Telegram bot using Render environment configuration.
 
 ===============================================================================
 */
+
+import "dotenv/config";
 
 import { TelegramBot } from "./framework/telegram/telegram-bot";
 
@@ -45,13 +47,17 @@ function bootstrap(): void {
     // CONFIGURATION
     // =========================================================================
 
-    const TOKEN = "DEIN_BOT_TOKEN_HIER";
+    const token = process.env.TOKEN;
+
+    if (!token) {
+        throw new Error("❌ TOKEN is not defined in environment variables");
+    }
 
     // =========================================================================
     // BOT INITIALIZATION
     // =========================================================================
 
-    const bot = new TelegramBot(TOKEN);
+    const bot = new TelegramBot(token);
 
     // =========================================================================
     // START APPLICATION
