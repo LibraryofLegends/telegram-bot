@@ -20,7 +20,7 @@ File................: library-repository.ts
 Location............
 Library Of Legends/src/infrastructure/database/
 
-Version.............: 10.0.0
+Version.............: 11.0.0
 
 Status..............: STABLE
 
@@ -31,7 +31,7 @@ Description.........
 FINAL stable PostgreSQL repository for Library Of Legends.
 
 NOW WITH:
-- Flexible getAll() filtering (Type + Limit)
+- Flexible getAll() (Type OR Limit)
 - Favorites system
 - Trending system
 - Telegram compatibility
@@ -191,30 +191,40 @@ export class LibraryRepository {
     }
 
     // =========================================================================
-    // 🔥 GET ALL (OPTION A – FIXED)
+    // 🔥 GET ALL (FLEXIBLE – FINAL FIX)
     // =========================================================================
 
     public static async getAll(
-        type?: LibraryMediaType,
-        limit?: number
+        typeOrLimit?: LibraryMediaType | number,
+        limitParam?: number
     ): Promise<LibraryRepositoryItem[]> {
 
         await this.init();
 
-        let query = `
-            SELECT * FROM library_items
-        `;
+        let type: LibraryMediaType | undefined;
+        let limit: number | undefined;
 
+        // ============================================================
+        // FLEXIBLE PARAMETER HANDLING
+        // ============================================================
+
+        if (typeof typeOrLimit === "number") {
+            limit = typeOrLimit;
+        } else {
+            type = typeOrLimit;
+            limit = limitParam;
+        }
+
+        let query = `SELECT * FROM library_items`;
         const conditions: string[] = [];
         const values: unknown[] = [];
 
-        // FILTER: TYPE
+        // FILTER TYPE
         if (type) {
             values.push(type);
             conditions.push(`type = $${values.length}`);
         }
 
-        // APPLY CONDITIONS
         if (conditions.length > 0) {
             query += ` WHERE ` + conditions.join(" AND ");
         }
@@ -283,12 +293,10 @@ export class LibraryRepository {
     // =========================================================================
 
     public static async getMovies(): Promise<LibraryRepositoryItem[]> {
-
         return this.getAll("MOVIE");
     }
 
     public static async getSeries(): Promise<LibraryRepositoryItem[]> {
-
         return this.getAll("SERIES");
     }
 
