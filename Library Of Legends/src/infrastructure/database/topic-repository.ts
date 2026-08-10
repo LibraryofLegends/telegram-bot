@@ -37,15 +37,23 @@ Responsibilities:
 - Prevent duplicate topics (DB-level)
 - Restore topics after bot restart
 - Provide fast lookup for TopicManager
+- Keep database logic isolated from application layer
+
+Database:
+
+SQLite (better-sqlite3)
+
+Table:
+
+series_topics
 
 ===============================================================================
 */
 
-import { db } from "./database";
+import Database from "better-sqlite3";
 
-/**
- * Ensure table exists.
- */
+const db = new Database("library.db");
+
 db.prepare(`
     CREATE TABLE IF NOT EXISTS series_topics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,56 +70,112 @@ db.prepare(`
 
 export class TopicRepository {
 
-    private static normalize(name: string): string {
-        return String(name || "")
-            .toLowerCase()
-            .replace(/[\s\-_]+/g, " ")
-            .trim();
-    }
-
-    public static find(chatId: string, name: string): any | undefined {
-
-        const normalized = this.normalize(name);
-
-        return db.prepare(`
-            SELECT * FROM series_topics
-            WHERE chat_id = ?
-            AND normalized_name = ?
-        `).get(chatId, normalized);
+    public static find(chatId: string, normalizedName: string): any | undefined {
+        try {
+            return db.prepare(`
+                SELECT *
+                FROM series_topics
+                WHERE chat_id = ?
+                AND normalized_name = ?
+            `).get(chatId, normalizedName);
+        } catch (error) {
+            console.error("❌ TopicRepository.find Fehler:", error);
+            return undefined;
+        }
     }
 
     public static save(
         chatId: string,
-        name: string,
+        normalizedName: string,
         topicName: string,
-        threadId: number
+        messageThreadId: number
     ): void {
 
-        const normalized = this.normalize(name);
         const now = Date.now();
 
-        db.prepare(`
-            INSERT INTO series_topics (
-                chat_id,
-                normalized_name,
-                topic_name,
-                message_thread_id,
-                created_at,
-                updated_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(chat_id, normalized_name)
-            DO UPDATE SET
-                topic_name = excluded.topic_name,
-                message_thread_id = excluded.message_thread_id,
-                updated_at = excluded.updated_at
-        `).run(
-            chatId,
-            normalized,
-            topicName,
-            threadId,
-            now,
-            now
-        );
+        try {
+            db.prepare(`
+                INSERT INTO series_topics (
+                    chat_id,
+                    normalized_name,
+                    topic_name,
+                    message_thread_id,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(chat_id, normalized_name)
+                DO UPDATE SET
+                    topic_name = excluded.topic_name,
+                    message_thread_id = excluded.message_thread_id,
+                    updated_at = excluded.updated_at
+            `).run(
+                chatId,
+                normalizedName,
+                topicName,
+                messageThreadId,
+                now,
+                now
+            );
+        } catch (error) {
+            console.error("❌ TopicRepository.save Fehler:", error);
+        }
+    }
+
+    public static remove(chatId: string, normalizedName: string): boolean {
+        try {
+            const result = db.prepare(`
+                DELETE FROM series_topics
+                WHERE chat_id = ?
+                AND normalized_name = ?
+            `).run(chatId, normalizedName);
+
+            return result.changes > 0;
+        } catch (error) {
+            console.error("❌ TopicRepository.remove Fehler:", error);
+            return false;
+        }
+    }
+
+    public static getAllForChat(chatId: string): any[] {
+        try {
+            return db.prepare(`
+                SELECT *
+                FROM series_topics
+                WHERE chat_id = ?
+                ORDER BY topic_name ASC
+            `).all(chatId);
+        } catch (error) {
+            console.error("❌ TopicRepository.getAllForChat Fehler:", error);
+            return [];
+        }
+    }
+
+    public static count(): number {
+        try {
+            const result = db.prepare(`
+                SELECT COUNT(*) as count
+                FROM series_topics
+            `).get();
+
+            return result?.count || 0;
+        } catch (error) {
+            console.error("❌ TopicRepository.count Fehler:", error);
+            return 0;
+        }
+    }
+
+    public static clearChat(chatId: string): number {
+        try {
+            const result = db.prepare(`
+                DELETE FROM series_topics
+                WHERE chat_id = ?
+            `).run(chatId);
+
+            return result.changes || 0;
+        } catch (error) {
+            console.error("❌ TopicRepository.clearChat Fehler:", error);
+            return 0;
+        }
     }
 }
