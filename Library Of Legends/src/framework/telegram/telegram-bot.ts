@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 1.1.0
+Version.............: 1.2.0
 
 Status..............: Core
 
@@ -28,7 +28,8 @@ Lifecycle...........: Development
 
 Description.........
 
-Telegram Bot with admin protection and channel auto post system.
+Telegram Bot with admin protection, auto parsing,
+and intelligent channel routing (movie / series).
 
 ===============================================================================
 */
@@ -37,6 +38,7 @@ import { Telegraf } from "telegraf";
 
 import { MediaParser } from "../../domain/media/parser/media-parser";
 import { TelegramPostBuilder } from "../../application/telegram/telegram-post-builder";
+import { MediaTypeDetector } from "../../domain/media/detection/media-type-detector";
 
 /**
  * Telegram Bot
@@ -47,6 +49,7 @@ export class TelegramBot {
 
     private adminIds: number[];
     private movieChannelId: string;
+    private seriesChannelId: string;
 
     public constructor(token: string) {
 
@@ -62,6 +65,7 @@ export class TelegramBot {
             .filter(id => !isNaN(id));
 
         this.movieChannelId = process.env.MOVIE_GROUP_ID || "";
+        this.seriesChannelId = process.env.SERIES_GROUP_ID || "";
 
         this.setup();
 
@@ -74,18 +78,18 @@ export class TelegramBot {
         // =========================================================================
 
         this.bot.start((ctx) => {
-            ctx.reply("🚀 Library Of Legends Bot aktiv.");
+            ctx.reply("🚀 Library Of Legends Bot aktiv (Routing aktiv).");
         });
 
         // =========================================================================
-        // DOCUMENT HANDLER (AUTO POST)
+        // DOCUMENT HANDLER
         // =========================================================================
 
         this.bot.on("document", async (ctx) => {
 
             const userId = ctx.from?.id;
 
-            // ❌ Nur Admin darf posten
+            // ❌ Admin Check
             if (!userId || !this.adminIds.includes(userId)) {
                 return;
             }
@@ -100,6 +104,12 @@ export class TelegramBot {
             try {
 
                 // =========================================================================
+                // DETECT TYPE 🔥
+                // =========================================================================
+
+                const type = MediaTypeDetector.detect(fileName);
+
+                // =========================================================================
                 // PARSE
                 // =========================================================================
 
@@ -112,20 +122,37 @@ export class TelegramBot {
                 const post = TelegramPostBuilder.build(media, fileName);
 
                 // =========================================================================
-                // SEND TO CHANNEL 🔥
+                // ROUTING 🔥
                 // =========================================================================
 
-                if (!this.movieChannelId) {
-                    throw new Error("MOVIE_GROUP_ID fehlt");
+                let targetChannel = "";
+
+                if (type === "MOVIE") {
+                    targetChannel = this.movieChannelId;
                 }
 
+                if (type === "SERIES") {
+                    targetChannel = this.seriesChannelId;
+                }
+
+                if (!targetChannel) {
+                    throw new Error("❌ Kein Channel konfiguriert");
+                }
+
+                // =========================================================================
+                // SEND
+                // =========================================================================
+
                 await this.bot.telegram.sendMessage(
-                    this.movieChannelId,
+                    targetChannel,
                     post
                 );
 
-                // Optional Feedback
-                await ctx.reply("✅ Film wurde gepostet.");
+                // =========================================================================
+                // FEEDBACK
+                // =========================================================================
+
+                await ctx.reply(`✅ ${type} wurde gepostet.`);
 
             } catch (error) {
 
@@ -141,7 +168,7 @@ export class TelegramBot {
 
     public launch(): void {
         this.bot.launch();
-        console.log("🤖 Telegram Bot gestartet (Auto Post aktiv)");
+        console.log("🤖 Bot gestartet (Auto Routing aktiv)");
     }
 
 }
