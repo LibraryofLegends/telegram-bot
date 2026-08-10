@@ -20,7 +20,7 @@ File................: telegram-post-builder.ts
 Location............
 Library Of Legends/src/application/telegram/
 
-Version.............: 1.0.0
+Version.............: 1.1.0
 
 Status..............: Core
 
@@ -28,12 +28,13 @@ Lifecycle...........: Development
 
 Description.........
 
-Builds formatted Telegram posts from MediaFile.
+Builds formatted Telegram posts for movies including Library IDs.
 
 ===============================================================================
 */
 
 import { MediaFile } from "../../domain/media/media-file/media-file";
+import { LibraryIdGenerator } from "../../domain/library/library-id-generator";
 
 /**
  * Telegram Post Builder
@@ -41,15 +42,20 @@ import { MediaFile } from "../../domain/media/media-file/media-file";
 export class TelegramPostBuilder {
 
     /**
-     * Builds a formatted Telegram post.
-     *
-     * @param media Media file aggregate.
-     * @param title Optional title.
-     * @returns Formatted Telegram message.
+     * Builds a formatted Telegram post
      */
     public static build(media: MediaFile, title?: string): string {
 
         const lines: string[] = [];
+
+        // =========================================================================
+        // LIBRARY ID 🔥
+        // =========================================================================
+
+        const libraryId = LibraryIdGenerator.next("MOVIE");
+
+        lines.push(`🆔 ${libraryId}`);
+        lines.push("");
 
         // =========================================================================
         // TITLE
