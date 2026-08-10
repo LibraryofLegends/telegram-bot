@@ -20,7 +20,7 @@ File................: topic-manager.ts
 Location............
 Library Of Legends/src/application/routing/
 
-Version.............: 3.0.0
+Version.............: 4.0.0
 
 Status..............: Core
 
@@ -32,7 +32,7 @@ Telegram Forum Topic management for Library Of Legends.
 
 Responsibilities:
 
-- Create series topics
+- Create and register series topics
 - Find existing series topics
 - Normalize topic names
 - Prevent duplicate topics
@@ -40,7 +40,11 @@ Responsibilities:
 - Support multiple Telegram chats
 - Provide topic lookup
 - Prepare topic routing for TelegramBot
+- Provide thread ID lookup
+- Support safe topic names
 - Keep Telegram-specific topic logic isolated
+- Provide debug information
+- Provide topic statistics
 
 Important:
 
@@ -49,7 +53,7 @@ with Topics enabled.
 
 The TelegramBot layer is responsible for actually calling Telegram.
 
-This class manages the topic information and provides helper methods
+This class manages topic information and provides helper methods
 for the Telegram integration.
 
 ===============================================================================
@@ -114,7 +118,7 @@ export class TopicManager {
 
     private static topics:
         Map<string, SeriesTopic> =
-        new Map();
+        new Map<string, SeriesTopic>();
 
     // =========================================================================
     // TOPIC KEY
@@ -125,7 +129,14 @@ export class TopicManager {
         seriesTitle: string
     ): string {
 
-        return `${chatId}:${this.normalizeName(seriesTitle)}`;
+        return [
+            String(chatId),
+            this.normalizeName(
+                seriesTitle
+            )
+        ].join(
+            ":"
+        );
     }
 
     // =========================================================================
@@ -148,7 +159,7 @@ export class TopicManager {
             )
             .toLowerCase()
             .replace(
-                /\.(mp4|mkv|avi|mov|webm)$/i,
+                /\.(mp4|mkv|avi|mov|webm|m4v|ts|m2ts)$/i,
                 ""
             )
             .replace(
@@ -186,10 +197,14 @@ export class TopicManager {
         name: string
     ): string {
 
-        const normalized =
+        let normalized =
             String(
                 name || ""
             )
+                .replace(
+                    /\.(mp4|mkv|avi|mov|webm|m4v|ts|m2ts)$/i,
+                    ""
+                )
                 .replace(
                     /\s+/g,
                     " "
@@ -200,13 +215,12 @@ export class TopicManager {
             !normalized
         ) {
 
-            return "Unbekannte Serie";
+            normalized =
+                "Unbekannte Serie";
         }
 
         /*
-         * Telegram topic names have practical display limits.
-         * Keep the title readable instead of cutting in the middle
-         * of an important prefix.
+         * Telegram topic names should remain readable.
          */
 
         const MAX_LENGTH =
@@ -220,10 +234,15 @@ export class TopicManager {
             return normalized;
         }
 
-        return normalized.slice(
-            0,
-            MAX_LENGTH - 1
-        ).trim() + "…";
+        return (
+            normalized
+                .slice(
+                    0,
+                    MAX_LENGTH - 1
+                )
+                .trim() +
+            "…"
+        );
     }
 
     // =========================================================================
@@ -300,21 +319,26 @@ export class TopicManager {
         topicName?: string
     ): SeriesTopic {
 
+        const safeChatId =
+            String(
+                chatId
+            );
+
         const normalizedName =
-            this.normalizeName(
+            this.normalizeSeriesTitle(
                 seriesTitle
             );
 
         const cleanName =
             this.cleanTopicName(
                 topicName ||
-                seriesTitle
+                normalizedName
             );
 
         const key =
             this.buildKey(
-                chatId,
-                seriesTitle
+                safeChatId,
+                normalizedName
             );
 
         const existing =
@@ -345,16 +369,17 @@ export class TopicManager {
             SeriesTopic = {
 
             chatId:
-                String(
-                    chatId
-                ),
+                safeChatId,
 
             messageThreadId,
 
             name:
                 cleanName,
 
-            normalizedName,
+            normalizedName:
+                this.normalizeName(
+                    normalizedName
+                ),
 
             createdAt:
                 now,
@@ -400,7 +425,7 @@ export class TopicManager {
     ): number {
 
         const prefix =
-            `${chatId}:`;
+            `${String(chatId)}:`;
 
         let removed =
             0;
@@ -428,6 +453,20 @@ export class TopicManager {
     }
 
     // =========================================================================
+    // CLEAR ALL
+    // =========================================================================
+
+    public static clearAll(): number {
+
+        const count =
+            this.topics.size;
+
+        this.topics.clear();
+
+        return count;
+    }
+
+    // =========================================================================
     // GET TOPIC THREAD ID
     // =========================================================================
 
@@ -436,10 +475,12 @@ export class TopicManager {
         seriesTitle: string
     ): number | undefined {
 
-        return this.getTopic(
-            chatId,
-            seriesTitle
-        )?.messageThreadId;
+        return this
+            .getTopic(
+                chatId,
+                seriesTitle
+            )
+            ?.messageThreadId;
     }
 
     // =========================================================================
@@ -464,12 +505,12 @@ export class TopicManager {
         }
 
         /*
-         * A Telegram message_thread_id cannot be invented.
+         * Telegram generates the actual message_thread_id.
          *
-         * The actual Telegram topic must be created by TelegramBot.
+         * We deliberately do NOT invent a thread ID here.
          *
-         * Therefore this method only returns undefined when the topic
-         * has not yet been registered.
+         * TelegramBot must call Telegram's createForumTopic API
+         * and then register the returned message_thread_id.
          */
 
         return undefined;
@@ -484,6 +525,11 @@ export class TopicManager {
         seriesTitle: string
     ): TopicRequest {
 
+        const normalizedTitle =
+            this.normalizeSeriesTitle(
+                seriesTitle
+            );
+
         return {
 
             chatId:
@@ -492,13 +538,11 @@ export class TopicManager {
                 ),
 
             seriesTitle:
-                this.normalizeSeriesTitle(
-                    seriesTitle
-                ),
+                normalizedTitle,
 
             topicName:
                 this.cleanTopicName(
-                    seriesTitle
+                    normalizedTitle
                 )
         };
     }
@@ -517,9 +561,9 @@ export class TopicManager {
             )
                 .trim();
 
-        /*
-         * Remove file extension.
-         */
+        // =====================================================================
+        // REMOVE FILE EXTENSION
+        // =====================================================================
 
         value =
             value.replace(
@@ -527,9 +571,9 @@ export class TopicManager {
                 ""
             );
 
-        /*
-         * Remove S01E01 notation.
-         */
+        // =====================================================================
+        // REMOVE S01E01
+        // =====================================================================
 
         value =
             value.replace(
@@ -537,9 +581,15 @@ export class TopicManager {
                 ""
             );
 
-        /*
-         * Remove Season / Staffel.
-         */
+        // =====================================================================
+        // REMOVE S01 / SEASON 1 / STAFFEL 1
+        // =====================================================================
+
+        value =
+            value.replace(
+                /\bS\d{1,3}\b/gi,
+                ""
+            );
 
         value =
             value.replace(
@@ -553,9 +603,9 @@ export class TopicManager {
                 ""
             );
 
-        /*
-         * Remove episode information.
-         */
+        // =====================================================================
+        // REMOVE EPISODE INFORMATION
+        // =====================================================================
 
         value =
             value.replace(
@@ -563,9 +613,15 @@ export class TopicManager {
                 ""
             );
 
-        /*
-         * Remove common separators.
-         */
+        value =
+            value.replace(
+                /\bE\d{1,4}\b/gi,
+                ""
+            );
+
+        // =====================================================================
+        // REMOVE COMMON FILE SEPARATORS
+        // =====================================================================
 
         value =
             value.replace(
@@ -587,11 +643,29 @@ export class TopicManager {
 
         value =
             value.replace(
-                /\s+/g,
-                " "
+                /\s*-\s*$/g,
+                ""
             );
 
-        return value.trim();
+        // =====================================================================
+        // CLEAN MULTIPLE SPACES
+        // =====================================================================
+
+        value =
+            value.replace(
+                /\s+/g,
+                " "
+            )
+                .trim();
+
+        if (
+            !value
+        ) {
+
+            return "Unbekannte Serie";
+        }
+
+        return value;
     }
 
     // =========================================================================
@@ -603,6 +677,11 @@ export class TopicManager {
         messageThreadId: number
     ): SeriesTopic | undefined {
 
+        const safeChatId =
+            String(
+                chatId
+            );
+
         for (
             const topic of
             this.topics.values()
@@ -610,11 +689,50 @@ export class TopicManager {
 
             if (
                 topic.chatId ===
-                String(
-                    chatId
-                ) &&
+                    safeChatId &&
                 topic.messageThreadId ===
-                messageThreadId
+                    messageThreadId
+            ) {
+
+                topic.updatedAt =
+                    Date.now();
+
+                return topic;
+            }
+        }
+
+        return undefined;
+    }
+
+    // =========================================================================
+    // FIND BY NORMALIZED NAME
+    // =========================================================================
+
+    public static findByNormalizedName(
+        chatId: string,
+        normalizedName: string
+    ): SeriesTopic | undefined {
+
+        const safeChatId =
+            String(
+                chatId
+            );
+
+        const normalized =
+            this.normalizeName(
+                normalizedName
+            );
+
+        for (
+            const topic of
+            this.topics.values()
+        ) {
+
+            if (
+                topic.chatId ===
+                    safeChatId &&
+                topic.normalizedName ===
+                    normalized
             ) {
 
                 topic.updatedAt =
@@ -635,6 +753,11 @@ export class TopicManager {
         chatId: string
     ): SeriesTopic[] {
 
+        const safeChatId =
+            String(
+                chatId
+            );
+
         const result:
             SeriesTopic[] = [];
 
@@ -645,9 +768,7 @@ export class TopicManager {
 
             if (
                 topic.chatId ===
-                String(
-                    chatId
-                )
+                safeChatId
             ) {
 
                 result.push(
@@ -672,7 +793,8 @@ export class TopicManager {
     // GET ALL
     // =========================================================================
 
-    public static getAll(): SeriesTopic[] {
+    public static getAll():
+        SeriesTopic[] {
 
         return Array.from(
             this.topics.values()
@@ -689,6 +811,21 @@ export class TopicManager {
     }
 
     // =========================================================================
+    // COUNT CHAT
+    // =========================================================================
+
+    public static countForChat(
+        chatId: string
+    ): number {
+
+        return this
+            .getAllForChat(
+                chatId
+            )
+            .length;
+    }
+
+    // =========================================================================
     // TOPIC NAME EXISTS
     // =========================================================================
 
@@ -702,6 +839,11 @@ export class TopicManager {
                 topicName
             );
 
+        const safeChatId =
+            String(
+                chatId
+            );
+
         for (
             const topic of
             this.topics.values()
@@ -709,11 +851,9 @@ export class TopicManager {
 
             if (
                 topic.chatId ===
-                String(
-                    chatId
-                ) &&
+                    safeChatId &&
                 topic.normalizedName ===
-                normalized
+                    normalized
             ) {
 
                 return true;
@@ -721,6 +861,149 @@ export class TopicManager {
         }
 
         return false;
+    }
+
+    // =========================================================================
+    // GET TOPIC NAME
+    // =========================================================================
+
+    public static getTopicName(
+        chatId: string,
+        seriesTitle: string
+    ): string {
+
+        const topic =
+            this.getTopic(
+                chatId,
+                seriesTitle
+            );
+
+        if (
+            topic
+        ) {
+
+            return topic.name;
+        }
+
+        return this.cleanTopicName(
+            this.normalizeSeriesTitle(
+                seriesTitle
+            )
+        );
+    }
+
+    // =========================================================================
+    // TOUCH TOPIC
+    // =========================================================================
+
+    public static touchTopic(
+        chatId: string,
+        seriesTitle: string
+    ): boolean {
+
+        const topic =
+            this.getTopic(
+                chatId,
+                seriesTitle
+            );
+
+        if (
+            !topic
+        ) {
+
+            return false;
+        }
+
+        topic.updatedAt =
+            Date.now();
+
+        return true;
+    }
+
+    // =========================================================================
+    // EXPORT TOPICS
+    // =========================================================================
+
+    public static exportTopics():
+        SeriesTopic[] {
+
+        return this
+            .getAll()
+            .map(
+                topic => ({
+                    ...topic
+                })
+            );
+    }
+
+    // =========================================================================
+    // IMPORT TOPICS
+    // =========================================================================
+
+    public static importTopics(
+        topics: SeriesTopic[]
+    ): number {
+
+        if (
+            !Array.isArray(
+                topics
+            )
+        ) {
+
+            return 0;
+        }
+
+        let imported =
+            0;
+
+        for (
+            const topic of
+            topics
+        ) {
+
+            if (
+                !topic ||
+                !topic.chatId ||
+                !topic.normalizedName ||
+                typeof topic.messageThreadId !==
+                    "number"
+            ) {
+
+                continue;
+            }
+
+            const key =
+                this.buildKey(
+                    topic.chatId,
+                    topic.normalizedName
+                );
+
+            this.topics.set(
+                key,
+                {
+                    ...topic,
+
+                    chatId:
+                        String(
+                            topic.chatId
+                        ),
+
+                    name:
+                        this.cleanTopicName(
+                            topic.name
+                        ),
+
+                    normalizedName:
+                        this.normalizeName(
+                            topic.normalizedName
+                        )
+                }
+            );
+
+            imported++;
+        }
+
+        return imported;
     }
 
     // =========================================================================
@@ -756,6 +1039,12 @@ export class TopicManager {
                     )
                 }`,
 
+                `💬 Chat-ID: ${
+                    String(
+                        chatId
+                    )
+                }`,
+
                 "❌ Topic noch nicht erstellt.",
 
                 "================================================="
@@ -785,6 +1074,10 @@ export class TopicManager {
                 topic.messageThreadId
             }`,
 
+            `🆔 Normalized: ${
+                topic.normalizedName
+            }`,
+
             `📅 Erstellt: ${
                 new Date(
                     topic.createdAt
@@ -802,5 +1095,54 @@ export class TopicManager {
         ].join(
             "\n"
         );
+    }
+
+    // =========================================================================
+    // STATISTICS
+    // =========================================================================
+
+    public static getStatistics(): {
+        total: number;
+        chats: number;
+        topicsByChat: Record<string, number>;
+    } {
+
+        const topicsByChat:
+            Record<string, number> =
+            {};
+
+        for (
+            const topic of
+            this.topics.values()
+        ) {
+
+            if (
+                !topicsByChat[
+                    topic.chatId
+                ]
+            ) {
+
+                topicsByChat[
+                    topic.chatId
+                ] = 0;
+            }
+
+            topicsByChat[
+                topic.chatId
+            ]++;
+        }
+
+        return {
+
+            total:
+                this.topics.size,
+
+            chats:
+                Object.keys(
+                    topicsByChat
+                ).length,
+
+            topicsByChat
+        };
     }
 }
