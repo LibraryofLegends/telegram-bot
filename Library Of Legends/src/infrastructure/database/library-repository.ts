@@ -20,7 +20,7 @@ File................: library-repository.ts
 Location............
 Library Of Legends/src/infrastructure/database/
 
-Version.............: 6.0.0
+Version.............: 7.0.0
 
 Status..............: Core
 
@@ -41,13 +41,18 @@ Responsibilities:
 - Trending
 - View tracking
 - File-ID storage
+- Duplicate File-ID protection
 - Telegram destination storage
 - Topic-ID storage
 - Archive-ID storage
 - Automatic database initialization
+- Automatic database migration
+- Safe legacy database support
 
-The repository creates the required library_items table
-automatically when the application starts.
+The repository creates and upgrades the required
+library_items table automatically.
+
+Duplicate protection is based primarily on Telegram File-ID.
 
 ===============================================================================
 */
@@ -111,16 +116,74 @@ export class LibraryRepository {
         });
 
     // =========================================================================
+    // INITIALIZATION LOCK
+    // =========================================================================
+
+    private static initialized = false;
+
+    private static initializationPromise:
+        Promise<void> | null = null;
+
+    // =========================================================================
     // INITIALIZE DATABASE
     // =========================================================================
 
     public static async initialize(): Promise<void> {
 
+        if (
+            this.initialized
+        ) {
+
+            return;
+        }
+
+        if (
+            this.initializationPromise
+        ) {
+
+            return this.initializationPromise;
+        }
+
+        this.initializationPromise =
+            this.initializeDatabase();
+
+        try {
+
+            await this.initializationPromise;
+
+            this.initialized = true;
+
+        } finally {
+
+            this.initializationPromise =
+                null;
+        }
+    }
+
+    // =========================================================================
+    // DATABASE SETUP
+    // =========================================================================
+
+    private static async initializeDatabase(): Promise<void> {
+
+        /*
+         * gen_random_uuid() is provided by pgcrypto.
+         *
+         * IF NOT EXISTS keeps this safe on every application restart.
+         */
+
+        await this.pool.query(
+            `
+            CREATE EXTENSION IF NOT EXISTS pgcrypto
+            `
+        );
+
         await this.pool.query(
             `
             CREATE TABLE IF NOT EXISTS library_items (
 
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                id UUID PRIMARY KEY
+                    DEFAULT gen_random_uuid(),
 
                 title TEXT NOT NULL,
 
@@ -142,10 +205,25 @@ export class LibraryRepository {
 
                 is_favorite BOOLEAN DEFAULT FALSE,
 
-                created_at TIMESTAMPTZ DEFAULT NOW()
+                created_at TIMESTAMPTZ
+                    DEFAULT NOW()
 
             );
             `
+        );
+
+        // =====================================================================
+        // LEGACY DATABASE MIGRATION
+        // =====================================================================
+
+        await this.ensureColumn(
+            "file_id",
+            "TEXT"
+        );
+
+        await this.ensureColumn(
+            "genre",
+            "TEXT DEFAULT 'Unbekannt'"
         );
 
         await this.ensureColumn(
@@ -173,6 +251,66 @@ export class LibraryRepository {
             "BOOLEAN DEFAULT FALSE"
         );
 
+        await this.ensureColumn(
+            "created_at",
+            "TIMESTAMPTZ DEFAULT NOW()"
+        );
+
+        /*
+         * File-ID index.
+         *
+         * We deliberately use a normal index instead of forcing
+         * an immediate UNIQUE constraint here. This keeps old
+         * databases with existing duplicate rows migratable.
+         *
+         * The save() method performs the actual duplicate protection.
+         */
+
+        await this.pool.query(
+            `
+            CREATE INDEX IF NOT EXISTS
+            idx_library_items_file_id
+
+            ON library_items(file_id)
+            `
+        );
+
+        await this.pool.query(
+            `
+            CREATE INDEX IF NOT EXISTS
+            idx_library_items_genre
+
+            ON library_items(genre)
+            `
+        );
+
+        await this.pool.query(
+            `
+            CREATE INDEX IF NOT EXISTS
+            idx_library_items_type
+
+            ON library_items(type)
+            `
+        );
+
+        await this.pool.query(
+            `
+            CREATE INDEX IF NOT EXISTS
+            idx_library_items_archive_id
+
+            ON library_items(archive_id)
+            `
+        );
+
+        await this.pool.query(
+            `
+            CREATE INDEX IF NOT EXISTS
+            idx_library_items_telegram_chat_id
+
+            ON library_items(telegram_chat_id)
+            `
+        );
+
         console.log(
             "💾 LibraryRepository initialisiert."
         );
@@ -187,10 +325,18 @@ export class LibraryRepository {
         definition: string
     ): Promise<void> {
 
+        /*
+         * Column names are internal constants only.
+         * They are never supplied by the user.
+         */
+
         await this.pool.query(
             `
             ALTER TABLE library_items
-            ADD COLUMN IF NOT EXISTS ${column} ${definition}
+
+            ADD COLUMN IF NOT EXISTS
+            ${column}
+            ${definition}
             `
         );
     }
@@ -214,59 +360,304 @@ export class LibraryRepository {
 
         await this.initialize();
 
+        const cleanTitle =
+            String(
+                title || ""
+            ).trim();
+
+        const cleanFileName =
+            String(
+                fileName || ""
+            ).trim();
+
+        const cleanFileId =
+            String(
+                fileId || ""
+            ).trim();
+
+        const cleanGenre =
+            String(
+                options.genre ||
+                "Unbekannt"
+            ).trim();
+
+        // =====================================================================
+        // VALIDATION
+        // =====================================================================
+
+        if (
+            !cleanTitle
+        ) {
+
+            throw new Error(
+                "❌ LibraryRepository: Titel fehlt."
+            );
+        }
+
+        if (
+            !cleanFileName
+        ) {
+
+            throw new Error(
+                "❌ LibraryRepository: Dateiname fehlt."
+            );
+        }
+
+        if (
+            !cleanFileId
+        ) {
+
+            throw new Error(
+                "❌ LibraryRepository: Telegram File-ID fehlt."
+            );
+        }
+
+        // =====================================================================
+        // DUPLICATE CHECK BY TELEGRAM FILE-ID
+        // =====================================================================
+
+        const existing =
+            await this.findByFileId(
+                cleanFileId
+            );
+
+        if (
+            existing
+        ) {
+
+            console.log(
+                "⚠️ Datei bereits im Archiv vorhanden."
+            );
+
+            console.log(
+                `🆔 File-ID: ${cleanFileId}`
+            );
+
+            console.log(
+                `🎬 Titel: ${existing.title}`
+            );
+
+            /*
+             * Update the existing record instead of
+             * creating another archive entry.
+             */
+
+            await this.pool.query(
+                `
+                UPDATE library_items
+
+                SET
+                    title = $1,
+
+                    file_name = $2,
+
+                    type = $3,
+
+                    genre = $4,
+
+                    archive_id =
+                        COALESCE(
+                            $5,
+                            archive_id
+                        ),
+
+                    telegram_chat_id =
+                        COALESCE(
+                            $6,
+                            telegram_chat_id
+                        ),
+
+                    topic_id =
+                        COALESCE(
+                            $7,
+                            topic_id
+                        )
+
+                WHERE file_id = $8
+                `,
+                [
+                    cleanTitle,
+
+                    cleanFileName,
+
+                    type,
+
+                    cleanGenre,
+
+                    options.archiveId ||
+                        null,
+
+                    options.telegramChatId ||
+                        null,
+
+                    options.topicId ||
+                        null,
+
+                    cleanFileId
+                ]
+            );
+
+            console.log(
+                "♻️ Vorhandener Datensatz aktualisiert."
+            );
+
+            return;
+        }
+
+        // =====================================================================
+        // FILE NAME DUPLICATE CHECK
+        // =====================================================================
+
+        const existingFileName =
+            await this.pool.query(
+                `
+                SELECT id
+
+                FROM library_items
+
+                WHERE file_name = $1
+
+                LIMIT 1
+                `,
+                [
+                    cleanFileName
+                ]
+            );
+
+        if (
+            existingFileName.rows.length > 0
+        ) {
+
+            console.log(
+                "⚠️ Dateiname bereits vorhanden."
+            );
+
+            console.log(
+                `📄 ${cleanFileName}`
+            );
+
+            /*
+             * Update instead of inserting a duplicate.
+             */
+
+            await this.pool.query(
+                `
+                UPDATE library_items
+
+                SET
+                    title = $1,
+
+                    type = $2,
+
+                    file_id = $3,
+
+                    genre = $4,
+
+                    archive_id =
+                        COALESCE(
+                            $5,
+                            archive_id
+                        ),
+
+                    telegram_chat_id =
+                        COALESCE(
+                            $6,
+                            telegram_chat_id
+                        ),
+
+                    topic_id =
+                        COALESCE(
+                            $7,
+                            topic_id
+                        )
+
+                WHERE file_name = $8
+                `,
+                [
+                    cleanTitle,
+
+                    type,
+
+                    cleanFileId,
+
+                    cleanGenre,
+
+                    options.archiveId ||
+                        null,
+
+                    options.telegramChatId ||
+                        null,
+
+                    options.topicId ||
+                        null,
+
+                    cleanFileName
+                ]
+            );
+
+            console.log(
+                "♻️ Vorhandener Dateiname aktualisiert."
+            );
+
+            return;
+        }
+
+        // =====================================================================
+        // INSERT
+        // =====================================================================
+
         await this.pool.query(
             `
             INSERT INTO library_items (
+
                 title,
+
                 file_name,
+
                 type,
+
                 file_id,
+
                 genre,
+
                 archive_id,
+
                 telegram_chat_id,
+
                 topic_id
+
             )
+
             VALUES (
+
                 $1,
+
                 $2,
+
                 $3,
+
                 $4,
+
                 $5,
+
                 $6,
+
                 $7,
+
                 $8
+
             )
-
-            ON CONFLICT (file_name)
-            DO UPDATE SET
-
-                title = EXCLUDED.title,
-
-                type = EXCLUDED.type,
-
-                file_id = EXCLUDED.file_id,
-
-                genre = EXCLUDED.genre,
-
-                archive_id = EXCLUDED.archive_id,
-
-                telegram_chat_id =
-                    EXCLUDED.telegram_chat_id,
-
-                topic_id =
-                    EXCLUDED.topic_id
             `,
             [
-                title,
+                cleanTitle,
 
-                fileName,
+                cleanFileName,
 
                 type,
 
-                fileId,
+                cleanFileId,
 
-                options.genre ||
-                    "Unbekannt",
+                cleanGenre,
 
                 options.archiveId ||
                     null,
@@ -277,6 +668,10 @@ export class LibraryRepository {
                 options.topicId ||
                     null
             ]
+        );
+
+        console.log(
+            "💾 Film/Serie in Datenbank gespeichert."
         );
     }
 
@@ -295,17 +690,22 @@ export class LibraryRepository {
             await this.pool.query(
                 `
                 SELECT *
+
                 FROM library_items
 
                 ORDER BY created_at DESC
 
                 LIMIT $1
+
                 OFFSET $2
                 `,
                 [
                     Math.max(
                         1,
-                        Math.min(limit, 100)
+                        Math.min(
+                            limit,
+                            100
+                        )
                     ),
 
                     Math.max(
@@ -328,13 +728,27 @@ export class LibraryRepository {
 
         await this.initialize();
 
+        const cleanQuery =
+            String(
+                query || ""
+            ).trim();
+
+        if (
+            !cleanQuery
+        ) {
+
+            return [];
+        }
+
         const result =
             await this.pool.query(
                 `
                 SELECT *
+
                 FROM library_items
 
                 WHERE
+
                     LOWER(title)
                     LIKE LOWER($1)
 
@@ -343,12 +757,17 @@ export class LibraryRepository {
                     LOWER(file_name)
                     LIKE LOWER($1)
 
+                    OR
+
+                    LOWER(genre)
+                    LIKE LOWER($1)
+
                 ORDER BY created_at DESC
 
                 LIMIT 20
                 `,
                 [
-                    `%${query.trim()}%`
+                    `%${cleanQuery}%`
                 ]
             );
 
@@ -369,13 +788,16 @@ export class LibraryRepository {
             await this.pool.query(
                 `
                 SELECT *
+
                 FROM library_items
 
                 WHERE id = $1
 
                 LIMIT 1
                 `,
-                [id]
+                [
+                    id
+                ]
             );
 
         return (
@@ -398,13 +820,18 @@ export class LibraryRepository {
             await this.pool.query(
                 `
                 SELECT *
+
                 FROM library_items
 
                 WHERE file_id = $1
 
+                ORDER BY created_at ASC
+
                 LIMIT 1
                 `,
-                [fileId]
+                [
+                    fileId
+                ]
             );
 
         return (
@@ -427,13 +854,16 @@ export class LibraryRepository {
             await this.pool.query(
                 `
                 SELECT *
+
                 FROM library_items
 
                 WHERE archive_id = $1
 
                 LIMIT 1
                 `,
-                [archiveId]
+                [
+                    archiveId
+                ]
             );
 
         return (
@@ -458,6 +888,7 @@ export class LibraryRepository {
             await this.pool.query(
                 `
                 SELECT *
+
                 FROM library_items
 
                 WHERE
@@ -467,14 +898,18 @@ export class LibraryRepository {
                 ORDER BY created_at DESC
 
                 LIMIT $2
+
                 OFFSET $3
                 `,
                 [
-                    `%${genre}%`,
+                    `%${genre.trim()}%`,
 
                     Math.max(
                         1,
-                        Math.min(limit, 100)
+                        Math.min(
+                            limit,
+                            100
+                        )
                     ),
 
                     Math.max(
@@ -502,6 +937,7 @@ export class LibraryRepository {
             await this.pool.query(
                 `
                 SELECT *
+
                 FROM library_items
 
                 WHERE type = 'MOVIE'
@@ -509,12 +945,16 @@ export class LibraryRepository {
                 ORDER BY created_at DESC
 
                 LIMIT $1
+
                 OFFSET $2
                 `,
                 [
                     Math.max(
                         1,
-                        Math.min(limit, 100)
+                        Math.min(
+                            limit,
+                            100
+                        )
                     ),
 
                     Math.max(
@@ -542,6 +982,7 @@ export class LibraryRepository {
             await this.pool.query(
                 `
                 SELECT *
+
                 FROM library_items
 
                 WHERE type = 'SERIES'
@@ -549,12 +990,16 @@ export class LibraryRepository {
                 ORDER BY created_at DESC
 
                 LIMIT $1
+
                 OFFSET $2
                 `,
                 [
                     Math.max(
                         1,
-                        Math.min(limit, 100)
+                        Math.min(
+                            limit,
+                            100
+                        )
                     ),
 
                     Math.max(
@@ -581,17 +1026,23 @@ export class LibraryRepository {
             await this.pool.query(
                 `
                 SELECT *
+
                 FROM library_items
 
-                ORDER BY views DESC,
-                         created_at DESC
+                ORDER BY
+                    views DESC,
+
+                    created_at DESC
 
                 LIMIT $1
                 `,
                 [
                     Math.max(
                         1,
-                        Math.min(limit, 100)
+                        Math.min(
+                            limit,
+                            100
+                        )
                     )
                 ]
             );
@@ -613,12 +1064,18 @@ export class LibraryRepository {
             `
             UPDATE library_items
 
-            SET views =
-                COALESCE(views, 0) + 1
+            SET
+                views =
+                    COALESCE(
+                        views,
+                        0
+                    ) + 1
 
             WHERE id = $1
             `,
-            [id]
+            [
+                id
+            ]
         );
     }
 
@@ -637,17 +1094,20 @@ export class LibraryRepository {
                 `
                 UPDATE library_items
 
-                SET is_favorite =
-                    NOT COALESCE(
-                        is_favorite,
-                        FALSE
-                    )
+                SET
+                    is_favorite =
+                        NOT COALESCE(
+                            is_favorite,
+                            FALSE
+                        )
 
                 WHERE id = $1
 
                 RETURNING is_favorite
                 `,
-                [id]
+                [
+                    id
+                ]
             );
 
         return (
@@ -670,6 +1130,7 @@ export class LibraryRepository {
             await this.pool.query(
                 `
                 SELECT *
+
                 FROM library_items
 
                 WHERE is_favorite = TRUE
@@ -681,7 +1142,10 @@ export class LibraryRepository {
                 [
                     Math.max(
                         1,
-                        Math.min(limit, 100)
+                        Math.min(
+                            limit,
+                            100
+                        )
                     )
                 ]
             );
@@ -699,42 +1163,160 @@ export class LibraryRepository {
 
         await this.initialize();
 
-        if (type) {
+        if (
+            type
+        ) {
 
             const result =
                 await this.pool.query(
                     `
-                    SELECT COUNT(*)::integer AS count
+                    SELECT
+                        COUNT(*)::integer
+                        AS count
 
                     FROM library_items
 
                     WHERE type = $1
                     `,
-                    [type]
+                    [
+                        type
+                    ]
                 );
 
-            return result.rows[0]?.count || 0;
+            return (
+                result.rows[0]?.count ||
+                0
+            );
         }
 
         const result =
             await this.pool.query(
                 `
-                SELECT COUNT(*)::integer AS count
+                SELECT
+                    COUNT(*)::integer
+                    AS count
 
                 FROM library_items
                 `
             );
 
-        return result.rows[0]?.count || 0;
+        return (
+            result.rows[0]?.count ||
+            0
+        );
     }
 
     // =========================================================================
-    // CLOSE
+    // UPDATE TELEGRAM ROUTING
+    // =========================================================================
+
+    public static async updateTelegramRouting(
+        fileId: string,
+        telegramChatId?: string,
+        topicId?: number
+    ): Promise<void> {
+
+        await this.initialize();
+
+        await this.pool.query(
+            `
+            UPDATE library_items
+
+            SET
+
+                telegram_chat_id =
+                    COALESCE(
+                        $1,
+                        telegram_chat_id
+                    ),
+
+                topic_id =
+                    COALESCE(
+                        $2,
+                        topic_id
+                    )
+
+            WHERE file_id = $3
+            `,
+            [
+                telegramChatId ||
+                    null,
+
+                topicId ||
+                    null,
+
+                fileId
+            ]
+        );
+    }
+
+    // =========================================================================
+    // UPDATE ARCHIVE ID
+    // =========================================================================
+
+    public static async updateArchiveId(
+        fileId: string,
+        archiveId: string
+    ): Promise<void> {
+
+        await this.initialize();
+
+        await this.pool.query(
+            `
+            UPDATE library_items
+
+            SET archive_id = $1
+
+            WHERE file_id = $2
+            `,
+            [
+                archiveId,
+
+                fileId
+            ]
+        );
+    }
+
+    // =========================================================================
+    // DELETE BY FILE ID
+    // =========================================================================
+
+    public static async deleteByFileId(
+        fileId: string
+    ): Promise<boolean> {
+
+        await this.initialize();
+
+        const result =
+            await this.pool.query(
+                `
+                DELETE FROM library_items
+
+                WHERE file_id = $1
+
+                RETURNING id
+                `,
+                [
+                    fileId
+                ]
+            );
+
+        return (
+            result.rowCount !== null &&
+            result.rowCount > 0
+        );
+    }
+
+    // =========================================================================
+    // CLOSE DATABASE
     // =========================================================================
 
     public static async close(): Promise<void> {
 
         await this.pool.end();
+
+        this.initialized =
+            false;
 
         console.log(
             "💾 LibraryRepository Verbindung geschlossen."
