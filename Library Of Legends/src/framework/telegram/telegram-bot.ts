@@ -47,6 +47,8 @@ import { TMDBClient } from "../../infrastructure/api/tmdb/tmdb-client";
 import { LibraryId } from "../../domain/library/library-id";
 import { LibraryRepository } from "../../infrastructure/database/library-repository";
 
+import { registerSearchCommand } from "./commands/search-command";
+
 /**
  * Telegram Bot
  */
