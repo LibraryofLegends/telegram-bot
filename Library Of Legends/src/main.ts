@@ -20,7 +20,7 @@ File................: main.ts
 Location............
 Library Of Legends/src/
 
-Version.............: 2.3.0
+Version.............: 2.3.1
 
 Status..............: Core
 
@@ -152,8 +152,13 @@ const server = http.createServer(
         res.end(
             "🚀 Library Of Legends Bot läuft"
         );
+
     }
 );
+
+// =========================================================================
+// HTTP SERVER ERROR
+// =========================================================================
 
 server.on(
     "error",
@@ -166,6 +171,10 @@ server.on(
 
     }
 );
+
+// =========================================================================
+// START HTTP SERVER
+// =========================================================================
 
 server.listen(
     PORT,
@@ -211,10 +220,8 @@ process.once(
     () => {
 
         console.log(
-            "🛑 SIGINT erhalten – Bot wird beendet..."
+            "🛑 SIGINT erhalten – Server wird beendet..."
         );
-
-        bot.stop("SIGINT");
 
         server.close(
             () => {
@@ -224,6 +231,7 @@ process.once(
                 );
 
                 process.exit(0);
+
             }
         );
 
@@ -235,10 +243,8 @@ process.once(
     () => {
 
         console.log(
-            "🛑 SIGTERM erhalten – Bot wird beendet..."
+            "🛑 SIGTERM erhalten – Server wird beendet..."
         );
-
-        bot.stop("SIGTERM");
 
         server.close(
             () => {
@@ -248,6 +254,7 @@ process.once(
                 );
 
                 process.exit(0);
+
             }
         );
 
