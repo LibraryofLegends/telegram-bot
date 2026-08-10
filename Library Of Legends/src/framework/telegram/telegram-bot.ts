@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 1.0.0
+Version.............: 1.1.0
 
 Status..............: Core
 
@@ -28,8 +28,7 @@ Lifecycle...........: Development
 
 Description.........
 
-Telegram Bot integration using Telegraf.
-Automatically parses media files and posts formatted output.
+Telegram Bot with admin protection and channel auto post system.
 
 ===============================================================================
 */
@@ -46,50 +45,93 @@ export class TelegramBot {
 
     private bot: Telegraf;
 
+    private adminIds: number[];
+    private movieChannelId: string;
+
     public constructor(token: string) {
+
         this.bot = new Telegraf(token);
+
+        // =========================================================================
+        // ENV CONFIG
+        // =========================================================================
+
+        this.adminIds = (process.env.ADMIN_IDS || "")
+            .split(",")
+            .map(id => Number(id.trim()))
+            .filter(id => !isNaN(id));
+
+        this.movieChannelId = process.env.MOVIE_GROUP_ID || "";
+
         this.setup();
+
     }
 
     private setup(): void {
 
         // =========================================================================
-        // START COMMAND
+        // START
         // =========================================================================
 
         this.bot.start((ctx) => {
-            ctx.reply("🚀 Library Of Legends Bot ist aktiv.");
+            ctx.reply("🚀 Library Of Legends Bot aktiv.");
         });
 
         // =========================================================================
-        // FILE HANDLER (AUTO PARSE)
+        // DOCUMENT HANDLER (AUTO POST)
         // =========================================================================
 
         this.bot.on("document", async (ctx) => {
+
+            const userId = ctx.from?.id;
+
+            // ❌ Nur Admin darf posten
+            if (!userId || !this.adminIds.includes(userId)) {
+                return;
+            }
 
             const file = ctx.message.document;
             const fileName = file.file_name;
 
             if (!fileName) {
-                return ctx.reply("❌ Datei hat keinen Namen.");
+                return ctx.reply("❌ Datei ohne Namen.");
             }
 
             try {
 
-                // Parse Media
+                // =========================================================================
+                // PARSE
+                // =========================================================================
+
                 const media = MediaParser.parse(fileName);
 
-                // Build Post
+                // =========================================================================
+                // BUILD POST
+                // =========================================================================
+
                 const post = TelegramPostBuilder.build(media, fileName);
 
-                // Send Result
-                await ctx.reply(post);
+                // =========================================================================
+                // SEND TO CHANNEL 🔥
+                // =========================================================================
+
+                if (!this.movieChannelId) {
+                    throw new Error("MOVIE_GROUP_ID fehlt");
+                }
+
+                await this.bot.telegram.sendMessage(
+                    this.movieChannelId,
+                    post
+                );
+
+                // Optional Feedback
+                await ctx.reply("✅ Film wurde gepostet.");
 
             } catch (error) {
 
                 console.error(error);
 
-                await ctx.reply("❌ Fehler beim Verarbeiten der Datei.");
+                await ctx.reply("❌ Fehler beim Posten.");
 
             }
 
@@ -99,7 +141,7 @@ export class TelegramBot {
 
     public launch(): void {
         this.bot.launch();
-        console.log("🤖 Telegram Bot gestartet");
+        console.log("🤖 Telegram Bot gestartet (Auto Post aktiv)");
     }
 
 }
