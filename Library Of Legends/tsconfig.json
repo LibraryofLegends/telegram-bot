@@ -1,31 +1,37 @@
 {
-  "$schema": "https://json.schemastore.org/tsconfig",
-
-  "extends": "./tsconfig.base.json",
-
   "compilerOptions": {
-    "composite": false,
+    /* ============================================================= */
+    /* BASIC SETTINGS                                                */
+    /* ============================================================= */
+    "target": "ES2022",
+    "module": "CommonJS",
+    "rootDir": "src",
+    "outDir": "dist",
 
-    "baseUrl": ".",
+    /* ============================================================= */
+    /* NODE COMPATIBILITY                                            */
+    /* ============================================================= */
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
 
-    "types": [
-      "node"
-    ]
+    /* ============================================================= */
+    /* STRICTNESS                                                    */
+    /* ============================================================= */
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* ============================================================= */
+    /* OUTPUT CLEAN                                                  */
+    /* ============================================================= */
+    "removeComments": true,
+    "sourceMap": false
   },
 
-  "include": [
-    "applications/**/*",
-    "framework/**/*",
-    "providers/**/*",
-    "features/**/*",
-    "packages/**/*",
-    "tools/**/*",
-    "tests/**/*"
-  ],
-
-  "exclude": [
-    "node_modules",
-    "dist",
-    "coverage"
-  ]
+  /* ============================================================= */
+  /* INCLUDE / EXCLUDE                                              */
+  /* ============================================================= */
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
 }
