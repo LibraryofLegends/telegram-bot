@@ -7,48 +7,71 @@
 
 Component...........: Main
 
-Architecture Layer..: Entry Point
+Architecture Layer..: Application
 
-Module..............: Bootstrap
+Module..............: Core
 
-Module ID...........: LOL-MOD-MAIN-0001
+Module ID...........: LOL-MOD-CORE-0001
 
 LOL-ID..............: LOL-MAIN-0001
 
 File................: main.ts
 
+Location............
+Library Of Legends/src/
+
+Version.............: 2.2.0
+
+Status..............: Core
+
+Lifecycle...........: Production
+
+Description.........
+
+Application entry point.
+Initializes Telegram Bot and starts HTTP keep-alive server
+for Render deployment compatibility.
+
 ===============================================================================
 */
 
 import { TelegramBot } from "./framework/telegram/telegram-bot";
-import http from "http";
+import * as http from "http";
 
-/**
- * Bootstrap Application
- */
-function bootstrap(): void {
+// =========================================================================
+// ENVIRONMENT
+// =========================================================================
 
-    const token = process.env.TOKEN;
+const TOKEN = process.env.TOKEN || "";
 
-    if (!token) {
-        throw new Error("❌ TOKEN fehlt in Environment Variables");
-    }
-
-    const bot = new TelegramBot(token);
-    bot.launch();
-
-    console.log("🤖 Bot gestartet (TMDB aktiv)");
-
-    // 🔥 WICHTIG: Fake Web Server für Render
-    const port = process.env.PORT || 3000;
-
-    http.createServer((req, res) => {
-        res.writeHead(200);
-        res.end("Library Of Legends Bot läuft 🚀");
-    }).listen(port, () => {
-        console.log(`🌐 Webserver läuft auf Port ${port}`);
-    });
-
+if (!TOKEN) {
+    console.error("❌ Kein BOT TOKEN gesetzt!");
+    process.exit(1);
 }
 
-bootstrap();
+// =========================================================================
+// BOT INITIALIZATION
+// =========================================================================
+
+const bot = new TelegramBot(TOKEN);
+bot.launch();
+
+// =========================================================================
+// KEEP-ALIVE SERVER (RENDER FIX)
+// =========================================================================
+
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
+    res.write("🚀 Library Of Legends Bot läuft");
+    res.end();
+}).listen(PORT, () => {
+    console.log(`🌐 Server läuft auf Port ${PORT}`);
+});
+
+// =========================================================================
+// START LOG
+// =========================================================================
+
+console.log("🤖 Bot gestartet (FULL SYSTEM)");
+console.log("🚀 Library Of Legends gestartet");
