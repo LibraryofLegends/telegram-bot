@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 2.5.0
+Version.............: 2.6.0
 
 Status..............: Core
 
@@ -33,7 +33,8 @@ Telegram Bot with:
 - TMDB integration
 - Channel routing (Movies / Series)
 - Database persistence (PostgreSQL)
-- /find command (search system)
+- /find command with interactive buttons
+- Callback system (Download vorbereitet)
 
 ===============================================================================
 */
@@ -97,7 +98,36 @@ export class TelegramBot {
 
             const result = await FindCommand.execute(query);
 
-            await ctx.reply(result);
+            await ctx.reply(result.text, {
+                reply_markup: {
+                    inline_keyboard: result.buttons
+                }
+            });
+
+        });
+
+        // =========================================================================
+        // CALLBACK HANDLER 🔥
+        // =========================================================================
+        this.bot.on("callback_query", async (ctx) => {
+
+            const data = (ctx.callbackQuery as any).data;
+
+            if (!data) return;
+
+            // DOWNLOAD BUTTON
+            if (data.startsWith("download_")) {
+
+                const id = data.replace("download_", "");
+
+                await ctx.answerCbQuery("📥 Download Feature kommt gleich 😉");
+
+                console.log("Download requested for ID:", id);
+
+                // 👉 Nächster Step:
+                // DB → Datei holen → Telegram senden
+
+            }
 
         });
 
@@ -239,7 +269,7 @@ export class TelegramBot {
      */
     public launch(): void {
         this.bot.launch();
-        console.log("🤖 Bot gestartet (FULL SYSTEM)");
+        console.log("🤖 Bot gestartet (FULL SYSTEM + BUTTONS)");
     }
 
 }
