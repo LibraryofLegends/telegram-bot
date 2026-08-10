@@ -7,68 +7,56 @@
 
 Component...........: Main
 
-Architecture Layer..: Application
+Architecture Layer..: Entry Point
 
-Module..............: Core
+Module..............: Bootstrap
 
-Module ID...........: LOL-MOD-CORE-0001
+Module ID...........: LOL-MOD-MAIN-0001
 
-LOL-ID..............: LOL-CORE-0001
+LOL-ID..............: LOL-MAIN-0001
 
 File................: main.ts
 
 Location............
 Library Of Legends/src/
 
-Version.............: 1.2.0
+Version.............: 1.1.0
 
 Status..............: Core
 
-Lifecycle...........: Development
+Lifecycle...........: Production Ready
 
 Description.........
 
 Application entry point.
-Initializes and starts the Telegram bot using Render environment configuration.
+Bootstraps the Telegram Bot using environment variables.
+
+(⚠️ dotenv entfernt – Render nutzt direkte ENV Variablen)
 
 ===============================================================================
 */
 
-import "dotenv/config";
-
 import { TelegramBot } from "./framework/telegram/telegram-bot";
 
 /**
- * Application bootstrap.
+ * Bootstrap Application
  */
 function bootstrap(): void {
-
-    // =========================================================================
-    // CONFIGURATION
-    // =========================================================================
 
     const token = process.env.TOKEN;
 
     if (!token) {
-        throw new Error("❌ TOKEN is not defined in environment variables");
+        throw new Error("❌ TOKEN fehlt in Environment Variables");
     }
-
-    // =========================================================================
-    // BOT INITIALIZATION
-    // =========================================================================
 
     const bot = new TelegramBot(token);
 
-    // =========================================================================
-    // START APPLICATION
-    // =========================================================================
-
     bot.launch();
 
+    console.log("🚀 Library Of Legends gestartet");
 }
 
-// =========================================================================
-// EXECUTION
-// =========================================================================
-
+/**
+ * Start App
+ */
 bootstrap();
