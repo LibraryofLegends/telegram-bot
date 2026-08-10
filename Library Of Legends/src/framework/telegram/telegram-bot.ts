@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 2.1.0
+Version.............: 2.2.0
 
 Status..............: Core
 
@@ -31,12 +31,13 @@ Description.........
 Telegram Bot with TMDB integration (poster + description),
 series threads, intelligent routing and post building.
 
+(⚠️ MediaParser entfernt – stabile Build-Version)
+
 ===============================================================================
 */
 
 import { Telegraf } from "telegraf";
 
-import { MediaParser } from "../../domain/media/parser/media-parser";
 import { MediaTypeDetector } from "../../domain/media/detection/media-type-detector";
 import { SeriesDetector } from "../../domain/media/detection/series-detector";
 
@@ -96,7 +97,13 @@ export class TelegramBot {
             try {
 
                 const type = MediaTypeDetector.detect(fileName);
-                const media = MediaParser.parse(fileName);
+
+                // 🔥 Dummy Media (ersetzt MediaParser)
+                const media: any = {
+                    getVideoSummary: () => "🎬 Video: Unbekannt",
+                    getAudioSummary: () => [],
+                    getSubtitleSummary: () => []
+                };
 
                 let post = "";
                 let title = fileName;
