@@ -20,9 +20,9 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 4.0.0
+Version.............: 5.0.0
 
-Status..............: FULL SYSTEM (UI + FILE-ID + DATABASE)
+Status..............: FULL SYSTEM (PAGINATION UI)
 
 Lifecycle...........: Production
 
@@ -30,10 +30,10 @@ Description.........
 
 Telegram Bot with:
 - File Upload Detection
-- Auto Save to Database
+- Database Storage (file_id)
 - Search System (/find)
-- File-ID Playback System
-- Netflix Style UI (Buttons + Navigation)
+- Netflix UI
+- Pagination System
 
 ===============================================================================
 */
@@ -62,7 +62,7 @@ export class TelegramBot {
     private setup(): void {
 
         // =========================================================================
-        // START MENU (UI)
+        // START MENU
         // =========================================================================
 
         this.bot.start((ctx) => {
@@ -80,43 +80,39 @@ export class TelegramBot {
         });
 
         // =========================================================================
-        // SEARCH COMMAND (/find)
+        // SEARCH
         // =========================================================================
 
         SearchCommand.register(this.bot);
 
         // =========================================================================
-        // MOVIES BUTTON (UI)
+        // MOVIES LIST (PAGE 1)
         // =========================================================================
 
         this.bot.hears("🎬 Filme", async (ctx) => {
+            await this.sendMoviePage(ctx, 0);
+        });
 
-            const movies = await LibraryRepository.search("");
+        // =========================================================================
+        // PAGINATION BUTTONS
+        // =========================================================================
 
-            if (movies.length === 0) {
-                return ctx.reply("❌ Keine Filme vorhanden.");
-            }
+        this.bot.action(/page_(\d+)/, async (ctx) => {
 
-            const buttons = movies.map((movie) => [
-                Markup.button.callback(movie.title, `movie_${movie.id}`)
-            ]);
-
-            await ctx.reply(
-                "🎬 Filme auswählen:",
-                Markup.inlineKeyboard(buttons)
-            );
+            const page = Number(ctx.match[1]);
+            await this.sendMoviePage(ctx, page);
 
         });
 
         // =========================================================================
-        // MOVIE CLICK (SEND FILE)
+        // MOVIE CLICK
         // =========================================================================
 
         this.bot.action(/movie_(.+)/, async (ctx) => {
 
             const id = ctx.match[1];
 
-            const results = await LibraryRepository.search("");
+            const results = await LibraryRepository.getAll(100, 0);
             const movie = results.find(m => String(m.id) === String(id));
 
             if (!movie) {
@@ -130,7 +126,7 @@ export class TelegramBot {
         });
 
         // =========================================================================
-        // FILE UPLOAD (ADMIN ONLY)
+        // FILE UPLOAD
         // =========================================================================
 
         this.bot.on("document", async (ctx) => {
@@ -160,12 +156,12 @@ export class TelegramBot {
                     fileId
                 );
 
-                await ctx.reply("✅ Datei verarbeitet & gespeichert!");
+                await ctx.reply("✅ Datei gespeichert!");
 
             } catch (error) {
 
                 console.error(error);
-                await ctx.reply("❌ Fehler beim Speichern.");
+                await ctx.reply("❌ Fehler.");
 
             }
 
@@ -173,9 +169,49 @@ export class TelegramBot {
 
     }
 
+    // =========================================================================
+    // PAGINATION FUNCTION 🔥
+    // =========================================================================
+
+    private async sendMoviePage(ctx: any, page: number) {
+
+        const limit = 5;
+        const offset = page * limit;
+
+        const movies = await LibraryRepository.getAll(limit, offset);
+
+        if (movies.length === 0) {
+            return ctx.reply("❌ Keine weiteren Filme.");
+        }
+
+        const buttons = movies.map((movie) => [
+            Markup.button.callback(movie.title, `movie_${movie.id}`)
+        ]);
+
+        // Navigation
+        const nav = [];
+
+        if (page > 0) {
+            nav.push(Markup.button.callback("⬅️ Zurück", `page_${page - 1}`));
+        }
+
+        if (movies.length === limit) {
+            nav.push(Markup.button.callback("➡️ Weiter", `page_${page + 1}`));
+        }
+
+        await ctx.reply(
+            `🎬 Filme (Seite ${page + 1})`,
+            Markup.inlineKeyboard([
+                ...buttons,
+                nav
+            ])
+        );
+
+    }
+
     public launch(): void {
         this.bot.launch();
-        console.log("🤖 Bot gestartet (FULL SYSTEM + UI)");
+        console.log("🤖 Bot gestartet (PAGINATION SYSTEM)");
     }
 
 }
