@@ -28,21 +28,16 @@ Lifecycle...........: Development
 
 Description.........
 
-Handles persistent storage of library items and ID generation
-using PostgreSQL (Supabase compatible).
+Handles persistence of Library Items using PostgreSQL.
 
 ===============================================================================
 */
 
 import { Pool } from "pg";
+import { LibraryItem } from "../../domain/library/library-item";
 
 /**
- * Library Types
- */
-export type LibraryType = "MOVIE" | "SERIES";
-
-/**
- * Database Pool
+ * Database Connection Pool
  */
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL
@@ -54,69 +49,83 @@ const pool = new Pool({
 export class LibraryRepository {
 
     /**
-     * Get next Library ID from DB
+     * Initialize table
      */
-    public static async getNextId(type: LibraryType): Promise<string> {
+    public static async init(): Promise<void> {
 
-        const client = await pool.connect();
-
-        try {
-
-            await client.query("BEGIN");
-
-            // =========================================================================
-            // LOCK ROW
-            // =========================================================================
-
-            const res = await client.query(
-                `SELECT counter FROM library_counters WHERE type = $1 FOR UPDATE`,
-                [type]
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS library (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                type TEXT NOT NULL,
+                file_name TEXT NOT NULL,
+                created_at TIMESTAMP NOT NULL
             );
-
-            let counter = 1;
-
-            if (res.rows.length > 0) {
-                counter = res.rows[0].counter + 1;
-
-                await client.query(
-                    `UPDATE library_counters SET counter = $1 WHERE type = $2`,
-                    [counter, type]
-                );
-
-            } else {
-
-                await client.query(
-                    `INSERT INTO library_counters (type, counter) VALUES ($1, $2)`,
-                    [type, counter]
-                );
-
-            }
-
-            await client.query("COMMIT");
-
-            return this.format(type, counter);
-
-        } catch (error) {
-
-            await client.query("ROLLBACK");
-            throw error;
-
-        } finally {
-
-            client.release();
-
-        }
+        `);
 
     }
 
     /**
-     * Format ID
+     * Save item
      */
-    private static format(type: LibraryType, num: number): string {
+    public static async save(item: LibraryItem): Promise<void> {
 
-        const prefix = type === "MOVIE" ? "MOV" : "SER";
+        await pool.query(
+            `
+            INSERT INTO library (id, title, type, file_name, created_at)
+            VALUES ($1, $2, $3, $4, $5)
+            `,
+            [
+                item.id,
+                item.title,
+                item.type,
+                item.fileName,
+                item.createdAt
+            ]
+        );
 
-        return `LIB-${prefix}-${num.toString().padStart(4, "0")}`;
+    }
+
+    /**
+     * Get all items
+     */
+    public static async getAll(): Promise<LibraryItem[]> {
+
+        const result = await pool.query(`SELECT * FROM library ORDER BY created_at DESC`);
+
+        return result.rows.map(row => ({
+            id: row.id,
+            title: row.title,
+            type: row.type,
+            fileName: row.file_name,
+            createdAt: new Date(row.created_at)
+        }));
+
+    }
+
+    /**
+     * Find by ID
+     */
+    public static async findById(id: string): Promise<LibraryItem | null> {
+
+        const result = await pool.query(
+            `SELECT * FROM library WHERE id = $1 LIMIT 1`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return null;
+        }
+
+        const row = result.rows[0];
+
+        return {
+            id: row.id,
+            title: row.title,
+            type: row.type,
+            fileName: row.file_name,
+            createdAt: new Date(row.created_at)
+        };
 
     }
 
