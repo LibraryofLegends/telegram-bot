@@ -11,7 +11,7 @@ Architecture Layer..: Infrastructure
 
 Module..............: Database
 
-Module ID...........: LOL-MOD-DB-0003
+Module ID...........: LOL-MOD-DB-0002
 
 LOL-ID..............: LOL-DB-TOPIC-0001
 
@@ -20,162 +20,288 @@ File................: topic-repository.ts
 Location............
 Library Of Legends/src/infrastructure/database/
 
-Version.............: 1.0.0
+Version.............: 4.0.0
 
-Status..............: Core
+Status..............: STABLE
 
-Lifecycle...........: Development
+Lifecycle...........: Production Ready
 
 Description.........
 
-Persistent storage for Telegram forum topics.
+PostgreSQL Topic Repository for Library Of Legends.
 
 Responsibilities:
 
-- Store series topics in database
-- Retrieve topics by chat + normalized name
-- Prevent duplicate topics (DB-level)
-- Restore topics after bot restart
-- Provide fast lookup for TopicManager
-- Keep database logic isolated from application layer
-
-Database:
-
-SQLite (better-sqlite3)
-
-Table:
-
-series_topics
+- Persist Telegram forum topics
+- Prevent duplicate topics per chat
+- Store normalized names
+- Provide fast lookup (chat + series)
+- Provide thread ID mapping
+- Provide statistics
+- Handle migrations automatically
 
 ===============================================================================
 */
 
-import Database from "better-sqlite3";
+import { Pool } from "pg";
 
-const db = new Database("library.db");
+// ============================================================================
+// TYPES
+// ============================================================================
 
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS series_topics (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        chat_id TEXT NOT NULL,
-        normalized_name TEXT NOT NULL,
-        topic_name TEXT NOT NULL,
-        message_thread_id INTEGER NOT NULL,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
+export interface TopicEntity {
 
-        UNIQUE(chat_id, normalized_name)
-    )
-`).run();
+    id: string;
+
+    chat_id: string;
+
+    name: string;
+
+    normalized_name: string;
+
+    message_thread_id: number;
+
+    created_at: Date;
+}
+
+// ============================================================================
+// CLASS
+// ============================================================================
 
 export class TopicRepository {
 
-    public static find(chatId: string, normalizedName: string): any | undefined {
-        try {
-            return db.prepare(`
-                SELECT *
-                FROM series_topics
-                WHERE chat_id = ?
-                AND normalized_name = ?
-            `).get(chatId, normalizedName);
-        } catch (error) {
-            console.error("❌ TopicRepository.find Fehler:", error);
-            return undefined;
-        }
-    }
+    private static pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+    });
 
-    public static save(
-        chatId: string,
-        normalizedName: string,
-        topicName: string,
-        messageThreadId: number
-    ): void {
+    private static initialized = false;
 
-        const now = Date.now();
+    // =========================================================================
+    // INIT
+    // =========================================================================
 
-        try {
-            db.prepare(`
-                INSERT INTO series_topics (
-                    chat_id,
-                    normalized_name,
-                    topic_name,
-                    message_thread_id,
-                    created_at,
-                    updated_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(chat_id, normalized_name)
-                DO UPDATE SET
-                    topic_name = excluded.topic_name,
-                    message_thread_id = excluded.message_thread_id,
-                    updated_at = excluded.updated_at
-            `).run(
-                chatId,
-                normalizedName,
-                topicName,
-                messageThreadId,
-                now,
-                now
+    public static async init(): Promise<void> {
+
+        if (this.initialized) return;
+
+        await this.pool.query(`
+            CREATE EXTENSION IF NOT EXISTS pgcrypto;
+        `);
+
+        await this.pool.query(`
+            CREATE TABLE IF NOT EXISTS topics (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+                chat_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                normalized_name TEXT NOT NULL,
+                message_thread_id INTEGER NOT NULL,
+
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+
+                UNIQUE(chat_id, normalized_name)
             );
-        } catch (error) {
-            console.error("❌ TopicRepository.save Fehler:", error);
-        }
+        `);
+
+        await this.pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_topics_chat
+            ON topics(chat_id);
+        `);
+
+        console.log("📌 Topic DB bereit.");
+        this.initialized = true;
     }
 
-    public static remove(chatId: string, normalizedName: string): boolean {
-        try {
-            const result = db.prepare(`
-                DELETE FROM series_topics
-                WHERE chat_id = ?
-                AND normalized_name = ?
-            `).run(chatId, normalizedName);
+    // =========================================================================
+    // SAVE / UPSERT
+    // =========================================================================
 
-            return result.changes > 0;
-        } catch (error) {
-            console.error("❌ TopicRepository.remove Fehler:", error);
-            return false;
-        }
+    public static async save(
+        chatId: string,
+        name: string,
+        normalizedName: string,
+        threadId: number
+    ): Promise<void> {
+
+        await this.init();
+
+        await this.pool.query(`
+            INSERT INTO topics (
+                chat_id,
+                name,
+                normalized_name,
+                message_thread_id
+            )
+            VALUES ($1,$2,$3,$4)
+            ON CONFLICT (chat_id, normalized_name)
+            DO UPDATE SET
+                name = EXCLUDED.name,
+                message_thread_id = EXCLUDED.message_thread_id
+        `, [
+            chatId,
+            name,
+            normalizedName,
+            threadId
+        ]);
+
+        console.log("📌 Topic gespeichert/aktualisiert.");
     }
 
-    public static getAllForChat(chatId: string): any[] {
-        try {
-            return db.prepare(`
-                SELECT *
-                FROM series_topics
-                WHERE chat_id = ?
-                ORDER BY topic_name ASC
-            `).all(chatId);
-        } catch (error) {
-            console.error("❌ TopicRepository.getAllForChat Fehler:", error);
-            return [];
-        }
+    // =========================================================================
+    // FIND BY SERIES
+    // =========================================================================
+
+    public static async find(
+        chatId: string,
+        normalizedName: string
+    ): Promise<TopicEntity | undefined> {
+
+        await this.init();
+
+        const result = await this.pool.query(`
+            SELECT * FROM topics
+            WHERE chat_id = $1
+            AND normalized_name = $2
+            LIMIT 1
+        `, [chatId, normalizedName]);
+
+        return result.rows[0];
     }
 
-    public static count(): number {
-        try {
-            const result = db.prepare(`
-                SELECT COUNT(*) as count
-                FROM series_topics
-            `).get();
+    // =========================================================================
+    // FIND BY THREAD ID
+    // =========================================================================
 
-            return result?.count || 0;
-        } catch (error) {
-            console.error("❌ TopicRepository.count Fehler:", error);
-            return 0;
-        }
+    public static async findByThreadId(
+        chatId: string,
+        threadId: number
+    ): Promise<TopicEntity | undefined> {
+
+        await this.init();
+
+        const result = await this.pool.query(`
+            SELECT * FROM topics
+            WHERE chat_id = $1
+            AND message_thread_id = $2
+            LIMIT 1
+        `, [chatId, threadId]);
+
+        return result.rows[0];
     }
 
-    public static clearChat(chatId: string): number {
-        try {
-            const result = db.prepare(`
-                DELETE FROM series_topics
-                WHERE chat_id = ?
-            `).run(chatId);
+    // =========================================================================
+    // GET ALL FOR CHAT
+    // =========================================================================
 
-            return result.changes || 0;
-        } catch (error) {
-            console.error("❌ TopicRepository.clearChat Fehler:", error);
-            return 0;
-        }
+    public static async getAllForChat(
+        chatId: string
+    ): Promise<TopicEntity[]> {
+
+        await this.init();
+
+        const result = await this.pool.query(`
+            SELECT * FROM topics
+            WHERE chat_id = $1
+            ORDER BY name ASC
+        `, [chatId]);
+
+        return result.rows;
+    }
+
+    // =========================================================================
+    // DELETE
+    // =========================================================================
+
+    public static async remove(
+        chatId: string,
+        normalizedName: string
+    ): Promise<boolean> {
+
+        await this.init();
+
+        const result = await this.pool.query(`
+            DELETE FROM topics
+            WHERE chat_id = $1
+            AND normalized_name = $2
+        `, [chatId, normalizedName]);
+
+        return result.rowCount > 0;
+    }
+
+    // =========================================================================
+    // CLEAR CHAT
+    // =========================================================================
+
+    public static async clearChat(
+        chatId: string
+    ): Promise<number> {
+
+        await this.init();
+
+        const result = await this.pool.query(`
+            DELETE FROM topics
+            WHERE chat_id = $1
+        `, [chatId]);
+
+        return result.rowCount ?? 0;
+    }
+
+    // =========================================================================
+    // COUNT ALL
+    // =========================================================================
+
+    public static async count(): Promise<number> {
+
+        await this.init();
+
+        const result = await this.pool.query(`
+            SELECT COUNT(*)::int AS count FROM topics
+        `);
+
+        return result.rows[0]?.count ?? 0;
+    }
+
+    // =========================================================================
+    // COUNT PER CHAT
+    // =========================================================================
+
+    public static async countForChat(
+        chatId: string
+    ): Promise<number> {
+
+        await this.init();
+
+        const result = await this.pool.query(`
+            SELECT COUNT(*)::int AS count
+            FROM topics
+            WHERE chat_id = $1
+        `, [chatId]);
+
+        return result.rows[0]?.count ?? 0;
+    }
+
+    // =========================================================================
+    // STATISTICS
+    // =========================================================================
+
+    public static async getStatistics(): Promise<{
+        total: number;
+        chats: number;
+    }> {
+
+        await this.init();
+
+        const total = await this.count();
+
+        const chatsResult = await this.pool.query(`
+            SELECT COUNT(DISTINCT chat_id)::int AS count
+            FROM topics
+        `);
+
+        return {
+            total,
+            chats: chatsResult.rows[0]?.count ?? 0
+        };
     }
 }
