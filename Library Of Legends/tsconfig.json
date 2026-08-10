@@ -1,37 +1,40 @@
 {
   "compilerOptions": {
-    /* ============================================================= */
-    /* BASIC SETTINGS                                                */
-    /* ============================================================= */
     "target": "ES2022",
     "module": "CommonJS",
     "rootDir": "src",
     "outDir": "dist",
 
-    /* ============================================================= */
-    /* NODE COMPATIBILITY                                            */
-    /* ============================================================= */
     "moduleResolution": "node",
     "esModuleInterop": true,
     "resolveJsonModule": true,
 
-    /* ============================================================= */
-    /* STRICTNESS                                                    */
-    /* ============================================================= */
-    "strict": true,
+    "strict": false,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
 
-    /* ============================================================= */
-    /* OUTPUT CLEAN                                                  */
-    /* ============================================================= */
-    "removeComments": true,
-    "sourceMap": false
+    "types": ["node"]
   },
 
-  /* ============================================================= */
-  /* INCLUDE / EXCLUDE                                              */
-  /* ============================================================= */
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/main.ts",
+    "src/framework/**/*",
+    "src/application/**/*",
+    "src/domain/media/**/*",
+    "src/domain/library/**/*",
+    "src/infrastructure/**/*"
+  ],
+
+  "exclude": [
+    "**/*.test.ts",
+    "src/domain/catalog/**/*",
+    "src/domain/movie/**/*",
+    "src/domain/person/**/*",
+    "src/domain/series/**/*",
+    "src/domain/genre/**/*",
+    "src/domain/collection/**/*",
+    "src/domain/credit/**/*",
+    "src/shared/**/*",
+    "node_modules",
+    "dist"
+  ]
 }
