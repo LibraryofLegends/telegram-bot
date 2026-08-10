@@ -20,7 +20,7 @@ File................: genre-detector.ts
 Location............
 Library Of Legends/src/domain/detection/
 
-Version.............: 2.0.0
+Version.............: 3.0.0
 
 Status..............: Core
 
@@ -32,10 +32,13 @@ Automatic genre detection for Library Of Legends.
 
 Responsibilities:
 
-- Detect genres from movie and series titles
-- Detect genres from keywords
-- Support German and English keywords
+- Detect genres from movie titles
+- Detect genres from series titles
+- Detect German keywords
+- Detect English keywords
 - Detect superhero content
+- Detect Marvel content
+- Detect DC content
 - Detect science-fiction content
 - Detect fantasy content
 - Detect horror and thriller content
@@ -44,10 +47,15 @@ Responsibilities:
 - Detect drama and romance content
 - Detect animation and anime
 - Detect documentary and biography
+- Detect western content
+- Detect war content
+- Detect historical content
+- Detect sports content
+- Detect kids content
+- Provide multiple genres
 - Provide a primary genre
 - Never return an empty genre list
-
-The detector is intentionally title-based.
+- Use a deterministic fallback
 
 TMDB metadata can later improve the result.
 
@@ -55,7 +63,8 @@ TMDB metadata can later improve the result.
 */
 
 import {
-    LibraryGenre
+    LibraryGenre,
+    normalizeLibraryGenre
 } from "./genre-detector-types";
 
 export {
@@ -63,9 +72,868 @@ export {
 } from "./genre-detector-types";
 
 /**
+ * Keyword rule.
+ */
+interface GenreRule {
+
+    genre: LibraryGenre;
+
+    keywords: string[];
+}
+
+/**
  * Genre detection engine.
  */
 export class GenreDetector {
+
+    // =========================================================================
+    // RULES
+    // =========================================================================
+
+    private static readonly RULES:
+        GenreRule[] = [
+
+        // =====================================================================
+        // SUPERHERO
+        // =====================================================================
+
+        {
+            genre:
+                "Superhelden",
+
+            keywords: [
+
+                "superman",
+                "batman",
+                "supergirl",
+                "wonder woman",
+                "wonderwoman",
+                "flash",
+                "the flash",
+                "green lantern",
+                "green arrow",
+                "aquaman",
+                "cyborg",
+                "justice league",
+                "justiceleague",
+                "avengers",
+                "avenger",
+                "iron man",
+                "ironman",
+                "captain america",
+                "thor",
+                "hulk",
+                "black widow",
+                "hawkeye",
+                "spider-man",
+                "spiderman",
+                "spider man",
+                "deadpool",
+                "wolverine",
+                "x-men",
+                "xmen",
+                "venom",
+                "guardians of the galaxy",
+                "guardians",
+                "ant-man",
+                "antman",
+                "doctor strange",
+                "black panther",
+                "shang-chi",
+                "eternals",
+                "marvel",
+                "dc comics",
+                "dc universe",
+                "comic book"
+            ]
+        },
+
+        // =====================================================================
+        // ACTION
+        // =====================================================================
+
+        {
+            genre:
+                "Action",
+
+            keywords: [
+
+                "action",
+                "kampf",
+                "kämpfer",
+                "agent",
+                "assassin",
+                "assassin's",
+                "attentat",
+                "bodyguard",
+                "soldat",
+                "soldaten",
+                "mercenary",
+                "söldner",
+                "police",
+                "polizist",
+                "cop",
+                "swat",
+                "cia",
+                "fbi",
+                "mi6",
+                "military",
+                "militär",
+                "warrior",
+                "krieger",
+                "gun",
+                "guns",
+                "waffe",
+                "waffen",
+                "explosion",
+                "explosions",
+                "heist",
+                "raid",
+                "revenge",
+                "rache",
+                "mission",
+                "chase",
+                "verfolgung",
+                "fast furious",
+                "fast & furious",
+                "john wick",
+                "mission impossible",
+                "bourne",
+                "rambo",
+                "terminator",
+                "die hard",
+                "stirb langsam"
+            ]
+        },
+
+        // =====================================================================
+        // ABENTEUER
+        // =====================================================================
+
+        {
+            genre:
+                "Abenteuer",
+
+            keywords: [
+
+                "abenteuer",
+                "adventure",
+                "treasure",
+                "schatz",
+                "expedition",
+                "expeditionen",
+                "jungle",
+                "dschungel",
+                "island",
+                "insel",
+                "pirate",
+                "pirates",
+                "pirat",
+                "piraten",
+                "explorer",
+                "entdecker",
+                "quest",
+                "reise",
+                "journey",
+                "voyage",
+                "lost world",
+                "unbekannte welt",
+                "jurassic park",
+                "jurassic world",
+                "indiana jones",
+                "tomb raider",
+                "uncharted",
+                "mummy",
+                "die mumie"
+            ]
+        },
+
+        // =====================================================================
+        // HORROR
+        // =====================================================================
+
+        {
+            genre:
+                "Horror",
+
+            keywords: [
+
+                "horror",
+                "terror",
+                "dämon",
+                "dämonen",
+                "demon",
+                "demons",
+                "devil",
+                "teufel",
+                "ghost",
+                "ghosts",
+                "geist",
+                "geister",
+                "haunted",
+                "spuk",
+                "spukhaus",
+                "haunted house",
+                "vampire",
+                "vampir",
+                "zombie",
+                "zombies",
+                "witch",
+                "witches",
+                "hexe",
+                "hexen",
+                "possession",
+                "besessen",
+                "exorcism",
+                "exorzismus",
+                "evil",
+                "böse",
+                "dead",
+                "toten",
+                "scream",
+                "conjuring",
+                "insidious",
+                "annabelle",
+                "halloween",
+                "saw",
+                "texas chainsaw",
+                "nightmare",
+                "alptraum"
+            ]
+        },
+
+        // =====================================================================
+        // THRILLER
+        // =====================================================================
+
+        {
+            genre:
+                "Thriller",
+
+            keywords: [
+
+                "thriller",
+                "psychothriller",
+                "psychological",
+                "psychologisch",
+                "serial killer",
+                "serienkiller",
+                "killer",
+                "mörder",
+                "murder",
+                "mord",
+                "hostage",
+                "geisel",
+                "kidnapping",
+                "entführung",
+                "conspiracy",
+                "verschwörung",
+                "suspense",
+                "stalker",
+                "stalking",
+                "survival",
+                "überleben",
+                "danger",
+                "gefahr",
+                "secret",
+                "geheimnis",
+                "no escape",
+                "escape",
+                "flucht"
+            ]
+        },
+
+        // =====================================================================
+        // SCI-FI
+        // =====================================================================
+
+        {
+            genre:
+                "Sci-Fi",
+
+            keywords: [
+
+                "sci-fi",
+                "sci fi",
+                "science fiction",
+                "sciencefiction",
+                "space",
+                "weltraum",
+                "galaxy",
+                "galaxie",
+                "planet",
+                "planeten",
+                "alien",
+                "aliens",
+                "extraterrestrial",
+                "android",
+                "androiden",
+                "robot",
+                "roboter",
+                "cyborg",
+                "future",
+                "zukunft",
+                "time travel",
+                "zeitreise",
+                "time machine",
+                "zeitmaschine",
+                "spaceship",
+                "raumschiff",
+                "star",
+                "stars",
+                "star wars",
+                "star trek",
+                "matrix",
+                "terminator",
+                "blade runner",
+                "avatar",
+                "dune",
+                "predator",
+                "alien",
+                "independence day"
+            ]
+        },
+
+        // =====================================================================
+        // FANTASY
+        // =====================================================================
+
+        {
+            genre:
+                "Fantasy",
+
+            keywords: [
+
+                "fantasy",
+                "magie",
+                "magic",
+                "magical",
+                "zauber",
+                "zauberer",
+                "wizard",
+                "witch",
+                "hexe",
+                "hexen",
+                "dragon",
+                "dragons",
+                "drache",
+                "drachen",
+                "elf",
+                "elfen",
+                "elfe",
+                "dwarf",
+                "zwerge",
+                "zwerg",
+                "kingdom",
+                "königreich",
+                "prinz",
+                "prinzessin",
+                "fairy",
+                "fee",
+                "feen",
+                "myth",
+                "mythology",
+                "mythologie",
+                "middle earth",
+                "mittelerde",
+                "lord of the rings",
+                "herr der ringe",
+                "hobbit",
+                "harry potter",
+                "fantastic beasts",
+                "narnia",
+                "game of thrones",
+                "house of the dragon"
+            ]
+        },
+
+        // =====================================================================
+        // DRAMA
+        // =====================================================================
+
+        {
+            genre:
+                "Drama",
+
+            keywords: [
+
+                "drama",
+                "dramatic",
+                "familie",
+                "family",
+                "leben",
+                "life",
+                "schicksal",
+                "fate",
+                "krieg",
+                "war",
+                "verlust",
+                "loss",
+                "trauer",
+                "grief",
+                "freundschaft",
+                "friendship",
+                "wahrheit",
+                "truth",
+                "geschichte",
+                "story",
+                "biopic"
+            ]
+        },
+
+        // =====================================================================
+        // ROMANTIK
+        // =====================================================================
+
+        {
+            genre:
+                "Romantik",
+
+            keywords: [
+
+                "romance",
+                "romantic",
+                "romantik",
+                "liebe",
+                "love",
+                "lover",
+                "lovers",
+                "hochzeit",
+                "wedding",
+                "bride",
+                "groom",
+                "verliebt",
+                "beziehung",
+                "relationship",
+                "kiss",
+                "kuss",
+                "valentine",
+                "valentinstag"
+            ]
+        },
+
+        // =====================================================================
+        // KOMÖDIE
+        // =====================================================================
+
+        {
+            genre:
+                "Komödie",
+
+            keywords: [
+
+                "comedy",
+                "komödie",
+                "komoedie",
+                "humor",
+                "funny",
+                "lustig",
+                "witzig",
+                "parodie",
+                "parody",
+                "satire",
+                "satire",
+                "prank",
+                "college",
+                "hangover",
+                "dumm",
+                "idiot",
+                "fools",
+                "buddy"
+            ]
+        },
+
+        // =====================================================================
+        // FAMILIE
+        // =====================================================================
+
+        {
+            genre:
+                "Familie",
+
+            keywords: [
+
+                "familie",
+                "family",
+                "familienfilm",
+                "family movie",
+                "family film",
+                "eltern",
+                "parents",
+                "kind",
+                "kinder",
+                "kids",
+                "siblings",
+                "geschwister",
+                "school",
+                "schule"
+            ]
+        },
+
+        // =====================================================================
+        // KRIMI
+        // =====================================================================
+
+        {
+            genre:
+                "Krimi",
+
+            keywords: [
+
+                "crime",
+                "krimi",
+                "criminal",
+                "verbrechen",
+                "detective",
+                "detektiv",
+                "detectives",
+                "police",
+                "polizei",
+                "cop",
+                "murder",
+                "mord",
+                "killer",
+                "mafioso",
+                "mafia",
+                "gangster",
+                "gang",
+                "drug",
+                "drogen",
+                "investigation",
+                "ermittlung",
+                "ermittler",
+                "forensic",
+                "forensik"
+            ]
+        },
+
+        // =====================================================================
+        // MYSTERY
+        // =====================================================================
+
+        {
+            genre:
+                "Mystery",
+
+            keywords: [
+
+                "mystery",
+                "rätsel",
+                "riddle",
+                "mysterious",
+                "geheimnis",
+                "secret",
+                "unknown",
+                "unbekannt",
+                "disappearance",
+                "verschwunden",
+                "verschwinden",
+                "strange",
+                "seltsam",
+                "paranormal",
+                "übernatürlich",
+                "supernatural"
+            ]
+        },
+
+        // =====================================================================
+        // ANIMATION
+        // =====================================================================
+
+        {
+            genre:
+                "Animation",
+
+            keywords: [
+
+                "animation",
+                "animated",
+                "zeichentrick",
+                "cartoon",
+                "animated movie",
+                "pixar",
+                "dreamworks",
+                "illumination",
+                "disney animation",
+                "stop motion",
+                "stop-motion"
+            ]
+        },
+
+        // =====================================================================
+        // ANIME
+        // =====================================================================
+
+        {
+            genre:
+                "Anime",
+
+            keywords: [
+
+                "anime",
+                "manga",
+                "japan animation",
+                "japanese animation",
+                "shonen",
+                "shoujo",
+                "isekai",
+                "dragon ball",
+                "naruto",
+                "one piece",
+                "bleach",
+                "pokemon",
+                "pokémon",
+                "demon slayer",
+                "jujutsu kaisen",
+                "attack on titan",
+                "my hero academia"
+            ]
+        },
+
+        // =====================================================================
+        // DOKUMENTATION
+        // =====================================================================
+
+        {
+            genre:
+                "Dokumentation",
+
+            keywords: [
+
+                "documentary",
+                "dokumentation",
+                "dokumentarfilm",
+                "doku",
+                "nature documentary",
+                "naturdokumentation",
+                "true story",
+                "wahre geschichte",
+                "real story",
+                "history documentary",
+                "science documentary"
+            ]
+        },
+
+        // =====================================================================
+        // BIOGRAFIE
+        // =====================================================================
+
+        {
+            genre:
+                "Biografie",
+
+            keywords: [
+
+                "biography",
+                "biografie",
+                "biographical",
+                "biopic",
+                "leben von",
+                "based on a true story",
+                "based on true events",
+                "wahre begebenheit"
+            ]
+        },
+
+        // =====================================================================
+        // KINDER
+        // =====================================================================
+
+        {
+            genre:
+                "Kinder",
+
+            keywords: [
+
+                "kids",
+                "kid",
+                "kinder",
+                "kinderfilm",
+                "kinderfilme",
+                "children",
+                "children's",
+                "family kids",
+                "baby",
+                "babies",
+                "junior",
+                "puppy",
+                "welpen",
+                "paw patrol",
+                "peppa pig",
+                "mickey mouse",
+                "winnie pooh"
+            ]
+        },
+
+        // =====================================================================
+        // WESTERN
+        // =====================================================================
+
+        {
+            genre:
+                "Western",
+
+            keywords: [
+
+                "western",
+                "cowboy",
+                "cowboys",
+                "cowgirl",
+                "wild west",
+                "wilder westen",
+                "sheriff",
+                "saloon",
+                "gunslinger",
+                "outlaw",
+                "outlaws",
+                "duel",
+                "duell"
+            ]
+        },
+
+        // =====================================================================
+        // MUSIK
+        // =====================================================================
+
+        {
+            genre:
+                "Musik",
+
+            keywords: [
+
+                "music",
+                "musik",
+                "musical",
+                "concert",
+                "konzert",
+                "singer",
+                "sänger",
+                "sängerin",
+                "band",
+                "rock",
+                "pop star",
+                "popstar",
+                "rapper",
+                "rap",
+                "dance"
+            ]
+        },
+
+        // =====================================================================
+        // HISTORISCH
+        // =====================================================================
+
+        {
+            genre:
+                "Historisch",
+
+            keywords: [
+
+                "historical",
+                "historisch",
+                "history",
+                "geschichte",
+                "mittelalter",
+                "medieval",
+                "ancient",
+                "antik",
+                "ancient rome",
+                "römer",
+                "roman empire",
+                "könig",
+                "king",
+                "queen",
+                "kaiser",
+                "emperor",
+                "period drama"
+            ]
+        },
+
+        // =====================================================================
+        // KRIEGSFILM
+        // =====================================================================
+
+        {
+            genre:
+                "Kriegsfilm",
+
+            keywords: [
+
+                "war",
+                "krieg",
+                "kriegsfilm",
+                "world war",
+                "weltkrieg",
+                "world war ii",
+                "world war 2",
+                "zweiter weltkrieg",
+                "first world war",
+                "erster weltkrieg",
+                "soldier",
+                "soldat",
+                "military",
+                "militär",
+                "battle",
+                "schlacht",
+                "front",
+                "army",
+                "armee",
+                "navy",
+                "marine"
+            ]
+        },
+
+        // =====================================================================
+        // SPORT
+        // =====================================================================
+
+        {
+            genre:
+                "Sport",
+
+            keywords: [
+
+                "sport",
+                "sports",
+                "football",
+                "soccer",
+                "fußball",
+                "fussball",
+                "basketball",
+                "baseball",
+                "hockey",
+                "tennis",
+                "boxing",
+                "boxen",
+                "wrestling",
+                "rennen",
+                "racing",
+                "formula 1",
+                "formel 1",
+                "olympics",
+                "olympia",
+                "champion",
+                "championship"
+            ]
+        },
+
+        // =====================================================================
+        // ABENTEUERFILM
+        // =====================================================================
+
+        {
+            genre:
+                "Abenteuerfilm",
+
+            keywords: [
+
+                "adventure film",
+                "abenteuerfilm",
+                "action adventure",
+                "action-abenteuer"
+            ]
+        }
+    ];
 
     // =========================================================================
     // DETECT
@@ -76,598 +944,12 @@ export class GenreDetector {
     ): LibraryGenre[] {
 
         const normalized =
-            this.normalize(title);
-
-        const genres: LibraryGenre[] = [];
-
-        // =====================================================================
-        // SUPERHERO / COMIC
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "superman",
-                    "batman",
-                    "spiderman",
-                    "spider-man",
-                    "supergirl",
-                    "wonder woman",
-                    "aquaman",
-                    "the flash",
-                    "green lantern",
-                    "justice league",
-                    "avengers",
-                    "iron man",
-                    "captain america",
-                    "thor",
-                    "hulk",
-                    "deadpool",
-                    "x-men",
-                    "xmen",
-                    "fantastic four",
-                    "marvel",
-                    "dc comics",
-                    "dc universe"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Action",
-                "Abenteuer"
-            );
-        }
-
-        // =====================================================================
-        // ACTION
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "action",
-                    "assassin",
-                    "assassins",
-                    "agent",
-                    "agents",
-                    "war",
-                    "warrior",
-                    "warriors",
-                    "soldier",
-                    "soldiers",
-                    "fight",
-                    "fighter",
-                    "combat",
-                    "mercenary",
-                    "mercenaries",
-                    "gun",
-                    "guns",
-                    "mission",
-                    "revenge",
-                    "rescue",
-                    "special forces",
-                    "military",
-                    "police",
-                    "john wick",
-                    "rambo",
-                    "die hard",
-                    "mission impossible"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Action"
-            );
-        }
-
-        // =====================================================================
-        // ADVENTURE
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "adventure",
-                    "abenteuer",
-                    "quest",
-                    "treasure",
-                    "pirate",
-                    "pirates",
-                    "expedition",
-                    "jungle",
-                    "island",
-                    "journey",
-                    "indiana jones",
-                    "jurassic",
-                    "tomb raider"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Abenteuer"
-            );
-        }
-
-        // =====================================================================
-        // SCI-FI
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "sci-fi",
-                    "sci fi",
-                    "scifi",
-                    "science fiction",
-                    "space",
-                    "spaceship",
-                    "spaceships",
-                    "alien",
-                    "aliens",
-                    "robot",
-                    "robots",
-                    "android",
-                    "future",
-                    "galaxy",
-                    "star",
-                    "stars",
-                    "planet",
-                    "planets",
-                    "cyborg",
-                    "time travel",
-                    "time machine",
-                    "terminator",
-                    "matrix",
-                    "star wars",
-                    "star trek",
-                    "blade runner",
-                    "transformers",
-                    "back to the future"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Sci-Fi"
-            );
-        }
-
-        // =====================================================================
-        // FANTASY
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "fantasy",
-                    "magic",
-                    "magical",
-                    "wizard",
-                    "wizards",
-                    "witch",
-                    "witches",
-                    "dragon",
-                    "dragons",
-                    "kingdom",
-                    "elf",
-                    "elves",
-                    "demon",
-                    "demons",
-                    "fairy",
-                    "fairies",
-                    "middle earth",
-                    "hobbit",
-                    "lord of the rings",
-                    "harry potter",
-                    "narnia"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Fantasy"
-            );
-        }
-
-        // =====================================================================
-        // HORROR
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "horror",
-                    "terror",
-                    "haunted",
-                    "ghost",
-                    "ghosts",
-                    "zombie",
-                    "zombies",
-                    "vampire",
-                    "vampires",
-                    "werewolf",
-                    "werewolves",
-                    "evil",
-                    "undead",
-                    "possession",
-                    "possessed",
-                    "slasher",
-                    "nightmare",
-                    "conjuring",
-                    "insidious",
-                    "scream",
-                    "halloween",
-                    "saw",
-                    "evil dead"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Horror"
-            );
-        }
-
-        // =====================================================================
-        // THRILLER
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "thriller",
-                    "conspiracy",
-                    "kidnap",
-                    "kidnapped",
-                    "hostage",
-                    "stalker",
-                    "stalking",
-                    "serial killer",
-                    "killer",
-                    "murder",
-                    "murderer",
-                    "survival",
-                    "hunt",
-                    "hunted",
-                    "escape",
-                    "danger"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Thriller"
-            );
-        }
-
-        // =====================================================================
-        // CRIME
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "crime",
-                    "krimi",
-                    "gangster",
-                    "gangsters",
-                    "mafia",
-                    "mob",
-                    "heist",
-                    "robbery",
-                    "robber",
-                    "criminal",
-                    "detective",
-                    "cop",
-                    "cops",
-                    "drug",
-                    "drugs",
-                    "organized crime"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Krimi"
-            );
-        }
-
-        // =====================================================================
-        // MYSTERY
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "mystery",
-                    "mysterious",
-                    "secret",
-                    "secrets",
-                    "unknown",
-                    "missing",
-                    "investigation",
-                    "investigator",
-                    "detective",
-                    "clue",
-                    "clues"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Mystery"
-            );
-        }
-
-        // =====================================================================
-        // DRAMA
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "drama",
-                    "family",
-                    "familie",
-                    "life",
-                    "story",
-                    "based on a true story",
-                    "biopic"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Drama"
-            );
-        }
-
-        // =====================================================================
-        // ROMANCE
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "romance",
-                    "romantic",
-                    "romantik",
-                    "love",
-                    "liebe",
-                    "lover",
-                    "lovers",
-                    "wedding",
-                    "hochzeit"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Romantik"
-            );
-        }
-
-        // =====================================================================
-        // COMEDY
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "comedy",
-                    "komödie",
-                    "komoedie",
-                    "funny",
-                    "humor",
-                    "humour",
-                    "comedian"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Komödie"
-            );
-        }
-
-        // =====================================================================
-        // FAMILY
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "family",
-                    "familie",
-                    "familienfilm"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Familie"
-            );
-        }
-
-        // =====================================================================
-        // ANIMATION
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "animation",
-                    "animated",
-                    "zeichentrick",
-                    "cartoon",
-                    "pixar",
-                    "dreamworks"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Animation"
-            );
-        }
-
-        // =====================================================================
-        // ANIME
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "anime",
-                    "japanese animation"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Anime"
-            );
-        }
-
-        // =====================================================================
-        // DOCUMENTARY
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "documentary",
-                    "dokumentation",
-                    "dokumentarfilm",
-                    "dokumentar"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Dokumentation"
-            );
-        }
-
-        // =====================================================================
-        // BIOGRAPHY
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "biography",
-                    "biografie",
-                    "biopic"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Biografie"
-            );
-        }
-
-        // =====================================================================
-        // WESTERN
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "western",
-                    "cowboy",
-                    "cowboys",
-                    "wild west"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Western"
-            );
-        }
-
-        // =====================================================================
-        // MUSIC
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "music",
-                    "musik",
-                    "musical",
-                    "concert",
-                    "konzert"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Musik"
-            );
-        }
-
-        // =====================================================================
-        // KIDS
-        // =====================================================================
-
-        if (
-            this.containsAny(
-                normalized,
-                [
-                    "kids",
-                    "kinder",
-                    "children",
-                    "child",
-                    "family movie"
-                ]
-            )
-        ) {
-
-            genres.push(
-                "Kinder"
-            );
-        }
-
-        // =====================================================================
-        // REMOVE DUPLICATES
-        // =====================================================================
-
-        const uniqueGenres =
-            this.unique(
-                genres
+            this.normalizeTitle(
+                title
             );
 
-        // =====================================================================
-        // FALLBACK
-        // =====================================================================
-
         if (
-            uniqueGenres.length === 0
+            !normalized
         ) {
 
             return [
@@ -675,7 +957,60 @@ export class GenreDetector {
             ];
         }
 
-        return uniqueGenres;
+        const detected:
+            LibraryGenre[] = [];
+
+        // =====================================================================
+        // CHECK ALL RULES
+        // =====================================================================
+
+        for (
+            const rule of
+            this.RULES
+        ) {
+
+            const matched =
+                this.containsKeyword(
+                    normalized,
+                    rule.keywords
+                );
+
+            if (
+                matched &&
+                !detected.includes(
+                    rule.genre
+                )
+            ) {
+
+                detected.push(
+                    rule.genre
+                );
+            }
+        }
+
+        // =====================================================================
+        // SPECIAL COMBINATIONS
+        // =====================================================================
+
+        this.addSpecialGenres(
+            normalized,
+            detected
+        );
+
+        // =====================================================================
+        // FALLBACK
+        // =====================================================================
+
+        if (
+            detected.length === 0
+        ) {
+
+            detected.push(
+                "Unbekannt"
+            );
+        }
+
+        return detected;
     }
 
     // =========================================================================
@@ -691,43 +1026,67 @@ export class GenreDetector {
                 title
             );
 
-        /*
-         * Priority determines which genre becomes the
-         * primary archive category.
-         *
-         * Example:
-         *
-         * Superman
-         * -> Action + Abenteuer
-         * -> primary = Action
-         */
+        // =====================================================================
+        // PRIORITY
+        // =====================================================================
 
-        const priority: LibraryGenre[] = [
+        const priority:
+            LibraryGenre[] = [
+
+            "Superhelden",
+
+            "Anime",
+
+            "Kinder",
+
+            "Horror",
+
+            "Thriller",
+
+            "Sci-Fi",
+
+            "Fantasy",
 
             "Action",
-            "Horror",
-            "Thriller",
-            "Sci-Fi",
-            "Fantasy",
+
             "Abenteuer",
+
+            "Kriegsfilm",
+
             "Krimi",
+
             "Mystery",
-            "Drama",
-            "Romantik",
-            "Komödie",
-            "Familie",
-            "Animation",
-            "Anime",
-            "Dokumentation",
-            "Biografie",
+
             "Western",
+
+            "Sport",
+
+            "Dokumentation",
+
+            "Biografie",
+
+            "Animation",
+
+            "Komödie",
+
+            "Familie",
+
+            "Romantik",
+
+            "Drama",
+
+            "Historisch",
+
             "Musik",
-            "Kinder",
+
+            "Abenteuerfilm",
+
             "Unbekannt"
         ];
 
         for (
-            const genre of priority
+            const genre of
+            priority
         ) {
 
             if (
@@ -740,22 +1099,20 @@ export class GenreDetector {
             }
         }
 
-        return (
-            genres[0] ??
-            "Unbekannt"
-        );
+        return "Unbekannt";
     }
 
     // =========================================================================
     // NORMALIZE
     // =========================================================================
 
-    private static normalize(
-        value: string
+    public static normalizeTitle(
+        title: string
     ): string {
 
-        return value
-            .toLowerCase()
+        return String(
+            title || ""
+        )
             .normalize(
                 "NFD"
             )
@@ -763,12 +1120,9 @@ export class GenreDetector {
                 /[\u0300-\u036f]/g,
                 ""
             )
+            .toLowerCase()
             .replace(
-                /[-–—]/g,
-                " "
-            )
-            .replace(
-                /[|_:;,()[\]{}]/g,
+                /[_./\\|()[\]{}:;,!?]+/g,
                 " "
             )
             .replace(
@@ -782,38 +1136,425 @@ export class GenreDetector {
     // KEYWORD MATCH
     // =========================================================================
 
-    private static containsAny(
-        text: string,
+    private static containsKeyword(
+        title: string,
         keywords: string[]
     ): boolean {
 
-        return keywords.some(
-            keyword => {
+        for (
+            const keyword of
+            keywords
+        ) {
 
-                const normalizedKeyword =
-                    this.normalize(
-                        keyword
-                    );
-
-                return text.includes(
-                    normalizedKeyword
+            const normalizedKeyword =
+                this.normalizeTitle(
+                    keyword
                 );
+
+            if (
+                !normalizedKeyword
+            ) {
+
+                continue;
             }
+
+            if (
+                title.includes(
+                    normalizedKeyword
+                )
+            ) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // =========================================================================
+    // SPECIAL GENRES
+    // =========================================================================
+
+    private static addSpecialGenres(
+        title: string,
+        genres: LibraryGenre[]
+    ): void {
+
+        // =====================================================================
+        // SUPERMAN
+        // =====================================================================
+
+        if (
+            title.includes(
+                "superman"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Superhelden"
+            );
+
+            this.addGenre(
+                genres,
+                "Action"
+            );
+        }
+
+        // =====================================================================
+        // MARVEL
+        // =====================================================================
+
+        if (
+            title.includes(
+                "marvel"
+            ) ||
+            title.includes(
+                "avengers"
+            ) ||
+            title.includes(
+                "iron man"
+            ) ||
+            title.includes(
+                "captain america"
+            ) ||
+            title.includes(
+                "thor"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Superhelden"
+            );
+
+            this.addGenre(
+                genres,
+                "Action"
+            );
+        }
+
+        // =====================================================================
+        // DC
+        // =====================================================================
+
+        if (
+            title.includes(
+                "batman"
+            ) ||
+            title.includes(
+                "wonder woman"
+            ) ||
+            title.includes(
+                "justice league"
+            ) ||
+            title.includes(
+                "aquaman"
+            ) ||
+            title.includes(
+                "green lantern"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Superhelden"
+            );
+
+            this.addGenre(
+                genres,
+                "Action"
+            );
+        }
+
+        // =====================================================================
+        // JURASSIC
+        // =====================================================================
+
+        if (
+            title.includes(
+                "jurassic park"
+            ) ||
+            title.includes(
+                "jurassic world"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Abenteuer"
+            );
+
+            this.addGenre(
+                genres,
+                "Action"
+            );
+
+            this.addGenre(
+                genres,
+                "Sci-Fi"
+            );
+        }
+
+        // =====================================================================
+        // HARRY POTTER
+        // =====================================================================
+
+        if (
+            title.includes(
+                "harry potter"
+            ) ||
+            title.includes(
+                "fantastic beasts"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Fantasy"
+            );
+
+            this.addGenre(
+                genres,
+                "Abenteuer"
+            );
+        }
+
+        // =====================================================================
+        // FAST & FURIOUS
+        // =====================================================================
+
+        if (
+            title.includes(
+                "fast furious"
+            ) ||
+            title.includes(
+                "fast and furious"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Action"
+            );
+
+            this.addGenre(
+                genres,
+                "Abenteuer"
+            );
+        }
+
+        // =====================================================================
+        // STAR WARS
+        // =====================================================================
+
+        if (
+            title.includes(
+                "star wars"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Sci-Fi"
+            );
+
+            this.addGenre(
+                genres,
+                "Action"
+            );
+
+            this.addGenre(
+                genres,
+                "Abenteuer"
+            );
+        }
+
+        // =====================================================================
+        // LORD OF THE RINGS
+        // =====================================================================
+
+        if (
+            title.includes(
+                "lord of the rings"
+            ) ||
+            title.includes(
+                "herr der ringe"
+            ) ||
+            title.includes(
+                "hobbit"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Fantasy"
+            );
+
+            this.addGenre(
+                genres,
+                "Abenteuer"
+            );
+        }
+
+        // =====================================================================
+        // HORROR + THRILLER
+        // =====================================================================
+
+        if (
+            genres.includes(
+                "Horror"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Thriller"
+            );
+        }
+
+        // =====================================================================
+        // ACTION + ABENTEUER
+        // =====================================================================
+
+        if (
+            genres.includes(
+                "Action"
+            ) &&
+            genres.includes(
+                "Abenteuer"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Abenteuerfilm"
+            );
+        }
+
+        // =====================================================================
+        // ANIME + ANIMATION
+        // =====================================================================
+
+        if (
+            genres.includes(
+                "Anime"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Animation"
+            );
+        }
+
+        // =====================================================================
+        // KINDER + FAMILIE
+        // =====================================================================
+
+        if (
+            genres.includes(
+                "Kinder"
+            )
+        ) {
+
+            this.addGenre(
+                genres,
+                "Familie"
+            );
+        }
+    }
+
+    // =========================================================================
+    // ADD GENRE
+    // =========================================================================
+
+    private static addGenre(
+        genres: LibraryGenre[],
+        genre: LibraryGenre
+    ): void {
+
+        if (
+            !genres.includes(
+                genre
+            )
+        ) {
+
+            genres.push(
+                genre
+            );
+        }
+    }
+
+    // =========================================================================
+    // NORMALIZE GENRE
+    // =========================================================================
+
+    public static normalizeGenre(
+        value: unknown
+    ): LibraryGenre {
+
+        return normalizeLibraryGenre(
+            value
         );
     }
 
     // =========================================================================
-    // UNIQUE
+    // HAS GENRE
     // =========================================================================
 
-    private static unique(
-        genres: LibraryGenre[]
-    ): LibraryGenre[] {
+    public static hasGenre(
+        title: string,
+        genre: LibraryGenre
+    ): boolean {
+
+        return this.detect(
+            title
+        ).includes(
+            genre
+        );
+    }
+
+    // =========================================================================
+    // DEBUG
+    // =========================================================================
+
+    public static describe(
+        title: string
+    ): string {
+
+        const genres =
+            this.detect(
+                title
+            );
+
+        const primary =
+            this.detectPrimary(
+                title
+            );
 
         return [
-            ...new Set(
-                genres
-            )
-        ];
+
+            "=================================================",
+
+            "🧠 GENRE DETECTOR",
+
+            "=================================================",
+
+            `🎬 Titel: ${title}`,
+
+            `🏷️ Genres: ${
+                genres.join(
+                    ", "
+                )
+            }`,
+
+            `⭐ Primary: ${primary}`,
+
+            "================================================="
+
+        ].join(
+            "\n"
+        );
     }
 }
