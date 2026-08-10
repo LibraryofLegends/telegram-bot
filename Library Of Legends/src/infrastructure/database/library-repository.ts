@@ -20,7 +20,7 @@ File................: library-repository.ts
 Location............
 Library Of Legends/src/infrastructure/database/
 
-Version.............: 1.0.0
+Version.............: 2.1.0
 
 Status..............: Core
 
@@ -28,8 +28,8 @@ Lifecycle...........: Development
 
 Description.........
 
-Handles persistence of library items (save + search).
-Uses PostgreSQL via pg Pool.
+Handles saving, searching and retrieving media items
+from PostgreSQL database.
 
 ===============================================================================
 */
@@ -45,14 +45,10 @@ export class LibraryRepository {
         connectionString: process.env.DATABASE_URL
     });
 
-    /**
-     * Save media item to database
-     */
-    public static async save(
-        title: string,
-        fileName: string,
-        type: string
-    ): Promise<void> {
+    // =========================================================================
+    // SAVE
+    // =========================================================================
+    public static async save(title: string, fileName: string, type: string) {
 
         await this.pool.query(
             `
@@ -63,20 +59,35 @@ export class LibraryRepository {
         );
     }
 
-    /**
-     * Search media items
-     */
-    public static async search(query: string): Promise<any[]> {
+    // =========================================================================
+    // SEARCH
+    // =========================================================================
+    public static async search(query: string) {
 
         const result = await this.pool.query(
             `
-            SELECT *
-            FROM library_items
+            SELECT * FROM library_items
             WHERE LOWER(title) LIKE LOWER($1)
             ORDER BY created_at DESC
             LIMIT 10
             `,
             [`%${query}%`]
+        );
+
+        return result.rows;
+    }
+
+    // =========================================================================
+    // GET ALL 🔥 (FIX)
+    // =========================================================================
+    public static async getAll() {
+
+        const result = await this.pool.query(
+            `
+            SELECT * FROM library_items
+            ORDER BY created_at DESC
+            LIMIT 50
+            `
         );
 
         return result.rows;
