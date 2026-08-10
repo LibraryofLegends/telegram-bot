@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 1.3.0
+Version.............: 2.0.0
 
 Status..............: Core
 
@@ -29,7 +29,8 @@ Lifecycle...........: Development
 Description.........
 
 Telegram Bot with admin protection, auto parsing,
-media detection, intelligent routing and post builder selection.
+media detection, intelligent routing, post builder selection
+and series topic (thread) system.
 
 ===============================================================================
 */
@@ -38,9 +39,12 @@ import { Telegraf } from "telegraf";
 
 import { MediaParser } from "../../domain/media/parser/media-parser";
 import { MediaTypeDetector } from "../../domain/media/detection/media-type-detector";
+import { SeriesDetector } from "../../domain/media/detection/series-detector";
 
 import { TelegramPostBuilder } from "../../application/telegram/telegram-post-builder";
 import { SeriesPostBuilder } from "../../application/telegram/series-post-builder";
+
+import { SeriesTopicManager } from "./series-topic-manager";
 
 /**
  * Telegram Bot
@@ -80,7 +84,7 @@ export class TelegramBot {
         // =========================================================================
 
         this.bot.start((ctx) => {
-            ctx.reply("🚀 Library Of Legends Bot aktiv (Smart System aktiv).");
+            ctx.reply("🚀 Library Of Legends Bot aktiv (Level 2 aktiv).");
         });
 
         // =========================================================================
@@ -118,7 +122,7 @@ export class TelegramBot {
                 const media = MediaParser.parse(fileName);
 
                 // =========================================================================
-                // BUILD POST (SMART 🔥)
+                // BUILD POST
                 // =========================================================================
 
                 let post = "";
@@ -132,37 +136,51 @@ export class TelegramBot {
                 }
 
                 // =========================================================================
-                // ROUTING
+                // ROUTING + THREAD SYSTEM 🔥
                 // =========================================================================
-
-                let targetChannel = "";
 
                 if (type === "MOVIE") {
-                    targetChannel = this.movieChannelId;
+
+                    await this.bot.telegram.sendMessage(
+                        this.movieChannelId,
+                        post
+                    );
+
+                } else if (type === "SERIES") {
+
+                    const seriesInfo = SeriesDetector.detect(fileName);
+
+                    if (!seriesInfo) {
+                        throw new Error("❌ Series konnte nicht erkannt werden");
+                    }
+
+                    // 🔥 Topic holen oder erstellen
+                    const threadId = await SeriesTopicManager.getOrCreateTopic(
+                        this.bot,
+                        this.seriesChannelId,
+                        seriesInfo.title
+                    );
+
+                    // 🔥 In Thread posten
+                    await this.bot.telegram.sendMessage(
+                        this.seriesChannelId,
+                        post,
+                        {
+                            message_thread_id: threadId
+                        }
+                    );
+
+                } else {
+
+                    throw new Error("❌ Unbekannter Medientyp");
+
                 }
-
-                if (type === "SERIES") {
-                    targetChannel = this.seriesChannelId;
-                }
-
-                if (!targetChannel) {
-                    throw new Error("❌ Kein Channel konfiguriert");
-                }
-
-                // =========================================================================
-                // SEND
-                // =========================================================================
-
-                await this.bot.telegram.sendMessage(
-                    targetChannel,
-                    post
-                );
 
                 // =========================================================================
                 // FEEDBACK
                 // =========================================================================
 
-                await ctx.reply(`✅ ${type} wurde intelligent gepostet.`);
+                await ctx.reply(`✅ ${type} wurde gepostet.`);
 
             } catch (error) {
 
@@ -178,7 +196,7 @@ export class TelegramBot {
 
     public launch(): void {
         this.bot.launch();
-        console.log("🤖 Bot gestartet (Smart Routing + Builder aktiv)");
+        console.log("🤖 Bot gestartet (Level 2: Threads aktiv)");
     }
 
 }
