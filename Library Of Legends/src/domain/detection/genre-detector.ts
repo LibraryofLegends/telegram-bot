@@ -58,6 +58,10 @@ import {
     LibraryGenre
 } from "./genre-detector-types";
 
+export {
+    LibraryGenre
+} from "./genre-detector-types";
+
 /**
  * Genre detection engine.
  */
@@ -91,7 +95,7 @@ export class GenreDetector {
                     "supergirl",
                     "wonder woman",
                     "aquaman",
-                    "flash",
+                    "the flash",
                     "green lantern",
                     "justice league",
                     "avengers",
@@ -146,7 +150,11 @@ export class GenreDetector {
                     "rescue",
                     "special forces",
                     "military",
-                    "police"
+                    "police",
+                    "john wick",
+                    "rambo",
+                    "die hard",
+                    "mission impossible"
                 ]
             )
         ) {
@@ -173,7 +181,10 @@ export class GenreDetector {
                     "expedition",
                     "jungle",
                     "island",
-                    "journey"
+                    "journey",
+                    "indiana jones",
+                    "jurassic",
+                    "tomb raider"
                 ]
             )
         ) {
@@ -192,6 +203,7 @@ export class GenreDetector {
                 normalized,
                 [
                     "sci-fi",
+                    "sci fi",
                     "scifi",
                     "science fiction",
                     "space",
@@ -210,10 +222,14 @@ export class GenreDetector {
                     "planets",
                     "cyborg",
                     "time travel",
+                    "time machine",
                     "terminator",
                     "matrix",
                     "star wars",
-                    "star trek"
+                    "star trek",
+                    "blade runner",
+                    "transformers",
+                    "back to the future"
                 ]
             )
         ) {
@@ -250,7 +266,8 @@ export class GenreDetector {
                     "middle earth",
                     "hobbit",
                     "lord of the rings",
-                    "harry potter"
+                    "harry potter",
+                    "narnia"
                 ]
             )
         ) {
@@ -280,14 +297,17 @@ export class GenreDetector {
                     "werewolf",
                     "werewolves",
                     "evil",
-                    "dead",
                     "undead",
-                    "demon",
-                    "demons",
                     "possession",
                     "possessed",
                     "slasher",
-                    "nightmare"
+                    "nightmare",
+                    "conjuring",
+                    "insidious",
+                    "scream",
+                    "halloween",
+                    "saw",
+                    "evil dead"
                 ]
             )
         ) {
@@ -318,7 +338,9 @@ export class GenreDetector {
                     "murderer",
                     "survival",
                     "hunt",
-                    "hunted"
+                    "hunted",
+                    "escape",
+                    "danger"
                 ]
             )
         ) {
@@ -350,7 +372,8 @@ export class GenreDetector {
                     "cop",
                     "cops",
                     "drug",
-                    "drugs"
+                    "drugs",
+                    "organized crime"
                 ]
             )
         ) {
@@ -376,7 +399,9 @@ export class GenreDetector {
                     "missing",
                     "investigation",
                     "investigator",
-                    "detective"
+                    "detective",
+                    "clue",
+                    "clues"
                 ]
             )
         ) {
@@ -491,7 +516,9 @@ export class GenreDetector {
                     "animation",
                     "animated",
                     "zeichentrick",
-                    "cartoon"
+                    "cartoon",
+                    "pixar",
+                    "dreamworks"
                 ]
             )
         ) {
@@ -530,7 +557,8 @@ export class GenreDetector {
                 [
                     "documentary",
                     "dokumentation",
-                    "dokumentarfilm"
+                    "dokumentarfilm",
+                    "dokumentar"
                 ]
             )
         ) {
@@ -643,7 +671,7 @@ export class GenreDetector {
         ) {
 
             return [
-                "Unbekannt" as LibraryGenre
+                "Unbekannt"
             ];
         }
 
@@ -664,15 +692,14 @@ export class GenreDetector {
             );
 
         /*
-         * Für das Archiv hat Action Vorrang.
+         * Priority determines which genre becomes the
+         * primary archive category.
          *
-         * Dadurch wird beispielsweise:
+         * Example:
          *
          * Superman
-         * Batman
-         * Avengers
-         *
-         * zuverlässig als Action eingeordnet.
+         * -> Action + Abenteuer
+         * -> primary = Action
          */
 
         const priority: LibraryGenre[] = [
@@ -696,7 +723,7 @@ export class GenreDetector {
             "Western",
             "Musik",
             "Kinder",
-            "Unbekannt" as LibraryGenre
+            "Unbekannt"
         ];
 
         for (
@@ -715,7 +742,7 @@ export class GenreDetector {
 
         return (
             genres[0] ??
-            "Unbekannt" as LibraryGenre
+            "Unbekannt"
         );
     }
 
