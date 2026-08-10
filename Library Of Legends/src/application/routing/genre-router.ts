@@ -11,16 +11,16 @@ Architecture Layer..: Application
 
 Module..............: Routing
 
-Module ID...........: LOL-MOD-ROU-0001
+Module ID...........: LOL-MOD-ROUT-0001
 
-LOL-ID..............: LOL-ROU-GEN-0001
+LOL-ID..............: LOL-ROUT-GEN-0001
 
 File................: genre-router.ts
 
 Location............
 Library Of Legends/src/application/routing/
 
-Version.............: 2.0.0
+Version.............: 3.0.0
 
 Status..............: Core
 
@@ -28,64 +28,53 @@ Lifecycle...........: Development
 
 Description.........
 
-Central routing engine for the Library Of Legends media archive.
-
-Determines the correct archive category for movies and series
-based on automatically detected genres.
+Central genre routing system for Library Of Legends.
 
 Responsibilities:
 
-- Determine primary category
-- Determine secondary categories
-- Normalize genre combinations
-- Determine Telegram destination
-- Support category-specific Telegram chat IDs
-- Support Telegram forum topics
-- Provide category names for post generation
-- Provide routing information to TelegramBot
-- Keep unknown content in Allgemein
-- Prevent invalid genre routing
+- Convert detected genres into Telegram categories
+- Determine primary Telegram archive category
+- Provide stable routing identifiers
+- Support multiple detected genres
+- Prevent invalid string[] / LibraryGenre[] assignments
+- Provide category metadata
+- Provide readable Telegram category names
+- Prepare routing information for TelegramBot
+- Provide fallback category
+- Keep routing independent from Telegram implementation
 
-Telegram communication itself remains in the Telegram layer.
+Telegram categories:
+
+🎬 Action & Abenteuer
+👻 Horror & Thriller
+🤖 Sci-Fi & Fantasy
+🎭 Drama & Romantik
+😂 Komödie & Familienfilme
+🎨 Animation & Anime
+🕵️ Mystery / Krimi
+🏞️ Dokumentationen / Biografien
+🧸 Kinderfilme
+📚 Allgemein
 
 ===============================================================================
 */
 
 import {
-    LibraryGenre
-} from "../../domain/detection/genre-detector";
+    LibraryGenre,
+    GenreDefinition,
+    GENRE_DEFINITIONS,
+    getGenreDefinition
+} from "../../domain/detection/genre-detector-types";
 
 /**
- * Available Library Of Legends archive categories.
- */
-export type LibraryCategory =
-    | "ACTION_ABENTEUER"
-    | "HORROR_THRILLER"
-    | "SCI_FI_FANTASY"
-    | "DRAMA_ROMANTIK"
-    | "KOMEDIE_FAMILIE"
-    | "ANIMATION_ANIME"
-    | "MYSTERY_KRIMI"
-    | "DOKUMENTATION_BIOGRAFIE"
-    | "WESTERN"
-    | "MUSIK"
-    | "KINDER"
-    | "ALLGEMEIN";
-
-/**
- * Telegram routing information.
+ * Result of genre routing.
  */
 export interface GenreRoute {
 
     /**
-     * Internal Library Of Legends category.
+     * Primary detected genre.
      */
-    category: LibraryCategory;
-
-    /**
-     * Human-readable category title.
-     */
-    categoryTitle: string;
+    primaryGenre: LibraryGenre;
 
     /**
      * All detected genres.
@@ -93,157 +82,316 @@ export interface GenreRoute {
     genres: LibraryGenre[];
 
     /**
-     * Primary genre.
+     * Stable Telegram routing ID.
      */
-    primaryGenre: LibraryGenre;
+    category: string;
 
     /**
-     * Telegram destination chat.
+     * Human-readable Telegram category.
      */
-    telegramChatId?: string;
+    categoryTitle: string;
 
     /**
-     * Telegram forum topic.
+     * Category emoji.
      */
-    topicId?: number;
+    emoji: string;
 
     /**
-     * Whether a valid Telegram destination exists.
+     * Archive code.
      */
-    hasTelegramDestination: boolean;
+    archiveCode: string;
 
     /**
-     * Whether this route uses a Telegram forum topic.
+     * All matching category IDs.
      */
-    usesForumTopic: boolean;
+    categoryIds: string[];
 }
 
 /**
- * Genre Router
+ * Genre category definition.
+ */
+export interface GenreCategory {
+
+    id: string;
+
+    title: string;
+
+    emoji: string;
+
+    archiveCode: string;
+
+    genres: LibraryGenre[];
+}
+
+/**
+ * Genre Router.
  */
 export class GenreRouter {
 
     // =========================================================================
-    // CATEGORY TITLES
+    // CATEGORY DEFINITIONS
     // =========================================================================
 
-    private static readonly CATEGORY_TITLES: Record<
-        LibraryCategory,
-        string
-    > = {
+    private static readonly CATEGORIES:
+        GenreCategory[] = [
 
-        ACTION_ABENTEUER:
-            "🎬 Action & Abenteuer",
+        // =====================================================================
+        // ACTION
+        // =====================================================================
 
-        HORROR_THRILLER:
-            "👻 Horror & Thriller",
+        {
+            id:
+                "action",
 
-        SCI_FI_FANTASY:
-            "🤖 Sci-Fi & Fantasy",
+            title:
+                "🎬 Action & Abenteuer",
 
-        DRAMA_ROMANTIK:
-            "🎭 Drama & Romantik",
+            emoji:
+                "🎬",
 
-        KOMEDIE_FAMILIE:
-            "😂 Komödie & Familie",
+            archiveCode:
+                "ACT",
 
-        ANIMATION_ANIME:
-            "🎨 Animation & Anime",
+            genres: [
 
-        MYSTERY_KRIMI:
-            "🕵️ Mystery & Krimi",
+                "Action",
 
-        DOKUMENTATION_BIOGRAFIE:
-            "🏞️ Dokumentationen & Biografien",
+                "Abenteuer",
 
-        WESTERN:
-            "🤠 Western",
+                "Abenteuerfilm",
 
-        MUSIK:
-            "🎵 Musik",
+                "Western",
 
-        KINDER:
-            "🧸 Kinder",
+                "Kriegsfilm"
+            ]
+        },
 
-        ALLGEMEIN:
-            "📚 Allgemein"
-    };
+        // =====================================================================
+        // HORROR
+        // =====================================================================
 
-    // =========================================================================
-    // CATEGORY ENVIRONMENT VARIABLES
-    // =========================================================================
+        {
+            id:
+                "horror",
 
-    private static readonly CATEGORY_ENV_KEYS: Record<
-        LibraryCategory,
-        string
-    > = {
+            title:
+                "👻 Horror & Thriller",
 
-        ACTION_ABENTEUER:
-            "CATEGORY_ACTION_ID",
+            emoji:
+                "👻",
 
-        HORROR_THRILLER:
-            "CATEGORY_HORROR_ID",
+            archiveCode:
+                "HOR",
 
-        SCI_FI_FANTASY:
-            "CATEGORY_SCIFI_ID",
+            genres: [
 
-        DRAMA_ROMANTIK:
-            "CATEGORY_DRAMA_ID",
+                "Horror",
 
-        KOMEDIE_FAMILIE:
-            "CATEGORY_COMEDY_ID",
+                "Thriller"
+            ]
+        },
 
-        ANIMATION_ANIME:
-            "CATEGORY_ANIMATION_ID",
+        // =====================================================================
+        // SCI-FI
+        // =====================================================================
 
-        MYSTERY_KRIMI:
-            "CATEGORY_MYSTERY_ID",
+        {
+            id:
+                "scifi",
 
-        DOKUMENTATION_BIOGRAFIE:
-            "CATEGORY_DOCUMENTARY_ID",
+            title:
+                "🤖 Sci-Fi & Fantasy",
 
-        WESTERN:
-            "CATEGORY_WESTERN_ID",
+            emoji:
+                "🤖",
 
-        MUSIK:
-            "CATEGORY_MUSIC_ID",
+            archiveCode:
+                "SCF",
 
-        KINDER:
-            "CATEGORY_KIDS_ID",
+            genres: [
 
-        ALLGEMEIN:
-            "LIBRARY_CHANNEL_ID"
-    };
+                "Sci-Fi",
 
-    // =========================================================================
-    // CATEGORY PRIORITY
-    // =========================================================================
+                "Fantasy"
+            ]
+        },
 
-    private static readonly CATEGORY_PRIORITY: LibraryCategory[] = [
+        // =====================================================================
+        // DRAMA
+        // =====================================================================
 
-        "ACTION_ABENTEUER",
+        {
+            id:
+                "drama",
 
-        "HORROR_THRILLER",
+            title:
+                "🎭 Drama & Romantik",
 
-        "SCI_FI_FANTASY",
+            emoji:
+                "🎭",
 
-        "DRAMA_ROMANTIK",
+            archiveCode:
+                "DRM",
 
-        "KOMEDIE_FAMILIE",
+            genres: [
 
-        "ANIMATION_ANIME",
+                "Drama",
 
-        "MYSTERY_KRIMI",
+                "Romantik",
 
-        "DOKUMENTATION_BIOGRAFIE",
+                "Historisch",
 
-        "WESTERN",
+                "Musik",
 
-        "MUSIK",
+                "Sport"
+            ]
+        },
 
-        "KINDER",
+        // =====================================================================
+        // COMEDY
+        // =====================================================================
 
-        "ALLGEMEIN"
+        {
+            id:
+                "comedy",
+
+            title:
+                "😂 Komödie & Familienfilme",
+
+            emoji:
+                "😂",
+
+            archiveCode:
+                "COM",
+
+            genres: [
+
+                "Komödie",
+
+                "Familie"
+            ]
+        },
+
+        // =====================================================================
+        // ANIMATION
+        // =====================================================================
+
+        {
+            id:
+                "animation",
+
+            title:
+                "🎨 Animation & Anime",
+
+            emoji:
+                "🎨",
+
+            archiveCode:
+                "ANI",
+
+            genres: [
+
+                "Animation",
+
+                "Anime"
+            ]
+        },
+
+        // =====================================================================
+        // MYSTERY / CRIME
+        // =====================================================================
+
+        {
+            id:
+                "crime",
+
+            title:
+                "🕵️ Mystery / Krimi",
+
+            emoji:
+                "🕵️",
+
+            archiveCode:
+                "KRM",
+
+            genres: [
+
+                "Krimi",
+
+                "Mystery"
+            ]
+        },
+
+        // =====================================================================
+        // DOCUMENTARY
+        // =====================================================================
+
+        {
+            id:
+                "documentary",
+
+            title:
+                "🏞️ Dokumentationen / Biografien",
+
+            emoji:
+                "🏞️",
+
+            archiveCode:
+                "DOC",
+
+            genres: [
+
+                "Dokumentation",
+
+                "Biografie"
+            ]
+        },
+
+        // =====================================================================
+        // KIDS
+        // =====================================================================
+
+        {
+            id:
+                "kids",
+
+            title:
+                "🧸 Kinderfilme",
+
+            emoji:
+                "🧸",
+
+            archiveCode:
+                "KID",
+
+            genres: [
+
+                "Kinder"
+            ]
+        },
+
+        // =====================================================================
+        // GENERAL
+        // =====================================================================
+
+        {
+            id:
+                "general",
+
+            title:
+                "📚 Allgemein",
+
+            emoji:
+                "📚",
+
+            archiveCode:
+                "GEN",
+
+            genres: [
+
+                "Unbekannt"
+            ]
+        }
     ];
 
     // =========================================================================
@@ -254,70 +402,159 @@ export class GenreRouter {
         genres: LibraryGenre[]
     ): GenreRoute {
 
-        const safeGenres =
+        const normalized =
             this.normalizeGenres(
                 genres
             );
 
         const primaryGenre =
             this.detectPrimaryGenre(
-                safeGenres
+                normalized
             );
 
-        const category =
-            this.detectCategory(
-                safeGenres
+        const primaryCategory =
+            this.getCategoryForGenre(
+                primaryGenre
             );
 
-        const telegramChatId =
-            this.getTelegramChatId(
-                category
-            );
-
-        const topicId =
-            this.getTopicId(
-                category
+        const categoryIds =
+            this.getCategoryIds(
+                normalized
             );
 
         return {
 
-            category,
-
-            categoryTitle:
-                this.getCategoryTitle(
-                    category
-                ),
-
-            genres:
-                safeGenres,
-
             primaryGenre,
 
-            telegramChatId,
+            genres:
+                normalized,
 
-            topicId,
+            category:
+                primaryCategory.id,
 
-            hasTelegramDestination:
-                Boolean(
-                    telegramChatId
-                ),
+            categoryTitle:
+                primaryCategory.title,
 
-            usesForumTopic:
-                topicId !== undefined
+            emoji:
+                primaryCategory.emoji,
+
+            archiveCode:
+                primaryCategory.archiveCode,
+
+            categoryIds
         };
     }
 
     // =========================================================================
-    // ROUTE FROM PRIMARY GENRE
+    // ROUTE SINGLE GENRE
     // =========================================================================
 
-    public static routeFromGenre(
+    public static routeGenre(
         genre: LibraryGenre
     ): GenreRoute {
 
-        return this.route(
-            [genre]
+        return this.route([
+            genre
+        ]);
+    }
+
+    // =========================================================================
+    // GET CATEGORY FOR GENRE
+    // =========================================================================
+
+    public static getCategoryForGenre(
+        genre: LibraryGenre
+    ): GenreCategory {
+
+        for (
+            const category of
+            this.CATEGORIES
+        ) {
+
+            if (
+                category.genres.includes(
+                    genre
+                )
+            ) {
+
+                return category;
+            }
+        }
+
+        return this.getGeneralCategory();
+    }
+
+    // =========================================================================
+    // GET CATEGORY
+    // =========================================================================
+
+    public static getCategory(
+        categoryId: string
+    ): GenreCategory {
+
+        const category =
+            this.CATEGORIES.find(
+                item =>
+                    item.id ===
+                    categoryId
+            );
+
+        return (
+            category ||
+            this.getGeneralCategory()
         );
+    }
+
+    // =========================================================================
+    // GET CATEGORY TITLE
+    // =========================================================================
+
+    public static getCategoryTitle(
+        genre: LibraryGenre
+    ): string {
+
+        return this.getCategoryForGenre(
+            genre
+        ).title;
+    }
+
+    // =========================================================================
+    // GET CATEGORY ID
+    // =========================================================================
+
+    public static getCategoryId(
+        genre: LibraryGenre
+    ): string {
+
+        return this.getCategoryForGenre(
+            genre
+        ).id;
+    }
+
+    // =========================================================================
+    // GET EMOJI
+    // =========================================================================
+
+    public static getCategoryEmoji(
+        genre: LibraryGenre
+    ): string {
+
+        return this.getCategoryForGenre(
+            genre
+        ).emoji;
+    }
+
+    // =========================================================================
+    // GET ARCHIVE CODE
+    // =========================================================================
+
+    public static getArchiveCode(
+        genre: LibraryGenre
+    ): string {
+
+        return this.getCategoryForGenre(
+            genre
+        ).archiveCode;
     }
 
     // =========================================================================
@@ -328,36 +565,72 @@ export class GenreRouter {
         genres: LibraryGenre[]
     ): LibraryGenre {
 
-        const priority: LibraryGenre[] = [
+        const normalized =
+            this.normalizeGenres(
+                genres
+            );
+
+        const priority:
+            LibraryGenre[] = [
+
+            "Superhelden",
+
+            "Anime",
+
+            "Kinder",
+
+            "Horror",
+
+            "Thriller",
+
+            "Sci-Fi",
+
+            "Fantasy",
 
             "Action",
-            "Horror",
-            "Thriller",
-            "Sci-Fi",
-            "Fantasy",
+
             "Abenteuer",
-            "Krimi",
-            "Mystery",
-            "Drama",
-            "Romantik",
-            "Komödie",
-            "Familie",
-            "Animation",
-            "Anime",
-            "Dokumentation",
-            "Biografie",
+
+            "Kriegsfilm",
+
             "Western",
+
+            "Krimi",
+
+            "Mystery",
+
+            "Dokumentation",
+
+            "Biografie",
+
+            "Animation",
+
+            "Komödie",
+
+            "Familie",
+
+            "Romantik",
+
+            "Drama",
+
+            "Historisch",
+
             "Musik",
-            "Kinder",
+
+            "Sport",
+
+            "Abenteuerfilm",
+
             "Unbekannt"
         ];
 
         for (
-            const genre of priority
+            const genre of
+            priority
         ) {
 
             if (
-                genres.includes(
+                normalized.includes(
                     genre
                 )
             ) {
@@ -370,154 +643,53 @@ export class GenreRouter {
     }
 
     // =========================================================================
-    // DETECT CATEGORY
+    // GET CATEGORY IDS
     // =========================================================================
 
-    public static detectCategory(
+    public static getCategoryIds(
         genres: LibraryGenre[]
-    ): LibraryCategory {
+    ): string[] {
 
         const normalized =
-            new Set<LibraryGenre>(
-                this.normalizeGenres(
-                    genres
-                )
+            this.normalizeGenres(
+                genres
             );
 
-        // =====================================================================
-        // ACTION / ADVENTURE
-        // =====================================================================
+        const ids:
+            string[] = [];
 
-        if (
-            normalized.has("Action") ||
-            normalized.has("Abenteuer")
+        for (
+            const genre of
+            normalized
         ) {
 
-            return "ACTION_ABENTEUER";
-        }
+            const category =
+                this.getCategoryForGenre(
+                    genre
+                );
 
-        // =====================================================================
-        // HORROR / THRILLER
-        // =====================================================================
+            if (
+                !ids.includes(
+                    category.id
+                )
+            ) {
+
+                ids.push(
+                    category.id
+                );
+            }
+        }
 
         if (
-            normalized.has("Horror") ||
-            normalized.has("Thriller")
+            ids.length === 0
         ) {
 
-            return "HORROR_THRILLER";
+            ids.push(
+                "general"
+            );
         }
 
-        // =====================================================================
-        // SCI-FI / FANTASY
-        // =====================================================================
-
-        if (
-            normalized.has("Sci-Fi") ||
-            normalized.has("Fantasy")
-        ) {
-
-            return "SCI_FI_FANTASY";
-        }
-
-        // =====================================================================
-        // DRAMA / ROMANCE
-        // =====================================================================
-
-        if (
-            normalized.has("Drama") ||
-            normalized.has("Romantik")
-        ) {
-
-            return "DRAMA_ROMANTIK";
-        }
-
-        // =====================================================================
-        // COMEDY / FAMILY
-        // =====================================================================
-
-        if (
-            normalized.has("Komödie") ||
-            normalized.has("Familie")
-        ) {
-
-            return "KOMEDIE_FAMILIE";
-        }
-
-        // =====================================================================
-        // ANIMATION / ANIME
-        // =====================================================================
-
-        if (
-            normalized.has("Animation") ||
-            normalized.has("Anime")
-        ) {
-
-            return "ANIMATION_ANIME";
-        }
-
-        // =====================================================================
-        // MYSTERY / CRIME
-        // =====================================================================
-
-        if (
-            normalized.has("Mystery") ||
-            normalized.has("Krimi")
-        ) {
-
-            return "MYSTERY_KRIMI";
-        }
-
-        // =====================================================================
-        // DOCUMENTARY / BIOGRAPHY
-        // =====================================================================
-
-        if (
-            normalized.has("Dokumentation") ||
-            normalized.has("Biografie")
-        ) {
-
-            return "DOKUMENTATION_BIOGRAFIE";
-        }
-
-        // =====================================================================
-        // WESTERN
-        // =====================================================================
-
-        if (
-            normalized.has("Western")
-        ) {
-
-            return "WESTERN";
-        }
-
-        // =====================================================================
-        // MUSIC
-        // =====================================================================
-
-        if (
-            normalized.has("Musik")
-        ) {
-
-            return "MUSIK";
-        }
-
-        // =====================================================================
-        // KIDS
-        // =====================================================================
-
-        if (
-            normalized.has("Kinder")
-        ) {
-
-            return "KINDER";
-        }
-
-        // =====================================================================
-        // DEFAULT
-        // =====================================================================
-
-        return "ALLGEMEIN";
+        return ids;
     }
 
     // =========================================================================
@@ -528,63 +700,33 @@ export class GenreRouter {
         genres: LibraryGenre[]
     ): LibraryGenre[] {
 
-        if (
-            !Array.isArray(
-                genres
-            )
-        ) {
-
-            return [
-                "Unbekannt"
-            ];
-        }
-
-        const validGenres =
-            new Set<LibraryGenre>([
-                "Action",
-                "Abenteuer",
-                "Horror",
-                "Thriller",
-                "Sci-Fi",
-                "Fantasy",
-                "Drama",
-                "Romantik",
-                "Komödie",
-                "Familie",
-                "Animation",
-                "Anime",
-                "Mystery",
-                "Krimi",
-                "Dokumentation",
-                "Biografie",
-                "Western",
-                "Musik",
-                "Kinder",
-                "Unbekannt"
-            ]);
-
-        const result: LibraryGenre[] = [];
+        const result:
+            LibraryGenre[] = [];
 
         for (
-            const genre of genres
+            const genre of
+            genres
         ) {
 
-            if (
-                validGenres.has(
+            /*
+             * Because this method receives LibraryGenre[],
+             * we intentionally validate the value again.
+             */
+
+            const normalized =
+                this.normalizeGenre(
                     genre
+                );
+
+            if (
+                !result.includes(
+                    normalized
                 )
             ) {
 
-                if (
-                    !result.includes(
-                        genre
-                    )
-                ) {
-
-                    result.push(
-                        genre
-                    );
-                }
+                result.push(
+                    normalized
+                );
             }
         }
 
@@ -601,275 +743,148 @@ export class GenreRouter {
     }
 
     // =========================================================================
-    // CATEGORY TITLE
+    // NORMALIZE SINGLE GENRE
     // =========================================================================
 
-    public static getCategoryTitle(
-        category: LibraryCategory
-    ): string {
+    public static normalizeGenre(
+        genre: LibraryGenre
+    ): LibraryGenre {
 
-        return (
-            this.CATEGORY_TITLES[
-                category
-            ] ??
-            this.CATEGORY_TITLES.ALLGEMEIN
-        );
-    }
-
-    // =========================================================================
-    // TELEGRAM CHAT ID
-    // =========================================================================
-
-    public static getTelegramChatId(
-        category: LibraryCategory
-    ): string | undefined {
-
-        const environmentKey =
-            this.getEnvironmentKey(
-                category
-            );
-
-        const categoryChatId =
-            process.env[
-                environmentKey
-            ];
-
-        if (
-            categoryChatId &&
-            categoryChatId.trim()
+        switch (
+            genre
         ) {
 
-            return categoryChatId.trim();
+            case "Action":
+            case "Abenteuer":
+            case "Horror":
+            case "Thriller":
+            case "Sci-Fi":
+            case "Fantasy":
+            case "Drama":
+            case "Romantik":
+            case "Komödie":
+            case "Familie":
+            case "Krimi":
+            case "Mystery":
+            case "Animation":
+            case "Anime":
+            case "Dokumentation":
+            case "Biografie":
+            case "Superhelden":
+            case "Kinder":
+            case "Western":
+            case "Musik":
+            case "Historisch":
+            case "Kriegsfilm":
+            case "Sport":
+            case "Abenteuerfilm":
+            case "Unbekannt":
+
+                return genre;
+
+            default:
+
+                return "Unbekannt";
         }
-
-        /*
-         * Fallback:
-         *
-         * Wenn keine eigene Kategorie-Gruppe
-         * hinterlegt ist, verwenden wir die
-         * zentrale Library Of Legends Gruppe.
-         */
-
-        const libraryChannelId =
-            process.env.LIBRARY_CHANNEL_ID;
-
-        if (
-            libraryChannelId &&
-            libraryChannelId.trim()
-        ) {
-
-            return libraryChannelId.trim();
-        }
-
-        /*
-         * Ältere Projektkonfiguration:
-         *
-         * GROUP_ID wird weiterhin unterstützt.
-         */
-
-        const groupId =
-            process.env.GROUP_ID;
-
-        if (
-            groupId &&
-            groupId.trim()
-        ) {
-
-            return groupId.trim();
-        }
-
-        return undefined;
-    }
-
-    // =========================================================================
-    // TELEGRAM TOPIC ID
-    // =========================================================================
-
-    public static getTopicId(
-        category: LibraryCategory
-    ): number | undefined {
-
-        const environmentKey =
-            this.getTopicEnvironmentKey(
-                category
-            );
-
-        if (!environmentKey) {
-
-            return undefined;
-        }
-
-        const raw =
-            process.env[
-                environmentKey
-            ];
-
-        if (!raw) {
-
-            return undefined;
-        }
-
-        const topicId =
-            Number(
-                raw
-            );
-
-        if (
-            !Number.isInteger(
-                topicId
-            ) ||
-            topicId <= 0
-        ) {
-
-            return undefined;
-        }
-
-        return topicId;
-    }
-
-    // =========================================================================
-    // TOPIC ENVIRONMENT KEY
-    // =========================================================================
-
-    private static getTopicEnvironmentKey(
-        category: LibraryCategory
-    ): string | undefined {
-
-        const keys: Partial<
-            Record<
-                LibraryCategory,
-                string
-            >
-        > = {
-
-            ACTION_ABENTEUER:
-                "TOPIC_ACTION_ID",
-
-            HORROR_THRILLER:
-                "TOPIC_HORROR_ID",
-
-            SCI_FI_FANTASY:
-                "TOPIC_SCIFI_ID",
-
-            DRAMA_ROMANTIK:
-                "TOPIC_DRAMA_ID",
-
-            KOMEDIE_FAMILIE:
-                "TOPIC_COMEDY_ID",
-
-            ANIMATION_ANIME:
-                "TOPIC_ANIMATION_ID",
-
-            MYSTERY_KRIMI:
-                "TOPIC_MYSTERY_ID",
-
-            DOKUMENTATION_BIOGRAFIE:
-                "TOPIC_DOCUMENTARY_ID",
-
-            WESTERN:
-                "TOPIC_WESTERN_ID",
-
-            MUSIK:
-                "TOPIC_MUSIC_ID",
-
-            KINDER:
-                "TOPIC_KIDS_ID"
-        };
-
-        return keys[
-            category
-        ];
-    }
-
-    // =========================================================================
-    // ENVIRONMENT KEY
-    // =========================================================================
-
-    private static getEnvironmentKey(
-        category: LibraryCategory
-    ): string {
-
-        return (
-            GenreRouter.CATEGORY_ENV_KEYS[
-                category
-            ] ??
-            "LIBRARY_CHANNEL_ID"
-        );
-    }
-
-    // =========================================================================
-    // CATEGORY CHECK
-    // =========================================================================
-
-    public static isCategory(
-        category: string
-    ): category is LibraryCategory {
-
-        return Object.prototype.hasOwnProperty.call(
-            this.CATEGORY_TITLES,
-            category
-        );
     }
 
     // =========================================================================
     // GET ALL CATEGORIES
     // =========================================================================
 
-    public static getCategories(): LibraryCategory[] {
+    public static getAllCategories():
+        GenreCategory[] {
 
         return [
-            ...this.CATEGORY_PRIORITY
+            ...this.CATEGORIES
         ];
     }
 
     // =========================================================================
-    // GET ALL CATEGORY TITLES
+    // GET ALL GENRES
     // =========================================================================
 
-    public static getCategoryTitles(): string[] {
+    public static getAllGenres():
+        LibraryGenre[] {
 
-        return this.getCategories()
-            .map(
-                category =>
-                    this.getCategoryTitle(
-                        category
+        const genres:
+            LibraryGenre[] = [];
+
+        for (
+            const category of
+            this.CATEGORIES
+        ) {
+
+            for (
+                const genre of
+                category.genres
+            ) {
+
+                if (
+                    !genres.includes(
+                        genre
                     )
-            );
+                ) {
+
+                    genres.push(
+                        genre
+                    );
+                }
+            }
+        }
+
+        return genres;
     }
 
     // =========================================================================
-    // GET CATEGORY ENVIRONMENT KEY
+    // GENERAL CATEGORY
     // =========================================================================
 
-    public static getCategoryEnvironmentKey(
-        category: LibraryCategory
-    ): string {
+    private static getGeneralCategory():
+        GenreCategory {
 
-        return this.getEnvironmentKey(
-            category
+        return this.CATEGORIES[
+            this.CATEGORIES.length - 1
+        ];
+    }
+
+    // =========================================================================
+    // GET DEFINITION
+    // =========================================================================
+
+    public static getDefinition(
+        genre: LibraryGenre
+    ): GenreDefinition {
+
+        return getGenreDefinition(
+            genre
         );
     }
 
     // =========================================================================
-    // HAS TELEGRAM DESTINATION
+    // SHOULD GO TO CATEGORY
     // =========================================================================
 
-    public static hasTelegramDestination(
-        category: LibraryCategory
+    public static belongsToCategory(
+        genre: LibraryGenre,
+        categoryId: string
     ): boolean {
 
-        return Boolean(
-            this.getTelegramChatId(
-                category
-            )
+        const category =
+            this.getCategory(
+                categoryId
+            );
+
+        return category.genres.includes(
+            genre
         );
     }
 
     // =========================================================================
-    // DEBUG ROUTE
+    // DEBUG
     // =========================================================================
 
-    public static describeRoute(
+    public static describe(
         genres: LibraryGenre[]
     ): string {
 
@@ -880,19 +895,41 @@ export class GenreRouter {
 
         return [
 
-            `🏷️ Genre: ${route.primaryGenre}`,
+            "=================================================",
 
-            `📂 Kategorie: ${route.categoryTitle}`,
+            "📂 GENRE ROUTER",
 
-            `📨 Telegram Chat: ${
-                route.telegramChatId ??
-                "NICHT KONFIGURIERT"
+            "=================================================",
+
+            `🏷️ Genres: ${
+                route.genres.join(
+                    ", "
+                )
             }`,
 
-            `📌 Topic: ${
-                route.topicId ??
-                "Keines"
-            }`
+            `⭐ Primary: ${
+                route.primaryGenre
+            }`,
+
+            `📂 Kategorie: ${
+                route.categoryTitle
+            }`,
+
+            `🆔 Route-ID: ${
+                route.category
+            }`,
+
+            `🗃️ Archive-Code: ${
+                route.archiveCode
+            }`,
+
+            `📂 Weitere Kategorien: ${
+                route.categoryIds.join(
+                    ", "
+                )
+            }`,
+
+            "================================================="
 
         ].join(
             "\n"
