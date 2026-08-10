@@ -20,7 +20,7 @@ File................: find-command.ts
 Location............
 Library Of Legends/src/application/telegram/commands/
 
-Version.............: 1.0.0
+Version.............: 2.0.0
 
 Status..............: Core
 
@@ -28,7 +28,7 @@ Lifecycle...........: Development
 
 Description.........
 
-Handles /find command to search media in the database.
+Handles /find command with interactive buttons.
 
 ===============================================================================
 */
@@ -43,38 +43,50 @@ export class FindCommand {
     /**
      * Execute search
      */
-    public static async execute(query: string): Promise<string> {
+    public static async execute(query: string) {
 
         if (!query || query.trim().length === 0) {
-            return "❌ Bitte Suchbegriff angeben.\n\nBeispiel:\n/find matrix";
+            return {
+                text: "❌ Bitte Suchbegriff angeben.\n\nBeispiel:\n/find matrix",
+                buttons: []
+            };
         }
 
         const results = await LibraryRepository.search(query);
 
         if (results.length === 0) {
-            return `❌ Keine Ergebnisse für: ${query}`;
+            return {
+                text: `❌ Keine Ergebnisse für: ${query}`,
+                buttons: []
+            };
         }
 
         // =========================================================================
         // BUILD RESPONSE
         // =========================================================================
 
-        const lines: string[] = [];
+        let text = `🔍 Ergebnisse für: "${query}"\n\n`;
 
-        lines.push(`🔍 Ergebnisse für: "${query}"`);
-        lines.push("");
+        const buttons: any[] = [];
 
         results.forEach((item: any, index: number) => {
 
             const emoji = item.type === "SERIES" ? "📺" : "🎬";
 
-            lines.push(
-                `${index + 1}. ${emoji} ${item.title}`
-            );
+            text += `${emoji} ${item.title}\n`;
 
+            buttons.push([
+                {
+                    text: `📥 ${item.title}`,
+                    callback_data: `download_${item.id}`
+                }
+            ]);
         });
 
-        return lines.join("\n");
+        return {
+            text,
+            buttons
+        };
     }
 
 }
