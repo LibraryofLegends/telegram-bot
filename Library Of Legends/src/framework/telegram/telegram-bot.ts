@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 3.0.0
+Version.............: 3.1.0
 
 Status..............: Core
 
@@ -28,7 +28,8 @@ Lifecycle...........: Development
 
 Description.........
 
-Telegram Bot with TMDB + Database persistence.
+Telegram Bot with TMDB integration, database persistence,
+search command and intelligent routing for movies and series.
 
 ===============================================================================
 */
@@ -75,11 +76,21 @@ export class TelegramBot {
         this.setup();
     }
 
+    /**
+     * Setup bot handlers
+     */
     private setup(): void {
 
         this.bot.start((ctx) => {
             ctx.reply("🚀 Library Of Legends Bot (DB aktiv).");
         });
+
+        // 🔥 REGISTER COMMANDS
+        registerSearchCommand(this.bot);
+
+        // =========================================================================
+        // FILE HANDLER
+        // =========================================================================
 
         this.bot.on("document", async (ctx) => {
 
@@ -110,7 +121,7 @@ export class TelegramBot {
                 }
 
                 // =========================================================================
-                // 🔥 DATABASE SAVE
+                // DATABASE SAVE 🔥
                 // =========================================================================
 
                 const item = {
@@ -137,10 +148,11 @@ export class TelegramBot {
                     ? TelegramPostBuilder.build(media, title)
                     : SeriesPostBuilder.build(title, media);
 
+                // ID anhängen
                 post += `\n\n🆔 ${item.id}`;
 
                 // =========================================================================
-                // TMDB
+                // TMDB FETCH 🔥
                 // =========================================================================
 
                 let tmdb = null;
@@ -149,7 +161,9 @@ export class TelegramBot {
                     tmdb = type === "MOVIE"
                         ? await TMDBClient.searchMovie(title)
                         : await TMDBClient.searchSeries(title);
-                } catch {}
+                } catch (e) {
+                    console.warn("TMDB Fehler:", e);
+                }
 
                 let caption = post;
 
@@ -158,7 +172,7 @@ export class TelegramBot {
                 }
 
                 // =========================================================================
-                // SEND
+                // ROUTING + SEND 🔥
                 // =========================================================================
 
                 if (type === "MOVIE") {
@@ -180,7 +194,7 @@ export class TelegramBot {
 
                     }
 
-                } else {
+                } else if (type === "SERIES") {
 
                     const info = SeriesDetector.detect(fileName);
 
@@ -232,9 +246,12 @@ export class TelegramBot {
 
     }
 
+    /**
+     * Launch bot
+     */
     public async launch(): Promise<void> {
 
-        // 🔥 Tabelle initialisieren
+        // 🔥 DB INIT
         await LibraryRepository.init();
 
         this.bot.launch();
