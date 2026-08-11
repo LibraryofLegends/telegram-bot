@@ -11,31 +11,9 @@ Architecture Layer..: Framework
 
 Module..............: Telegram
 
-Module ID...........: LOL-MOD-FRAMEWORK-TG-0001
-
-LOL-ID..............: LOL-TG-CORE-0001
-
 File................: telegram-bot.ts
 
-Location............
-Library Of Legend/src/framework/telegram/
-
-Version.............: 3.0.0
-
-Status..............: Core
-
-Lifecycle...........: Production
-
-Description.........
-
-Telegram Bot (Webhook Mode)
-
-Responsibilities:
-
-- Receive media from Telegram
-- Parse filename (movie / series)
-- Store data in SQLite
-- Respond with debug output
+Version.............: 3.0.1 (BUILD FIX)
 
 ===============================================================================
 */
@@ -45,19 +23,11 @@ import { Telegraf, Context } from "telegraf";
 
 import { DatabaseService } from "../../infrastructure/database/database";
 
-// =============================================================================
-// TYPES
-// =============================================================================
-
 interface BotConfig {
     token: string;
     port: number;
     webhookUrl?: string;
 }
-
-// =============================================================================
-// TELEGRAM BOT
-// =============================================================================
 
 export class TelegramBot {
 
@@ -65,26 +35,16 @@ export class TelegramBot {
     private config: BotConfig;
     private db: DatabaseService;
 
-    // =========================================================================
-    // CONSTRUCTOR
-    // =========================================================================
-
     constructor(config: BotConfig) {
 
         this.config = config;
-
         this.bot = new Telegraf(config.token);
-
         this.db = new DatabaseService();
 
         console.log("🔧 TelegramBot erstellt.");
 
         this.registerHandlers();
     }
-
-    // =========================================================================
-    // REGISTER HANDLERS
-    // =========================================================================
 
     private registerHandlers(): void {
 
@@ -96,19 +56,13 @@ export class TelegramBot {
 
                 const fileName = video.file_name || "unknown.mp4";
                 const fileId = video.file_id;
-                const fileSize = video.file_size;
+
+                // ✅ FIX: Default Value setzen
+                const fileSize = video.file_size ?? 0;
 
                 console.log("📥 Datei empfangen:", fileName);
 
-                // =============================================================
-                // PARSER
-                // =============================================================
-
                 const parsed = this.parseFileName(fileName);
-
-                // =============================================================
-                // SAVE TO DATABASE
-                // =============================================================
 
                 this.db.insertMedia({
                     type: parsed.type,
@@ -121,9 +75,9 @@ export class TelegramBot {
                     fileSize
                 });
 
-                // =============================================================
-                // RESPONSE
-                // =============================================================
+                const sizeGB = fileSize > 0
+                    ? (fileSize / 1024 / 1024 / 1024).toFixed(2)
+                    : "—";
 
                 await ctx.reply(
 `🧠 Parser Ergebnis
@@ -131,7 +85,7 @@ export class TelegramBot {
 🎯 Typ: ${parsed.type}
 🎬 Titel: ${parsed.title}
 📅 Jahr: ${parsed.year || "—"}
-💾 Größe: ${(fileSize / 1024 / 1024 / 1024).toFixed(2)} GB`
+💾 Größe: ${sizeGB} GB`
                 );
 
             } catch (error) {
@@ -143,19 +97,13 @@ export class TelegramBot {
         });
     }
 
-    // =========================================================================
-    // PARSER
-    // =========================================================================
-
     private parseFileName(fileName: string) {
 
         const clean = fileName.replace(/\./g, " ");
 
-        // SERIES DETECTION (S01E01)
         const seriesMatch = clean.match(/S(\d{1,2})E(\d{1,2})/i);
 
         if (seriesMatch) {
-
             return {
                 type: "series" as const,
                 title: clean.replace(seriesMatch[0], "").trim(),
@@ -164,11 +112,9 @@ export class TelegramBot {
             };
         }
 
-        // MOVIE DETECTION (YEAR)
         const yearMatch = clean.match(/\b(19\d{2}|20\d{2})\b/);
 
         if (yearMatch) {
-
             return {
                 type: "movie" as const,
                 title: clean.replace(yearMatch[0], "").trim(),
@@ -182,51 +128,26 @@ export class TelegramBot {
         };
     }
 
-    // =========================================================================
-    // LAUNCH (WEBHOOK MODE)
-    // =========================================================================
-
     public async launch(): Promise<void> {
 
         console.log("🤖 Starte Telegram Bot...");
         console.log("🌐 Webhook Mode aktiv");
 
         const app = express();
-
         app.use(express.json());
 
-        // =============================================================
-        // WEBHOOK ENDPOINT
-        // =============================================================
-
         app.post("/webhook", (req: Request, res: Response) => {
-
             this.bot.handleUpdate(req.body);
-
             res.sendStatus(200);
         });
 
-        // =============================================================
-        // HEALTH CHECK
-        // =============================================================
-
         app.get("/", (_req: Request, res: Response) => {
-
             res.send("✅ Bot läuft");
         });
 
-        // =============================================================
-        // START SERVER
-        // =============================================================
-
         app.listen(this.config.port, () => {
-
             console.log(`🌐 Express Server läuft auf Port ${this.config.port}`);
         });
-
-        // =============================================================
-        // SET WEBHOOK
-        // =============================================================
 
         const baseUrl = this.config.webhookUrl?.replace(/\/+$/, "");
 
@@ -234,12 +155,9 @@ export class TelegramBot {
             throw new Error("❌ WEBHOOK_URL fehlt!");
         }
 
-        await this.bot.telegram.setWebhook(
-            `${baseUrl}/webhook`
-        );
+        await this.bot.telegram.setWebhook(`${baseUrl}/webhook`);
 
         console.log(`🔗 Webhook gesetzt: ${baseUrl}/webhook`);
-
         console.log("✅ TelegramBot Initialisierung abgeschlossen.");
     }
 }
