@@ -20,7 +20,7 @@ File................: main.ts
 Location............
 Library Of Legend/src/
 
-Version.............: 2.0.0
+Version.............: 2.0.1
 
 Status..............: Core
 
@@ -28,13 +28,26 @@ Lifecycle...........: Production
 
 Description.........
 
-Minimal application bootstrap for Render + Telegram.
+Application bootstrap for Render + Telegram.
 
-Phase 2 contains only:
+Responsibilities:
 
-- configuration
-- Telegram bot
-- HTTP health server
+- Load application configuration
+- Start HTTP health server FIRST
+- Start Telegram bot independently
+- Keep Render Web Service port available
+- Handle graceful shutdown
+- Keep startup failures visible in logs
+
+IMPORTANT:
+
+The HTTP server intentionally starts BEFORE Telegram polling.
+
+This prevents Render from reporting:
+
+"No open ports detected"
+
+when Telegram startup is delayed.
 
 ===============================================================================
 */
@@ -48,6 +61,10 @@ import {
 import {
     TelegramBot
 } from "./framework/telegram/telegram-bot";
+
+// =============================================================================
+// MAIN
+// =============================================================================
 
 async function main(): Promise<void> {
 
@@ -63,6 +80,10 @@ async function main(): Promise<void> {
         "================================================="
     );
 
+    // =========================================================================
+    // CONFIGURATION
+    // =========================================================================
+
     const config =
         loadConfig();
 
@@ -70,12 +91,26 @@ async function main(): Promise<void> {
         "✅ Konfiguration geladen."
     );
 
+    // =========================================================================
+    // TELEGRAM BOT
+    // =========================================================================
+
     const bot =
         new TelegramBot(
             config
         );
 
-    await bot.launch();
+    // =========================================================================
+    // HTTP SERVER
+    // =========================================================================
+    //
+    // IMPORTANT:
+    //
+    // Render must detect an open port.
+    //
+    // Therefore the HTTP server is started BEFORE Telegram polling.
+    //
+    // =========================================================================
 
     const server =
         http.createServer(
@@ -98,6 +133,10 @@ async function main(): Promise<void> {
             }
         );
 
+    // =========================================================================
+    // HTTP SERVER ERROR
+    // =========================================================================
+
     server.on(
         "error",
         (
@@ -111,23 +150,123 @@ async function main(): Promise<void> {
         }
     );
 
-    server.listen(
-        config.port,
-        () => {
+    // =========================================================================
+    // START HTTP SERVER
+    // =========================================================================
 
-            console.log(
-                `🌐 HTTP Server läuft auf Port ${config.port}`
+    await new Promise<void>(
+        (
+            resolve,
+            reject
+        ) => {
+
+            server.once(
+                "error",
+                reject
             );
 
-            console.log(
-                "🤖 Library Of Legends Bot gestartet."
-            );
+            server.listen(
+                config.port,
+                () => {
 
-            console.log(
-                "================================================="
+                    server.removeListener(
+                        "error",
+                        reject
+                    );
+
+                    console.log(
+                        `🌐 HTTP Server läuft auf Port ${config.port}`
+                    );
+
+                    resolve();
+                }
             );
         }
     );
+
+    // =========================================================================
+    // START TELEGRAM
+    // =========================================================================
+    //
+    // IMPORTANT:
+    //
+    // Telegram is started WITHOUT blocking the HTTP server.
+    //
+    // Render can therefore immediately detect the open port.
+    //
+    // =========================================================================
+
+    void bot.launch()
+        .then(
+            () => {
+
+                console.log(
+                    "================================================="
+                );
+
+                console.log(
+                    "🤖 LIBRARY OF LEGENDS TELEGRAM BOT"
+                );
+
+                console.log(
+                    "✅ Telegram Verbindung aktiv"
+                );
+
+                console.log(
+                    "================================================="
+                );
+            }
+        )
+        .catch(
+            (
+                error
+            ) => {
+
+                console.error(
+                    "================================================="
+                );
+
+                console.error(
+                    "❌ TELEGRAM START FEHLER"
+                );
+
+                console.error(
+                    error
+                );
+
+                console.error(
+                    "================================================="
+                );
+            }
+        );
+
+    // =========================================================================
+    // APPLICATION STATUS
+    // =========================================================================
+
+    console.log(
+        "================================================="
+    );
+
+    console.log(
+        "🚀 LIBRARY OF LEGENDS"
+    );
+
+    console.log(
+        "✅ HTTP Health Server aktiv"
+    );
+
+    console.log(
+        "⏳ Telegram wird gestartet..."
+    );
+
+    console.log(
+        "================================================="
+    );
+
+    // =========================================================================
+    // SHUTDOWN
+    // =========================================================================
 
     const shutdown =
         async (
@@ -135,14 +274,64 @@ async function main(): Promise<void> {
         ): Promise<void> => {
 
             console.log(
+                "================================================="
+            );
+
+            console.log(
                 `🛑 ${signal} erhalten.`
             );
 
-            server.close(
-                async () => {
+            console.log(
+                "🧹 Anwendung wird sauber beendet..."
+            );
 
-                    await bot.stop(
-                        signal
+            console.log(
+                "================================================="
+            );
+
+            try {
+
+                await bot.stop(
+                    signal
+                );
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "❌ Telegram Shutdown Fehler:",
+                    error
+                );
+            }
+
+            server.close(
+                (
+                    error
+                ) => {
+
+                    if (
+                        error
+                    ) {
+
+                        console.error(
+                            "❌ HTTP Server Shutdown Fehler:",
+                            error
+                        );
+
+                        process.exit(
+                            1
+                        );
+
+                        return;
+                    }
+
+                    console.log(
+                        "✅ HTTP Server beendet."
+                    );
+
+                    console.log(
+                        "👋 PROJECT PHOENIX beendet."
                     );
 
                     process.exit(
@@ -152,18 +341,28 @@ async function main(): Promise<void> {
             );
         };
 
+    // =========================================================================
+    // SIGINT
+    // =========================================================================
+
     process.once(
         "SIGINT",
         () => {
+
             void shutdown(
                 "SIGINT"
             );
         }
     );
 
+    // =========================================================================
+    // SIGTERM
+    // =========================================================================
+
     process.once(
         "SIGTERM",
         () => {
+
             void shutdown(
                 "SIGTERM"
             );
@@ -171,14 +370,29 @@ async function main(): Promise<void> {
     );
 }
 
-main().catch(
+// =============================================================================
+// APPLICATION START
+// =============================================================================
+
+void main().catch(
     (
         error
     ) => {
 
         console.error(
-            "❌ Startup fehlgeschlagen:",
+            "================================================="
+        );
+
+        console.error(
+            "❌ FATALER STARTUP-FEHLER"
+        );
+
+        console.error(
             error
+        );
+
+        console.error(
+            "================================================="
         );
 
         process.exit(
