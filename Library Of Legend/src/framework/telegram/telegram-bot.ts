@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legend/src/framework/telegram/
 
-Version.............: 2.0.0
+Version.............: 2.1.0
 
 Status..............: Core
 
@@ -28,24 +28,31 @@ Lifecycle...........: Production
 
 Description.........
 
-Minimal Telegram framework for the clean restart.
+Clean and centralized Telegram bot foundation for Library Of Legends.
 
-Phase 2 responsibilities:
+Responsibilities:
 
-- Create Telegram bot
-- Register /start
-- Register /help
-- Start polling
-- Stop polling
+- Create Telegram bot instance
+- Register system commands
+- Start Telegram polling
+- Stop Telegram polling
 - Handle Telegram errors
-- Provide Render health status
+- Expose application health status
+- Keep Telegram framework logic centralized
 
-Intentionally NOT implemented:
+Current Phase:
+
+- Telegram connection
+- /start
+- /help
+- Basic system command registration
+- Render-compatible startup
+
+Intentionally NOT included yet:
 
 - Database
 - TMDB
-- Media processing
-- Filename parsing
+- Media parser
 - Movie processing
 - Series processing
 - Episode processing
@@ -55,12 +62,14 @@ Intentionally NOT implemented:
 - Trending
 - Netflix UI
 
+These components will be introduced only in their
+defined project phases.
+
 ===============================================================================
 */
 
 import {
     Context,
-    Markup,
     Telegraf
 } from "telegraf";
 
@@ -68,6 +77,13 @@ import {
     AppConfig
 } from "../../config/config";
 
+import {
+    registerSystemCommands
+} from "./commands/system.command";
+
+/**
+ * Central Telegram bot.
+ */
 export class TelegramBot {
 
     // =========================================================================
@@ -97,51 +113,29 @@ export class TelegramBot {
                 this.config.telegramBotToken
             );
 
-        this.registerHandlers();
-
         console.log(
             "🔧 TelegramBot erstellt."
         );
+
+        this.registerHandlers();
     }
 
     // =========================================================================
-    // HANDLERS
+    // REGISTER HANDLERS
     // =========================================================================
 
     private registerHandlers(): void {
 
         // =====================================================================
-        // START
+        // SYSTEM COMMANDS
         // =====================================================================
 
-        this.bot.start(
-            async (
-                ctx
-            ) => {
-
-                await this.handleStart(
-                    ctx
-                );
-            }
+        registerSystemCommands(
+            this.bot
         );
 
         // =====================================================================
-        // HELP
-        // =====================================================================
-
-        this.bot.help(
-            async (
-                ctx
-            ) => {
-
-                await this.handleHelp(
-                    ctx
-                );
-            }
-        );
-
-        // =====================================================================
-        // GLOBAL ERROR HANDLER
+        // GLOBAL TELEGRAM ERROR HANDLER
         // =====================================================================
 
         this.bot.catch(
@@ -173,7 +167,9 @@ export class TelegramBot {
                     );
 
                 } catch {
-                    // Telegram context may no longer exist.
+                    /*
+                     * Telegram context may no longer exist.
+                     */
                 }
             }
         );
@@ -184,6 +180,14 @@ export class TelegramBot {
     // =========================================================================
 
     public async initialize(): Promise<void> {
+
+        /*
+         * Phase 2 contains no external subsystem which
+         * requires asynchronous initialization.
+         *
+         * This method intentionally exists as a stable
+         * lifecycle hook for later project phases.
+         */
 
         console.log(
             "✅ TelegramBot Initialisierung abgeschlossen."
@@ -215,6 +219,13 @@ export class TelegramBot {
 
         try {
 
+            /*
+             * Set state before polling starts.
+             *
+             * This prevents a second local launch()
+             * call from creating another polling loop.
+             */
+
             this.started =
                 true;
 
@@ -234,7 +245,7 @@ export class TelegramBot {
             );
 
             console.log(
-                "✅ Telegram Verbindung aktiv"
+                "✅ Telegram Polling aktiv"
             );
 
             console.log(
@@ -315,90 +326,23 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // START SCREEN
-    // =========================================================================
-
-    private async handleStart(
-        ctx: Context
-    ): Promise<void> {
-
-        await ctx.reply(
-            [
-                "🎬 <b>Library Of Legends</b>",
-                "",
-                "━━━━━━━━━━━━━━━━━━",
-                "",
-                "🎞️ Willkommen im Medienarchiv!",
-                "",
-                "✅ Telegram-Grundsystem aktiv",
-                "",
-                "🚧 Der Bot wird jetzt Schritt für Schritt",
-                "sauber aufgebaut.",
-                "",
-                "━━━━━━━━━━━━━━━━━━",
-                "",
-                "ℹ️ /help"
-            ].join(
-                "\n"
-            ),
-            {
-                parse_mode:
-                    "HTML",
-
-                ...Markup.keyboard(
-                    [
-                        "ℹ️ Hilfe"
-                    ]
-                ).resize()
-            }
-        );
-    }
-
-    // =========================================================================
-    // HELP
-    // =========================================================================
-
-    private async handleHelp(
-        ctx: Context
-    ): Promise<void> {
-
-        await ctx.reply(
-            [
-                "🎬 <b>Library Of Legends</b>",
-                "",
-                "━━━━━━━━━━━━━━━━━━",
-                "",
-                "📚 <b>Aktuell verfügbar</b>",
-                "",
-                "/start",
-                "/help",
-                "",
-                "🚧 Weitere Funktionen werden",
-                "erst in den nächsten Phasen",
-                "hinzugefügt."
-            ].join(
-                "\n"
-            ),
-            {
-                parse_mode:
-                    "HTML"
-            }
-        );
-    }
-
-    // =========================================================================
-    // HTTP STATUS
+    // HEALTH STATUS
     // =========================================================================
 
     public getHttpStatus(): string {
 
-        return this.started
-            ? "Library Of Legends Bot läuft"
-            : "Library Of Legends Bot gestoppt";
+        if (
+            this.started
+        ) {
+
+            return "Library Of Legends Bot läuft";
+        }
+
+        return "Library Of Legends Bot gestoppt";
     }
 
     // =========================================================================
-    // STARTED
+    // STARTED STATUS
     // =========================================================================
 
     public isStarted(): boolean {
