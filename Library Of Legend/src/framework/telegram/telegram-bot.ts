@@ -5,49 +5,71 @@
 
 ===============================================================================
 
-Component...........: Telegram Bot
+Component...........: TelegramBot
 
 Architecture Layer..: Framework
 
 Module..............: Telegram
 
+Module ID...........: LOL-MOD-FW-TG-0001
+
+LOL-ID..............: LOL-TG-BOT-0001
+
 File................: telegram-bot.ts
 
-Version.............: 4.0.0
+Location............
+Library Of Legend/src/framework/telegram/
+
+Version.............: 3.0.0
+
+Status..............: Core
+
+Lifecycle...........: Production
 
 Description.........
 
-- Webhook Mode
-- Media Parser
-- TMDB Integration
-- MoviePostBuilder
-- ✅ Poster Support (NEU)
+Telegram Bot with Webhook support.
+
+Responsibilities:
+
+- Receive media from Telegram
+- Parse media files
+- Fetch TMDB data
+- Build formatted movie posts
+- Send poster + caption
+- Provide webhook endpoint for Render
 
 ===============================================================================
 */
 
-import { Telegraf, Context } from "telegraf";
+import { Telegraf } from "telegraf";
 import express from "express";
 
 import { parseMedia } from "../../application/parser/media-parser";
-import { MoviePostBuilder } from "../../application/builder/movie-post-builder";
 import { TMDBService } from "../../application/services/tmdb-service";
+import { MoviePostBuilder } from "../../application/builder/movie-post-builder";
 
-interface BotConfig {
+// =============================================================================
+// TYPES
+// =============================================================================
+
+interface TelegramBotConfig {
     token: string;
     port: number;
     webhookUrl?: string;
 }
 
+// =============================================================================
+// TELEGRAM BOT
+// =============================================================================
+
 export class TelegramBot {
 
-    private bot: Telegraf<Context>;
-    private config: BotConfig;
+    private bot: Telegraf;
+    private config: TelegramBotConfig;
     private app = express();
 
-    private tmdb = new TMDBService();
-
-    constructor(config: BotConfig) {
+    constructor(config: TelegramBotConfig) {
 
         this.config = config;
         this.bot = new Telegraf(config.token);
@@ -55,126 +77,172 @@ export class TelegramBot {
         console.log("🔧 TelegramBot erstellt.");
     }
 
+    // =========================================================================
+    // LAUNCH
+    // =========================================================================
+
     public async launch(): Promise<void> {
 
         console.log("🤖 Starte Telegram Bot...");
 
-        this.registerHandlers();
+        // =====================================================================
+        // MEDIA HANDLER
+        // =====================================================================
 
-        if (this.config.webhookUrl) {
-
-            console.log("🌐 Webhook Mode aktiv");
-
-            const baseUrl =
-                this.config.webhookUrl.replace(/\/+$/, "");
-
-            const webhookPath = "/webhook";
-
-            this.app.use(express.json());
-
-            this.app.post(webhookPath, (req, res) => {
-                this.bot.handleUpdate(req.body);
-                res.sendStatus(200);
-            });
-
-            this.app.listen(this.config.port, () => {
-                console.log(`🌐 Express Server läuft auf Port ${this.config.port}`);
-            });
-
-            await this.bot.telegram.setWebhook(
-                `${baseUrl}${webhookPath}`
-            );
-
-            console.log(`🔗 Webhook gesetzt: ${baseUrl}${webhookPath}`);
-
-        } else {
-
-            console.log("⚠️ Polling Mode aktiv");
-            await this.bot.launch();
-        }
-
-        console.log("✅ TelegramBot Initialisierung abgeschlossen.");
-    }
-
-    // =============================================================================
-    // HANDLER
-    // =============================================================================
-
-    private registerHandlers(): void {
-
-        this.bot.on("message", async (ctx) => {
+        this.bot.on("video", async (ctx) => {
 
             try {
 
-                const msg: any = ctx.message;
+                const video = ctx.message.video;
 
-                if (!msg?.video && !msg?.document) {
-                    return;
-                }
+                const fileName =
+                    video.file_name || "Unbekannt";
 
-                const file = msg.video || msg.document;
+                const fileId =
+                    video.file_id;
 
-                const fileName = file.file_name || "unknown";
-                const fileId = file.file_id;
-                const fileSize = file.file_size || 0;
+                const fileSize =
+                    video.file_size || 0;
 
-                console.log("📥 MEDIA:", fileName);
+                console.log("=================================================");
+                console.log("📥 MEDIA EMPFANGEN");
+                console.log(`📄 Datei: ${fileName}`);
+                console.log(`🆔 File-ID: ${fileId}`);
+                console.log(`💾 Größe: ${fileSize}`);
+                console.log("=================================================");
 
-                // =========================================================================
+                // =============================================================
                 // PARSER
-                // =========================================================================
+                // =============================================================
 
                 const parsed =
                     parseMedia(fileName);
 
-                // =========================================================================
-                // TMDB
-                // =========================================================================
+                console.log("🧠 Parser Ergebnis:", parsed);
 
-                const tmdb =
-                    await this.tmdb.searchMovie(
-                        parsed.title,
-                        parsed.year
+                // =============================================================
+                // TMDB
+                // =============================================================
+
+                let tmdbData = null;
+
+                if (parsed.title) {
+
+                    console.log(
+                        `🔎 TMDB Suche: "${parsed.title}" (${parsed.year})`
                     );
 
-                // =========================================================================
-                // BUILD TEXT
-                // =========================================================================
+                    tmdbData =
+                        await TMDBService.searchMovie(
+                            parsed.title,
+                            parsed.year
+                        );
+                }
 
-                const caption =
+                console.log("🎬 TMDB Ergebnis:", tmdbData);
+
+                // =============================================================
+                // BUILD POST
+                // =============================================================
+
+                const post =
                     MoviePostBuilder.build({
                         fileName,
                         fileId,
                         fileSize,
                         parser: parsed,
-                        tmdb: tmdb || undefined
+                        tmdb: tmdbData || undefined
                     });
 
-                // =========================================================================
-                // SEND WITH POSTER
-                // =========================================================================
+                // =============================================================
+                // SEND MESSAGE (FIXED)
+                // =============================================================
 
-                if (tmdb?.posterUrl) {
+                if (post.posterUrl) {
 
                     await ctx.replyWithPhoto(
-                        tmdb.posterUrl,
+                        post.posterUrl,
                         {
-                            caption
+                            caption: post.caption,
+                            parse_mode: "HTML"
                         }
                     );
 
                 } else {
 
-                    await ctx.reply(caption);
+                    await ctx.reply(
+                        post.caption,
+                        {
+                            parse_mode: "HTML"
+                        }
+                    );
                 }
 
             } catch (error) {
 
                 console.error("❌ Fehler:", error);
-                await ctx.reply("❌ Fehler bei Verarbeitung.");
 
+                await ctx.reply(
+                    "❌ Fehler beim Verarbeiten der Datei."
+                );
             }
-
         });
+
+        // =====================================================================
+        // WEBHOOK MODE
+        // =====================================================================
+
+        if (this.config.webhookUrl) {
+
+            console.log("🌐 Webhook Mode aktiv");
+
+            this.app.use(express.json());
+
+            this.app.post("/webhook", (req, res) => {
+
+                this.bot.handleUpdate(req.body, res);
+            });
+
+            this.app.listen(this.config.port, () => {
+
+                console.log(
+                    `🌐 Express Server läuft auf Port ${this.config.port}`
+                );
+            });
+
+            const baseUrl =
+                this.config.webhookUrl.replace(/\/+$/, "");
+
+            await this.bot.telegram.setWebhook(
+                `${baseUrl}/webhook`
+            );
+
+            console.log(
+                `🔗 Webhook gesetzt: ${baseUrl}/webhook`
+            );
+
+        } else {
+
+            // =============================================================
+            // FALLBACK: POLLING (NICHT EMPFOHLEN AUF RENDER)
+            // =============================================================
+
+            await this.bot.launch();
+
+            console.log("⚠️ Polling Mode aktiv");
+        }
+
+        console.log("✅ TelegramBot Initialisierung abgeschlossen.");
+    }
+
+    // =========================================================================
+    // STOP
+    // =========================================================================
+
+    public async stop(signal: string): Promise<void> {
+
+        console.log(`🛑 Stoppe Bot (${signal})`);
+
+        this.bot.stop(signal);
     }
 }
