@@ -5,7 +5,7 @@
 
 ===============================================================================
 
-Component...........: SeriesPostBuilder (Enhanced)
+Component...........: SeriesPostBuilder
 
 Architecture Layer..: Application
 
@@ -13,7 +13,7 @@ Module..............: Telegram
 
 Module ID...........: LOL-MOD-TG-POST-0002
 
-LOL-ID..............: LOL-TG-POST-SER-0002
+LOL-ID..............: LOL-TG-POST-SER-0001
 
 File................: series-post-builder.ts
 
@@ -24,25 +24,17 @@ Version.............: 5.0.0
 
 Status..............: Core
 
-Lifecycle...........: Production Ready
+Lifecycle...........: Production
 
 Description.........
 
-Enhanced Telegram Series & Episode Post Builder.
+Netflix-style Series & Episode Post Builder for Telegram.
 
-Responsibilities:
-
-- Build Netflix-style Telegram posts
-- Display series title and release year
-- Display season and episode (SxxExx)
-- Display episode title
-- Display genres and rating
-- Display technical media information
-- Display story/overview
-- Display archive and category
-- Generate inline buttons (Favorite, TMDB)
-- Support TMDB metadata fallback
-- Ensure clean Telegram HTML formatting
+- Clean UI
+- Stable fallback values
+- TMDB integration
+- Episode + Series support
+- Inline button support
 
 ===============================================================================
 */
@@ -61,7 +53,7 @@ export interface SeriesPost {
 export class SeriesPostBuilder {
 
     // =========================================================================
-    // ENTRY
+    // ENTRY POINT (WICHTIG für dein System)
     // =========================================================================
 
     public static buildFull(
@@ -90,7 +82,7 @@ export class SeriesPostBuilder {
     }
 
     // =========================================================================
-    // LAYOUT (NETFLIX STYLE)
+    // MAIN LAYOUT (NETFLIX STYLE)
     // =========================================================================
 
     private static buildLayout(
@@ -102,22 +94,33 @@ export class SeriesPostBuilder {
         const year = tmdb?.year || "—";
 
         const episodeCode = this.formatEpisode(series.season, series.episode);
-        const episodeTitle = (series as any).episodeTitle || "";
 
-        const rating = tmdb?.rating
-            ? `${tmdb.rating.toFixed(1)}/10`
-            : "—";
+        const episodeTitle =
+            (series as any).episodeTitle ||
+            "";
 
-        const genres = tmdb?.genres?.length
-            ? tmdb.genres.map(g => g.name).join(" • ")
-            : (series.genres || []).join(" • ");
+        const rating =
+            tmdb?.rating
+                ? `⭐ ${tmdb.rating.toFixed(1)}/10`
+                : "⭐ —";
 
-        const overview = tmdb?.overview
-            ? this.limitText(tmdb.overview, 500)
-            : "Keine Beschreibung verfügbar.";
+        const genres =
+            tmdb?.genres?.length
+                ? tmdb.genres.map(g => g.name).join(" • ")
+                : (series.genres || []).join(" • ") || "—";
+
+        const overview =
+            tmdb?.overview
+                ? this.limitText(tmdb.overview, 500)
+                : "Keine Beschreibung verfügbar.";
 
         const quality = series.quality || "—";
-        const size = this.formatFileSize(Number(series.fileSize));
+
+        const size =
+            this.formatFileSize(
+                Number(series.fileSize)
+            ) || "—";
+
         const audio = series.audio || "—";
 
         const archiveId =
@@ -134,12 +137,12 @@ export class SeriesPostBuilder {
 
 ━━━━━━━━━━━━━━━━━━
 
-🎬 <b>${episodeCode}</b>
+🎬 <b>${episodeCode || "—"}</b>
 ${episodeTitle ? `🎞️ ${this.escape(episodeTitle)}` : ""}
 
 ━━━━━━━━━━━━━━━━━━
 
-⭐ ${rating}
+${rating}
 🏷️ ${this.escape(genres)}
 
 ━━━━━━━━━━━━━━━━━━
@@ -204,7 +207,9 @@ ${this.escape(overview)}
         episode?: number
     ): string {
 
-        if (!season && !episode) return "";
+        if (!season && !episode) {
+            return "";
+        }
 
         return `S${String(season || 0).padStart(2, "0")}E${String(episode || 0).padStart(2, "0")}`;
     }
@@ -216,15 +221,30 @@ ${this.escape(overview)}
             .replace(/>/g, "&gt;");
     }
 
-    private static limitText(text: string, max: number): string {
-        if (!text || text.length <= max) return text;
-        return text.slice(0, max - 1).trim() + "…";
+    private static limitText(
+        text: string,
+        max: number
+    ): string {
+
+        if (!text || text.length <= max) {
+            return text;
+        }
+
+        return text
+            .slice(0, max - 1)
+            .trim() + "…";
     }
 
-    private static formatFileSize(bytes: number): string {
-        if (!Number.isFinite(bytes) || bytes <= 0) return "—";
+    private static formatFileSize(
+        bytes: number
+    ): string {
+
+        if (!Number.isFinite(bytes) || bytes <= 0) {
+            return "—";
+        }
 
         const units = ["B", "KB", "MB", "GB"];
+
         let i = 0;
 
         while (bytes >= 1024 && i < units.length - 1) {
