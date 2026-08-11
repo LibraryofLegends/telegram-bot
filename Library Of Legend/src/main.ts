@@ -20,7 +20,7 @@ File................: main.ts
 Location............
 Library Of Legend/src/
 
-Version.............: 3.0.0
+Version.............: 3.0.1
 
 Status..............: Core
 
@@ -29,13 +29,6 @@ Lifecycle...........: Production
 Description.........
 
 Clean Bootstrap (Webhook Ready)
-
-Responsibilities:
-
-- Load environment variables
-- Create TelegramBot instance with config
-- Start bot correctly
-- Prevent old init() usage
 
 ===============================================================================
 */
@@ -52,10 +45,7 @@ async function main(): Promise<void> {
     console.log("🚀 PROJECT PHOENIX START");
     console.log("=================================================");
 
-    // =========================================================================
     // CONFIG
-    // =========================================================================
-
     const token = process.env.TOKEN;
     const port = Number(process.env.PORT) || 10000;
     const webhookUrl = process.env.WEBHOOK_URL;
@@ -64,22 +54,14 @@ async function main(): Promise<void> {
         throw new Error("❌ TOKEN fehlt in ENV!");
     }
 
-    // =========================================================================
-    // BOT INIT (NEU)
-    // =========================================================================
-
+    // BOT INIT
     const bot = new TelegramBot({
         token,
         port,
         webhookUrl
     });
 
-    console.log("🔧 TelegramBot erstellt.");
-
-    // =========================================================================
     // START
-    // =========================================================================
-
     await bot.launch();
 
     console.log("=================================================");
@@ -88,10 +70,7 @@ async function main(): Promise<void> {
     console.log("=================================================");
 }
 
-// =============================================================================
 // START
-// =============================================================================
-
 main().catch((error) => {
 
     console.error("=================================================");
