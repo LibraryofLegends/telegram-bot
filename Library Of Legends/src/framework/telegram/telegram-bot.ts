@@ -28,54 +28,46 @@ Lifecycle...........: Production
 
 Description.........
 
-Minimal and stable Telegram bot foundation for the
-Library Of Legends clean restart.
+Minimal Telegram framework for the clean restart.
 
-Current Phase:
+Phase 2 responsibilities:
 
-- Telegram bot initialization
-- Telegram polling startup
-- Telegram shutdown
-- /start command
-- /help command
-- Global Telegram error handling
-- Render health status
+- Create Telegram bot
+- Register /start
+- Register /help
+- Start polling
+- Stop polling
+- Handle Telegram errors
+- Provide Render health status
 
-Intentionally NOT included yet:
+Intentionally NOT implemented:
 
 - Database
 - TMDB
-- Media parser
+- Media processing
+- Filename parsing
 - Movie processing
 - Series processing
 - Episode processing
-- Telegram forum topics
+- Forum topics
 - Search
 - Favorites
 - Trending
 - Netflix UI
-
-These components will be added only in their defined
-architecture phases.
 
 ===============================================================================
 */
 
 import {
     Context,
-    Telegraf,
-    Markup
+    Markup,
+    Telegraf
 } from "telegraf";
 
 import {
     AppConfig
 } from "../../config/config";
 
-/**
- * TelegramBot
- *
- * Central Telegram framework entry point.
- */
 export class TelegramBot {
 
     // =========================================================================
@@ -113,7 +105,7 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // HANDLER REGISTRATION
+    // HANDLERS
     // =========================================================================
 
     private registerHandlers(): void {
@@ -181,9 +173,7 @@ export class TelegramBot {
                     );
 
                 } catch {
-                    /*
-                     * Telegram context may no longer be available.
-                     */
+                    // Telegram context may no longer exist.
                 }
             }
         );
@@ -194,14 +184,6 @@ export class TelegramBot {
     // =========================================================================
 
     public async initialize(): Promise<void> {
-
-        /*
-         * Phase 2 currently has no external subsystem
-         * that needs initialization.
-         *
-         * The method exists intentionally so later phases
-         * can add initialization without changing main.ts.
-         */
 
         console.log(
             "✅ TelegramBot Initialisierung abgeschlossen."
@@ -233,15 +215,15 @@ export class TelegramBot {
 
         try {
 
+            this.started =
+                true;
+
             await this.bot.launch(
                 {
                     dropPendingUpdates:
                         false
                 }
             );
-
-            this.started =
-                true;
 
             console.log(
                 "================================================="
@@ -333,107 +315,70 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // START COMMAND
+    // START SCREEN
     // =========================================================================
 
     private async handleStart(
         ctx: Context
     ): Promise<void> {
 
-        const text = [
-
-            "🎬 <b>Library Of Legends</b>",
-
-            "",
-
-            "━━━━━━━━━━━━━━━━━━",
-
-            "",
-
-            "🎞️ Willkommen im Medienarchiv!",
-
-            "",
-
-            "🚧 Das System befindet sich momentan im",
-            "strukturierten Neuaufbau.",
-
-            "",
-
-            "✅ Telegram-Verbindung aktiv",
-
-            "✅ Bot-Grundsystem aktiv",
-
-            "",
-
-            "━━━━━━━━━━━━━━━━━━",
-
-            "",
-
-            "🛠️ Die weiteren Archivfunktionen werden",
-            "Schritt für Schritt hinzugefügt."
-
-        ].join(
-            "\n"
-        );
-
         await ctx.reply(
-            text,
+            [
+                "🎬 <b>Library Of Legends</b>",
+                "",
+                "━━━━━━━━━━━━━━━━━━",
+                "",
+                "🎞️ Willkommen im Medienarchiv!",
+                "",
+                "✅ Telegram-Grundsystem aktiv",
+                "",
+                "🚧 Der Bot wird jetzt Schritt für Schritt",
+                "sauber aufgebaut.",
+                "",
+                "━━━━━━━━━━━━━━━━━━",
+                "",
+                "ℹ️ /help"
+            ].join(
+                "\n"
+            ),
             {
                 parse_mode:
                     "HTML",
 
                 ...Markup.keyboard(
                     [
-                        [
-                            "ℹ️ Hilfe"
-                        ]
-                    ],
-                    {
-                        resize_keyboard:
-                            true
-                    }
-                )
+                        "ℹ️ Hilfe"
+                    ]
+                ).resize()
             }
         );
     }
 
     // =========================================================================
-    // HELP COMMAND
+    // HELP
     // =========================================================================
 
     private async handleHelp(
         ctx: Context
     ): Promise<void> {
 
-        const text = [
-
-            "🎬 <b>Library Of Legends</b>",
-
-            "",
-
-            "━━━━━━━━━━━━━━━━━━",
-
-            "📚 <b>Aktuell verfügbar</b>",
-
-            "",
-
-            "▶️ /start",
-            "ℹ️ /help",
-
-            "",
-
-            "━━━━━━━━━━━━━━━━━━",
-
-            "🚧 Weitere Funktionen folgen",
-            "kontrolliert in den nächsten",
-            "Projektphasen."
-
-        ].join(
-            "\n"
-        );
-
         await ctx.reply(
-            text,
+            [
+                "🎬 <b>Library Of Legends</b>",
+                "",
+                "━━━━━━━━━━━━━━━━━━",
+                "",
+                "📚 <b>Aktuell verfügbar</b>",
+                "",
+                "/start",
+                "/help",
+                "",
+                "🚧 Weitere Funktionen werden",
+                "erst in den nächsten Phasen",
+                "hinzugefügt."
+            ].join(
+                "\n"
+            ),
             {
                 parse_mode:
                     "HTML"
@@ -453,7 +398,7 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // IS STARTED
+    // STARTED
     // =========================================================================
 
     public isStarted(): boolean {
