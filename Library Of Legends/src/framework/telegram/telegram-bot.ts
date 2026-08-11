@@ -1242,48 +1242,41 @@ export class TelegramBot {
         }
 
         // =====================================================================
-        // POST BUILDER
-        // =====================================================================
+// POST
+// =====================================================================
 
-        let post:
-            any;
+let post: {
+    caption: string;
+    buttons: any[];
+    posterUrl?: string;
+    parseMode: "HTML";
+};
 
-        try {
+try {
 
-            post =
-                (MoviePostBuilder as any).buildFull(
-                    movie,
-                    tmdb
-                );
+    post = MoviePostBuilder.buildFull(
+        movie,
+        tmdb
+    );
 
-        } catch (
-            error
-        ) {
+} catch (error) {
 
-            console.error(
-                "⚠️ MoviePostBuilder Fehler:",
-                error
-            );
+    console.error(
+        "⚠️ MoviePostBuilder Fehler:",
+        error
+    );
 
-            post = {
-
-                caption:
-                    this.buildMovieFallbackCaption(
-                        movie,
-                        tmdb,
-                        categoryTitle
-                    ),
-
-                buttons:
-                    [],
-
-                posterUrl:
-                    tmdb?.posterUrl,
-
-                parseMode:
-                    "HTML"
-            };
-        }
+    post = {
+        caption: this.buildMovieFallbackCaption(
+            movie,
+            tmdb,
+            categoryTitle
+        ),
+        buttons: [],
+        posterUrl: tmdb?.posterUrl,
+        parseMode: "HTML"
+    };
+}
 
         // =====================================================================
         // DESTINATION
@@ -1626,48 +1619,41 @@ export class TelegramBot {
         }
 
         // =====================================================================
-        // POST
-        // =====================================================================
+// POST
+// =====================================================================
 
-        let post:
-            any;
+let post: {
+    caption: string;
+    buttons: any[];
+    posterUrl?: string;
+    parseMode: "HTML";
+};
 
-        try {
+try {
 
-            post =
-                (SeriesPostBuilder as any).buildFull(
-                    series,
-                    tmdb
-                );
+    post = SeriesPostBuilder.buildFull(
+        series,
+        tmdb
+    );
 
-        } catch (
-            error
-        ) {
+} catch (error) {
 
-            console.error(
-                "⚠️ SeriesPostBuilder Fehler:",
-                error
-            );
+    console.error(
+        "⚠️ SeriesPostBuilder Fehler:",
+        error
+    );
 
-            post = {
-
-                caption:
-                    this.buildSeriesFallbackCaption(
-                        series,
-                        tmdb,
-                        categoryTitle
-                    ),
-
-                buttons:
-                    [],
-
-                posterUrl:
-                    tmdb?.posterUrl,
-
-                parseMode:
-                    "HTML"
-            };
-        }
+    post = {
+        caption: this.buildSeriesFallbackCaption(
+            series,
+            tmdb,
+            categoryTitle
+        ),
+        buttons: [],
+        posterUrl: tmdb?.posterUrl,
+        parseMode: "HTML"
+    };
+}
 
         // =====================================================================
         // SERIES GROUP
