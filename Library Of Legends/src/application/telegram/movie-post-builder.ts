@@ -30,6 +30,11 @@ Description.........
 
 Netflix-style Telegram movie post builder.
 
+Fixes:
+- Added buildFull() for compatibility with TelegramBot
+- Improved fallback UI (no empty fields)
+- Stabilized Netflix-style output
+
 ===============================================================================
 */
 
@@ -52,25 +57,22 @@ export interface MoviePost {
 export class MoviePostBuilder {
 
     // =========================================================================
-    // MAIN BUILD (STANDARD)
+    // MAIN BUILD (COMPATIBILITY FIX)
     // =========================================================================
 
-    public static build(
+    public static buildFull(
         movie: MovieCatalogEntry,
         tmdb?: TMDBMetadata
     ): MoviePost {
 
-        return this.buildFull(
-            movie,
-            tmdb
-        );
+        return this.build(movie, tmdb);
     }
 
     // =========================================================================
-    // FULL BUILD (BOT KOMPATIBEL 🔥)
+    // ORIGINAL BUILD
     // =========================================================================
 
-    public static buildFull(
+    public static build(
         movie: MovieCatalogEntry,
         tmdb?: TMDBMetadata
     ): MoviePost {
@@ -111,20 +113,22 @@ export class MoviePostBuilder {
         const rating =
             tmdb?.rating
                 ? `⭐ ${tmdb.rating.toFixed(1)}/10`
-                : "";
+                : "⭐ —";
 
         const fsk =
             (movie as any).fsk
                 ? `🔞 FSK ${(movie as any).fsk}`
-                : "";
+                : "🔞 —";
 
         const cast =
-            tmdb?.cast
-                ?.slice(0, 3)
-                .map(c =>
-                    `#${c.name.replace(/\s+/g, "")}`
-                )
-                .join(" • ") || "";
+            tmdb?.cast?.length
+                ? tmdb.cast
+                      .slice(0, 3)
+                      .map(c =>
+                          `#${c.name.replace(/\s+/g, "")}`
+                      )
+                      .join(" • ")
+                : "—";
 
         const overview =
             tmdb?.overview
@@ -143,7 +147,7 @@ export class MoviePostBuilder {
                 movie.audio
             ]
                 .filter(Boolean)
-                .join(" · ");
+                .join(" · ") || "—";
 
         const archiveId =
             (movie as any).archiveId ||
@@ -196,7 +200,7 @@ ${this.escapeHtml(overview)}
             rows.push([
                 {
                     text: "⭐ Favorit",
-                    callback_data: `fav_${archiveId}`
+                    callbackData: `fav_${archiveId}`
                 }
             ]);
         }
