@@ -20,7 +20,7 @@ File................: database.ts
 Location............
 Library Of Legend/src/infrastructure/database/
 
-Version.............: 1.0.1
+Version.............: 1.0.2
 
 Status..............: Core
 
@@ -35,22 +35,20 @@ Responsibilities:
 - Initialize SQLite database
 - Create media table
 - Store parsed media information
-- Provide a small and isolated persistence API
-- Avoid external database dependencies
+- Provide duplicate detection
+- Provide basic lookup
+- Provide record count
+- Avoid TypeScript declaration conflicts
+- Keep database implementation isolated
+
+Important:
+
+The better-sqlite3 package is loaded through require()
+because the current project does not use its external TypeScript
+declaration package.
 
 ===============================================================================
 */
-
-/*
- * better-sqlite3 does not expose TypeScript declarations in the current
- * project configuration.
- *
- * The declaration is kept directly in this file so no additional .d.ts file
- * is required.
- */
-declare module "better-sqlite3";
-
-import Database from "better-sqlite3";
 
 // =============================================================================
 // TYPES
@@ -63,34 +61,71 @@ export type MediaType =
 
 export interface MediaRecord {
 
-    type: MediaType;
+    type:
+        MediaType;
 
-    title: string;
+    title:
+        string;
 
-    year?: number;
+    year?:
+        number;
 
-    season?: number;
+    season?:
+        number;
 
-    episode?: number;
+    episode?:
+        number;
 
-    episodeTitle?: string;
+    episodeTitle?:
+        string;
 
-    quality?: string;
+    quality?:
+        string;
 
-    source?: string;
+    source?:
+        string;
 
-    fileName: string;
+    fileName:
+        string;
 
-    fileId: string;
+    fileId:
+        string;
 
-    fileSize?: number;
+    fileSize?:
+        number;
 }
+
+// =============================================================================
+// BETTER-SQLITE3
+// =============================================================================
+//
+// IMPORTANT:
+//
+// We intentionally do NOT use:
+//
+// import Database from "better-sqlite3";
+//
+// because the current project does not have TypeScript declarations
+// for better-sqlite3.
+//
+// @types/node is already installed, so require() is available.
+//
+// =============================================================================
+
+const DatabaseConstructor =
+    require(
+        "better-sqlite3"
+    ) as any;
 
 // =============================================================================
 // DATABASE SERVICE
 // =============================================================================
 
 export class DatabaseService {
+
+    // =========================================================================
+    // DATABASE INSTANCE
+    // =========================================================================
 
     private readonly db:
         any;
@@ -102,7 +137,7 @@ export class DatabaseService {
     public constructor() {
 
         this.db =
-            new Database(
+            new DatabaseConstructor(
                 "library.db"
             );
 
@@ -121,42 +156,81 @@ export class DatabaseService {
 
         this.db.exec(`
             CREATE TABLE IF NOT EXISTS media (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-                type TEXT NOT NULL,
+                id
+                    INTEGER
+                    PRIMARY KEY
+                    AUTOINCREMENT,
 
-                title TEXT NOT NULL,
+                type
+                    TEXT
+                    NOT NULL,
 
-                year INTEGER,
+                title
+                    TEXT
+                    NOT NULL,
 
-                season INTEGER,
+                year
+                    INTEGER,
 
-                episode INTEGER,
+                season
+                    INTEGER,
 
-                episode_title TEXT,
+                episode
+                    INTEGER,
 
-                quality TEXT,
+                episode_title
+                    TEXT,
 
-                source TEXT,
+                quality
+                    TEXT,
 
-                file_name TEXT NOT NULL,
+                source
+                    TEXT,
 
-                file_id TEXT NOT NULL,
+                file_name
+                    TEXT
+                    NOT NULL,
 
-                file_size INTEGER,
+                file_id
+                    TEXT
+                    NOT NULL
+                    UNIQUE,
 
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                file_size
+                    INTEGER,
+
+                created_at
+                    DATETIME
+                    DEFAULT CURRENT_TIMESTAMP
             );
         `);
+
+        // =====================================================================
+        // INDEX: FILE ID
+        // =====================================================================
 
         this.db.exec(`
             CREATE INDEX IF NOT EXISTS idx_media_file_id
             ON media(file_id);
         `);
 
+        // =====================================================================
+        // INDEX: TITLE
+        // =====================================================================
+
         this.db.exec(`
             CREATE INDEX IF NOT EXISTS idx_media_title
             ON media(title);
+        `);
+
+        // =====================================================================
+        // INDEX: TYPE
+        // =====================================================================
+
+        this.db.exec(`
+            CREATE INDEX IF NOT EXISTS idx_media_type
+            ON media(type);
         `);
     }
 
@@ -168,9 +242,31 @@ export class DatabaseService {
         data: MediaRecord
     ): void {
 
+        // =====================================================================
+        // DUPLICATE CHECK
+        // =====================================================================
+
+        if (
+            this.exists(
+                data.fileId
+            )
+        ) {
+
+            console.log(
+                `♻️ Media bereits vorhanden: ${data.fileId}`
+            );
+
+            return;
+        }
+
+        // =====================================================================
+        // PREPARE
+        // =====================================================================
+
         const statement =
             this.db.prepare(`
                 INSERT INTO media (
+
                     type,
                     title,
                     year,
@@ -182,8 +278,10 @@ export class DatabaseService {
                     file_name,
                     file_id,
                     file_size
+
                 )
                 VALUES (
+
                     @type,
                     @title,
                     @year,
@@ -195,10 +293,16 @@ export class DatabaseService {
                     @fileName,
                     @fileId,
                     @fileSize
+
                 );
             `);
 
+        // =====================================================================
+        // EXECUTE
+        // =====================================================================
+
         statement.run({
+
             type:
                 data.type,
 
@@ -239,6 +343,10 @@ export class DatabaseService {
                 data.fileSize ??
                 null
         });
+
+        console.log(
+            `💾 Media gespeichert: ${data.title}`
+        );
     }
 
     // =========================================================================
@@ -253,28 +361,51 @@ export class DatabaseService {
             this.db
                 .prepare(`
                     SELECT
+
                         type,
+
                         title,
+
                         year,
+
                         season,
+
                         episode,
-                        episode_title AS episodeTitle,
+
+                        episode_title
+                            AS episodeTitle,
+
                         quality,
+
                         source,
-                        file_name AS fileName,
-                        file_id AS fileId,
-                        file_size AS fileSize
+
+                        file_name
+                            AS fileName,
+
+                        file_id
+                            AS fileId,
+
+                        file_size
+                            AS fileSize
+
                     FROM media
+
                     WHERE file_id = ?
+
                     LIMIT 1
                 `)
                 .get(
                     fileId
                 );
 
-        return row as
-            MediaRecord |
-            undefined;
+        if (
+            !row
+        ) {
+
+            return undefined;
+        }
+
+        return row as MediaRecord;
     }
 
     // =========================================================================
@@ -289,8 +420,11 @@ export class DatabaseService {
             this.db
                 .prepare(`
                     SELECT id
+
                     FROM media
+
                     WHERE file_id = ?
+
                     LIMIT 1
                 `)
                 .get(
@@ -303,6 +437,107 @@ export class DatabaseService {
     }
 
     // =========================================================================
+    // GET BY TITLE
+    // =========================================================================
+
+    public getByTitle(
+        title: string
+    ): MediaRecord[] {
+
+        const rows =
+            this.db
+                .prepare(`
+                    SELECT
+
+                        type,
+
+                        title,
+
+                        year,
+
+                        season,
+
+                        episode,
+
+                        episode_title
+                            AS episodeTitle,
+
+                        quality,
+
+                        source,
+
+                        file_name
+                            AS fileName,
+
+                        file_id
+                            AS fileId,
+
+                        file_size
+                            AS fileSize
+
+                    FROM media
+
+                    WHERE LOWER(title)
+                        = LOWER(?)
+
+                    ORDER BY
+                        created_at DESC
+                `)
+                .all(
+                    title
+                );
+
+        return rows as MediaRecord[];
+    }
+
+    // =========================================================================
+    // GET ALL
+    // =========================================================================
+
+    public getAll(): MediaRecord[] {
+
+        const rows =
+            this.db
+                .prepare(`
+                    SELECT
+
+                        type,
+
+                        title,
+
+                        year,
+
+                        season,
+
+                        episode,
+
+                        episode_title
+                            AS episodeTitle,
+
+                        quality,
+
+                        source,
+
+                        file_name
+                            AS fileName,
+
+                        file_id
+                            AS fileId,
+
+                        file_size
+                            AS fileSize
+
+                    FROM media
+
+                    ORDER BY
+                        created_at DESC
+                `)
+                .all();
+
+        return rows as MediaRecord[];
+    }
+
+    // =========================================================================
     // COUNT
     // =========================================================================
 
@@ -311,7 +546,8 @@ export class DatabaseService {
         const row =
             this.db
                 .prepare(`
-                    SELECT COUNT(*) AS count
+                    SELECT
+                        COUNT(*) AS count
                     FROM media
                 `)
                 .get() as {
@@ -329,10 +565,22 @@ export class DatabaseService {
 
     public close(): void {
 
-        this.db.close();
+        try {
 
-        console.log(
-            "💾 SQLite Datenbank geschlossen."
-        );
+            this.db.close();
+
+            console.log(
+                "💾 SQLite Datenbank geschlossen."
+            );
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "❌ SQLite Shutdown Fehler:",
+                error
+            );
+        }
     }
 }
