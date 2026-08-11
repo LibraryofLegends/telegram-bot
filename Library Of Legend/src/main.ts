@@ -5,7 +5,7 @@
 
 ===============================================================================
 
-Component...........: Main (Webhook Edition)
+Component...........: Main
 
 Architecture Layer..: Application
 
@@ -13,7 +13,7 @@ Module..............: Bootstrap
 
 Module ID...........: LOL-MOD-CORE-0001
 
-LOL-ID..............: LOL-MAIN-0002
+LOL-ID..............: LOL-MAIN-0001
 
 File................: main.ts
 
@@ -22,38 +22,25 @@ Library Of Legend/src/
 
 Version.............: 3.0.0
 
-Status..............: PRODUCTION
+Status..............: Core
 
-Lifecycle...........: Stable
+Lifecycle...........: Production
 
 Description.........
 
-Webhook-based application bootstrap for Render.
+Clean Bootstrap (Webhook Ready)
 
 Responsibilities:
 
-- Load configuration
-- Start HTTP server
-- Initialize Telegram Webhook
-- Keep Render service alive
-- Handle graceful shutdown
-
-IMPORTANT:
-
-- NO polling
-- NO bot.launch()
-- Webhook handles all updates
+- Load environment variables
+- Create TelegramBot instance with config
+- Start bot correctly
+- Prevent old init() usage
 
 ===============================================================================
 */
 
-import {
-    loadConfig
-} from "./config/config";
-
-import {
-    TelegramBot
-} from "./framework/telegram/telegram-bot";
+import { TelegramBot } from "./framework/telegram/telegram-bot";
 
 // =============================================================================
 // MAIN
@@ -62,76 +49,50 @@ import {
 async function main(): Promise<void> {
 
     console.log("=================================================");
-    console.log("🚀 PROJECT PHOENIX START (WEBHOOK)");
+    console.log("🚀 PROJECT PHOENIX START");
     console.log("=================================================");
 
     // =========================================================================
     // CONFIG
     // =========================================================================
 
-    const config = loadConfig();
+    const token = process.env.TOKEN;
+    const port = Number(process.env.PORT) || 10000;
+    const webhookUrl = process.env.WEBHOOK_URL;
 
-    console.log("✅ Konfiguration geladen.");
-
-    // =========================================================================
-    // BOT
-    // =========================================================================
-
-    const bot = new TelegramBot();
-
-    // =========================================================================
-    // INIT WEBHOOK SYSTEM
-    // =========================================================================
-
-    try {
-
-        await bot.init();
-
-        console.log("=================================================");
-        console.log("🤖 TELEGRAM BOT ONLINE (WEBHOOK)");
-        console.log("=================================================");
-
-    } catch (error) {
-
-        console.error("=================================================");
-        console.error("❌ TELEGRAM START FEHLER");
-        console.error(error);
-        console.error("=================================================");
+    if (!token) {
+        throw new Error("❌ TOKEN fehlt in ENV!");
     }
 
     // =========================================================================
-    // READY
+    // BOT INIT (NEU)
     // =========================================================================
+
+    const bot = new TelegramBot({
+        token,
+        port,
+        webhookUrl
+    });
+
+    console.log("🔧 TelegramBot erstellt.");
+
+    // =========================================================================
+    // START
+    // =========================================================================
+
+    await bot.launch();
 
     console.log("=================================================");
     console.log("🚀 LIBRARY OF LEGENDS");
-    console.log("✅ Anwendung gestartet");
-    console.log("✅ Webhook aktiv");
+    console.log("✅ Bot läuft");
     console.log("=================================================");
-
-    // =========================================================================
-    // SHUTDOWN
-    // =========================================================================
-
-    const shutdown = async (signal: string): Promise<void> => {
-
-        console.log("=================================================");
-        console.log(`🛑 ${signal} erhalten`);
-        console.log("🧹 Fahre Anwendung herunter...");
-        console.log("=================================================");
-
-        process.exit(0);
-    };
-
-    process.once("SIGINT", () => void shutdown("SIGINT"));
-    process.once("SIGTERM", () => void shutdown("SIGTERM"));
 }
 
 // =============================================================================
 // START
 // =============================================================================
 
-void main().catch((error) => {
+main().catch((error) => {
 
     console.error("=================================================");
     console.error("❌ FATALER STARTUP-FEHLER");
