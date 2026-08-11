@@ -5,7 +5,7 @@
 
 ===============================================================================
 
-Component...........: TelegramBot (Webhook Edition)
+Component...........: TelegramBot
 
 Architecture Layer..: Framework
 
@@ -13,166 +13,185 @@ Module..............: Telegram
 
 Module ID...........: LOL-MOD-TG-CORE-0001
 
-LOL-ID..............: LOL-TG-BOT-CORE-0001
+LOL-ID..............: LOL-TG-BOT-0001
 
 File................: telegram-bot.ts
 
 Location............
 Library Of Legend/src/framework/telegram/
 
-Version.............: 5.0.0
+Version.............: 3.0.0
 
-Status..............: PRODUCTION
+Status..............: Core
 
-Lifecycle...........: Stable
+Lifecycle...........: Production
 
 Description.........
 
-Telegram Bot Core using Webhook (NO POLLING)
+Clean Telegram Bot with Webhook Support (Render Ready)
 
-Advantages:
+Responsibilities:
 
-- No 409 Conflict Errors
-- Stable on Render
-- Scalable Architecture
-- No duplicate instances problem
-- Instant message delivery
+- Initialize Telegraf bot
+- Support Webhook mode (Render compatible)
+- Register commands
+- Handle updates via Express
+- Provide HTTP status
+- Safe start / stop lifecycle
 
 ===============================================================================
 */
 
-import { Telegraf, Context } from "telegraf";
+import { Telegraf } from "telegraf";
 import express, { Request, Response } from "express";
 
 export class TelegramBot {
 
-    private bot: Telegraf<Context>;
+    private bot: Telegraf;
     private app = express();
+    private isRunning = false;
 
-    private readonly token: string;
-    private readonly port: number;
-    private readonly webhookUrl: string;
+    private token: string;
+    private webhookUrl: string;
+    private port: number;
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
-    constructor() {
+    constructor(config: {
+        token: string;
+        port: number;
+        webhookUrl?: string;
+    }) {
 
-        this.token =
-            process.env.TELEGRAM_BOT_TOKEN ||
-            process.env.TOKEN ||
-            "";
-
-        if (!this.token) {
-            throw new Error("❌ TELEGRAM TOKEN FEHLT");
-        }
-
-        this.port =
-            Number(process.env.PORT) || 10000;
-
-        this.webhookUrl =
-            process.env.WEBHOOK_URL || "";
-
-        if (!this.webhookUrl) {
-            throw new Error("❌ WEBHOOK_URL fehlt");
-        }
+        this.token = config.token;
+        this.port = config.port;
+        this.webhookUrl = config.webhookUrl || "";
 
         this.bot = new Telegraf(this.token);
 
-        console.log("🔧 TelegramBot erstellt (Webhook Mode)");
+        this.setupMiddleware();
+        this.setupRoutes();
+        this.registerCommands();
+
+        console.log("🔧 TelegramBot erstellt.");
     }
 
     // =========================================================================
-    // INIT
+    // SETUP EXPRESS
     // =========================================================================
 
-    public async init(): Promise<void> {
+    private setupMiddleware(): void {
+        this.app.use(express.json());
+    }
 
-        this.setupCommands();
-        this.setupRoutes();
+    private setupRoutes(): void {
 
-        await this.startServer();
-        await this.startWebhook();
+        // Health Endpoint
+        this.app.get("/", (_req: Request, res: Response) => {
+            res.send(this.getHttpStatus());
+        });
 
-        console.log("✅ TelegramBot vollständig gestartet (Webhook)");
+        // Webhook Endpoint
+        this.app.post("/webhook", (req: Request, res: Response) => {
+
+            this.bot.handleUpdate(req.body)
+                .then(() => res.sendStatus(200))
+                .catch((err) => {
+                    console.error("❌ Webhook Fehler:", err);
+                    res.sendStatus(500);
+                });
+        });
     }
 
     // =========================================================================
     // COMMANDS
     // =========================================================================
 
-    private setupCommands(): void {
+    private registerCommands(): void {
 
         this.bot.start((ctx) => {
-            ctx.reply("🚀 Library Of Legends ist online!");
+            ctx.reply("📺 Willkommen bei Library Of Legends");
         });
 
-        this.bot.help((ctx) => {
-            ctx.reply("📖 Hilfe kommt bald...");
+        this.bot.command("ping", (ctx) => {
+            ctx.reply("🏓 Pong");
         });
 
         this.bot.on("text", (ctx) => {
-            ctx.reply("📩 Nachricht erhalten!");
+            ctx.reply("📩 Nachricht empfangen");
         });
     }
 
     // =========================================================================
-    // EXPRESS ROUTES
+    // LAUNCH
     // =========================================================================
 
-    private setupRoutes(): void {
+    public async launch(): Promise<void> {
 
-        this.app.use(express.json());
+        if (this.isRunning) return;
 
-        // Health Check (Render)
-        this.app.get("/", (_req: Request, res: Response) => {
-            res.send("✅ Bot läuft");
-        });
+        console.log("🤖 Starte Telegram Bot...");
 
-        // Webhook Endpoint
-        this.app.post(`/webhook/${this.token}`, (req, res) => {
-            this.bot.handleUpdate(req.body);
-            res.sendStatus(200);
-        });
+        // ============================================================
+        // WEBHOOK MODE (EMPFOHLEN für Render)
+        // ============================================================
+
+        if (this.webhookUrl) {
+
+            console.log("🌐 Webhook Mode aktiv");
+
+            await this.bot.telegram.setWebhook(
+                `${this.webhookUrl}/webhook`
+            );
+
+            this.app.listen(this.port, "0.0.0.0", () => {
+                console.log(`🌐 Express Server läuft auf Port ${this.port}`);
+                console.log(`🔗 Webhook gesetzt: ${this.webhookUrl}/webhook`);
+            });
+
+        } else {
+
+            // ========================================================
+            // FALLBACK: LONG POLLING (NICHT empfohlen auf Render)
+            // ========================================================
+
+            console.log("⚠️ Polling Mode aktiv");
+
+            await this.bot.launch();
+        }
+
+        this.isRunning = true;
+
+        console.log("✅ TelegramBot Initialisierung abgeschlossen.");
     }
 
     // =========================================================================
-    // SERVER START
+    // STOP
     // =========================================================================
 
-    private async startServer(): Promise<void> {
+    public async stop(reason?: string): Promise<void> {
 
-        this.app.listen(this.port, () => {
+        console.log(`🛑 Stoppe TelegramBot (${reason || "unknown"})`);
 
-            console.log("=================================================");
-            console.log(`🌐 HTTP Server läuft auf Port ${this.port}`);
-            console.log("=================================================");
+        await this.bot.stop(reason);
 
-        });
+        this.isRunning = false;
     }
 
     // =========================================================================
-    // WEBHOOK START
+    // STATUS
     // =========================================================================
 
-    private async startWebhook(): Promise<void> {
+    public getHttpStatus(): string {
 
-        console.log("🤖 Starte Webhook...");
-
-        // 🔥 Wichtig: alte Sachen entfernen
-        await this.bot.telegram.deleteWebhook({
-            drop_pending_updates: true
-        });
-
-        // 🔥 Webhook setzen
-        const url = `${this.webhookUrl}/webhook/${this.token}`;
-
-        await this.bot.telegram.setWebhook(url);
-
-        console.log("=================================================");
-        console.log("✅ Webhook gesetzt:");
-        console.log(url);
-        console.log("=================================================");
+        return `
+=================================================
+📺 LIBRARY OF LEGENDS BOT
+Status: ${this.isRunning ? "ONLINE" : "OFFLINE"}
+Mode: ${this.webhookUrl ? "WEBHOOK" : "POLLING"}
+=================================================
+        `.trim();
     }
 }
