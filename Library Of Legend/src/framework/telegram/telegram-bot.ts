@@ -11,16 +11,16 @@ Architecture Layer..: Framework
 
 Module..............: Telegram
 
-Module ID...........: LOL-MOD-FRAMEWORK-TG-0001
+Module ID...........: LOL-MOD-TG-0001
 
-LOL-ID..............: LOL-TG-CORE-0001
+LOL-ID..............: LOL-TG-BOT-0001
 
 File................: telegram-bot.ts
 
 Location............
 Library Of Legend/src/framework/telegram/
 
-Version.............: 3.1.0
+Version.............: 3.0.0
 
 Status..............: Core
 
@@ -30,19 +30,21 @@ Description.........
 
 Telegram Bot with:
 
-- Media detection
-- Filename parsing
-- TMDB integration (NEW)
-- Debug output (NO posting yet)
+- Webhook Mode (Render Ready)
+- Media Detection
+- Parser Integration
+- TMDB Integration
+- Movie Post Builder
 
 ===============================================================================
 */
 
-import { Telegraf } from "telegraf";
+import { Telegraf, Context } from "telegraf";
 import express from "express";
 
-import { MediaParser } from "../../application/parser/media-parser";
-import { TmdbService } from "../../infrastructure/tmdb/tmdb.service";
+import { parseMedia } from "../../application/parser/media-parser";
+import { MoviePostBuilder } from "../../application/builder/movie-post-builder";
+import { TMDBService } from "../../application/services/tmdb-service";
 
 // =============================================================================
 // TYPES
@@ -55,29 +57,21 @@ interface BotConfig {
 }
 
 // =============================================================================
-// TELEGRAM BOT
+// CLASS
 // =============================================================================
 
 export class TelegramBot {
 
-    private bot: Telegraf;
+    private bot: Telegraf<Context>;
     private config: BotConfig;
+    private app = express();
 
-    private parser: MediaParser;
-    private tmdb: TmdbService;
-
-    // =========================================================================
-    // CONSTRUCTOR
-    // =========================================================================
+    private tmdb = new TMDBService();
 
     constructor(config: BotConfig) {
 
         this.config = config;
-
         this.bot = new Telegraf(config.token);
-
-        this.parser = new MediaParser();
-        this.tmdb = new TmdbService();
 
         console.log("🔧 TelegramBot erstellt.");
     }
@@ -90,50 +84,47 @@ export class TelegramBot {
 
         console.log("🤖 Starte Telegram Bot...");
 
-        // =====================================================================
-        // HANDLER
-        // =====================================================================
-
         this.registerHandlers();
 
-        // =====================================================================
+        // =========================================================================
         // WEBHOOK MODE
-        // =====================================================================
+        // =========================================================================
 
         if (this.config.webhookUrl) {
 
             console.log("🌐 Webhook Mode aktiv");
 
-            const app = express();
-
-            app.use(express.json());
-
-            app.post("/webhook", (req, res) => {
-                this.bot.handleUpdate(req.body);
-                res.sendStatus(200);
-            });
-
-            app.listen(this.config.port, "0.0.0.0", () => {
-                console.log(`🌐 Express Server läuft auf Port ${this.config.port}`);
-            });
-
             const baseUrl =
                 this.config.webhookUrl.replace(/\/+$/, "");
 
-            await this.bot.telegram.setWebhook(
-                `${baseUrl}/webhook`
+            const webhookPath = "/webhook";
+
+            this.app.use(express.json());
+
+            this.app.post(
+                webhookPath,
+                (req, res) => {
+                    this.bot.handleUpdate(req.body);
+                    res.sendStatus(200);
+                }
             );
 
-            console.log(
-                `🔗 Webhook gesetzt: ${baseUrl}/webhook`
+            this.app.listen(this.config.port, () => {
+
+                console.log(`🌐 Express Server läuft auf Port ${this.config.port}`);
+
+            });
+
+            await this.bot.telegram.setWebhook(
+                `${baseUrl}${webhookPath}`
             );
+
+            console.log(`🔗 Webhook gesetzt: ${baseUrl}${webhookPath}`);
 
         } else {
 
-            // FALLBACK POLLING (NICHT EMPFOHLEN AUF RENDER)
-
+            // FALLBACK: POLLING
             console.log("⚠️ Polling Mode aktiv");
-
             await this.bot.launch();
         }
 
@@ -146,25 +137,31 @@ export class TelegramBot {
 
     private registerHandlers(): void {
 
-        this.bot.on("video", async (ctx) => {
+        this.bot.on("message", async (ctx) => {
 
             try {
 
-                const video =
-                    ctx.message.video;
+                const msg: any = ctx.message;
+
+                // =========================================================================
+                // MEDIA CHECK
+                // =========================================================================
+
+                if (!msg?.video && !msg?.document) {
+                    return;
+                }
+
+                const file =
+                    msg.video || msg.document;
 
                 const fileName =
-                    video.file_name || "unknown";
+                    file.file_name || "unknown";
 
                 const fileId =
-                    video.file_id;
+                    file.file_id;
 
                 const fileSize =
-                    video.file_size ?? 0;
-
-                // =============================================================
-                // DEBUG: MEDIA EMPFANG
-                // =============================================================
+                    file.file_size || 0;
 
                 console.log("=================================================");
                 console.log("📥 MEDIA EMPFANGEN");
@@ -173,65 +170,54 @@ export class TelegramBot {
                 console.log(`💾 Größe: ${fileSize}`);
                 console.log("=================================================");
 
-                // =============================================================
+                // =========================================================================
                 // PARSER
-                // =============================================================
+                // =========================================================================
 
                 const parsed =
-                    this.parser.parse(fileName);
+                    parseMedia(fileName);
 
                 console.log("🧠 Parser Ergebnis:", parsed);
 
-                // =============================================================
+                // =========================================================================
                 // TMDB
-                // =============================================================
+                // =========================================================================
 
-                let tmdbData = null;
+                const tmdbResult =
+                    await this.tmdb.searchMovie(
+                        parsed.title,
+                        parsed.year
+                    );
 
-                if (parsed.type === "movie") {
+                console.log("🎬 TMDB Ergebnis:", tmdbResult);
 
-                    tmdbData =
-                        await this.tmdb.searchMovie(
-                            parsed.title,
-                            parsed.year
-                        );
+                // =========================================================================
+                // BUILD POST
+                // =========================================================================
 
-                    console.log("🎬 TMDB Ergebnis:", tmdbData);
-                }
+                const post =
+                    MoviePostBuilder.build({
+                        fileName,
+                        fileId,
+                        fileSize,
+                        parser: parsed,
+                        tmdb: tmdbResult || undefined
+                    });
 
-                // =============================================================
-                // TELEGRAM RESPONSE
-                // =============================================================
+                // =========================================================================
+                // SEND
+                // =========================================================================
 
-                let message =
-                    `🧠 Parser Ergebnis\n` +
-                    `📄 Datei: ${fileName}\n` +
-                    `🎯 Typ: ${parsed.type}\n` +
-                    `🎬 Titel: ${parsed.title}\n` +
-                    `📅 Jahr: ${parsed.year ?? "?"}\n\n`;
-
-                if (tmdbData) {
-
-                    message +=
-                        `🎬 TMDB\n` +
-                        `📌 Titel: ${tmdbData.title}\n` +
-                        `⭐ Rating: ${tmdbData.rating}\n` +
-                        `🎭 Genres: ${tmdbData.genres.join(", ")}\n` +
-                        `📖 ${tmdbData.overview?.slice(0, 150)}...\n`;
-                } else {
-
-                    message +=
-                        `⚠️ Kein TMDB Treffer`;
-                }
-
-                await ctx.reply(message);
+                await ctx.reply(post);
 
             } catch (error) {
 
-                console.error("❌ Fehler im Video-Handler:", error);
+                console.error("❌ Fehler:", error);
 
-                await ctx.reply("❌ Fehler bei Verarbeitung");
+                await ctx.reply("❌ Fehler bei Verarbeitung.");
+
             }
+
         });
     }
 }
