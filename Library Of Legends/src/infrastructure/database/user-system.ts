@@ -7,64 +7,178 @@
 
 Component...........: UserSystem
 
+Architecture Layer..: Infrastructure
+
+Module..............: Database
+
+Module ID...........: LOL-MOD-DB-USER-0001
+
+LOL-ID..............: LOL-DB-USER-0001
+
+File................: user-system.ts
+
+Location............
+Library Of Legends/src/infrastructure/database/
+
+Version.............: 2.0.0
+
+Status..............: Core
+
+Lifecycle...........: Production
+
+Description.........
+
+User management system with Premium logic.
+
 ===============================================================================
 */
 
 import Database from "better-sqlite3";
 
-const db = new Database("library.db");
+// =========================================================================
+// TYPES
+// =========================================================================
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY,
-    username TEXT,
-    is_premium INTEGER DEFAULT 0,
-    daily_requests INTEGER DEFAULT 0,
-    last_request DATE
-);
+export interface UserEntity {
+    id: number;
+    telegram_id: number;
+    username?: string;
+    is_premium: number;        // 0 | 1
+    daily_requests: number;
+    last_request_date?: string;
+}
 
-CREATE TABLE IF NOT EXISTS favorites (
-    user_id INTEGER,
-    item_id TEXT
-);
-`);
+// =========================================================================
+// USER SYSTEM
+// =========================================================================
 
 export class UserSystem {
 
-    public static canRequest(userId: number): boolean {
+    private static db = new Database("library.db");
 
-        const user = db.prepare(`
-            SELECT * FROM users WHERE id = ?
-        `).get(userId);
+    // =========================================================================
+    // GET USER
+    // =========================================================================
 
-        if (!user) return true;
+    public static getUser(
+        telegramId: number
+    ): UserEntity {
 
-        if (user.is_premium) return true;
+        const row = this.db
+            .prepare(`
+                SELECT *
+                FROM users
+                WHERE telegram_id = ?
+            `)
+            .get(telegramId) as UserEntity | undefined;
 
+        // 👇 Falls User nicht existiert → erstellen
+        if (!row) {
+
+            this.db
+                .prepare(`
+                    INSERT INTO users (
+                        telegram_id,
+                        is_premium,
+                        daily_requests
+                    )
+                    VALUES (?, 0, 0)
+                `)
+                .run(telegramId);
+
+            return {
+                id: 0,
+                telegram_id: telegramId,
+                is_premium: 0,
+                daily_requests: 0
+            };
+        }
+
+        return row;
+    }
+
+    // =========================================================================
+    // IS PREMIUM
+    // =========================================================================
+
+    public static isPremium(
+        telegramId: number
+    ): boolean {
+
+        const user =
+            this.getUser(telegramId);
+
+        return user.is_premium === 1;
+    }
+
+    // =========================================================================
+    // CAN REQUEST (LIMIT SYSTEM)
+    // =========================================================================
+
+    public static canRequest(
+        telegramId: number
+    ): boolean {
+
+        const user =
+            this.getUser(telegramId);
+
+        // 👑 Premium → unlimited
+        if (user.is_premium === 1) {
+            return true;
+        }
+
+        const today =
+            new Date().toISOString().slice(0, 10);
+
+        // Reset daily counter
+        if (user.last_request_date !== today) {
+
+            this.db.prepare(`
+                UPDATE users
+                SET daily_requests = 0,
+                    last_request_date = ?
+                WHERE telegram_id = ?
+            `).run(today, telegramId);
+
+            return true;
+        }
+
+        // Limit (FREE USER)
         return user.daily_requests < 3;
     }
 
-    public static addRequest(userId: number) {
+    // =========================================================================
+    // INCREMENT REQUEST
+    // =========================================================================
 
-        db.prepare(`
-            INSERT INTO users (id, daily_requests)
-            VALUES (?, 1)
-            ON CONFLICT(id) DO UPDATE SET daily_requests = daily_requests + 1
-        `).run(userId);
+    public static addRequest(
+        telegramId: number
+    ): void {
+
+        const today =
+            new Date().toISOString().slice(0, 10);
+
+        this.db.prepare(`
+            UPDATE users
+            SET daily_requests = daily_requests + 1,
+                last_request_date = ?
+            WHERE telegram_id = ?
+        `).run(today, telegramId);
     }
 
-    public static addFavorite(userId: number, itemId: string) {
+    // =========================================================================
+    // SET PREMIUM
+    // =========================================================================
 
-        db.prepare(`
-            INSERT INTO favorites (user_id, item_id)
-            VALUES (?, ?)
-        `).run(userId, itemId);
-    }
+    public static setPremium(
+        telegramId: number,
+        value: boolean
+    ): void {
 
-    public static getFavorites(userId: number) {
-
-        return db.prepare(`
-            SELECT item_id FROM favorites WHERE user_id = ?
-        `).all(userId);
+        this.db.prepare(`
+            UPDATE users
+            SET is_premium = ?
+            WHERE telegram_id = ?
+        `).run(value ? 1 : 0, telegramId);
     }
 }
