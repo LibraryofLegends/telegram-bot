@@ -30,21 +30,23 @@ Description.........
 
 Netflix-style Telegram movie post builder.
 
-Fixes:
-- Added buildFull() for compatibility with TelegramBot
-- Improved fallback UI (no empty fields)
-- Stabilized Netflix-style output
+Features:
+
+- Full cinematic layout
+- TMDB integration
+- Cast extraction
+- Rating & FSK display
+- Archive system integration
+- Collection support
+- Telegram HTML safe formatting
+- Fallback-safe rendering
+- Inline button system
 
 ===============================================================================
 */
 
-import {
-    MovieCatalogEntry
-} from "../../domain/catalog/movie-catalog";
-
-import {
-    TMDBMetadata
-} from "../../infrastructure/tmdb/tmdb-client";
+import { MovieCatalogEntry } from "../../domain/catalog/movie-catalog";
+import { TMDBMetadata } from "../../infrastructure/tmdb/tmdb-client";
 
 export interface MoviePost {
     caption: string;
@@ -57,19 +59,18 @@ export interface MoviePost {
 export class MoviePostBuilder {
 
     // =========================================================================
-    // MAIN BUILD (COMPATIBILITY FIX)
+    // ENTRY POINT (COMPATIBILITY LAYER)
     // =========================================================================
 
     public static buildFull(
         movie: MovieCatalogEntry,
         tmdb?: TMDBMetadata
     ): MoviePost {
-
         return this.build(movie, tmdb);
     }
 
     // =========================================================================
-    // ORIGINAL BUILD
+    // MAIN BUILD
     // =========================================================================
 
     public static build(
@@ -77,14 +78,8 @@ export class MoviePostBuilder {
         tmdb?: TMDBMetadata
     ): MoviePost {
 
-        const caption =
-            this.buildNetflixStyle(
-                movie,
-                tmdb
-            );
-
         return {
-            caption,
+            caption: this.buildLayout(movie, tmdb),
             buttons: this.buildButtons(movie, tmdb),
             posterUrl: tmdb?.posterUrl,
             backdropUrl: tmdb?.backdropUrl,
@@ -93,97 +88,79 @@ export class MoviePostBuilder {
     }
 
     // =========================================================================
-    // NETFLIX STYLE POST
+    // FINAL CINEMATIC LAYOUT
     // =========================================================================
 
-    private static buildNetflixStyle(
+    private static buildLayout(
         movie: MovieCatalogEntry,
         tmdb?: TMDBMetadata
     ): string {
 
-        const title =
-            tmdb?.title ||
-            movie.title;
+        const title = tmdb?.title || movie.title || "Unbekannt";
+        const year = tmdb?.year || movie.year || "—";
 
-        const year =
-            tmdb?.year ||
-            movie.year ||
-            "—";
+        const rating = tmdb?.rating
+            ? `${tmdb.rating.toFixed(1)}/10`
+            : "—";
 
-        const rating =
-            tmdb?.rating
-                ? `⭐ ${tmdb.rating.toFixed(1)}/10`
-                : "⭐ —";
+        const fsk = (movie as any).fsk
+            ? `FSK ${(movie as any).fsk}`
+            : "—";
 
-        const fsk =
-            (movie as any).fsk
-                ? `🔞 FSK ${(movie as any).fsk}`
-                : "🔞 —";
+        const cast = tmdb?.cast?.length
+            ? tmdb.cast
+                .slice(0, 3)
+                .map(c => `#${c.name.replace(/\s+/g, "")}`)
+                .join(" • ")
+            : "—";
 
-        const cast =
-            tmdb?.cast?.length
-                ? tmdb.cast
-                      .slice(0, 3)
-                      .map(c =>
-                          `#${c.name.replace(/\s+/g, "")}`
-                      )
-                      .join(" • ")
-                : "—";
+        const overview = tmdb?.overview
+            ? this.limitText(tmdb.overview, 400)
+            : "Keine Beschreibung verfügbar.";
 
-        const overview =
-            tmdb?.overview
-                ? this.limitText(
-                      tmdb.overview,
-                      300
-                  )
-                : "Keine Beschreibung verfügbar.";
+        const quality = movie.quality || "—";
+        const size = this.formatFileSize(Number(movie.fileSize)) || "—";
+        const audio = movie.audio || "—";
 
-        const tech =
-            [
-                movie.quality,
-                this.formatFileSize(
-                    Number(movie.fileSize)
-                ),
-                movie.audio
-            ]
-                .filter(Boolean)
-                .join(" · ") || "—";
+        const archiveId = (movie as any).archiveId || "—";
+        const category = (movie as any).category || "Allgemein";
 
-        const archiveId =
-            (movie as any).archiveId ||
-            "—";
-
-        const category =
-            (movie as any).category ||
-            "Allgemein";
+        const collection = (movie as any).collection || null;
+        const part = (movie as any).collectionPart || null;
+        const total = (movie as any).collectionTotal || null;
 
         return `
-🎬 <b>${this.escapeHtml(title)} (${year})</b>
+🎬 <b>${this.escape(title)} (${year})</b>
 
 ━━━━━━━━━━━━━━━━━━
 
-${rating} ${fsk}
-👥 ${this.escapeHtml(cast)}
+⭐ Bewertung: ${rating} | 🔞 ${fsk}
+👥 ${this.escape(cast)}
 
 ━━━━━━━━━━━━━━━━━━
 
-📖 <b>Handlung:</b>
-${this.escapeHtml(overview)}
+📝 <b>Handlung:</b>
+${this.escape(overview)}
 
 ━━━━━━━━━━━━━━━━━━
 
-📦 ${this.escapeHtml(tech)}
+📦 ${quality} · ${size} · ${audio}
+
+${collection ? `
+━━━━━━━━━━━━━━━━━━
+🎞️ Reihe: ${this.escape(collection)} · ⚠️ ${part || "?"}/${total || "?"} vorhanden
+` : ""}
 
 ━━━━━━━━━━━━━━━━━━
 
-📁 Archiv: <code>${this.escapeHtml(archiveId)}</code> #${category.replace(/\s+/g, "")}
+📁 Archiv: <code>${archiveId}</code> #${category.replace(/\s+/g, "")}
 
 🎬 <b>Library Of Legends</b>
         `.trim();
     }
 
     // =========================================================================
-    // BUTTONS
+    // BUTTON FACTORY
     // =========================================================================
 
     private static buildButtons(
@@ -191,21 +168,19 @@ ${this.escapeHtml(overview)}
         tmdb?: TMDBMetadata
     ) {
 
-        const archiveId =
-            (movie as any).archiveId || "";
-
+        const archiveId = (movie as any).archiveId || "";
         const rows: any[][] = [];
 
         if (archiveId) {
             rows.push([
                 {
                     text: "⭐ Favorit",
-                    callbackData: `fav_${archiveId}`
+                    callback_data: `fav_${archiveId}`
                 }
             ]);
         }
 
-        if (tmdb) {
+        if (tmdb?.id) {
             rows.push([
                 {
                     text: "🎞️ TMDB",
@@ -218,59 +193,43 @@ ${this.escapeHtml(overview)}
     }
 
     // =========================================================================
-    // HELPERS
+    // HTML ESCAPER
     // =========================================================================
 
-    private static escapeHtml(value: string): string {
+    private static escape(value: string): string {
         return String(value)
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
+            .replace(/>/g, "&gt;");
     }
+
+    // =========================================================================
+    // TEXT LIMITER
+    // =========================================================================
 
     private static limitText(
-        value: string,
-        maxLength: number
+        text: string,
+        max: number
     ): string {
-
-        const text =
-            String(value || "").trim();
-
-        if (text.length <= maxLength) {
-            return text;
-        }
-
-        return (
-            text
-                .slice(0, maxLength - 1)
-                .trim() + "…"
-        );
+        if (!text || text.length <= max) return text;
+        return text.slice(0, max - 1).trim() + "…";
     }
 
-    private static formatFileSize(
-        bytes: number
-    ): string {
+    // =========================================================================
+    // FILE SIZE FORMATTER
+    // =========================================================================
 
-        if (!Number.isFinite(bytes) || bytes <= 0) {
-            return "";
+    private static formatFileSize(bytes: number): string {
+        if (!Number.isFinite(bytes) || bytes <= 0) return "";
+
+        const units = ["B", "KB", "MB", "GB"];
+        let i = 0;
+
+        while (bytes >= 1024 && i < units.length - 1) {
+            bytes /= 1024;
+            i++;
         }
 
-        const units =
-            ["B", "KB", "MB", "GB", "TB"];
-
-        let value = bytes;
-        let index = 0;
-
-        while (
-            value >= 1024 &&
-            index < units.length - 1
-        ) {
-            value /= 1024;
-            index++;
-        }
-
-        return `${value.toFixed(2)} ${units[index]}`;
+        return `${bytes.toFixed(2)} ${units[i]}`;
     }
 }
