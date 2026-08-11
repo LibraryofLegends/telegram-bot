@@ -30,205 +30,74 @@ Description.........
 
 Automatic filename parser for Series Episodes.
 
-Detects:
-- Series title
-- Season / Episode
-- Episode title
-- Quality
-- Source
-- Audio
-- Video codec
-
 ===============================================================================
 */
 
 export interface EpisodeParseResult {
-
     title: string;
-
     season?: number;
-
     episode?: number;
-
     episodeTitle?: string;
-
     quality?: string;
-
     source?: string;
-
     audio?: string;
-
     videoCodec?: string;
 }
 
 export class EpisodeParser {
 
-    // =========================================================================
-    // MAIN PARSER
-    // =========================================================================
+    public static parse(filename: string): EpisodeParseResult {
 
-    public static parse(
-        filename: string
-    ): EpisodeParseResult {
-
-        const clean =
-            this.cleanFilename(filename);
-
-        const seasonEpisode =
-            this.extractSeasonEpisode(clean);
-
-        const quality =
-            this.extractQuality(clean);
-
-        const source =
-            this.extractSource(clean);
-
-        const audio =
-            this.extractAudio(clean);
-
-        const codec =
-            this.extractCodec(clean);
-
-        const episodeTitle =
-            this.extractEpisodeTitle(clean);
-
-        const title =
-            this.extractSeriesTitle(clean);
+        const clean = this.clean(filename);
 
         return {
-            title,
-            season: seasonEpisode?.season,
-            episode: seasonEpisode?.episode,
-            episodeTitle,
-            quality,
-            source,
-            audio,
-            videoCodec: codec
+            title: this.getTitle(clean),
+            ...this.getSE(clean),
+            episodeTitle: this.getEpisodeTitle(clean),
+            quality: this.getQuality(clean),
+            source: this.getSource(clean),
+            audio: this.getAudio(clean),
+            videoCodec: this.getCodec(clean)
         };
     }
 
-    // =========================================================================
-    // CLEAN
-    // =========================================================================
-
-    private static cleanFilename(
-        name: string
-    ): string {
-
+    private static clean(name: string): string {
         return name
-            .replace(/\.[^.]+$/, "") // extension
+            .replace(/\.[^.]+$/, "")
             .replace(/[._]/g, " ")
             .replace(/\s+/g, " ")
             .trim();
     }
 
-    // =========================================================================
-    // SxxEyy
-    // =========================================================================
-
-    private static extractSeasonEpisode(
-        name: string
-    ) {
-
-        const match =
-            name.match(/S(\d{1,2})E(\d{1,2})/i);
-
-        if (!match) return;
-
-        return {
-            season: Number(match[1]),
-            episode: Number(match[2])
-        };
+    private static getSE(name: string) {
+        const m = name.match(/S(\d{1,2})E(\d{1,2})/i);
+        if (!m) return {};
+        return { season: +m[1], episode: +m[2] };
     }
 
-    // =========================================================================
-    // TITLE
-    // =========================================================================
-
-    private static extractSeriesTitle(
-        name: string
-    ): string {
-
-        const match =
-            name.split(/S\d{1,2}E\d{1,2}/i)[0];
-
-        return match?.trim() || "Unbekannt";
+    private static getTitle(name: string): string {
+        return name.split(/S\d{1,2}E\d{1,2}/i)[0]?.trim() || "Unbekannt";
     }
 
-    // =========================================================================
-    // EPISODE TITLE
-    // =========================================================================
-
-    private static extractEpisodeTitle(
-        name: string
-    ): string | undefined {
-
-        const match =
-            name.split(/S\d{1,2}E\d{1,2}/i)[1];
-
-        if (!match) return;
-
-        const cleaned =
-            match
-                .split(/(1080p|720p|2160p|WEB|BluRay|x264|x265)/i)[0]
-                .trim();
-
-        return cleaned || undefined;
+    private static getEpisodeTitle(name: string): string | undefined {
+        const part = name.split(/S\d{1,2}E\d{1,2}/i)[1];
+        if (!part) return;
+        return part.split(/(1080p|720p|WEB|BluRay|x264)/i)[0].trim();
     }
 
-    // =========================================================================
-    // QUALITY
-    // =========================================================================
-
-    private static extractQuality(
-        name: string
-    ): string | undefined {
-
-        const match =
-            name.match(/(2160p|1080p|720p|480p)/i);
-
-        return match?.[1];
+    private static getQuality(name: string) {
+        return name.match(/(2160p|1080p|720p)/i)?.[1];
     }
 
-    // =========================================================================
-    // SOURCE
-    // =========================================================================
-
-    private static extractSource(
-        name: string
-    ): string | undefined {
-
-        const match =
-            name.match(/(WEB-DL|WEB|BluRay|HDTV)/i);
-
-        return match?.[1];
+    private static getSource(name: string) {
+        return name.match(/(WEB-DL|WEB|BluRay|HDTV)/i)?.[1];
     }
 
-    // =========================================================================
-    // AUDIO
-    // =========================================================================
-
-    private static extractAudio(
-        name: string
-    ): string | undefined {
-
-        const match =
-            name.match(/(DD5\.1|AAC|DTS|AC3)/i);
-
-        return match?.[1];
+    private static getAudio(name: string) {
+        return name.match(/(DD5\.1|AAC|DTS|AC3)/i)?.[1];
     }
 
-    // =========================================================================
-    // CODEC
-    // =========================================================================
-
-    private static extractCodec(
-        name: string
-    ): string | undefined {
-
-        const match =
-            name.match(/(x264|x265|H264|H265)/i);
-
-        return match?.[1];
+    private static getCodec(name: string) {
+        return name.match(/(x264|x265|H264|H265)/i)?.[1];
     }
 }
