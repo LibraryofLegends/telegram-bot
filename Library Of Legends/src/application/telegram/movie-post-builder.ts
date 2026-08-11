@@ -20,7 +20,7 @@ File................: movie-post-builder.ts
 Location............
 Library Of Legends/src/application/telegram/
 
-Version.............: 5.0.0
+Version.............: 6.0.0
 
 Status..............: Core
 
@@ -52,10 +52,25 @@ export interface MoviePost {
 export class MoviePostBuilder {
 
     // =========================================================================
-    // MAIN BUILD
+    // MAIN BUILD (STANDARD)
     // =========================================================================
 
     public static build(
+        movie: MovieCatalogEntry,
+        tmdb?: TMDBMetadata
+    ): MoviePost {
+
+        return this.buildFull(
+            movie,
+            tmdb
+        );
+    }
+
+    // =========================================================================
+    // FULL BUILD (BOT KOMPATIBEL 🔥)
+    // =========================================================================
+
+    public static buildFull(
         movie: MovieCatalogEntry,
         tmdb?: TMDBMetadata
     ): MoviePost {
