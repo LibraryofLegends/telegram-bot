@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 4.2.0
+Version.............: 4.3.0
 
 Status..............: Core
 
@@ -35,13 +35,14 @@ Responsibilities:
 - Receive Telegram media
 - Parse movie filenames
 - Query TMDB
-- Build final movie post
+- Build final movie posts
 - Detect movie collections
 - Generate hashtags
 - Generate archive IDs
 - Send poster
 - Send original video
 - Send formatted metadata
+- Search archived movies
 - Run with Telegram Webhook on Render
 
 Movie delivery order:
@@ -50,11 +51,21 @@ Movie delivery order:
 2. Original movie file
 3. Movie metadata / archive layout
 
+Search:
+
+/search <query>
+
+Examples:
+
+/search john wick
+/search equalizer
+/search spider
+
 Important:
 
-- No database persistence is active in this phase.
+- SQLite search is used for archived movies.
+- No raw TMDB response fields are accessed here.
 - TMDBService returns normalized TMDBMovie data.
-- This class must not access raw TMDB response fields.
 - No polling is used when WEBHOOK_URL is configured.
 
 ===============================================================================
@@ -80,6 +91,10 @@ import {
 import {
     PostBuilder
 } from "../../application/post/post-builder";
+
+import {
+    SearchService
+} from "../../application/search/search-service";
 
 // =============================================================================
 // CONFIGURATION
@@ -173,10 +188,12 @@ export class TelegramBot {
                         "✅ Bot ist online.",
                         "📥 Medienempfang aktiv.",
                         "🎞️ TMDB-Integration aktiv.",
+                        "🔎 Archivsuche aktiv.",
                         "",
                         "━━━━━━━━━━━━━━━━━━",
                         "",
-                        "🚧 Archivsystem wird Schritt für Schritt aufgebaut."
+                        "🔎 Suche:",
+                        "<code>/search titel</code>"
                     ].join(
                         "\n"
                     ),
@@ -203,6 +220,222 @@ export class TelegramBot {
                 );
             }
         );
+
+        // =====================================================================
+        // SEARCH
+        // =====================================================================
+
+        this.bot.command(
+            "search",
+            async (
+                ctx
+            ) => {
+
+                await this.handleSearch(
+                    ctx
+                );
+            }
+        );
+    }
+
+    // =========================================================================
+    // SEARCH HANDLER
+    // =========================================================================
+
+    private async handleSearch(
+        ctx: any
+    ): Promise<void> {
+
+        try {
+
+            const message =
+                ctx.message;
+
+            const commandText =
+                String(
+                    message?.text ||
+                    ""
+                );
+
+            const query =
+                commandText
+                    .replace(
+                        /^\/search(?:@\w+)?/i,
+                        ""
+                    )
+                    .trim();
+
+            // =================================================================
+            // NO QUERY
+            // =================================================================
+
+            if (
+                !query
+            ) {
+
+                await ctx.reply(
+                    [
+                        "🔎 <b>Archivsuche</b>",
+                        "",
+                        "Bitte einen Suchbegriff eingeben.",
+                        "",
+                        "Beispiel:",
+                        "<code>/search John Wick</code>"
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML"
+                    }
+                );
+
+                return;
+            }
+
+            console.log(
+                "================================================="
+            );
+
+            console.log(
+                "🔎 ARCHIVSUche"
+            );
+
+            console.log(
+                `🔎 Suchbegriff: ${query}`
+            );
+
+            console.log(
+                "================================================="
+            );
+
+            // =================================================================
+            // SEARCH
+            // =================================================================
+
+            const results =
+                SearchService.search(
+                    query
+                );
+
+            // =================================================================
+            // NO RESULTS
+            // =================================================================
+
+            if (
+                results.length ===
+                0
+            ) {
+
+                await ctx.reply(
+                    [
+                        "━━━━━━━━━━━━━━━━━━",
+                        "🔎 <b>Suchergebnisse</b>",
+                        "━━━━━━━━━━━━━━━━━━",
+                        "",
+                        `❌ Keine Treffer für: <b>${this.escapeHtml(
+                            query
+                        )}</b>`,
+                        "",
+                        "🔥 @LibraryOfLegends"
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML"
+                    }
+                );
+
+                return;
+            }
+
+            // =================================================================
+            // RESULTS
+            // =================================================================
+
+            const lines:
+                string[] = [
+
+                "━━━━━━━━━━━━━━━━━━",
+
+                "🔎 <b>Suchergebnisse</b>",
+
+                "━━━━━━━━━━━━━━━━━━",
+
+                ""
+            ];
+
+            for (
+                const result of results
+            ) {
+
+                const title =
+                    this.escapeHtml(
+                        result.title
+                    );
+
+                const year =
+                    result.year
+                        ? ` (${result.year})`
+                        : "";
+
+                const archiveId =
+                    result.archiveId
+                        ? `\n   🗂️ <code>${this.escapeHtml(
+                            result.archiveId
+                        )}</code>`
+                        : "";
+
+                lines.push(
+                    `🎬 <b>${title}</b>${year}${archiveId}`
+                );
+
+                lines.push("");
+            }
+
+            lines.push(
+                "━━━━━━━━━━━━━━━━━━"
+            );
+
+            lines.push(
+                `📊 ${results.length} Treffer`
+            );
+
+            lines.push(
+                "🔥 @LibraryOfLegends"
+            );
+
+            await ctx.reply(
+                lines.join(
+                    "\n"
+                ),
+                {
+                    parse_mode:
+                        "HTML",
+
+                    disable_web_page_preview:
+                        true
+                }
+            );
+
+            console.log(
+                `✅ ${results.length} Suchtreffer gesendet.`
+            );
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "❌ SEARCH ERROR:",
+                error
+            );
+
+            await ctx.reply(
+                "❌ Bei der Suche ist ein Fehler aufgetreten."
+            );
+        }
     }
 
     // =========================================================================
@@ -463,6 +696,7 @@ export class TelegramBot {
                 console.log(
                     "🖼️ Cover gesendet."
                 );
+
             } else {
 
                 console.log(
