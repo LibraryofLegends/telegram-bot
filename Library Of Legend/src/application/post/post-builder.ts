@@ -20,9 +20,9 @@ File................: post-builder.ts
 Location............
 Library Of Legend/src/application/post/
 
-Version.............: 1.0.0
+Version.............: 2.0.0
 
-Status..............: Core
+Status..............: FINAL
 
 Lifecycle...........: Production
 
@@ -30,11 +30,20 @@ Description.........
 
 Builds final Telegram movie post.
 
+Includes:
+
+- Archive ID
+- Hashtags
+- Collection Detection
+- Clean Layout
+- Overview Formatting (short + clean ending)
+
 ===============================================================================
 */
 
 import { HashtagBuilder } from "../hashtag/hashtag-builder";
 import { ArchiveId } from "../archive/archive-id";
+import { CollectionService } from "../collection/collection-service";
 
 // =============================================================================
 // TYPES
@@ -52,7 +61,6 @@ export interface MoviePostInput {
 
     fileName?: string;
     fileSize?: number;
-
 }
 
 // =============================================================================
@@ -79,6 +87,11 @@ export class PostBuilder {
                 title: input.title,
                 genres: input.genres
             }).join(" ");
+
+        const collection =
+            CollectionService.detect(
+                input.title
+            );
 
         const overview =
             this.formatOverview(
@@ -112,7 +125,9 @@ ${overview}
 
 📦 — · ${size} · —
 ━━━━━━━━━━━━━━━━━━
-${archiveId} ${hashtags}
+${collection ? `🎞 Reihe: ${collection}
+━━━━━━━━━━━━━━━━━━
+` : ""}${archiveId} ${hashtags}
 
 🔥 Library Of Legends`
         );
