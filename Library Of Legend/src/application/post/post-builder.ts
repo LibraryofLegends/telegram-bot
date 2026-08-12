@@ -13,7 +13,7 @@ Module..............: Post
 
 Module ID...........: LOL-MOD-APP-POST-0001
 
-LOL-ID..............: LOL-POST-0001
+LOL-ID..............: LOL-POST-BUILDER-0002
 
 File................: post-builder.ts
 
@@ -22,28 +22,31 @@ Library Of Legend/src/application/post/
 
 Version.............: 2.0.0
 
-Status..............: FINAL
+Status..............: Core
 
 Lifecycle...........: Production
 
 Description.........
 
-Builds final Telegram movie post.
+Builds final Telegram post layout for movies.
 
-Includes:
+Responsibilities:
 
-- Archive ID
-- Hashtags
-- Collection Detection
-- Clean Layout
-- Overview Formatting (short + clean ending)
+- Format movie layout
+- Integrate TMDB data
+- Generate hashtags
+- Inject Archive ID
+- Inject Collection Progress
+- Keep layout clean and consistent
 
 ===============================================================================
 */
 
-import { HashtagBuilder } from "../hashtag/hashtag-builder";
-import { ArchiveId } from "../archive/archive-id";
-import { CollectionService } from "../collection/collection-service";
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+import { CollectionProgressService } from "../collection/collection-progress";
 
 // =============================================================================
 // TYPES
@@ -53,14 +56,61 @@ export interface MoviePostInput {
 
     title: string;
     year?: number;
-
     rating?: number;
-    genres?: string[];
-
+    genres: string[];
     overview?: string;
 
-    fileName?: string;
-    fileSize?: number;
+    quality?: string;
+    size?: string;
+    audio?: string;
+
+    collection?: string | null;
+
+    archiveId: string;
+}
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+function formatOverview(text?: string): string {
+
+    if (!text) return "Keine Beschreibung verfügbar.";
+
+    let clean =
+        text
+            .replace(/\.\.\.+$/, "")
+            .trim();
+
+    if (!clean.endsWith(".")) {
+        clean += ".";
+    }
+
+    return clean;
+}
+
+function buildHashtags(
+    genres: string[],
+    title: string
+): string[] {
+
+    const genreTags =
+        genres.map(g => `#${g.replace(/\s+/g, "")}`);
+
+    const titleTag =
+        "#" +
+        title
+            .replace(/[^a-zA-Z0-9 ]/g, "")
+            .split(" ")
+            .slice(0, 2)
+            .join("");
+
+    return [
+        ...new Set([
+            ...genreTags,
+            titleTag
+        ])
+    ];
 }
 
 // =============================================================================
@@ -69,112 +119,78 @@ export interface MoviePostInput {
 
 export class PostBuilder {
 
-    // =========================================================================
-    // MAIN
-    // =========================================================================
-
     public static build(
         input: MoviePostInput
     ): string {
 
-        const archiveId =
-            ArchiveId.generate({
-                genres: input.genres
-            });
+        const {
+            title,
+            year,
+            rating,
+            genres,
+            overview,
+            quality,
+            size,
+            audio,
+            collection,
+            archiveId
+        } = input;
+
+        // ---------------------------------------------------------------------
+        // CLEAN DATA
+        // ---------------------------------------------------------------------
+
+        const cleanOverview =
+            formatOverview(overview);
 
         const hashtags =
-            HashtagBuilder.build({
-                title: input.title,
-                genres: input.genres
-            }).join(" ");
+            buildHashtags(genres, title);
 
-        const collection =
-            CollectionService.detect(
-                input.title
-            );
+        const metaQuality =
+            quality || "—";
 
-        const overview =
-            this.formatOverview(
-                input.overview
-            );
+        const metaSize =
+            size || "—";
 
-        const size =
-            this.formatSize(
-                input.fileSize
-            );
+        const metaAudio =
+            audio || "—";
 
-        const rating =
-            input.rating
-                ? `${input.rating.toFixed(1)}/10`
-                : "—";
+        // ---------------------------------------------------------------------
+        // COLLECTION BLOCK
+        // ---------------------------------------------------------------------
 
-        const genres =
-            input.genres?.join(", ") || "—";
+        let collectionBlock = "";
 
-        return (
-`━━━━━━━━━━━━━━━━━━
-🎬 ${input.title} (${input.year ?? "—"})
+        if (collection) {
+
+            collectionBlock =
+                "━━━━━━━━━━━━━━━━━━\n" +
+                CollectionProgressService.formatBlock(collection) +
+                "\n";
+        }
+
+        // ---------------------------------------------------------------------
+        // FINAL OUTPUT
+        // ---------------------------------------------------------------------
+
+        return `
 ━━━━━━━━━━━━━━━━━━
-⭐ Bewertung: ${rating}
-🎭 Genres: ${genres}
+🎬 ${title}${year ? ` (${year})` : ""}
+━━━━━━━━━━━━━━━━━━
+⭐ Bewertung: ${rating ?? "—"}/10
+🎭 Genres: ${genres.join(", ")}
 ━━━━━━━━━━━━━━━━━━
 
 📝 Handlung:
-${overview}
+${cleanOverview}
 ━━━━━━━━━━━━━━━━━━
 
-📦 — · ${size} · —
+📦 ${metaQuality} · ${metaSize} · ${metaAudio}
 ━━━━━━━━━━━━━━━━━━
-${collection ? `🎞 Reihe: ${collection}
-━━━━━━━━━━━━━━━━━━
-` : ""}${archiveId} ${hashtags}
+${collectionBlock}━━━━━━━━━━━━━━━━━━
+${archiveId} ${hashtags.join(" ")}
 
-🔥 Library Of Legends`
-        );
-    }
-
-    // =========================================================================
-    // OVERVIEW
-    // =========================================================================
-
-    private static formatOverview(
-        text?: string
-    ): string {
-
-        if (!text) return "Keine Beschreibung verfügbar.";
-
-        let cleaned =
-            text
-                .replace(/\s+/g, " ")
-                .trim();
-
-        // Kürzen (Telegram safe)
-        if (cleaned.length > 500) {
-            cleaned =
-                cleaned.slice(0, 497) + "...";
-        }
-
-        // Punkt am Ende erzwingen
-        if (!cleaned.endsWith(".")) {
-            cleaned += ".";
-        }
-
-        return cleaned;
-    }
-
-    // =========================================================================
-    // SIZE
-    // =========================================================================
-
-    private static formatSize(
-        bytes?: number
-    ): string {
-
-        if (!bytes) return "—";
-
-        const gb =
-            bytes / (1024 * 1024 * 1024);
-
-        return `${gb.toFixed(2)} GB`;
+🔥 Library Of Legends
+`;
     }
 }
