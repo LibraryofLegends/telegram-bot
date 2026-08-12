@@ -13,14 +13,14 @@ Module..............: Database
 
 Module ID...........: LOL-MOD-INF-DB-0001
 
-LOL-ID..............: LOL-DB-CORE-0003
+LOL-ID..............: LOL-DB-CORE-0004
 
 File................: database.ts
 
 Location............
-Library Of Legends/src/infrastructure/database/
+Library Of Legend/src/infrastructure/database/
 
-Version.............: 3.0.0
+Version.............: 4.0.0
 
 Status..............: Core
 
@@ -28,23 +28,32 @@ Lifecycle...........: Production
 
 Description.........
 
-Central SQLite persistence layer for Library Of Legends.
+High-performance SQLite persistence layer for Library Of Legends.
 
 Responsibilities:
 
 - Initialize SQLite database
 - Preserve existing movie data
-- Create missing columns automatically
+- Automatically add missing columns
 - Store movie metadata
 - Prevent duplicate Telegram File-IDs
+- Perform intelligent duplicate detection
 - Persist Archive IDs
-- Persist collection names
-- Automatically resolve legacy collections from movie titles
-- Provide movie lookup
-- Provide collection lookup
-- Provide collection counting
-- Provide archive counting
-- Support the search system
+- Persist collections
+- Resolve legacy collections
+- Normalize movie titles
+- Support fast title/year lookups
+- Support collection queries
+- Support archive queries
+- Support search
+- Optimize database indexes
+
+Duplicate detection strategy:
+
+1. Telegram File-ID
+2. Normalized title
+3. Release year
+4. File size with tolerance
 
 Important:
 
@@ -52,9 +61,10 @@ Important:
 - No @types/better-sqlite3 dependency is required
 - MovieRepository remains the public database API
 - Existing library.db data is preserved
-- Missing columns are added automatically
-- file_id is UNIQUE
-- archive_id is UNIQUE when present
+- Missing columns are migrated automatically
+- file_id remains UNIQUE
+- archive_id remains UNIQUE
+- normalized_title is stored for fast duplicate detection
 
 ===============================================================================
 */
@@ -65,12 +75,8 @@ Important:
 //
 // IMPORTANT:
 //
-// Do NOT replace this with:
-//
-// import Database from "better-sqlite3";
-//
-// The current project intentionally uses require() because the project does
-// not contain TypeScript declarations for better-sqlite3.
+// The project intentionally uses require() here because the current project
+// does not provide TypeScript declarations for better-sqlite3.
 //
 // =============================================================================
 
@@ -120,6 +126,111 @@ export interface MovieRecord {
 
     createdAt?:
         string;
+
+    normalizedTitle?:
+        string;
+}
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+const DUPLICATE_SIZE_TOLERANCE =
+    50 * 1024 * 1024;
+
+// =============================================================================
+// TITLE NORMALIZATION
+// =============================================================================
+
+function normalizeTitle(
+    value: string
+): string {
+
+    return String(
+        value ||
+        ""
+    )
+        .normalize(
+            "NFD"
+        )
+        .replace(
+            /[\u0300-\u036f]/g,
+            ""
+        )
+        .toLowerCase()
+
+        // ---------------------------------------------------------------------
+        // File extension
+        // ---------------------------------------------------------------------
+
+        .replace(
+            /\.[a-z0-9]{2,5}$/i,
+            ""
+        )
+
+        // ---------------------------------------------------------------------
+        // Technical metadata
+        // ---------------------------------------------------------------------
+
+        .replace(
+            /\b(2160p|1080p|720p|576p|480p|4k|uhd|fhd|hd)\b/gi,
+            " "
+        )
+        .replace(
+            /\b(web[- ]dl|webrip|web|bluray|bdrip|hdtv|dvdrip|hdrip)\b/gi,
+            " "
+        )
+        .replace(
+            /\b(x264|x265|h264|h265|hevc|av1)\b/gi,
+            " "
+        )
+
+        // ---------------------------------------------------------------------
+        // Audio metadata
+        // ---------------------------------------------------------------------
+
+        .replace(
+            /\b(de|en|de-en|eng|ger|german|english)\b/gi,
+            " "
+        )
+
+        // ---------------------------------------------------------------------
+        // Common title separators
+        // ---------------------------------------------------------------------
+
+        .replace(
+            /[._\-–—()[\]{}:]+/g,
+            " "
+        )
+
+        // ---------------------------------------------------------------------
+        // Words that should not influence movie identity
+        // ---------------------------------------------------------------------
+
+        .replace(
+            /\b(chapter|part|movie|film|the final chapter|final chapter)\b/gi,
+            " "
+        )
+
+        // ---------------------------------------------------------------------
+        // Remove year
+        // ---------------------------------------------------------------------
+
+        .replace(
+            /\b(19\d{2}|20\d{2})\b/g,
+            " "
+        )
+
+        // ---------------------------------------------------------------------
+        // Keep letters and numbers
+        // ---------------------------------------------------------------------
+
+        .replace(
+            /[^\p{L}\p{N}]+/gu,
+            ""
+        )
+
+        .trim();
 }
 
 // =============================================================================
@@ -130,11 +241,6 @@ function initializeDatabase(): void {
 
     // =========================================================================
     // BASE TABLE
-    // =========================================================================
-    //
-    // CREATE TABLE IF NOT EXISTS only creates the table when it does not
-    // exist yet. Existing databases are therefore preserved.
-    //
     // =========================================================================
 
     db.exec(`
@@ -170,6 +276,9 @@ function initializeDatabase(): void {
                 TEXT
                 UNIQUE,
 
+            normalized_title
+                TEXT,
+
             created_at
                 TEXT
                 DEFAULT (
@@ -179,12 +288,7 @@ function initializeDatabase(): void {
     `);
 
     // =========================================================================
-    // MIGRATION
-    // =========================================================================
-    //
-    // Older versions of the project may already have a movies table but not
-    // all of the current columns. We add missing columns individually.
-    //
+    // EXISTING COLUMNS
     // =========================================================================
 
     const columns =
@@ -208,7 +312,7 @@ function initializeDatabase(): void {
         );
 
     // =========================================================================
-    // COLLECTION
+    // COLLECTION MIGRATION
     // =========================================================================
 
     if (
@@ -228,7 +332,7 @@ function initializeDatabase(): void {
     }
 
     // =========================================================================
-    // ARCHIVE ID
+    // ARCHIVE ID MIGRATION
     // =========================================================================
 
     if (
@@ -248,7 +352,7 @@ function initializeDatabase(): void {
     }
 
     // =========================================================================
-    // CREATED AT
+    // CREATED AT MIGRATION
     // =========================================================================
 
     if (
@@ -268,12 +372,123 @@ function initializeDatabase(): void {
     }
 
     // =========================================================================
+    // NORMALIZED TITLE MIGRATION
+    // =========================================================================
+
+    if (
+        !existingColumns.has(
+            "normalized_title"
+        )
+    ) {
+
+        db.exec(`
+            ALTER TABLE movies
+            ADD COLUMN normalized_title TEXT
+        `);
+
+        console.log(
+            "🛠️ Datenbank erweitert: normalized_title"
+        );
+    }
+
+    // =========================================================================
+    // BACKFILL NORMALIZED TITLES
+    // =========================================================================
+
+    const moviesWithoutNormalizedTitle =
+        db
+            .prepare(
+                `
+                SELECT
+                    id,
+                    title
+                FROM movies
+                WHERE
+                    normalized_title IS NULL
+                    OR normalized_title = ''
+                `
+            )
+            .all() as Array<{
+                id:
+                    number;
+
+                title:
+                    string;
+            }>;
+
+    const updateNormalizedTitle =
+        db.prepare(
+            `
+            UPDATE movies
+
+            SET normalized_title = ?
+
+            WHERE id = ?
+            `
+        );
+
+    const backfillTransaction =
+        db.transaction(
+            (
+                rows:
+                    Array<{
+                        id:
+                            number;
+
+                        title:
+                            string;
+                    }>
+            ) => {
+
+                for (
+                    const row of rows
+                ) {
+
+                    updateNormalizedTitle.run(
+                        normalizeTitle(
+                            row.title
+                        ),
+                        row.id
+                    );
+                }
+            }
+        );
+
+    if (
+        moviesWithoutNormalizedTitle.length > 0
+    ) {
+
+        backfillTransaction(
+            moviesWithoutNormalizedTitle
+        );
+
+        console.log(
+            `🛠️ ${moviesWithoutNormalizedTitle.length} Filmtitel normalisiert.`
+        );
+    }
+
+    // =========================================================================
     // INDEXES
     // =========================================================================
 
     db.exec(`
         CREATE INDEX IF NOT EXISTS idx_movies_title
         ON movies(title);
+    `);
+
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_movies_title_year
+        ON movies(title, year);
+    `);
+
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_movies_normalized_title
+        ON movies(normalized_title);
+    `);
+
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_movies_normalized_title_year
+        ON movies(normalized_title, year);
     `);
 
     db.exec(`
@@ -286,13 +501,38 @@ function initializeDatabase(): void {
         ON movies(archive_id);
     `);
 
+    db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_movies_file_size
+        ON movies(file_size);
+    `);
+
+    // =========================================================================
+    // SQLITE PERFORMANCE
+    // =========================================================================
+
+    db.pragma(
+        "journal_mode = WAL"
+    );
+
+    db.pragma(
+        "synchronous = NORMAL"
+    );
+
+    db.pragma(
+        "temp_store = MEMORY"
+    );
+
+    console.log(
+        "⚡ SQLite Performance Mode aktiv."
+    );
+
     console.log(
         "💾 SQLite Datenbank bereit."
     );
 }
 
 // =============================================================================
-// INITIALIZE
+// INITIALIZE DATABASE
 // =============================================================================
 
 initializeDatabase();
@@ -334,6 +574,11 @@ export class MovieRepository {
 
         try {
 
+            const normalizedTitle =
+                normalizeTitle(
+                    data.title
+                );
+
             const statement =
                 db.prepare(
                     `
@@ -346,6 +591,7 @@ export class MovieRepository {
                         file_size,
                         collection,
                         archive_id,
+                        normalized_title,
                         created_at
 
                     )
@@ -358,6 +604,7 @@ export class MovieRepository {
                         @fileSize,
                         @collection,
                         @archiveId,
+                        @normalizedTitle,
                         datetime('now')
 
                     )
@@ -389,7 +636,9 @@ export class MovieRepository {
 
                 archiveId:
                     data.archiveId ??
-                    null
+                    null,
+
+                normalizedTitle
             });
 
             console.log(
@@ -412,7 +661,7 @@ export class MovieRepository {
     }
 
     // =========================================================================
-    // EXISTS
+    // EXISTS BY TELEGRAM FILE-ID
     // =========================================================================
 
     public static exists(
@@ -438,6 +687,149 @@ export class MovieRepository {
 
         return Boolean(
             row
+        );
+    }
+
+    // =========================================================================
+    // ADVANCED DUPLICATE DETECTION
+    // =========================================================================
+    //
+    // Detection layers:
+    //
+    // 1. normalized title
+    // 2. year compatibility
+    // 3. file size compatibility
+    //
+    // A missing year or missing file size does not automatically reject a
+    // potential duplicate.
+    //
+    // =========================================================================
+
+    public static existsAdvanced(
+        title: string,
+        year?: number,
+        fileSize?: number
+    ): boolean {
+
+        const normalizedTitle =
+            normalizeTitle(
+                title
+            );
+
+        if (
+            !normalizedTitle
+        ) {
+
+            return false;
+        }
+
+        const rows =
+            db
+                .prepare(
+                    `
+                    SELECT
+
+                        id,
+                        title,
+                        year,
+                        file_size AS fileSize,
+                        normalized_title AS normalizedTitle
+
+                    FROM movies
+
+                    WHERE normalized_title = ?
+                    `
+                )
+                .all(
+                    normalizedTitle
+                ) as Array<{
+
+                    id:
+                        number;
+
+                    title:
+                        string;
+
+                    year?:
+                        number;
+
+                    fileSize?:
+                        number;
+
+                    normalizedTitle?:
+                        string;
+                }>;
+
+        if (
+            rows.length ===
+            0
+        ) {
+
+            return false;
+        }
+
+        return rows.some(
+            movie => {
+
+                // =============================================================
+                // YEAR CHECK
+                // =============================================================
+
+                const sameYear =
+                    !year ||
+                    !movie.year ||
+                    movie.year === year;
+
+                if (
+                    !sameYear
+                ) {
+
+                    return false;
+                }
+
+                // =============================================================
+                // FILE SIZE CHECK
+                // =============================================================
+
+                const movieSize =
+                    Number(
+                        movie.fileSize ||
+                        0
+                    );
+
+                const currentSize =
+                    Number(
+                        fileSize ||
+                        0
+                    );
+
+                // =============================================================
+                // NO SIZE AVAILABLE
+                // =============================================================
+
+                if (
+                    !movieSize ||
+                    !currentSize
+                ) {
+
+                    return true;
+                }
+
+                // =============================================================
+                // SIZE TOLERANCE
+                // =============================================================
+
+                const sizeDifference =
+                    Math.abs(
+                        movieSize -
+                        currentSize
+                    );
+
+                return (
+                    sizeDifference <=
+                    DUPLICATE_SIZE_TOLERANCE
+                );
+            }
         );
     }
 
@@ -477,6 +869,9 @@ export class MovieRepository {
                         archive_id
                             AS archiveId,
 
+                        normalized_title
+                            AS normalizedTitle,
+
                         created_at
                             AS createdAt
 
@@ -514,6 +909,11 @@ export class MovieRepository {
         title: string
     ): MovieRecord[] {
 
+        const normalizedTitle =
+            normalizeTitle(
+                title
+            );
+
         const rows =
             db
                 .prepare(
@@ -540,13 +940,15 @@ export class MovieRepository {
                         archive_id
                             AS archiveId,
 
+                        normalized_title
+                            AS normalizedTitle,
+
                         created_at
                             AS createdAt
 
                     FROM movies
 
-                    WHERE LOWER(title)
-                        = LOWER(?)
+                    WHERE normalized_title = ?
 
                     ORDER BY
                         year ASC,
@@ -554,7 +956,7 @@ export class MovieRepository {
                     `
                 )
                 .all(
-                    title
+                    normalizedTitle
                 ) as MovieRecord[];
 
         return rows.map(
@@ -616,6 +1018,9 @@ export class MovieRepository {
 
                         archive_id
                             AS archiveId,
+
+                        normalized_title
+                            AS normalizedTitle,
 
                         created_at
                             AS createdAt
@@ -775,6 +1180,9 @@ export class MovieRepository {
                         archive_id
                             AS archiveId,
 
+                        normalized_title
+                            AS normalizedTitle,
+
                         created_at
                             AS createdAt
 
@@ -823,7 +1231,7 @@ export class MovieRepository {
     }
 
     // =========================================================================
-    // COUNT ARCHIVED MOVIES WITH COLLECTION
+    // COUNT WITH COLLECTION
     // =========================================================================
 
     public static countWithCollection(
