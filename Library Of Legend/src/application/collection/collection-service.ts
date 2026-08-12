@@ -11,9 +11,9 @@ Architecture Layer..: Application
 
 Module..............: Collection
 
-Module ID...........: LOL-MOD-APP-COLLECTION-0001
+Module ID...........: LOL-MOD-APP-COL-0001
 
-LOL-ID..............: LOL-COLLECTION-0001
+LOL-ID..............: LOL-COLLECTION-CORE-0001
 
 File................: collection-service.ts
 
@@ -24,72 +24,156 @@ Version.............: 1.0.0
 
 Status..............: Core
 
-Lifecycle...........: Development
+Lifecycle...........: Production
 
 Description.........
 
-Detects movie collections / franchises automatically.
+Handles movie collections (film series).
+
+Responsibilities:
+
+- Detect if a movie belongs to a collection
+- Provide collection name
+- Calculate collection progress (owned / total)
+- Connect collection logic with database
+
+Important:
+
+- Uses static mapping (will be upgraded later)
+- Relies on MovieRepository (database)
+- Case-insensitive matching
 
 ===============================================================================
 */
 
+import { MovieRepository } from "../../infrastructure/database/database";
+
+// =============================================================================
+// COLLECTION MAP
+// =============================================================================
+
+const COLLECTIONS: Record<string, string[]> = {
+
+    // =========================================================================
+    // JOHN WICK
+    // =========================================================================
+
+    "John Wick Reihe": [
+        "John Wick",
+        "John Wick: Chapter 2",
+        "John Wick: Chapter 3",
+        "John Wick: Chapter 4"
+    ],
+
+    // =========================================================================
+    // SCREAM
+    // =========================================================================
+
+    "Scream Filmreihe": [
+        "Scream",
+        "Scream 2",
+        "Scream 3",
+        "Scream 4",
+        "Scream (2022)",
+        "Scream VI"
+    ]
+};
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
 export class CollectionService {
 
     // =========================================================================
-    // MAIN
+    // DETECT COLLECTION
     // =========================================================================
 
     public static detect(
-        title?: string
+        title: string
     ): string | null {
 
-        if (!title) return null;
+        const normalizedTitle =
+            String(title || "").toLowerCase();
 
-        const t = title.toLowerCase();
+        for (const [collection, movies] of Object.entries(COLLECTIONS)) {
 
-        // =========================================================================
-        // COLLECTION MAP
-        // =========================================================================
+            const match =
+                movies.some(movieTitle =>
+                    normalizedTitle.includes(
+                        movieTitle.toLowerCase()
+                    )
+                );
 
-        const collections: Record<string, string> = {
-
-            // Marvel / Spider-Man
-            "spider-man": "Spider-Man Universe",
-            "avengers": "Marvel Cinematic Universe",
-            "iron man": "Marvel Cinematic Universe",
-
-            // DC
-            "batman": "Batman Reihe",
-            "superman": "Superman Reihe",
-
-            // Action Reihen
-            "fast & furious": "Fast & Furious Saga",
-            "fast and furious": "Fast & Furious Saga",
-            "the equalizer": "The Equalizer Reihe",
-            "john wick": "John Wick Reihe",
-
-            // Klassiker
-            "harry potter": "Harry Potter Reihe",
-            "lord of the rings": "Herr der Ringe Trilogie",
-            "the hobbit": "Der Hobbit Trilogie",
-
-            // Horror
-            "scream": "Scream Filmreihe",
-            "conjuring": "Conjuring Universe",
-            "annabelle": "Conjuring Universe",
-
-            // Animation
-            "toy story": "Toy Story Reihe",
-            "shrek": "Shrek Reihe"
-        };
-
-        for (const key in collections) {
-
-            if (t.includes(key)) {
-                return collections[key];
+            if (match) {
+                return collection;
             }
         }
 
         return null;
+    }
+
+    // =========================================================================
+    // GET PROGRESS
+    // =========================================================================
+
+    public static getProgress(
+        collection: string
+    ): string {
+
+        const movies =
+            COLLECTIONS[collection];
+
+        if (!movies) {
+            return "—";
+        }
+
+        const allMovies =
+            MovieRepository.getAll();
+
+        let owned = 0;
+
+        for (const movieTitle of movies) {
+
+            const found =
+                allMovies.some(m =>
+                    String(m.title)
+                        .toLowerCase()
+                        .includes(
+                            movieTitle.toLowerCase()
+                        )
+                );
+
+            if (found) {
+                owned++;
+            }
+        }
+
+        return `${owned} / ${movies.length}`;
+    }
+
+    // =========================================================================
+    // GET TOTAL (optional future use)
+    // =========================================================================
+
+    public static getTotal(
+        collection: string
+    ): number {
+
+        const movies =
+            COLLECTIONS[collection];
+
+        return movies
+            ? movies.length
+            : 0;
+    }
+
+    // =========================================================================
+    // GET ALL COLLECTIONS (future UI / commands)
+    // =========================================================================
+
+    public static getAllCollections(): string[] {
+
+        return Object.keys(COLLECTIONS);
     }
 }
