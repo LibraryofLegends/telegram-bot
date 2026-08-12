@@ -13,14 +13,14 @@ Module..............: Database
 
 Module ID...........: LOL-MOD-INF-DB-0001
 
-LOL-ID..............: LOL-DB-CORE-0001
+LOL-ID..............: LOL-DB-CORE-0002
 
 File................: database.ts
 
 Location............
-Library Of Legends/src/infrastructure/database/
+Library Of Legend/src/infrastructure/database/
 
-Version.............: 1.1.0
+Version.............: 2.0.0
 
 Status..............: Core
 
@@ -33,89 +33,55 @@ SQLite database layer for Library Of Legends.
 Responsibilities:
 
 - Initialize SQLite database
-- Create movie table
 - Store movie metadata
 - Prevent duplicate Telegram File-IDs
-- Provide movie lookup
-- Provide collection progress data
-- Provide basic archive queries
+- Persist Archive IDs (#LIB-XXX-0001)
+- Provide collection and archive queries
 
 Important:
 
-- better-sqlite3 is loaded through require()
-- No TypeScript declaration file for better-sqlite3 is required
-- file_id is UNIQUE
-- Database remains intentionally minimal during the clean restart
+- better-sqlite3 is loaded via require()
+- No TypeScript typings required
+- archive_id is UNIQUE and persistent
+- Used for real archive system
 
 ===============================================================================
 */
 
 // =============================================================================
-// BETTER-SQLITE3
-// =============================================================================
-//
-// We intentionally use require() here.
-//
-// Reason:
-//
-// The current project does not have usable TypeScript declarations for
-// better-sqlite3. Using require() avoids TS7016 and keeps the database layer
-// independent from external declaration files.
-//
+// DEPENDENCIES
 // =============================================================================
 
-const Database =
-    require(
-        "better-sqlite3"
-    ) as any;
+const Database = require("better-sqlite3") as any;
 
 // =============================================================================
 // DATABASE INSTANCE
 // =============================================================================
 
-const db =
-    new Database(
-        "library.db"
-    );
+const db = new Database("library.db");
 
 // =============================================================================
-// DATABASE INITIALIZATION
+// TABLE INITIALIZATION
 // =============================================================================
 
 db.exec(`
     CREATE TABLE IF NOT EXISTS movies (
 
-        id
-            INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-        title
-            TEXT
-            NOT NULL,
+        title TEXT NOT NULL,
+        year INTEGER,
 
-        year
-            INTEGER,
+        file_id TEXT UNIQUE NOT NULL,
 
-        file_id
-            TEXT
-            UNIQUE
-            NOT NULL,
+        file_name TEXT,
+        file_size INTEGER,
 
-        file_name
-            TEXT,
+        collection TEXT,
 
-        file_size
-            INTEGER,
+        archive_id TEXT UNIQUE,
 
-        collection
-            TEXT,
-
-        created_at
-            TEXT
-            DEFAULT (
-                datetime('now')
-            )
+        created_at TEXT DEFAULT (datetime('now'))
     );
 `);
 
@@ -133,35 +99,25 @@ db.exec(`
     ON movies(collection);
 `);
 
+db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_movies_archive
+    ON movies(archive_id);
+`);
+
 // =============================================================================
 // TYPES
 // =============================================================================
 
 export interface MovieRecord {
-
-    id:
-        number;
-
-    title:
-        string;
-
-    year?:
-        number;
-
-    fileId:
-        string;
-
-    fileName?:
-        string;
-
-    fileSize?:
-        number;
-
-    collection?:
-        string;
-
-    createdAt?:
-        string;
+    id: number;
+    title: string;
+    year?: number;
+    fileId: string;
+    fileName?: string;
+    fileSize?: number;
+    collection?: string;
+    archiveId?: string;
+    createdAt?: string;
 }
 
 // =============================================================================
@@ -174,97 +130,56 @@ export class MovieRepository {
     // ADD MOVIE
     // =========================================================================
 
-    public static addMovie(
-        data: {
-            title:
-                string;
-
-            year?:
-                number;
-
-            fileId:
-                string;
-
-            fileName:
-                string;
-
-            fileSize?:
-                number;
-
-            collection?:
-                string;
-        }
-    ): boolean {
+    public static addMovie(data: {
+        title: string;
+        year?: number;
+        fileId: string;
+        fileName: string;
+        fileSize?: number;
+        collection?: string;
+        archiveId?: string;
+    }): boolean {
 
         try {
 
-            const statement =
-                db.prepare(`
-                    INSERT INTO movies (
+            const stmt = db.prepare(`
+                INSERT INTO movies (
+                    title,
+                    year,
+                    file_id,
+                    file_name,
+                    file_size,
+                    collection,
+                    archive_id
+                )
+                VALUES (
+                    @title,
+                    @year,
+                    @fileId,
+                    @fileName,
+                    @fileSize,
+                    @collection,
+                    @archiveId
+                );
+            `);
 
-                        title,
-                        year,
-                        file_id,
-                        file_name,
-                        file_size,
-                        collection
-
-                    )
-                    VALUES (
-
-                        @title,
-                        @year,
-                        @fileId,
-                        @fileName,
-                        @fileSize,
-                        @collection
-
-                    );
-                `);
-
-            statement.run({
-
-                title:
-                    data.title,
-
-                year:
-                    data.year ??
-                    null,
-
-                fileId:
-                    data.fileId,
-
-                fileName:
-                    data.fileName,
-
-                fileSize:
-                    data.fileSize ??
-                    null,
-
-                collection:
-                    data.collection ??
-                    null
+            stmt.run({
+                title: data.title,
+                year: data.year ?? null,
+                fileId: data.fileId,
+                fileName: data.fileName,
+                fileSize: data.fileSize ?? null,
+                collection: data.collection ?? null,
+                archiveId: data.archiveId ?? null
             });
 
-            console.log(
-                `💾 Film gespeichert: ${data.title}`
-            );
+            console.log(`💾 Film gespeichert: ${data.title}`);
 
             return true;
 
-        } catch (
-            error
-        ) {
+        } catch (error) {
 
-            /*
-             * A UNIQUE constraint violation on file_id means
-             * the Telegram media already exists in the archive.
-             */
-
-            console.log(
-                "⚠️ Film bereits im Archiv oder konnte nicht gespeichert werden:",
-                error
-            );
+            console.log("⚠️ Film existiert bereits oder Fehler:", error);
 
             return false;
         }
@@ -274,173 +189,79 @@ export class MovieRepository {
     // EXISTS
     // =========================================================================
 
-    public static exists(
-        fileId: string
-    ): boolean {
+    public static exists(fileId: string): boolean {
 
-        const row =
-            db
-                .prepare(`
-                    SELECT id
-                    FROM movies
-                    WHERE file_id = ?
-                    LIMIT 1
-                `)
-                .get(
-                    fileId
-                );
+        const row = db.prepare(`
+            SELECT id FROM movies
+            WHERE file_id = ?
+            LIMIT 1
+        `).get(fileId);
 
-        return Boolean(
-            row
-        );
+        return Boolean(row);
     }
 
     // =========================================================================
-    // GET BY FILE ID
+    // GET LAST ARCHIVE ID (WICHTIG 🔥)
     // =========================================================================
 
-    public static getByFileId(
-        fileId: string
-    ): MovieRecord | undefined {
+    public static getLastArchiveId(code: string): string | null {
 
-        const row =
-            db
-                .prepare(`
-                    SELECT
+        const row = db.prepare(`
+            SELECT archive_id
+            FROM movies
+            WHERE archive_id LIKE ?
+            ORDER BY id DESC
+            LIMIT 1
+        `).get(`#LIB-${code}-%`) as any;
 
-                        id,
+        return row?.archive_id || null;
+    }
 
-                        title,
+    // =========================================================================
+    // GET ALL
+    // =========================================================================
 
-                        year,
+    public static getAll(): MovieRecord[] {
 
-                        file_id
-                            AS fileId,
+        const rows = db.prepare(`
+            SELECT
+                id,
+                title,
+                year,
+                file_id AS fileId,
+                file_name AS fileName,
+                file_size AS fileSize,
+                collection,
+                archive_id AS archiveId,
+                created_at AS createdAt
+            FROM movies
+            ORDER BY id DESC
+        `).all();
 
-                        file_name
-                            AS fileName,
-
-                        file_size
-                            AS fileSize,
-
-                        collection,
-
-                        created_at
-                            AS createdAt
-
-                    FROM movies
-
-                    WHERE file_id = ?
-
-                    LIMIT 1
-                `)
-                .get(
-                    fileId
-                );
-
-        if (
-            !row
-        ) {
-
-            return undefined;
-        }
-
-        return row as MovieRecord;
+        return rows as MovieRecord[];
     }
 
     // =========================================================================
     // GET BY TITLE
     // =========================================================================
 
-    public static getByTitle(
-        title: string
-    ): MovieRecord[] {
+    public static getByTitle(title: string): MovieRecord[] {
 
-        const rows =
-            db
-                .prepare(`
-                    SELECT
-
-                        id,
-
-                        title,
-
-                        year,
-
-                        file_id
-                            AS fileId,
-
-                        file_name
-                            AS fileName,
-
-                        file_size
-                            AS fileSize,
-
-                        collection,
-
-                        created_at
-                            AS createdAt
-
-                    FROM movies
-
-                    WHERE LOWER(title)
-                        = LOWER(?)
-
-                    ORDER BY
-                        id ASC
-                `)
-                .all(
-                    title
-                );
-
-        return rows as MovieRecord[];
-    }
-
-    // =========================================================================
-    // GET BY COLLECTION
-    // =========================================================================
-
-    public static getByCollection(
-        collection: string
-    ): MovieRecord[] {
-
-        const rows =
-            db
-                .prepare(`
-                    SELECT
-
-                        id,
-
-                        title,
-
-                        year,
-
-                        file_id
-                            AS fileId,
-
-                        file_name
-                            AS fileName,
-
-                        file_size
-                            AS fileSize,
-
-                        collection,
-
-                        created_at
-                            AS createdAt
-
-                    FROM movies
-
-                    WHERE LOWER(collection)
-                        = LOWER(?)
-
-                    ORDER BY
-                        year ASC,
-                        id ASC
-                `)
-                .all(
-                    collection
-                );
+        const rows = db.prepare(`
+            SELECT
+                id,
+                title,
+                year,
+                file_id AS fileId,
+                file_name AS fileName,
+                file_size AS fileSize,
+                collection,
+                archive_id AS archiveId,
+                created_at AS createdAt
+            FROM movies
+            WHERE LOWER(title) = LOWER(?)
+            ORDER BY id ASC
+        `).all(title);
 
         return rows as MovieRecord[];
     }
@@ -451,91 +272,11 @@ export class MovieRepository {
 
     public static count(): number {
 
-        const row =
-            db
-                .prepare(`
-                    SELECT
-                        COUNT(*) AS count
-                    FROM movies
-                `)
-                .get() as {
-                    count:
-                        number;
-                };
+        const row = db.prepare(`
+            SELECT COUNT(*) as count FROM movies
+        `).get() as any;
 
-        return Number(
-            row.count
-        );
-    }
-
-    // =========================================================================
-    // GET ALL
-    // =========================================================================
-
-    public static getAll(): MovieRecord[] {
-
-        const rows =
-            db
-                .prepare(`
-                    SELECT
-
-                        id,
-
-                        title,
-
-                        year,
-
-                        file_id
-                            AS fileId,
-
-                        file_name
-                            AS fileName,
-
-                        file_size
-                            AS fileSize,
-
-                        collection,
-
-                        created_at
-                            AS createdAt
-
-                    FROM movies
-
-                    ORDER BY
-                        id DESC
-                `)
-                .all();
-
-        return rows as MovieRecord[];
-    }
-
-    // =========================================================================
-    // COLLECTION COUNT
-    // =========================================================================
-
-    public static countCollection(
-        collection: string
-    ): number {
-
-        const row =
-            db
-                .prepare(`
-                    SELECT
-                        COUNT(*) AS count
-                    FROM movies
-                    WHERE LOWER(collection)
-                        = LOWER(?)
-                `)
-                .get(
-                    collection
-                ) as {
-                    count:
-                        number;
-                };
-
-        return Number(
-            row.count
-        );
+        return row.count;
     }
 
     // =========================================================================
@@ -545,21 +286,10 @@ export class MovieRepository {
     public static close(): void {
 
         try {
-
             db.close();
-
-            console.log(
-                "💾 SQLite Datenbank geschlossen."
-            );
-
-        } catch (
-            error
-        ) {
-
-            console.error(
-                "❌ SQLite Shutdown Fehler:",
-                error
-            );
+            console.log("💾 DB geschlossen.");
+        } catch (err) {
+            console.error("❌ DB Fehler:", err);
         }
     }
 }
