@@ -13,14 +13,14 @@ Module..............: Telegram
 
 Module ID...........: LOL-MOD-FW-TG-0001
 
-LOL-ID..............: LOL-TG-BOT-0001
+LOL-ID..............: LOL-TG-BOT-0002
 
 File................: telegram-bot.ts
 
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 4.3.0
+Version.............: 4.4.0
 
 Status..............: Core
 
@@ -35,41 +35,47 @@ Responsibilities:
 - Receive Telegram media
 - Parse movie filenames
 - Query TMDB
-- Build final movie posts
 - Detect movie collections
-- Generate hashtags
-- Generate archive IDs
+- Generate persistent Archive IDs
+- Store movies in SQLite
+- Calculate collection progress
+- Build final movie posts
 - Send poster
 - Send original video
-- Send formatted metadata
-- Search archived movies
+- Send formatted movie metadata
+- Provide /search command
 - Run with Telegram Webhook on Render
 
 Movie delivery order:
 
-1. Cover
-2. Original movie file
-3. Movie metadata / archive layout
-
-Search:
-
-/search <query>
-
-Examples:
-
-/search john wick
-/search equalizer
-/search spider
+1. Validate media
+2. Parse filename
+3. Query TMDB
+4. Detect collection
+5. Generate persistent Archive ID
+6. Store movie in SQLite
+7. Build final metadata layout
+8. Send cover
+9. Send original movie
+10. Send metadata layout
 
 Important:
 
-- SQLite search is used for archived movies.
-- No raw TMDB response fields are accessed here.
+- Database persistence is active.
+- Duplicate Telegram File-IDs are rejected.
+- Archive IDs are generated before database insertion.
+- Collection progress is calculated after the current movie
+  has been stored.
 - TMDBService returns normalized TMDBMovie data.
+- No raw TMDB response fields are accessed here.
 - No polling is used when WEBHOOK_URL is configured.
 
 ===============================================================================
 */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
 
 import {
     Telegraf
@@ -95,6 +101,18 @@ import {
 import {
     SearchService
 } from "../../application/search/search-service";
+
+import {
+    MovieRepository
+} from "../../infrastructure/database/database";
+
+import {
+    AutoCollectionService
+} from "../../application/collection/auto-collection";
+
+import {
+    ArchiveService
+} from "../../application/archive/archive-service";
 
 // =============================================================================
 // CONFIGURATION
@@ -188,7 +206,8 @@ export class TelegramBot {
                         "✅ Bot ist online.",
                         "📥 Medienempfang aktiv.",
                         "🎞️ TMDB-Integration aktiv.",
-                        "🔎 Archivsuche aktiv.",
+                        "💾 Archiv-Datenbank aktiv.",
+                        "🔎 Suchsystem aktiv.",
                         "",
                         "━━━━━━━━━━━━━━━━━━",
                         "",
@@ -248,12 +267,9 @@ export class TelegramBot {
 
         try {
 
-            const message =
-                ctx.message;
-
             const commandText =
                 String(
-                    message?.text ||
+                    ctx.message?.text ||
                     ""
                 );
 
@@ -264,10 +280,6 @@ export class TelegramBot {
                         ""
                     )
                     .trim();
-
-            // =================================================================
-            // NO QUERY
-            // =================================================================
 
             if (
                 !query
@@ -298,7 +310,7 @@ export class TelegramBot {
             );
 
             console.log(
-                "🔎 ARCHIVSUche"
+                "🔎 ARCHIVSUCHE"
             );
 
             console.log(
@@ -309,18 +321,10 @@ export class TelegramBot {
                 "================================================="
             );
 
-            // =================================================================
-            // SEARCH
-            // =================================================================
-
             const results =
                 SearchService.search(
                     query
                 );
-
-            // =================================================================
-            // NO RESULTS
-            // =================================================================
 
             if (
                 results.length ===
@@ -337,7 +341,7 @@ export class TelegramBot {
                             query
                         )}</b>`,
                         "",
-                        "🔥 @LibraryOfLegends"
+                        "🔥 <b>@LibraryOfLegends</b>"
                     ].join(
                         "\n"
                     ),
@@ -350,19 +354,12 @@ export class TelegramBot {
                 return;
             }
 
-            // =================================================================
-            // RESULTS
-            // =================================================================
-
             const lines:
                 string[] = [
 
                 "━━━━━━━━━━━━━━━━━━",
-
                 "🔎 <b>Suchergebnisse</b>",
-
                 "━━━━━━━━━━━━━━━━━━",
-
                 ""
             ];
 
@@ -370,17 +367,12 @@ export class TelegramBot {
                 const result of results
             ) {
 
-                const title =
-                    this.escapeHtml(
-                        result.title
-                    );
-
-                const year =
+                const yearText =
                     result.year
                         ? ` (${result.year})`
                         : "";
 
-                const archiveId =
+                const archiveText =
                     result.archiveId
                         ? `\n   🗂️ <code>${this.escapeHtml(
                             result.archiveId
@@ -388,7 +380,9 @@ export class TelegramBot {
                         : "";
 
                 lines.push(
-                    `🎬 <b>${title}</b>${year}${archiveId}`
+                    `🎬 <b>${this.escapeHtml(
+                        result.title
+                    )}</b>${yearText}${archiveText}`
                 );
 
                 lines.push("");
@@ -403,7 +397,7 @@ export class TelegramBot {
             );
 
             lines.push(
-                "🔥 @LibraryOfLegends"
+                "🔥 <b>@LibraryOfLegends</b>"
             );
 
             await ctx.reply(
@@ -417,10 +411,6 @@ export class TelegramBot {
                     disable_web_page_preview:
                         true
                 }
-            );
-
-            console.log(
-                `✅ ${results.length} Suchtreffer gesendet.`
             );
 
         } catch (
@@ -558,6 +548,41 @@ export class TelegramBot {
             );
 
             // =================================================================
+            // DUPLICATE CHECK
+            // =================================================================
+
+            if (
+                MovieRepository.exists(
+                    fileId
+                )
+            ) {
+
+                console.log(
+                    "♻️ Film bereits im Archiv."
+                );
+
+                await ctx.reply(
+                    [
+                        "⚠️ <b>Bereits im Archiv</b>",
+                        "",
+                        `📄 <code>${this.escapeHtml(
+                            fileName
+                        )}</code>`,
+                        "",
+                        "Dieser Telegram-Film wurde bereits archiviert."
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML"
+                    }
+                );
+
+                return;
+            }
+
+            // =================================================================
             // PARSER
             // =================================================================
 
@@ -602,8 +627,13 @@ export class TelegramBot {
                                 undefined
                             ? `🎞️ Episode: <b>${parsed.episode}</b>`
                             : "",
+                        parsed.episodeTitle
+                            ? `📝 Titel: <b>${this.escapeHtml(
+                                parsed.episodeTitle
+                            )}</b>`
+                            : "",
                         "",
-                        "🚧 Das Serien-/Episodensystem wird als eigener Schritt aufgebaut."
+                        "🚧 Das Serien-/Episodensystem wird separat aufgebaut."
                     ]
                         .filter(
                             Boolean
@@ -660,6 +690,78 @@ export class TelegramBot {
                 movie?.overview;
 
             // =================================================================
+            // COLLECTION
+            // =================================================================
+
+            const collection =
+                AutoCollectionService.detect(
+                    title
+                );
+
+            console.log(
+                `🎞️ Collection: ${
+                    collection ||
+                    "Keine"
+                }`
+            );
+
+            // =================================================================
+            // ARCHIVE ID
+            // =================================================================
+
+            const archiveId =
+                ArchiveService.generate(
+                    genres
+                );
+
+            console.log(
+                `🗂️ Archive ID: ${archiveId}`
+            );
+
+            // =================================================================
+            // SAVE TO DATABASE
+            // =================================================================
+
+            const saved =
+                MovieRepository.addMovie({
+
+                    title,
+
+                    year,
+
+                    fileId,
+
+                    fileName,
+
+                    fileSize,
+
+                    collection:
+                        collection ||
+                        undefined,
+
+                    archiveId
+                });
+
+            if (
+                !saved
+            ) {
+
+                console.error(
+                    "❌ Film konnte nicht gespeichert werden."
+                );
+
+                await ctx.reply(
+                    "❌ Der Film konnte nicht im Archiv gespeichert werden."
+                );
+
+                return;
+            }
+
+            console.log(
+                "💾 Film erfolgreich gespeichert."
+            );
+
+            // =================================================================
             // FINAL POST
             // =================================================================
 
@@ -678,7 +780,11 @@ export class TelegramBot {
 
                     fileName,
 
-                    fileSize
+                    fileSize,
+
+                    collection,
+
+                    archiveId
                 });
 
             // =================================================================
@@ -789,6 +895,17 @@ export class TelegramBot {
 
             console.log(
                 "✅ FILM VOLLSTÄNDIG VERARBEITET"
+            );
+
+            console.log(
+                `🗂️ Archive: ${archiveId}`
+            );
+
+            console.log(
+                `🎞️ Collection: ${
+                    collection ||
+                    "Keine"
+                }`
             );
 
             console.log(
