@@ -13,14 +13,14 @@ Module..............: Post
 
 Module ID...........: LOL-MOD-APP-POST-0001
 
-LOL-ID..............: LOL-POST-BUILDER-0003
+LOL-ID..............: LOL-POST-BUILDER-0004
 
 File................: post-builder.ts
 
 Location............
 Library Of Legends/src/application/post/
 
-Version.............: 2.1.0
+Version.............: 2.2.0
 
 Status..............: Core
 
@@ -41,11 +41,17 @@ Responsibilities:
 - Detect movie collections
 - Calculate collection progress
 - Generate archive ID
-- Display technical information
+- Format technical information
 - Keep Telegram presentation centralized
+- Keep collection blocks type-safe
+- Keep synopsis at a clean sentence boundary
 
 ===============================================================================
 */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
 
 import {
     HashtagBuilder
@@ -247,25 +253,31 @@ export class PostBuilder {
                 title
             );
 
-        let collectionBlock =
-            "";
+        /*
+         * IMPORTANT:
+         *
+         * collectionBlock is an ARRAY because individual lines
+         * are added with push() below.
+         *
+         * It is converted to a string only after construction.
+         */
+
+        const collectionLines:
+            string[] = [];
 
         if (
             detectedCollection
         ) {
 
-            collectionBlock =
-                [
-                    "🎞️ Reihe: " +
-                    this.escapeHtml(
-                        detectedCollection
-                    )
-                ];
+            collectionLines.push(
+                `🎞️ Reihe: ${this.escapeHtml(
+                    detectedCollection
+                )}`
+            );
 
-            /*
-             * Progress is calculated only when the
-             * collection system can resolve it.
-             */
+            // =================================================================
+            // COLLECTION PROGRESS
+            // =================================================================
 
             try {
 
@@ -278,13 +290,13 @@ export class PostBuilder {
                     progress.complete
                 ) {
 
-                    collectionBlock.push(
+                    collectionLines.push(
                         `✅ vollständig ${progress.formatted}`
                     );
 
                 } else {
 
-                    collectionBlock.push(
+                    collectionLines.push(
                         `⚠️ ${progress.formatted} vorhanden`
                     );
                 }
@@ -298,12 +310,12 @@ export class PostBuilder {
                     error
                 );
             }
-
-            collectionBlock =
-                collectionBlock.join(
-                    " · "
-                );
         }
+
+        const collectionBlock =
+            collectionLines.join(
+                "\n"
+            );
 
         // =====================================================================
         // ARCHIVE SECTION
@@ -382,7 +394,7 @@ export class PostBuilder {
         ];
 
         // =====================================================================
-        // COLLECTION
+        // COLLECTION BLOCK
         // =====================================================================
 
         if (
@@ -415,7 +427,7 @@ export class PostBuilder {
         );
 
         // =====================================================================
-        // FINAL
+        // FINAL RESULT
         // =====================================================================
 
         return sections
@@ -571,7 +583,7 @@ export class PostBuilder {
         }
 
         /*
-         * Remove dangling dots / ellipsis.
+         * Remove dangling ellipsis and duplicate periods.
          */
 
         const clean =
