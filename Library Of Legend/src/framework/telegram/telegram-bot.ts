@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legend/src/framework/telegram/
 
-Version.............: 5.4.0
+Version.............: 5.4.1
 
 Status..............: Core
 
@@ -50,56 +50,13 @@ Responsibilities:
 - Provide genre menu navigation
 - Run with Telegram Webhook on Render
 
-Main menu:
+Architecture:
 
-🎬 Filme
-📺 Serien
-🔥 Trending
-🏆 Top 100
-🎭 Genres
-🔎 Suche
+TMDB access is provided exclusively by:
 
-Movie delivery order:
+Library Of Legend/src/infrastructure/tmdb/tmdb.service.ts
 
-1. Parse media
-2. Query TMDB
-3. Detect collection
-4. Generate Archive ID for new entries
-5. Store new movie
-6. Build metadata
-7. Send cover
-8. Send original movie
-9. Send metadata layout
-
-GET system:
-
-/get LIB-ACT-0001
-
-or:
-
-Inline button
-      ↓
-Archive ID
-      ↓
-SQLite lookup
-      ↓
-TMDB metadata refresh
-      ↓
-Cover
-      ↓
-Original Telegram video
-      ↓
-Final movie layout
-
-Important:
-
-- TMDBService returns normalized TMDBMovie data.
-- Collection detection is handled by AutoCollectionService.
-- Database is the source of truth for archived files.
-- File IDs are stored in SQLite.
-- Existing media may be re-posted.
-- Existing database records are never duplicated.
-- No polling is used when WEBHOOK_URL is configured.
+The application layer must not use a second TMDB implementation.
 
 ===============================================================================
 */
@@ -124,7 +81,7 @@ import {
 
 import {
     TMDBService
-} from "../../application/services/tmdb-service";
+} from "../../infrastructure/tmdb/tmdb.service";
 
 import {
     PostBuilder
@@ -1063,10 +1020,6 @@ export class TelegramBot {
                     .trim()
                     .toUpperCase();
 
-            // =================================================================
-            // VALIDATION
-            // =================================================================
-
             if (
                 !normalizedArchiveId
             ) {
@@ -1095,10 +1048,6 @@ export class TelegramBot {
                                 .toUpperCase() ===
                             normalizedArchiveId
                     );
-
-            // =================================================================
-            // NOT FOUND
-            // =================================================================
 
             if (
                 !movie
@@ -1409,10 +1358,6 @@ export class TelegramBot {
 
                 return;
             }
-
-            // =================================================================
-            // MEDIA
-            // =================================================================
 
             const media =
                 message.video ||
