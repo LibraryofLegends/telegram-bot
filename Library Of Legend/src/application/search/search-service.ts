@@ -11,16 +11,16 @@ Architecture Layer..: Application
 
 Module..............: Search
 
-Module ID...........: LOL-MOD-APP-SEARCH-0001
+Module ID...........: LOL-MOD-APP-SRC-0001
 
-LOL-ID..............: LOL-SEARCH-SERVICE-0002
+LOL-ID..............: LOL-SRC-SERVICE-0001
 
 File................: search-service.ts
 
 Location............
-Library Of Legends/src/application/search/
+Library Of Legend/src/application/search/
 
-Version.............: 1.1.0
+Version.............: 1.0.0
 
 Status..............: Core
 
@@ -28,268 +28,131 @@ Lifecycle...........: Production
 
 Description.........
 
-Search service for the Library Of Legends archive.
+Search system for Library Of Legends.
 
 Responsibilities:
 
-- Search archived movies by title
-- Search archived movies by collection
-- Perform case-insensitive matching
-- Return normalized search results
-- Safely handle missing Archive IDs
-- Format search results for Telegram
+- Search movies from database
+- Return formatted search results
+- Ensure type safety (no undefined issues)
+- Prepare data for Telegram output
 
 ===============================================================================
 */
 
-import {
-    MovieRepository
-} from "../../infrastructure/database/database";
+import { MovieRepository } from "../../infrastructure/database/database";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
 export interface SearchResult {
-
-    title:
-        string;
-
-    year?:
-        number;
-
-    archiveId?:
-        string;
+    title: string;
+    year?: number;
+    archiveId: string;
 }
 
 // =============================================================================
-// SEARCH SERVICE
+// SERVICE
 // =============================================================================
 
 export class SearchService {
 
     // =========================================================================
-    // SEARCH
+    // SEARCH MOVIES
     // =========================================================================
 
-    public static search(
-        query: string
-    ): SearchResult[] {
+    public static searchMovies(query: string): SearchResult[] {
 
-        const cleanQuery =
-            String(
-                query ||
-                ""
-            )
-                .trim()
-                .toLowerCase();
-
-        // =====================================================================
-        // EMPTY QUERY
-        // =====================================================================
-
-        if (
-            !cleanQuery
-        ) {
-
+        if (!query || query.trim().length === 0) {
             return [];
         }
 
-        // =====================================================================
-        // LOAD MOVIES
-        // =====================================================================
+        const normalizedQuery = query
+            .toLowerCase()
+            .trim();
 
-        const movies =
-            MovieRepository.getAll();
+        const movies = MovieRepository.getAllMovies();
 
-        // =====================================================================
-        // FILTER
-        // =====================================================================
+        const results = movies
+            .filter((movie: any) => {
 
-        const results =
-            movies.filter(
-                movie => {
+                if (!movie.title) return false;
 
-                    const title =
-                        String(
-                            movie.title ||
-                            ""
-                        )
-                            .toLowerCase();
+                return movie.title
+                    .toLowerCase()
+                    .includes(normalizedQuery);
 
-                    const collection =
-                        String(
-                            movie.collection ||
-                            ""
-                        )
-                            .toLowerCase();
-
-                    return (
-                        title.includes(
-                            cleanQuery
-                        ) ||
-                        collection.includes(
-                            cleanQuery
-                        )
-                    );
-                }
-            );
-
-        // =====================================================================
-        // SORT
-        // =====================================================================
-
-        results.sort(
-            (
-                first,
-                second
-            ) => {
-
-                const firstYear =
-                    first.year ||
-                    0;
-
-                const secondYear =
-                    second.year ||
-                    0;
-
-                return (
-                    secondYear -
-                    firstYear
-                );
-            }
-        );
-
-        // =====================================================================
-        // NORMALIZE RESULTS
-        // =====================================================================
-
-        return results.map(
-            movie => ({
-
-                title:
-                    movie.title,
-
-                year:
-                    movie.year,
-
-                archiveId:
-                    movie.archiveId
             })
-        );
+            .map((movie: any): SearchResult => {
+
+                return {
+                    title: movie.title || "Unbekannt",
+                    year: movie.year,
+                    archiveId: movie.archiveId ?? "UNKNOWN"
+                };
+
+            })
+            .sort((a: SearchResult, b: SearchResult) => {
+
+                const titleA = a.title.toLowerCase();
+                const titleB = b.title.toLowerCase();
+
+                if (titleA < titleB) return -1;
+                if (titleA > titleB) return 1;
+
+                return 0;
+            });
+
+        return results;
     }
 
     // =========================================================================
-    // FORMAT RESULTS
+    // FORMAT FOR TELEGRAM
     // =========================================================================
 
-    public static format(
-        results: SearchResult[]
-    ): string {
+    public static formatResults(results: SearchResult[]): string {
 
-        // =====================================================================
-        // NO RESULTS
-        // =====================================================================
-
-        if (
-            results.length ===
-            0
-        ) {
-
-            return [
-                "━━━━━━━━━━━━━━━━━━",
-                "🔎 <b>Suchergebnisse</b>",
-                "━━━━━━━━━━━━━━━━━━",
-                "",
-                "❌ Keine Ergebnisse gefunden.",
-                "",
-                "🔥 <b>Library Of Legends</b>"
-            ].join(
-                "\n"
-            );
+        if (!results || results.length === 0) {
+            return "❌ Keine Ergebnisse gefunden.";
         }
 
-        // =====================================================================
-        // RESULT LINES
-        // =====================================================================
+        const lines: string[] = [];
 
-        const lines:
-            string[] = [];
+        lines.push("🔎 <b>Suchergebnisse</b>");
+        lines.push("");
+        lines.push("━━━━━━━━━━━━━━━━━━");
 
-        for (
-            const result of results
-        ) {
-
-            const yearText =
-                result.year
-                    ? ` (${result.year})`
-                    : "";
-
-            const archiveText =
-                result.archiveId
-                    ? `\n   🗂️ <code>${this.escapeHtml(
-                        result.archiveId
-                    )}</code>`
-                    : "";
-
-            lines.push(
-                `🎬 <b>${this.escapeHtml(
-                    result.title
-                )}</b>${yearText}${archiveText}`
-            );
+        for (const result of results) {
 
             lines.push("");
+            lines.push(
+                `🎬 <b>${this.escapeHtml(result.title)}</b>` +
+                (result.year ? ` (${result.year})` : "")
+            );
+
+            lines.push(
+                `🗂 <code>${this.escapeHtml(result.archiveId)}</code>`
+            );
         }
 
-        // =====================================================================
-        // FINAL RESULT
-        // =====================================================================
+        lines.push("");
+        lines.push("━━━━━━━━━━━━━━━━━━");
 
-        return [
-            "━━━━━━━━━━━━━━━━━━",
-            "🔎 <b>Suchergebnisse</b>",
-            "━━━━━━━━━━━━━━━━━━",
-            "",
-            ...lines,
-            "━━━━━━━━━━━━━━━━━━",
-            `📊 ${results.length} Treffer`,
-            "🔥 <b>Library Of Legends</b>"
-        ].join(
-            "\n"
-        );
+        return lines.join("\n");
     }
 
     // =========================================================================
     // HTML ESCAPE
     // =========================================================================
 
-    private static escapeHtml(
-        value: string
-    ): string {
+    private static escapeHtml(value: string): string {
 
-        return String(
-            value ||
-            ""
-        )
-            .replace(
-                /&/g,
-                "&amp;"
-            )
-            .replace(
-                /</g,
-                "&lt;"
-            )
-            .replace(
-                />/g,
-                "&gt;"
-            )
-            .replace(
-                /"/g,
-                "&quot;"
-            )
-            .replace(
-                /'/g,
-                "&#39;"
-            );
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
     }
 }
