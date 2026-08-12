@@ -13,14 +13,14 @@ Module..............: Search
 
 Module ID...........: LOL-MOD-APP-SEARCH-0001
 
-LOL-ID..............: LOL-SEARCH-SERVICE-0001
+LOL-ID..............: LOL-SEARCH-SERVICE-0002
 
 File................: search-service.ts
 
 Location............
-Library Of Legend/src/application/search/
+Library Of Legends/src/application/search/
 
-Version.............: 1.0.0
+Version.............: 1.1.0
 
 Status..............: Core
 
@@ -28,98 +28,268 @@ Lifecycle...........: Production
 
 Description.........
 
-Search movies inside the local database.
+Search service for the Library Of Legends archive.
 
-Features:
+Responsibilities:
 
-- Title search
-- Collection search
-- Case-insensitive matching
-- Clean result formatting
+- Search archived movies by title
+- Search archived movies by collection
+- Perform case-insensitive matching
+- Return normalized search results
+- Safely handle missing Archive IDs
+- Format search results for Telegram
 
 ===============================================================================
 */
 
-import { MovieRepository } from "../../infrastructure/database/database";
+import {
+    MovieRepository
+} from "../../infrastructure/database/database";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
 export interface SearchResult {
-    title: string;
-    year?: number;
-    archiveId: string;
+
+    title:
+        string;
+
+    year?:
+        number;
+
+    archiveId?:
+        string;
 }
 
 // =============================================================================
-// SERVICE
+// SEARCH SERVICE
 // =============================================================================
 
 export class SearchService {
 
-    public static search(query: string): SearchResult[] {
+    // =========================================================================
+    // SEARCH
+    // =========================================================================
+
+    public static search(
+        query: string
+    ): SearchResult[] {
 
         const cleanQuery =
-            query
-                .toLowerCase()
-                .trim();
+            String(
+                query ||
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+        // =====================================================================
+        // EMPTY QUERY
+        // =====================================================================
+
+        if (
+            !cleanQuery
+        ) {
+
+            return [];
+        }
+
+        // =====================================================================
+        // LOAD MOVIES
+        // =====================================================================
 
         const movies =
             MovieRepository.getAll();
 
+        // =====================================================================
+        // FILTER
+        // =====================================================================
+
         const results =
-            movies.filter(movie => {
+            movies.filter(
+                movie => {
 
-                const titleMatch =
-                    movie.title
-                        .toLowerCase()
-                        .includes(cleanQuery);
+                    const title =
+                        String(
+                            movie.title ||
+                            ""
+                        )
+                            .toLowerCase();
 
-                const collectionMatch =
-                    movie.collection &&
-                    movie.collection
-                        .toLowerCase()
-                        .includes(cleanQuery);
+                    const collection =
+                        String(
+                            movie.collection ||
+                            ""
+                        )
+                            .toLowerCase();
 
-                return titleMatch || collectionMatch;
-            });
+                    return (
+                        title.includes(
+                            cleanQuery
+                        ) ||
+                        collection.includes(
+                            cleanQuery
+                        )
+                    );
+                }
+            );
 
-        // Sort by year DESC
-        results.sort((a, b) =>
-            (b.year || 0) - (a.year || 0)
+        // =====================================================================
+        // SORT
+        // =====================================================================
+
+        results.sort(
+            (
+                first,
+                second
+            ) => {
+
+                const firstYear =
+                    first.year ||
+                    0;
+
+                const secondYear =
+                    second.year ||
+                    0;
+
+                return (
+                    secondYear -
+                    firstYear
+                );
+            }
         );
 
-        return results.map(movie => ({
-            title: movie.title,
-            year: movie.year,
-            archiveId: movie.archiveId
-        }));
+        // =====================================================================
+        // NORMALIZE RESULTS
+        // =====================================================================
+
+        return results.map(
+            movie => ({
+
+                title:
+                    movie.title,
+
+                year:
+                    movie.year,
+
+                archiveId:
+                    movie.archiveId
+            })
+        );
     }
 
-    // =============================================================================
-    // FORMAT TELEGRAM OUTPUT
-    // =============================================================================
+    // =========================================================================
+    // FORMAT RESULTS
+    // =========================================================================
 
-    public static format(results: SearchResult[]): string {
+    public static format(
+        results: SearchResult[]
+    ): string {
 
-        if (results.length === 0) {
-            return "❌ Keine Ergebnisse gefunden.";
+        // =====================================================================
+        // NO RESULTS
+        // =====================================================================
+
+        if (
+            results.length ===
+            0
+        ) {
+
+            return [
+                "━━━━━━━━━━━━━━━━━━",
+                "🔎 <b>Suchergebnisse</b>",
+                "━━━━━━━━━━━━━━━━━━",
+                "",
+                "❌ Keine Ergebnisse gefunden.",
+                "",
+                "🔥 <b>Library Of Legends</b>"
+            ].join(
+                "\n"
+            );
         }
 
-        const lines =
-            results.map(movie =>
-                `🎬 ${movie.title}${movie.year ? ` (${movie.year})` : ""}`
+        // =====================================================================
+        // RESULT LINES
+        // =====================================================================
+
+        const lines:
+            string[] = [];
+
+        for (
+            const result of results
+        ) {
+
+            const yearText =
+                result.year
+                    ? ` (${result.year})`
+                    : "";
+
+            const archiveText =
+                result.archiveId
+                    ? `\n   🗂️ <code>${this.escapeHtml(
+                        result.archiveId
+                    )}</code>`
+                    : "";
+
+            lines.push(
+                `🎬 <b>${this.escapeHtml(
+                    result.title
+                )}</b>${yearText}${archiveText}`
             );
+
+            lines.push("");
+        }
+
+        // =====================================================================
+        // FINAL RESULT
+        // =====================================================================
 
         return [
             "━━━━━━━━━━━━━━━━━━",
-            "🔎 Suchergebnisse",
+            "🔎 <b>Suchergebnisse</b>",
             "━━━━━━━━━━━━━━━━━━",
+            "",
             ...lines,
             "━━━━━━━━━━━━━━━━━━",
             `📊 ${results.length} Treffer`,
-            "🔥 Library Of Legends"
-        ].join("\n");
+            "🔥 <b>Library Of Legends</b>"
+        ].join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // HTML ESCAPE
+    // =========================================================================
+
+    private static escapeHtml(
+        value: string
+    ): string {
+
+        return String(
+            value ||
+            ""
+        )
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#39;"
+            );
     }
 }
