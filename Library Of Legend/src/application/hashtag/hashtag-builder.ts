@@ -13,30 +13,52 @@ Module..............: Hashtag
 
 Module ID...........: LOL-MOD-APP-HASHTAG-0001
 
-LOL-ID..............: LOL-HASHTAG-0001
+LOL-ID..............: LOL-HASHTAG-CORE-0002
 
 File................: hashtag-builder.ts
 
 Location............
-Library Of Legend/src/application/hashtag/
+Library Of Legends/src/application/hashtag/
 
-Version.............: 1.0.0
+Version.............: 2.0.0
 
 Status..............: Core
 
-Lifecycle...........: Development
+Lifecycle...........: Production
 
 Description.........
 
-Generates intelligent hashtags for Library Of Legends.
+Central intelligent hashtag engine for Library Of Legends.
 
 Responsibilities:
 
-- Build genre hashtags
-- Build title hashtags
-- Normalize hashtags
-- Remove duplicates
-- Keep hashtags Telegram safe
+- Generate genre hashtags
+- Generate intelligent title hashtags
+- Generate collection-compatible hashtags
+- Remove meaningless title words
+- Remove duplicate hashtags
+- Normalize hashtag formatting
+- Keep hashtags Telegram-compatible
+
+Rules:
+
+- Genres become their own hashtags.
+- Movie titles are NOT split into individual word hashtags.
+- Collection/franchise names become one combined hashtag.
+- Filler words such as "The", "Chapter", "Part" are removed where
+  appropriate.
+- Hashtags remain deterministic.
+
+Examples:
+
+John Wick: Chapter 4
+→ #JohnWick
+
+The Equalizer 3 - The Final Chapter
+→ #TheEqualizer
+
+Spider-Man: Across the Spider-Verse
+→ #SpiderMan
 
 ===============================================================================
 */
@@ -47,15 +69,20 @@ Responsibilities:
 
 export interface HashtagInput {
 
-    title?: string;
+    title?:
+        string;
 
-    genres?: string[];
+    genres?:
+        string[];
 
-    year?: number;
+    year?:
+        number;
 
-    collection?: string;
+    collection?:
+        string;
 
-    custom?: string[];
+    custom?:
+        string[];
 }
 
 // =============================================================================
@@ -72,33 +99,77 @@ export class HashtagBuilder {
         input: HashtagInput
     ): string[] {
 
-        const tags = new Set<string>();
+        const tags =
+            new Set<string>();
 
-        // Genres
+        // =====================================================================
+        // COLLECTION
+        // =====================================================================
+
+        if (
+            input.collection
+        ) {
+
+            const collectionTag =
+                this.toCollectionHashtag(
+                    input.collection
+                );
+
+            if (
+                collectionTag
+            ) {
+
+                tags.add(
+                    collectionTag
+                );
+            }
+
+        } else {
+
+            // =============================================================
+            // TITLE
+            // =============================================================
+
+            const titleTag =
+                this.toTitleHashtag(
+                    input.title
+                );
+
+            if (
+                titleTag
+            ) {
+
+                tags.add(
+                    titleTag
+                );
+            }
+        }
+
+        // =====================================================================
+        // GENRES
+        // =====================================================================
+
         this.addGenres(
             tags,
             input.genres
         );
 
-        // Title
-        this.addTitle(
-            tags,
-            input.title
-        );
+        // =====================================================================
+        // CUSTOM
+        // =====================================================================
 
-        // Collection (optional)
-        this.addCollection(
-            tags,
-            input.collection
-        );
-
-        // Custom
         this.addCustom(
             tags,
             input.custom
         );
 
-        return Array.from(tags);
+        // =====================================================================
+        // RESULT
+        // =====================================================================
+
+        return Array.from(
+            tags
+        );
     }
 
     // =========================================================================
@@ -110,73 +181,348 @@ export class HashtagBuilder {
         genres?: string[]
     ): void {
 
-        if (!genres) return;
+        if (
+            !Array.isArray(
+                genres
+            )
+        ) {
 
-        for (const genre of genres) {
+            return;
+        }
+
+        for (
+            const genre of genres
+        ) {
 
             const tag =
                 this.genreToHashtag(
                     genre
                 );
 
-            if (tag) {
-                set.add(tag);
+            if (
+                tag
+            ) {
+
+                set.add(
+                    tag
+                );
             }
         }
     }
 
     // =========================================================================
-    // TITLE
+    // TITLE HASHTAG
     // =========================================================================
 
-    private static addTitle(
-        set: Set<string>,
+    private static toTitleHashtag(
         title?: string
-    ): void {
+    ): string {
 
-        if (!title) return;
+        if (
+            !title
+        ) {
 
-        const cleaned =
-            title
-                .replace(/\(.*?\)/g, "")
-                .replace(/[^\p{L}\p{N} ]+/gu, "")
+            return "";
+        }
+
+        let value =
+            String(
+                title
+            )
                 .trim();
 
-        const words =
-            cleaned.split(" ");
+        if (
+            !value
+        ) {
 
-        for (const word of words) {
-
-            if (
-                word.length < 4
-            ) continue;
-
-            const tag =
-                `#${word}`;
-
-            set.add(tag);
+            return "";
         }
+
+        // =====================================================================
+        // REMOVE YEAR
+        // =====================================================================
+
+        value =
+            value.replace(
+                /\b(19|20)\d{2}\b/g,
+                ""
+            );
+
+        // =====================================================================
+        // REMOVE CONTENT AFTER COMMON SEQUEL MARKERS
+        // =====================================================================
+
+        value =
+            value
+                .replace(
+                    /\bchapter\b.*$/i,
+                    ""
+                )
+                .replace(
+                    /\bpart\b.*$/i,
+                    ""
+                );
+
+        // =====================================================================
+        // REMOVE TRAILING NUMBERS
+        // =====================================================================
+
+        value =
+            value.replace(
+                /\s+\d+\s*$/g,
+                ""
+            );
+
+        // =====================================================================
+        // REMOVE PUNCTUATION
+        // =====================================================================
+
+        value =
+            value
+                .replace(
+                    /[:"'!?,.;()[\]{}]/g,
+                    " "
+                );
+
+        // =====================================================================
+        // HANDLE WELL-KNOWN TITLES
+        // =====================================================================
+
+        const normalized =
+            this.normalizeForComparison(
+                value
+            );
+
+        const known =
+            this.getKnownTitleHashtag(
+                normalized
+            );
+
+        if (
+            known
+        ) {
+
+            return known;
+        }
+
+        // =====================================================================
+        // REMOVE FILLER WORDS
+        // =====================================================================
+
+        const ignoredWords =
+            new Set([
+                "the",
+                "a",
+                "an",
+                "of",
+                "and",
+                "or",
+                "part",
+                "chapter",
+                "film",
+                "movie",
+                "final",
+                "chapter"
+            ]);
+
+        const words =
+            value
+                .split(
+                    /\s+/
+                )
+                .filter(
+                    word =>
+                        word.length > 0
+                )
+                .filter(
+                    word =>
+                        !ignoredWords.has(
+                            word.toLowerCase()
+                        )
+                );
+
+        if (
+            words.length ===
+            0
+        ) {
+
+            return "";
+        }
+
+        return `#${words.join("")}`;
     }
 
     // =========================================================================
-    // COLLECTION
+    // COLLECTION HASHTAG
     // =========================================================================
 
-    private static addCollection(
-        set: Set<string>,
-        collection?: string
-    ): void {
+    private static toCollectionHashtag(
+        collection: string
+    ): string {
 
-        if (!collection) return;
+        const value =
+            String(
+                collection ||
+                ""
+            )
+                .trim();
 
-        const tag =
-            this.toHashtag(
-                collection
+        if (
+            !value
+        ) {
+
+            return "";
+        }
+
+        const normalized =
+            this.normalizeForComparison(
+                value
             );
 
-        if (tag) {
-            set.add(tag);
+        const known =
+            this.getKnownCollectionHashtag(
+                normalized
+            );
+
+        if (
+            known
+        ) {
+
+            return known;
         }
+
+        const cleaned =
+            value
+                .replace(
+                    /\b(reihe|filmreihe|saga|universe|trilogie)\b/gi,
+                    ""
+                )
+                .replace(
+                    /[^\p{L}\p{N}]+/gu,
+                    ""
+                );
+
+        if (
+            !cleaned
+        ) {
+
+            return "";
+        }
+
+        return `#${cleaned}`;
+    }
+
+    // =========================================================================
+    // GENRE HASHTAG
+    // =========================================================================
+
+    private static genreToHashtag(
+        genre: string
+    ): string {
+
+        const value =
+            String(
+                genre ||
+                ""
+            ).trim();
+
+        if (
+            !value
+        ) {
+
+            return "";
+        }
+
+        const mappings:
+            Record<string, string> = {
+
+            "Action":
+                "#Action",
+
+            "Abenteuer":
+                "#Abenteuer",
+
+            "Adventure":
+                "#Abenteuer",
+
+            "Science Fiction":
+                "#ScienceFiction",
+
+            "Sci-Fi":
+                "#ScienceFiction",
+
+            "Animation":
+                "#Animation",
+
+            "Komödie":
+                "#Komödie",
+
+            "Comedy":
+                "#Komödie",
+
+            "Drama":
+                "#Drama",
+
+            "Horror":
+                "#Horror",
+
+            "Thriller":
+                "#Thriller",
+
+            "Krimi":
+                "#Krimi",
+
+            "Crime":
+                "#Krimi",
+
+            "Mystery":
+                "#Mystery",
+
+            "Fantasy":
+                "#Fantasy",
+
+            "Romantik":
+                "#Romantik",
+
+            "Romance":
+                "#Romantik",
+
+            "Familie":
+                "#Familie",
+
+            "Family":
+                "#Familie",
+
+            "Musik":
+                "#Musik",
+
+            "Music":
+                "#Musik",
+
+            "Western":
+                "#Western",
+
+            "Historie":
+                "#Historie",
+
+            "History":
+                "#Historie"
+        };
+
+        if (
+            mappings[
+                value
+            ]
+        ) {
+
+            return mappings[
+                value
+            ];
+        }
+
+        return this.toGenericHashtag(
+            value
+        );
     }
 
     // =========================================================================
@@ -188,84 +534,187 @@ export class HashtagBuilder {
         custom?: string[]
     ): void {
 
-        if (!custom) return;
+        if (
+            !Array.isArray(
+                custom
+            )
+        ) {
 
-        for (const entry of custom) {
+            return;
+        }
+
+        for (
+            const value of custom
+        ) {
 
             const tag =
-                this.toHashtag(
-                    entry
+                this.toGenericHashtag(
+                    value
                 );
 
-            if (tag) {
-                set.add(tag);
+            if (
+                tag
+            ) {
+
+                set.add(
+                    tag
+                );
             }
         }
-    }
-
-    // =========================================================================
-    // GENRE → HASHTAG
-    // =========================================================================
-
-    private static genreToHashtag(
-        value: string
-    ): string {
-
-        const map: Record<string, string> = {
-
-            "Science Fiction": "#ScienceFiction",
-            "Sci-Fi": "#ScienceFiction",
-
-            "Action": "#Action",
-            "Abenteuer": "#Abenteuer",
-            "Adventure": "#Abenteuer",
-
-            "Animation": "#Animation",
-
-            "Komödie": "#Komödie",
-            "Comedy": "#Komödie",
-
-            "Drama": "#Drama",
-            "Horror": "#Horror",
-            "Thriller": "#Thriller",
-
-            "Krimi": "#Krimi",
-            "Crime": "#Krimi",
-
-            "Mystery": "#Mystery",
-            "Fantasy": "#Fantasy",
-
-            "Romantik": "#Romantik",
-            "Romance": "#Romantik",
-
-            "Familie": "#Familie",
-            "Family": "#Familie"
-        };
-
-        if (map[value]) {
-            return map[value];
-        }
-
-        return this.toHashtag(value);
     }
 
     // =========================================================================
     // GENERIC HASHTAG
     // =========================================================================
 
-    private static toHashtag(
+    private static toGenericHashtag(
         value: string
     ): string {
 
-        if (!value) return "";
-
         const cleaned =
-            value
-                .replace(/[^\p{L}\p{N}]+/gu, "")
-                .trim();
+            String(
+                value ||
+                ""
+            )
+                .trim()
+                .replace(
+                    /[^\p{L}\p{N}]+/gu,
+                    ""
+                );
 
-        if (!cleaned) return "";
+        if (
+            !cleaned
+        ) {
+
+            return "";
+        }
 
         return `#${cleaned}`;
+    }
+
+    // =========================================================================
+    // KNOWN TITLE HASHTAGS
+    // =========================================================================
+
+    private static getKnownTitleHashtag(
+        normalized: string
+    ): string | null {
+
+        const known:
+            Record<string, string> = {
+
+            "johnwick":
+                "#JohnWick",
+
+            "theequalizer":
+                "#TheEqualizer",
+
+            "fastandfurious":
+                "#FastAndFurious",
+
+            "harrypotter":
+                "#HarryPotter",
+
+            "transformers":
+                "#Transformers",
+
+            "spiderman":
+                "#SpiderMan",
+
+            "superman":
+                "#Superman",
+
+            "batman":
+                "#Batman",
+
+            "jurassicpark":
+                "#JurassicPark",
+
+            "scream":
+                "#Scream"
+        };
+
+        return (
+            known[
+                normalized
+            ] ||
+            null
+        );
+    }
+
+    // =========================================================================
+    // KNOWN COLLECTION HASHTAGS
+    // =========================================================================
+
+    private static getKnownCollectionHashtag(
+        normalized: string
+    ): string | null {
+
+        const known:
+            Record<string, string> = {
+
+            "johnwick":
+                "#JohnWick",
+
+            "theequalizer":
+                "#TheEqualizer",
+
+            "fastandfurious":
+                "#FastAndFurious",
+
+            "harrypotter":
+                "#HarryPotter",
+
+            "transformers":
+                "#Transformers",
+
+            "spiderman":
+                "#SpiderMan",
+
+            "superman":
+                "#Superman",
+
+            "batman":
+                "#Batman",
+
+            "jurassicpark":
+                "#JurassicPark",
+
+            "scream":
+                "#Scream"
+        };
+
+        return (
+            known[
+                normalized
+            ] ||
+            null
+        );
+    }
+
+    // =========================================================================
+    // NORMALIZE FOR COMPARISON
+    // =========================================================================
+
+    private static normalizeForComparison(
+        value: string
+    ): string {
+
+        return String(
+            value ||
+            ""
+        )
+            .normalize(
+                "NFD"
+            )
+            .replace(
+                /[\u0300-\u036f]/g,
+                ""
+            )
+            .toLowerCase()
+            .replace(
+                /[^\p{L}\p{N}]+/gu,
+                ""
+            );
     }
 }
