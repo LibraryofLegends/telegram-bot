@@ -11,768 +11,249 @@ Architecture Layer..: Framework
 
 Module..............: Telegram
 
-Module ID...........: LOL-MOD-FW-TG-0001
+Module ID...........: LOL-MOD-FWK-TG-0001
 
-LOL-ID..............: LOL-TG-BOT-0001
+LOL-ID..............: LOL-TG-0001
 
 File................: telegram-bot.ts
 
 Location............
 Library Of Legend/src/framework/telegram/
 
-Version.............: 4.1.0
+Version.............: 3.0.0
 
-Status..............: Core
+Status..............: FINAL
 
 Lifecycle...........: Production
 
 Description.........
 
-Telegram integration for Library Of Legends.
+Final Telegram Bot with:
 
-Current responsibilities:
-
-- Receive Telegram media
-- Parse media filenames
-- Query TMDB
-- Build movie metadata
-- Send movie cover
-- Send original MP4 media
-- Send movie archive layout
-- Keep webhook mode Render-compatible
-- Keep the three-message movie presentation centralized
-
-Movie delivery order:
-
-1. TMDB poster
-2. Original Telegram video / MP4
-3. Formatted movie archive information
-
-Important:
-
-- No database persistence is used in this phase.
-- The original Telegram File-ID is reused.
-- The movie itself is sent separately from the metadata layout.
-- Long descriptions are already limited by MoviePostBuilder.
+- Media Detection
+- Parser Integration
+- TMDB Integration
+- Post Builder Integration
+- Webhook Mode (Render Ready)
 
 ===============================================================================
 */
 
-import {
-    Telegraf
-} from "telegraf";
+import { Telegraf } from "telegraf";
+import express from "express";
 
-import express, {
-    Request,
-    Response
-} from "express";
+import { PostBuilder } from "../../application/post/post-builder";
+import { HashtagBuilder } from "../../application/hashtag/hashtag-builder";
+import { ArchiveId } from "../../application/archive/archive-id";
 
-import {
-    parseMedia
-} from "../../application/parser/media-parser";
-
-import {
-    TMDBService
-} from "../../application/services/tmdb-service";
-
-import {
-    MoviePostBuilder
-} from "../../application/builder/movie-post-builder";
+// 👉 Deine bestehenden Module (WICHTIG: müssen existieren!)
+import { parseMedia } from "../../application/parser/media-parser";
+import { TMDBService } from "../../application/services/tmdb-service";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-interface TelegramBotConfig {
-
-    token:
-        string;
-
-    port:
-        number;
-
-    webhookUrl?:
-        string;
+interface Config {
+    token: string;
+    port: number;
+    webhookUrl?: string;
 }
 
 // =============================================================================
-// TELEGRAM BOT
+// CLASS
 // =============================================================================
 
 export class TelegramBot {
 
-    // =========================================================================
-    // TELEGRAM
-    // =========================================================================
+    private bot: Telegraf;
+    private config: Config;
 
-    private readonly bot:
-        Telegraf;
+    constructor(config: Config) {
 
-    // =========================================================================
-    // CONFIGURATION
-    // =========================================================================
+        this.config = config;
+        this.bot = new Telegraf(config.token);
 
-    private readonly config:
-        TelegramBotConfig;
+        console.log("🔧 TelegramBot erstellt.");
 
-    // =========================================================================
-    // EXPRESS
-    // =========================================================================
-
-    private readonly app =
-        express();
-
-    // =========================================================================
-    // CONSTRUCTOR
-    // =========================================================================
-
-    public constructor(
-        config: TelegramBotConfig
-    ) {
-
-        this.config =
-            config;
-
-        this.bot =
-            new Telegraf(
-                config.token
-            );
-
-        console.log(
-            "🔧 TelegramBot erstellt."
-        );
+        this.setupHandlers();
     }
 
-    // =========================================================================
+    // =============================================================================
+    // HANDLERS
+    // =============================================================================
+
+    private setupHandlers(): void {
+
+        this.bot.on("video", async (ctx) => {
+
+            try {
+
+                const video = ctx.message.video;
+                const fileName = video.file_name || "unknown.mp4";
+                const fileSize = video.file_size;
+
+                console.log("=================================================");
+                console.log("📥 MEDIA EMPFANGEN");
+                console.log(`📄 Datei: ${fileName}`);
+                console.log("=================================================");
+
+                // =========================================================================
+                // PARSER
+                // =========================================================================
+
+                const parsed = parseMedia(fileName);
+
+                console.log("🧠 Parser Ergebnis:", parsed);
+
+                // =========================================================================
+                // TMDB
+                // =========================================================================
+
+                let movie = null;
+
+                if (parsed.title) {
+
+                    movie = await TMDBService.searchMovie(
+                        parsed.title,
+                        parsed.year
+                    );
+
+                    if (!movie && parsed.year) {
+
+                        console.log("🔄 Zweiter Versuch ohne Jahr...");
+
+                        movie = await TMDBService.searchMovie(
+                            parsed.title
+                        );
+                    }
+                }
+
+                console.log("🎬 TMDB Ergebnis:", movie?.title || "Kein Treffer");
+
+                // =========================================================================
+                // FALLBACK WERTE
+                // =========================================================================
+
+                const title = movie?.title || parsed.title || "Unbekannt";
+                const year = movie?.release_date
+                    ? Number(movie.release_date.slice(0, 4))
+                    : parsed.year;
+
+                const rating = movie?.vote_average;
+                const genres = movie?.genres?.map(g => g.name) || [];
+
+                const overview = movie?.overview;
+
+                // =========================================================================
+                // FINAL POST
+                // =========================================================================
+
+                const caption = PostBuilder.build({
+                    title,
+                    year,
+                    rating,
+                    genres,
+                    overview,
+                    fileName,
+                    fileSize
+                });
+
+                // =========================================================================
+                // TELEGRAM SEND
+                // =========================================================================
+
+                const poster = movie?.poster_path
+                    ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+                    : null;
+
+                if (poster) {
+
+                    await ctx.replyWithPhoto(
+                        poster,
+                        {
+                            caption
+                        }
+                    );
+
+                } else {
+
+                    await ctx.reply(
+                        caption
+                    );
+                }
+
+            } catch (error) {
+
+                console.error("❌ Fehler:", error);
+
+                await ctx.reply(
+                    "❌ Fehler beim Verarbeiten der Datei."
+                );
+            }
+        });
+
+        // =========================================================================
+        // TEST COMMAND
+        // =========================================================================
+
+        this.bot.start((ctx) => {
+            ctx.reply("🚀 Library Of Legends Bot ist bereit!");
+        });
+    }
+
+    // =============================================================================
     // LAUNCH
-    // =========================================================================
+    // =============================================================================
 
     public async launch(): Promise<void> {
 
-        console.log(
-            "🤖 Starte Telegram Bot..."
-        );
+        console.log("🤖 Starte Telegram Bot...");
 
-        // =====================================================================
-        // MEDIA HANDLER
-        // =====================================================================
+        if (this.config.webhookUrl) {
 
-        this.registerMediaHandler();
+            console.log("🌐 Webhook Mode aktiv");
 
-        // =====================================================================
-        // WEBHOOK
-        // =====================================================================
+            const app = express();
 
-        if (
-            this.config.webhookUrl
-        ) {
+            app.use(express.json());
 
-            console.log(
-                "🌐 Webhook Mode aktiv"
+            app.post("/webhook", (req, res) => {
+                this.bot.handleUpdate(req.body);
+                res.sendStatus(200);
+            });
+
+            app.listen(this.config.port, () => {
+                console.log(`🌐 Express Server läuft auf Port ${this.config.port}`);
+            });
+
+            const baseUrl =
+                this.config.webhookUrl.replace(/\/+$/, "");
+
+            await this.bot.telegram.setWebhook(
+                `${baseUrl}/webhook`
             );
 
-            this.setupWebhook();
+            console.log(`🔗 Webhook gesetzt: ${baseUrl}/webhook`);
 
         } else {
 
-            // =================================================================
-            // LOCAL FALLBACK
-            // =================================================================
-
-            console.log(
-                "⚠️ Keine WEBHOOK_URL gesetzt."
-            );
-
-            console.log(
-                "⚠️ Polling Mode aktiv."
-            );
+            console.log("📡 Polling Mode aktiv");
 
             await this.bot.launch();
         }
 
-        console.log(
-            "✅ TelegramBot Initialisierung abgeschlossen."
-        );
+        console.log("✅ TelegramBot Initialisierung abgeschlossen.");
     }
 
-    // =========================================================================
-    // REGISTER MEDIA HANDLER
-    // =========================================================================
-
-    private registerMediaHandler(): void {
-
-        // =====================================================================
-        // VIDEO
-        // =====================================================================
-
-        this.bot.on(
-            "video",
-            async (
-                ctx
-            ) => {
-
-                await this.handleMedia(
-                    ctx
-                );
-            }
-        );
-
-        // =====================================================================
-        // DOCUMENT
-        // =====================================================================
-
-        this.bot.on(
-            "document",
-            async (
-                ctx
-            ) => {
-
-                await this.handleMedia(
-                    ctx
-                );
-            }
-        );
-    }
-
-    // =========================================================================
-    // HANDLE MEDIA
-    // =========================================================================
-
-    private async handleMedia(
-        ctx: any
-    ): Promise<void> {
-
-        try {
-
-            // =================================================================
-            // MESSAGE
-            // =================================================================
-
-            const message =
-                ctx.message;
-
-            if (
-                !message
-            ) {
-
-                return;
-            }
-
-            // =================================================================
-            // MEDIA
-            // =================================================================
-
-            const media =
-                message.video ||
-                message.document;
-
-            if (
-                !media
-            ) {
-
-                return;
-            }
-
-            // =================================================================
-            // BASIC INFORMATION
-            // =================================================================
-
-            const fileName =
-                String(
-                    media.file_name ||
-                    `media_${media.file_unique_id}`
-                );
-
-            const fileId =
-                String(
-                    media.file_id
-                );
-
-            const fileSize =
-                Number(
-                    media.file_size ||
-                    0
-                );
-
-            console.log(
-                "================================================="
-            );
-
-            console.log(
-                "📥 MEDIA EMPFANGEN"
-            );
-
-            console.log(
-                `📄 Datei: ${fileName}`
-            );
-
-            console.log(
-                `🆔 File-ID: ${fileId}`
-            );
-
-            console.log(
-                `💾 Größe: ${fileSize}`
-            );
-
-            console.log(
-                "================================================="
-            );
-
-            // =================================================================
-            // PARSER
-            // =================================================================
-
-            const parsed =
-                parseMedia(
-                    fileName
-                );
-
-            console.log(
-                "🧠 Parser Ergebnis:",
-                parsed
-            );
-
-            // =================================================================
-            // MOVIE ONLY
-            // =================================================================
-
-            if (
-                parsed.type !==
-                "movie"
-            ) {
-
-                await ctx.reply(
-                    [
-                        "📺 <b>Serien-Erkennung</b>",
-                        "",
-                        `📄 ${this.escapeHtml(
-                            fileName
-                        )}`,
-                        "",
-                        "Das Serien-/Episodensystem wird als eigener Schritt aufgebaut."
-                    ].join(
-                        "\n"
-                    ),
-                    {
-                        parse_mode:
-                            "HTML"
-                    }
-                );
-
-                return;
-            }
-
-            // =================================================================
-            // TMDB
-            // =================================================================
-
-            const tmdbData =
-                await TMDBService.searchMovie(
-                    parsed.title,
-                    parsed.year
-                );
-
-            console.log(
-                "🎬 TMDB Ergebnis:",
-                tmdbData
-            );
-
-            // =================================================================
-            // BUILD MOVIE POST
-            // =================================================================
-
-            const post =
-                MoviePostBuilder.build({
-                    fileName,
-
-                    fileId,
-
-                    fileSize,
-
-                    parser:
-                        parsed,
-
-                    tmdb:
-                        tmdbData ||
-                        undefined
-                });
-
-            // =================================================================
-            // MESSAGE 1
-            // POSTER
-            // =================================================================
-
-            if (
-                post.posterUrl
-            ) {
-
-                await ctx.replyWithPhoto(
-                    post.posterUrl
-                );
-
-                console.log(
-                    "🖼️ Cover gesendet."
-                );
-            } else {
-
-                console.log(
-                    "⚠️ Kein TMDB Cover vorhanden."
-                );
-            }
-
-            // =================================================================
-            // MESSAGE 2
-            // MOVIE FILE
-            // =================================================================
-
-            const extension =
-                this.getFileExtension(
-                    fileName
-                );
-
-            if (
-                extension ===
-                "mp4"
-            ) {
-
-                await ctx.replyWithVideo(
-                    fileId,
-                    {
-                        supports_streaming:
-                            true
-                    }
-                );
-
-                console.log(
-                    "🎬 MP4 als Video gesendet."
-                );
-
-            } else if (
-                media.mime_type &&
-                String(
-                    media.mime_type
-                ).startsWith(
-                    "video/"
-                )
-            ) {
-
-                await ctx.replyWithVideo(
-                    fileId,
-                    {
-                        supports_streaming:
-                            true
-                    }
-                );
-
-                console.log(
-                    "🎬 Video als Telegram-Video gesendet."
-                );
-
-            } else {
-
-                await ctx.replyWithDocument(
-                    fileId
-                );
-
-                console.log(
-                    "📄 Medium als Dokument gesendet."
-                );
-            }
-
-            // =================================================================
-            // MESSAGE 3
-            // MOVIE LAYOUT
-            // =================================================================
-
-            await ctx.reply(
-                post.caption,
-                {
-                    parse_mode:
-                        "HTML",
-                    disable_web_page_preview:
-                        true
-                }
-            );
-
-            console.log(
-                "📝 Film-Layout gesendet."
-            );
-
-            console.log(
-                "================================================="
-            );
-
-            console.log(
-                "✅ FILM-VOLLSTÄNDIG VERARBEITET"
-            );
-
-            console.log(
-                "================================================="
-            );
-
-        } catch (
-            error
-        ) {
-
-            console.error(
-                "================================================="
-            );
-
-            console.error(
-                "❌ FEHLER BEI MEDIENVERARBEITUNG"
-            );
-
-            console.error(
-                error
-            );
-
-            console.error(
-                "================================================="
-            );
-
-            try {
-
-                await ctx.reply(
-                    "❌ Der Film konnte nicht vollständig verarbeitet werden."
-                );
-
-            } catch {
-                // Telegram context may no longer exist.
-            }
-        }
-    }
-
-    // =========================================================================
-    // WEBHOOK SETUP
-    // =========================================================================
-
-    private setupWebhook(): void {
-
-        this.app.use(
-            express.json()
-        );
-
-        // =====================================================================
-        // HEALTH
-        // =====================================================================
-
-        this.app.get(
-            "/",
-            (
-                _req: Request,
-                res: Response
-            ) => {
-
-                res.status(
-                    200
-                ).send(
-                    "Library Of Legends Bot läuft"
-                );
-            }
-        );
-
-        // =====================================================================
-        // WEBHOOK
-        // =====================================================================
-
-        this.app.post(
-            "/webhook",
-            (
-                req: Request,
-                res: Response
-            ) => {
-
-                this.bot.handleUpdate(
-                    req.body
-                )
-                    .then(
-                        () => {
-
-                            if (
-                                !res.headersSent
-                            ) {
-
-                                res.sendStatus(
-                                    200
-                                );
-                            }
-                        }
-                    )
-                    .catch(
-                        (
-                            error
-                        ) => {
-
-                            console.error(
-                                "❌ Webhook Fehler:",
-                                error
-                            );
-
-                            if (
-                                !res.headersSent
-                            ) {
-
-                                res.sendStatus(
-                                    500
-                                );
-                            }
-                        }
-                    );
-            }
-        );
-
-        // =====================================================================
-        // HTTP SERVER
-        // =====================================================================
-
-        this.app.listen(
-            this.config.port,
-            "0.0.0.0",
-            () => {
-
-                console.log(
-                    `🌐 Express Server läuft auf Port ${this.config.port}`
-                );
-            }
-        );
-
-        // =====================================================================
-        // WEBHOOK URL
-        // =====================================================================
-
-        const baseUrl =
-            String(
-                this.config.webhookUrl ||
-                ""
-            )
-                .trim()
-                .replace(
-                    /\/+$/,
-                    ""
-                );
-
-        if (
-            !baseUrl
-        ) {
-
-            throw new Error(
-                "❌ WEBHOOK_URL fehlt."
-            );
-        }
-
-        const webhookUrl =
-            `${baseUrl}/webhook`;
-
-        void this.bot.telegram.setWebhook(
-            webhookUrl
-        )
-            .then(
-                () => {
-
-                    console.log(
-                        `🔗 Webhook gesetzt: ${webhookUrl}`
-                    );
-                }
-            )
-            .catch(
-                (
-                    error
-                ) => {
-
-                    console.error(
-                        "❌ Webhook konnte nicht gesetzt werden:",
-                        error
-                    );
-                }
-            );
-    }
-
-    // =========================================================================
-    // FILE EXTENSION
-    // =========================================================================
-
-    private getFileExtension(
-        fileName: string
-    ): string {
-
-        const match =
-            String(
-                fileName ||
-                ""
-            ).match(
-                /\.([^.]+)$/
-            );
-
-        if (
-            !match
-        ) {
-
-            return "";
-        }
-
-        return match[1]
-            .toLowerCase();
-    }
-
-    // =========================================================================
-    // HTML ESCAPE
-    // =========================================================================
-
-    private escapeHtml(
-        value: string
-    ): string {
-
-        return String(
-            value
-        )
-            .replace(
-                /&/g,
-                "&amp;"
-            )
-            .replace(
-                /</g,
-                "&lt;"
-            )
-            .replace(
-                />/g,
-                "&gt;"
-            )
-            .replace(
-                /"/g,
-                "&quot;"
-            )
-            .replace(
-                /'/g,
-                "&#39;"
-            );
-    }
-
-    // =========================================================================
+    // =============================================================================
     // STOP
-    // =========================================================================
+    // =============================================================================
 
-    public async stop(
-        signal: string
-    ): Promise<void> {
+    public async stop(signal: string): Promise<void> {
 
-        console.log(
-            `🛑 Stoppe TelegramBot (${signal})`
-        );
+        console.log(`🛑 Stoppe Bot (${signal})`);
 
-        try {
-
-            this.bot.stop(
-                signal
-            );
-
-        } catch (
-            error
-        ) {
-
-            console.error(
-                "❌ TelegramBot Stop-Fehler:",
-                error
-            );
-        }
+        this.bot.stop(signal);
     }
 }
