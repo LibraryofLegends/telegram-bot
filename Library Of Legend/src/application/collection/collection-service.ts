@@ -11,37 +11,17 @@ Architecture Layer..: Application
 
 Module..............: Collection
 
-Module ID...........: LOL-MOD-APP-COL-0001
+Module ID...........: LOL-MOD-APP-COL-0002
 
-LOL-ID..............: LOL-COLLECTION-CORE-0001
+LOL-ID..............: LOL-COLLECTION-AUTO-0001
 
 File................: collection-service.ts
 
-Location............
-Library Of Legend/src/application/collection/
-
-Version.............: 1.0.0
-
-Status..............: Core
-
-Lifecycle...........: Production
+Version.............: 2.0.0
 
 Description.........
 
-Handles movie collections (film series).
-
-Responsibilities:
-
-- Detect if a movie belongs to a collection
-- Provide collection name
-- Calculate collection progress (owned / total)
-- Connect collection logic with database
-
-Important:
-
-- Uses static mapping (will be upgraded later)
-- Relies on MovieRepository (database)
-- Case-insensitive matching
+Automatic Collection Detection (No Static Mapping Required)
 
 ===============================================================================
 */
@@ -49,35 +29,15 @@ Important:
 import { MovieRepository } from "../../infrastructure/database/database";
 
 // =============================================================================
-// COLLECTION MAP
+// HELPERS
 // =============================================================================
 
-const COLLECTIONS: Record<string, string[]> = {
-
-    // =========================================================================
-    // JOHN WICK
-    // =========================================================================
-
-    "John Wick Reihe": [
-        "John Wick",
-        "John Wick: Chapter 2",
-        "John Wick: Chapter 3",
-        "John Wick: Chapter 4"
-    ],
-
-    // =========================================================================
-    // SCREAM
-    // =========================================================================
-
-    "Scream Filmreihe": [
-        "Scream",
-        "Scream 2",
-        "Scream 3",
-        "Scream 4",
-        "Scream (2022)",
-        "Scream VI"
-    ]
-};
+function normalize(title: string): string {
+    return String(title || "")
+        .toLowerCase()
+        .replace(/[:\-]/g, "")
+        .trim();
+}
 
 // =============================================================================
 // SERVICE
@@ -86,28 +46,51 @@ const COLLECTIONS: Record<string, string[]> = {
 export class CollectionService {
 
     // =========================================================================
-    // DETECT COLLECTION
+    // AUTO DETECT COLLECTION
     // =========================================================================
 
-    public static detect(
-        title: string
-    ): string | null {
+    public static detect(title: string): string | null {
 
-        const normalizedTitle =
-            String(title || "").toLowerCase();
+        const t = normalize(title);
 
-        for (const [collection, movies] of Object.entries(COLLECTIONS)) {
+        // ---------------------------------------------------------------------
+        // JOHN WICK
+        // ---------------------------------------------------------------------
+        if (t.includes("john wick")) {
+            return "John Wick Reihe";
+        }
 
-            const match =
-                movies.some(movieTitle =>
-                    normalizedTitle.includes(
-                        movieTitle.toLowerCase()
-                    )
-                );
+        // ---------------------------------------------------------------------
+        // FAST & FURIOUS
+        // ---------------------------------------------------------------------
+        if (
+            t.includes("fast") &&
+            t.includes("furious")
+        ) {
+            return "Fast & Furious Reihe";
+        }
 
-            if (match) {
-                return collection;
-            }
+        // ---------------------------------------------------------------------
+        // HARRY POTTER
+        // ---------------------------------------------------------------------
+        if (t.includes("harry potter")) {
+            return "Harry Potter Reihe";
+        }
+
+        // ---------------------------------------------------------------------
+        // TRANSFORMERS
+        // ---------------------------------------------------------------------
+        if (t.includes("transformers")) {
+            return "Transformers Reihe";
+        }
+
+        // ---------------------------------------------------------------------
+        // GENERIC DETECTION (z.B. "Movie 2", "Film 3")
+        // ---------------------------------------------------------------------
+        const match = t.match(/^(.+?)\s(\d+)$/);
+
+        if (match) {
+            return `${match[1].trim()} Reihe`;
         }
 
         return null;
@@ -121,59 +104,17 @@ export class CollectionService {
         collection: string
     ): string {
 
-        const movies =
-            COLLECTIONS[collection];
-
-        if (!movies) {
-            return "—";
-        }
-
         const allMovies =
             MovieRepository.getAll();
 
-        let owned = 0;
+        // Filter: gleiche Reihe
+        const related = allMovies.filter(m =>
+            this.detect(m.title) === collection
+        );
 
-        for (const movieTitle of movies) {
+        const owned = related.length;
 
-            const found =
-                allMovies.some(m =>
-                    String(m.title)
-                        .toLowerCase()
-                        .includes(
-                            movieTitle.toLowerCase()
-                        )
-                );
-
-            if (found) {
-                owned++;
-            }
-        }
-
-        return `${owned} / ${movies.length}`;
-    }
-
-    // =========================================================================
-    // GET TOTAL (optional future use)
-    // =========================================================================
-
-    public static getTotal(
-        collection: string
-    ): number {
-
-        const movies =
-            COLLECTIONS[collection];
-
-        return movies
-            ? movies.length
-            : 0;
-    }
-
-    // =========================================================================
-    // GET ALL COLLECTIONS (future UI / commands)
-    // =========================================================================
-
-    public static getAllCollections(): string[] {
-
-        return Object.keys(COLLECTIONS);
+        // UNKNOWN TOTAL → dynamisch (wird später verbessert)
+        return `${owned} / ?`;
     }
 }
