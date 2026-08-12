@@ -11,285 +11,224 @@ Architecture Layer..: Infrastructure
 
 Module..............: Database
 
-Module ID...........: LOL-MOD-INF-DB-0001
-
-LOL-ID..............: LOL-DB-CORE-0002
-
 File................: database.ts
-
-Location............
-Library Of Legend/src/infrastructure/database/
-
-Version.............: 2.0.0
-
-Status..............: Core
-
-Lifecycle...........: Production
 
 Description.........
 
-SQLite database layer for Library Of Legends.
+SQLite Database Layer with intelligent fallback logic.
 
-Responsibilities:
+Features:
 
-- Initialize SQLite database
-- Store movie metadata
-- Prevent duplicate Telegram File-IDs
-- Persist Archive IDs (#LIB-XXX-0001)
-- Provide collection and archive queries
-
-Important:
-
-- better-sqlite3 is loaded via require()
-- No TypeScript typings required
-- archive_id is UNIQUE and persistent
-- Used for real archive system
+- Persist movies
+- Retrieve movies
+- Auto-detect collections for legacy entries
+- Fix broken collection progress
 
 ===============================================================================
 */
 
-// =============================================================================
-// DEPENDENCIES
-// =============================================================================
-
-const Database = require("better-sqlite3") as any;
-
-// =============================================================================
-// DATABASE INSTANCE
-// =============================================================================
-
-const db = new Database("library.db");
-
-// =============================================================================
-// TABLE INITIALIZATION
-// =============================================================================
-
-db.exec(`
-    CREATE TABLE IF NOT EXISTS movies (
-
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-        title TEXT NOT NULL,
-        year INTEGER,
-
-        file_id TEXT UNIQUE NOT NULL,
-
-        file_name TEXT,
-        file_size INTEGER,
-
-        collection TEXT,
-
-        archive_id TEXT UNIQUE,
-
-        created_at TEXT DEFAULT (datetime('now'))
-    );
-`);
-
-// =============================================================================
-// INDEXES
-// =============================================================================
-
-db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_movies_title
-    ON movies(title);
-`);
-
-db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_movies_collection
-    ON movies(collection);
-`);
-
-db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_movies_archive
-    ON movies(archive_id);
-`);
+import Database from "better-sqlite3";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
 export interface MovieRecord {
-    id: number;
-    title: string;
-    year?: number;
-    fileId: string;
-    fileName?: string;
-    fileSize?: number;
-    collection?: string;
-    archiveId?: string;
-    createdAt?: string;
+
+    id?: number;
+
+    title:
+        string;
+
+    year?:
+        number;
+
+    collection?:
+        string | null;
+
+    archiveId?:
+        string;
 }
 
 // =============================================================================
-// MOVIE REPOSITORY
+// DATABASE
 // =============================================================================
 
-export class MovieRepository {
+export class DatabaseService {
+
+    private db: Database.Database;
 
     // =========================================================================
-    // ADD MOVIE
+    // CONSTRUCTOR
     // =========================================================================
 
-    public static addMovie(data: {
-        title: string;
-        year?: number;
-        fileId: string;
-        fileName: string;
-        fileSize?: number;
-        collection?: string;
-        archiveId?: string;
-    }): boolean {
+    public constructor() {
 
-        try {
+        this.db =
+            new Database(
+                "library.db"
+            );
 
-            const stmt = db.prepare(`
-                INSERT INTO movies (
-                    title,
-                    year,
-                    file_id,
-                    file_name,
-                    file_size,
-                    collection,
-                    archive_id
-                )
-                VALUES (
-                    @title,
-                    @year,
-                    @fileId,
-                    @fileName,
-                    @fileSize,
-                    @collection,
-                    @archiveId
-                );
+        this.init();
+    }
+
+    // =========================================================================
+    // INIT
+    // =========================================================================
+
+    private init(): void {
+
+        this.db.exec(`
+            CREATE TABLE IF NOT EXISTS movies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT,
+                year INTEGER,
+                collection TEXT,
+                archiveId TEXT
+            )
+        `);
+    }
+
+    // =========================================================================
+    // INSERT
+    // =========================================================================
+
+    public insertMovie(
+        movie: MovieRecord
+    ): void {
+
+        const stmt =
+            this.db.prepare(`
+                INSERT INTO movies (title, year, collection, archiveId)
+                VALUES (?, ?, ?, ?)
             `);
 
-            stmt.run({
-                title: data.title,
-                year: data.year ?? null,
-                fileId: data.fileId,
-                fileName: data.fileName,
-                fileSize: data.fileSize ?? null,
-                collection: data.collection ?? null,
-                archiveId: data.archiveId ?? null
-            });
+        stmt.run(
+            movie.title,
+            movie.year ?? null,
+            movie.collection ?? null,
+            movie.archiveId ?? null
+        );
+    }
 
-            console.log(`💾 Film gespeichert: ${data.title}`);
+    // =========================================================================
+    // GET ALL (WITH AUTO COLLECTION FIX)
+    // =========================================================================
 
-            return true;
+    public getAllMovies():
+        MovieRecord[] {
 
-        } catch (error) {
+        const rows =
+            this.db.prepare(`
+                SELECT * FROM movies
+            `).all();
 
-            console.log("⚠️ Film existiert bereits oder Fehler:", error);
+        return rows.map(
+            (row: any) => {
 
-            return false;
+                let collection =
+                    row.collection;
+
+                // =============================================================
+                // 🔥 AUTO FIX FOR OLD DATA
+                // =============================================================
+
+                if (
+                    !collection ||
+                    collection.trim() === ""
+                ) {
+
+                    collection =
+                        this.detectCollectionFromTitle(
+                            row.title
+                        );
+                }
+
+                return {
+                    id: row.id,
+                    title: row.title,
+                    year: row.year,
+                    collection,
+                    archiveId: row.archiveId
+                };
+            }
+        );
+    }
+
+    // =========================================================================
+    // COUNT BY COLLECTION
+    // =========================================================================
+
+    public countByCollection(
+        collectionName: string
+    ): number {
+
+        const movies =
+            this.getAllMovies();
+
+        return movies.filter(
+            m =>
+                m.collection ===
+                collectionName
+        ).length;
+    }
+
+    // =========================================================================
+    // DETECT COLLECTION FROM TITLE (🔥 KEY FIX)
+    // =========================================================================
+
+    private detectCollectionFromTitle(
+        title: string
+    ): string | null {
+
+        const value =
+            String(title || "")
+                .toLowerCase();
+
+        // =============================================================
+        // KNOWN COLLECTIONS
+        // =============================================================
+
+        if (value.includes("john wick")) {
+            return "John Wick";
         }
-    }
 
-    // =========================================================================
-    // EXISTS
-    // =========================================================================
-
-    public static exists(fileId: string): boolean {
-
-        const row = db.prepare(`
-            SELECT id FROM movies
-            WHERE file_id = ?
-            LIMIT 1
-        `).get(fileId);
-
-        return Boolean(row);
-    }
-
-    // =========================================================================
-    // GET LAST ARCHIVE ID (WICHTIG 🔥)
-    // =========================================================================
-
-    public static getLastArchiveId(code: string): string | null {
-
-        const row = db.prepare(`
-            SELECT archive_id
-            FROM movies
-            WHERE archive_id LIKE ?
-            ORDER BY id DESC
-            LIMIT 1
-        `).get(`#LIB-${code}-%`) as any;
-
-        return row?.archive_id || null;
-    }
-
-    // =========================================================================
-    // GET ALL
-    // =========================================================================
-
-    public static getAll(): MovieRecord[] {
-
-        const rows = db.prepare(`
-            SELECT
-                id,
-                title,
-                year,
-                file_id AS fileId,
-                file_name AS fileName,
-                file_size AS fileSize,
-                collection,
-                archive_id AS archiveId,
-                created_at AS createdAt
-            FROM movies
-            ORDER BY id DESC
-        `).all();
-
-        return rows as MovieRecord[];
-    }
-
-    // =========================================================================
-    // GET BY TITLE
-    // =========================================================================
-
-    public static getByTitle(title: string): MovieRecord[] {
-
-        const rows = db.prepare(`
-            SELECT
-                id,
-                title,
-                year,
-                file_id AS fileId,
-                file_name AS fileName,
-                file_size AS fileSize,
-                collection,
-                archive_id AS archiveId,
-                created_at AS createdAt
-            FROM movies
-            WHERE LOWER(title) = LOWER(?)
-            ORDER BY id ASC
-        `).all(title);
-
-        return rows as MovieRecord[];
-    }
-
-    // =========================================================================
-    // COUNT
-    // =========================================================================
-
-    public static count(): number {
-
-        const row = db.prepare(`
-            SELECT COUNT(*) as count FROM movies
-        `).get() as any;
-
-        return row.count;
-    }
-
-    // =========================================================================
-    // CLOSE
-    // =========================================================================
-
-    public static close(): void {
-
-        try {
-            db.close();
-            console.log("💾 DB geschlossen.");
-        } catch (err) {
-            console.error("❌ DB Fehler:", err);
+        if (value.includes("equalizer")) {
+            return "The Equalizer";
         }
+
+        if (value.includes("spider-man") || value.includes("spiderman")) {
+            return "Spider-Man";
+        }
+
+        if (value.includes("harry potter")) {
+            return "Harry Potter";
+        }
+
+        if (value.includes("fast") && value.includes("furious")) {
+            return "Fast & Furious";
+        }
+
+        if (value.includes("transformers")) {
+            return "Transformers";
+        }
+
+        if (value.includes("batman")) {
+            return "Batman";
+        }
+
+        if (value.includes("superman")) {
+            return "Superman";
+        }
+
+        if (value.includes("jurassic")) {
+            return "Jurassic Park";
+        }
+
+        if (value.includes("scream")) {
+            return "Scream";
+        }
+
+        return null;
     }
 }
