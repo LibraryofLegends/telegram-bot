@@ -11,16 +11,16 @@ Architecture Layer..: Application
 
 Module..............: Archive
 
-Module ID...........: LOL-MOD-APP-ARCH-0001
+Module ID...........: LOL-MOD-APP-ARCH-0002
 
-LOL-ID..............: LOL-ARCHIVE-ID-0001
+LOL-ID..............: LOL-ARCHIVE-PERSIST-0001
 
 File................: archive-service.ts
 
 Location............
 Library Of Legend/src/application/archive/
 
-Version.............: 1.0.0
+Version.............: 2.0.0
 
 Status..............: Core
 
@@ -28,22 +28,30 @@ Lifecycle...........: Production
 
 Description.........
 
-Generates unique Archive IDs for movies.
+Persistent Archive ID Service for Library Of Legends.
 
 Responsibilities:
 
-- Map genres to short codes
-- Generate archive IDs (#LIB-XXX-0001)
-- Maintain in-memory counters per genre
+- Map TMDB genres to short archive codes
+- Generate persistent archive IDs (#LIB-XXX-0001)
+- Fetch last used ID from database
+- Increment safely per genre
 
 Important:
 
+- Uses MovieRepository (database)
+- Archive IDs are UNIQUE and persistent
 - First genre is used as primary genre
-- Counter is NOT persistent (resets on restart)
-- Will be upgraded later with database support
+- Fallback genre = GEN
 
 ===============================================================================
 */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+import { MovieRepository } from "../../infrastructure/database/database";
 
 // =============================================================================
 // GENRE MAP
@@ -65,19 +73,13 @@ const GENRE_MAP: Record<string, string> = {
 };
 
 // =============================================================================
-// COUNTERS (IN-MEMORY)
-// =============================================================================
-
-const counters: Record<string, number> = {};
-
-// =============================================================================
 // SERVICE
 // =============================================================================
 
 export class ArchiveService {
 
     // =========================================================================
-    // GENERATE ARCHIVE ID
+    // GENERATE ARCHIVE ID (PERSISTENT)
     // =========================================================================
 
     public static generate(
@@ -101,27 +103,46 @@ export class ArchiveService {
             GENRE_MAP[primaryGenre] || "GEN";
 
         // ---------------------------------------------------------------------
-        // COUNTER
+        // FETCH LAST ID FROM DATABASE
         // ---------------------------------------------------------------------
 
-        if (!counters[code]) {
-            counters[code] = 1;
-        } else {
-            counters[code]++;
+        const lastArchiveId =
+            MovieRepository.getLastArchiveId(code);
+
+        // ---------------------------------------------------------------------
+        // DETERMINE NEXT NUMBER
+        // ---------------------------------------------------------------------
+
+        let nextNumber = 1;
+
+        if (lastArchiveId) {
+
+            const match =
+                lastArchiveId.match(/-(\d+)$/);
+
+            if (match) {
+
+                const lastNumber =
+                    parseInt(match[1], 10);
+
+                if (!isNaN(lastNumber)) {
+                    nextNumber = lastNumber + 1;
+                }
+            }
         }
 
         // ---------------------------------------------------------------------
         // FORMAT NUMBER
         // ---------------------------------------------------------------------
 
-        const number =
-            String(counters[code])
+        const formattedNumber =
+            String(nextNumber)
                 .padStart(4, "0");
 
         // ---------------------------------------------------------------------
         // RESULT
         // ---------------------------------------------------------------------
 
-        return `#LIB-${code}-${number}`;
+        return `#LIB-${code}-${formattedNumber}`;
     }
 }
