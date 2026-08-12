@@ -13,14 +13,14 @@ Module..............: Telegram
 
 Module ID...........: LOL-MOD-FW-TG-0001
 
-LOL-ID..............: LOL-TG-BOT-0005
+LOL-ID..............: LOL-TG-BOT-0006
 
 File................: telegram-bot.ts
 
 Location............
-Library Of Legends/src/framework/telegram/
+Library Of Legend/src/framework/telegram/
 
-Version.............: 5.3.0
+Version.............: 5.4.0
 
 Status..............: Core
 
@@ -39,15 +39,25 @@ Responsibilities:
 - Generate Archive IDs
 - Store movies in SQLite
 - Allow re-posting of archived media
-- Build final movie metadata
+- Build final movie layout
 - Send cover
 - Send original movie file
 - Send metadata layout
 - Search archived movies
 - Provide inline movie buttons
 - Provide /get Archive-ID retrieval
-- Handle inline movie retrieval
+- Provide Netflix-style main menu
+- Provide genre menu navigation
 - Run with Telegram Webhook on Render
+
+Main menu:
+
+🎬 Filme
+📺 Serien
+🔥 Trending
+🏆 Top 100
+🎭 Genres
+🔎 Suche
 
 Movie delivery order:
 
@@ -81,19 +91,14 @@ Original Telegram video
       ↓
 Final movie layout
 
-Duplicate behavior:
-
-- Existing Telegram file: do NOT create another database record
-- Existing Telegram file: DO allow re-posting
-- Existing record: preserve Archive ID
-- Existing record: preserve stored collection
-
 Important:
 
 - TMDBService returns normalized TMDBMovie data.
 - Collection detection is handled by AutoCollectionService.
 - Database is the source of truth for archived files.
-- fileId is used directly by Telegram for re-sending the media.
+- File IDs are stored in SQLite.
+- Existing media may be re-posted.
+- Existing database records are never duplicated.
 - No polling is used when WEBHOOK_URL is configured.
 
 ===============================================================================
@@ -140,6 +145,10 @@ import {
 import {
     ArchiveService
 } from "../../application/archive/archive-service";
+
+import {
+    MenuHandler
+} from "./menu-handler";
 
 // =============================================================================
 // CONFIGURATION
@@ -206,6 +215,8 @@ export class TelegramBot {
 
         this.registerCommands();
 
+        this.registerMenuCallbacks();
+
         this.registerCallbacks();
 
         this.registerMediaHandlers();
@@ -228,28 +239,21 @@ export class TelegramBot {
 
                 await ctx.reply(
                     [
-                        "🎬 <b>Library Of Legends</b>",
+                        "🎬 <b>LIBRARY OF LEGENDS</b>",
                         "",
                         "━━━━━━━━━━━━━━━━━━",
                         "",
-                        "✅ Bot ist online.",
-                        "📥 Medienempfang aktiv.",
-                        "🎞️ TMDB aktiv.",
-                        "💾 Archiv-Datenbank aktiv.",
-                        "🔎 Suche aktiv.",
-                        "🎛️ Inline-Buttons aktiv.",
-                        "📂 GET-System aktiv.",
+                        "🔥 Willkommen im Medienarchiv",
                         "",
-                        "━━━━━━━━━━━━━━━━━━",
-                        "",
-                        "🔎 <code>/search titel</code>",
-                        "📂 <code>/get LIB-ACT-0001</code>"
+                        "Wähle eine Kategorie:"
                     ].join(
                         "\n"
                     ),
                     {
                         parse_mode:
-                            "HTML"
+                            "HTML",
+
+                        ...MenuHandler.mainMenu()
                     }
                 );
             }
@@ -300,6 +304,348 @@ export class TelegramBot {
                 await this.handleGetCommand(
                     ctx
                 );
+            }
+        );
+    }
+
+    // =========================================================================
+    // MENU CALLBACKS
+    // =========================================================================
+
+    private registerMenuCallbacks(): void {
+
+        // =====================================================================
+        // MOVIES
+        // =====================================================================
+
+        this.bot.action(
+            "MENU_MOVIES",
+            async (
+                ctx
+            ) => {
+
+                await ctx.answerCbQuery();
+
+                await ctx.reply(
+                    [
+                        "🎬 <b>FILME</b>",
+                        "",
+                        "━━━━━━━━━━━━━━━━━━",
+                        "",
+                        "🔎 Suche einen Film mit:",
+                        "<code>/search Titel</code>",
+                        "",
+                        "Beispiel:",
+                        "<code>/search Superman</code>",
+                        "",
+                        "━━━━━━━━━━━━━━━━━━"
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML",
+
+                        ...MenuHandler.mainMenu()
+                    }
+                );
+            }
+        );
+
+        // =====================================================================
+        // SERIES
+        // =====================================================================
+
+        this.bot.action(
+            "MENU_SERIES",
+            async (
+                ctx
+            ) => {
+
+                await ctx.answerCbQuery();
+
+                await ctx.reply(
+                    [
+                        "📺 <b>SERIEN</b>",
+                        "",
+                        "━━━━━━━━━━━━━━━━━━",
+                        "",
+                        "🚧 Das Serienarchiv wird als nächstes aufgebaut.",
+                        "",
+                        "Hier werden später:",
+                        "📺 Serien",
+                        "📚 Staffeln",
+                        "🎞️ Episoden",
+                        "📊 Fortschritt",
+                        "",
+                        "automatisch verwaltet.",
+                        "",
+                        "━━━━━━━━━━━━━━━━━━"
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML",
+
+                        ...MenuHandler.mainMenu()
+                    }
+                );
+            }
+        );
+
+        // =====================================================================
+        // TRENDING
+        // =====================================================================
+
+        this.bot.action(
+            "MENU_TRENDING",
+            async (
+                ctx
+            ) => {
+
+                await ctx.answerCbQuery();
+
+                await ctx.reply(
+                    [
+                        "🔥 <b>TRENDING</b>",
+                        "",
+                        "━━━━━━━━━━━━━━━━━━",
+                        "",
+                        "🚧 Das Trending-System wird später",
+                        "direkt mit deinem Filmarchiv verbunden.",
+                        "",
+                        "Geplant:",
+                        "🔥 meist aufgerufene Filme",
+                        "🆕 neu hinzugefügte Filme",
+                        "📈 beliebteste Reihen",
+                        "",
+                        "━━━━━━━━━━━━━━━━━━"
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML",
+
+                        ...MenuHandler.mainMenu()
+                    }
+                );
+            }
+        );
+
+        // =====================================================================
+        // TOP 100
+        // =====================================================================
+
+        this.bot.action(
+            "MENU_TOP",
+            async (
+                ctx
+            ) => {
+
+                await ctx.answerCbQuery();
+
+                await ctx.reply(
+                    [
+                        "🏆 <b>TOP 100</b>",
+                        "",
+                        "━━━━━━━━━━━━━━━━━━",
+                        "",
+                        "🚧 Das Top-100-System wird später",
+                        "automatisch anhand der Archivdaten",
+                        "und TMDB-Bewertungen aufgebaut.",
+                        "",
+                        "━━━━━━━━━━━━━━━━━━"
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML",
+
+                        ...MenuHandler.mainMenu()
+                    }
+                );
+            }
+        );
+
+        // =====================================================================
+        // GENRES
+        // =====================================================================
+
+        this.bot.action(
+            "MENU_GENRES",
+            async (
+                ctx
+            ) => {
+
+                await ctx.answerCbQuery();
+
+                await ctx.reply(
+                    [
+                        "🎭 <b>GENRES</b>",
+                        "",
+                        "━━━━━━━━━━━━━━━━━━",
+                        "",
+                        "Wähle ein Genre:"
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML",
+
+                        ...MenuHandler.genresMenu()
+                    }
+                );
+            }
+        );
+
+        // =====================================================================
+        // SEARCH
+        // =====================================================================
+
+        this.bot.action(
+            "MENU_SEARCH",
+            async (
+                ctx
+            ) => {
+
+                await ctx.answerCbQuery();
+
+                await ctx.reply(
+                    [
+                        "🔎 <b>ARCHIVSUCHE</b>",
+                        "",
+                        "━━━━━━━━━━━━━━━━━━",
+                        "",
+                        "Nutze zum Suchen:",
+                        "",
+                        "<code>/search Titel</code>",
+                        "",
+                        "Beispiele:",
+                        "<code>/search Superman</code>",
+                        "<code>/search John Wick</code>",
+                        "<code>/search Equalizer</code>"
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML"
+                    }
+                );
+            }
+        );
+
+        // =====================================================================
+        // BACK TO MAIN
+        // =====================================================================
+
+        this.bot.action(
+            "BACK_MAIN",
+            async (
+                ctx
+            ) => {
+
+                await ctx.answerCbQuery();
+
+                await ctx.reply(
+                    [
+                        "🎬 <b>LIBRARY OF LEGENDS</b>",
+                        "",
+                        "━━━━━━━━━━━━━━━━━━",
+                        "",
+                        "🔥 Hauptmenü",
+                        "",
+                        "Wähle eine Kategorie:"
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML",
+
+                        ...MenuHandler.mainMenu()
+                    }
+                );
+            }
+        );
+
+        // =====================================================================
+        // GENRE
+        // =====================================================================
+
+        this.bot.action(
+            /^GENRE_(.+)$/i,
+            async (
+                ctx
+            ) => {
+
+                try {
+
+                    const callbackData =
+                        "data" in ctx.callbackQuery
+                            ? ctx.callbackQuery.data
+                            : "";
+
+                    const genre =
+                        String(
+                            callbackData
+                        )
+                            .replace(
+                                /^GENRE_/i,
+                                ""
+                            )
+                            .trim();
+
+                    await ctx.answerCbQuery();
+
+                    if (
+                        !genre
+                    ) {
+
+                        return;
+                    }
+
+                    await ctx.reply(
+                        [
+                            "🎭 <b>GENRE</b>",
+                            "",
+                            "━━━━━━━━━━━━━━━━━━",
+                            "",
+                            `🎬 Gewählt: <b>${this.escapeHtml(
+                                this.formatGenreName(
+                                    genre
+                                )
+                            )}</b>`,
+                            "",
+                            "🚧 Die direkte Filmliste nach Genre",
+                            "wird im nächsten Ausbau mit",
+                            "deinem Archiv verbunden.",
+                            "",
+                            "━━━━━━━━━━━━━━━━━━"
+                        ].join(
+                            "\n"
+                        ),
+                        {
+                            parse_mode:
+                                "HTML",
+
+                            ...MenuHandler.genresMenu()
+                        }
+                    );
+
+                } catch (
+                    error
+                ) {
+
+                    console.error(
+                        "❌ Genre Menu Fehler:",
+                        error
+                    );
+                }
             }
         );
     }
@@ -373,13 +719,13 @@ export class TelegramBot {
     }
 
     // =========================================================================
-    // CALLBACKS
+    // INLINE CALLBACKS
     // =========================================================================
 
     private registerCallbacks(): void {
 
         // =====================================================================
-        // GET MOVIE FROM INLINE BUTTON
+        // GET MOVIE
         // =====================================================================
 
         this.bot.action(
@@ -397,8 +743,7 @@ export class TelegramBot {
 
                     const archiveId =
                         String(
-                            callbackData ||
-                            ""
+                            callbackData
                         )
                             .replace(
                                 /^get:/i,
@@ -899,7 +1244,7 @@ export class TelegramBot {
             }
 
             // =================================================================
-            // FILE
+            // VIDEO
             // =================================================================
 
             if (
@@ -1816,6 +2161,44 @@ export class TelegramBot {
                 47
             ).trim() +
             "..."
+        );
+    }
+
+    // =========================================================================
+    // GENRE NAME
+    // =========================================================================
+
+    private formatGenreName(
+        value: string
+    ): string {
+
+        const mapping:
+            Record<string, string> = {
+
+            "Action":
+                "Action",
+
+            "Horror":
+                "Horror",
+
+            "Science":
+                "Science Fiction",
+
+            "Comedy":
+                "Komödie",
+
+            "Drama":
+                "Drama",
+
+            "Crime":
+                "Krimi"
+        };
+
+        return (
+            mapping[
+                value
+            ] ||
+            value
         );
     }
 
