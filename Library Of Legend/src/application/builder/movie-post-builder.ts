@@ -18,9 +18,9 @@ LOL-ID..............: LOL-MOVIE-POST-0001
 File................: movie-post-builder.ts
 
 Location............
-Library Of Legends/src/application/builder/
+Library Of Legend/src/application/builder/
 
-Version.............: 1.1.0
+Version.............: 1.2.0
 
 Status..............: Core
 
@@ -28,25 +28,29 @@ Lifecycle...........: Production
 
 Description.........
 
-Builds Telegram-compatible movie posts for Library Of Legends.
+Builds the final Telegram movie archive layout for Library Of Legends.
 
 Responsibilities:
 
 - Combine parser data
 - Combine TMDB metadata
-- Build structured movie caption
-- Format file information
+- Build standardized movie layout
 - Format rating
 - Format genres
 - Format synopsis
-- Include TMDB poster information
-- Guarantee Telegram-safe caption length
+- Format technical information
+- Keep Telegram photo captions below the platform limit
+- Shorten long synopsis text at complete sentence boundaries
+- Ensure synopsis ends with a complete sentence
 
-Telegram limitation:
+Movie presentation structure:
 
-Telegram photo captions are limited to 1024 characters after
-entity parsing. The builder therefore keeps a safety margin and
-automatically shortens long synopses.
+1. Movie title
+2. Rating
+3. Genres
+4. Story
+5. Technical information
+6. Library Of Legends footer
 
 ===============================================================================
 */
@@ -163,8 +167,7 @@ export class MoviePostBuilder {
 
         const year =
             parser.year ||
-            tmdb?.year ||
-            undefined;
+            tmdb?.year;
 
         // =====================================================================
         // RATING
@@ -202,24 +205,16 @@ export class MoviePostBuilder {
                 : "Keine Beschreibung verfügbar.";
 
         // =====================================================================
-        // QUALITY
+        // TECHNICAL
         // =====================================================================
 
         const quality =
             parser.quality ||
             "—";
 
-        // =====================================================================
-        // SOURCE
-        // =====================================================================
-
         const source =
             parser.source ||
             "—";
-
-        // =====================================================================
-        // FILE SIZE
-        // =====================================================================
 
         const fileSize =
             this.formatFileSize(
@@ -227,11 +222,13 @@ export class MoviePostBuilder {
             );
 
         // =====================================================================
-        // INITIAL CAPTION
+        // HEADER
         // =====================================================================
 
         const header =
             [
+                "━━━━━━━━━━━━━━━━━━",
+
                 `🎬 <b>${this.escapeHtml(
                     title
                 )}${
@@ -240,94 +237,101 @@ export class MoviePostBuilder {
                         : ""
                 }</b>`,
 
-                "",
+                "━━━━━━━━━━━━━━━━━━",
 
-                `⭐ Bewertung: ${rating}`,
+                `⭐ Bewertung: ${rating}/10`,
 
                 `🎭 Genres: ${this.escapeHtml(
                     genres
                 )}`,
 
-                ""
+                "━━━━━━━━━━━━━━━━━━"
             ].join(
                 "\n"
             );
 
+        // =====================================================================
+        // TECHNICAL SECTION
+        // =====================================================================
+
         const technical =
             [
-                `📦 Qualität: ${this.escapeHtml(
+                `📦 ${this.escapeHtml(
                     quality
-                )}`,
-
-                `💿 Quelle: ${this.escapeHtml(
-                    source
-                )}`,
-
-                `📁 Datei: ${this.escapeHtml(
-                    input.fileName
-                )}`,
-
-                `💾 Größe: ${this.escapeHtml(
+                )} · ${this.escapeHtml(
                     fileSize
+                )} · ${this.escapeHtml(
+                    this.getAudioPlaceholder()
                 )}`,
 
-                "",
-
-                "━━━━━━━━━━━━━━━━━━━━",
+                "━━━━━━━━━━━━━━━━━━",
 
                 "🔥 <b>Library Of Legends</b>"
             ].join(
                 "\n"
             );
 
-        const storyPrefix =
-            "📖 ";
-
         // =====================================================================
         // CAPTION SAFETY
         // =====================================================================
 
         /*
-         * Telegram allows at most 1024 characters for a photo caption
-         * after entity parsing.
+         * Telegram photo captions have a hard size limit.
          *
-         * We intentionally keep the generated HTML caption below that
-         * limit to provide a safety margin.
+         * We use a lower internal target to keep enough safety margin.
          */
 
         const maximumCaptionLength =
             950;
 
-        const reservedLength =
+        const fixedLength =
             (
                 header.length +
-                storyPrefix.length +
                 technical.length +
-                20
+                60
             );
 
-        const availableOverviewLength =
+        const availableStoryLength =
             Math.max(
-                100,
+                220,
                 maximumCaptionLength -
-                reservedLength
+                fixedLength
             );
 
-        const shortenedOverview =
-            this.limitText(
+        const story =
+            this.buildCompleteSynopsis(
                 overview,
-                availableOverviewLength
+                availableStoryLength
             );
+
+        // =====================================================================
+        // STORY
+        // =====================================================================
+
+        const storySection =
+            [
+                "📝 <b>Handlung:</b>",
+
+                this.escapeHtml(
+                    story
+                ),
+
+                "━━━━━━━━━━━━━━━━━━"
+            ].join(
+                "\n"
+            );
+
+        // =====================================================================
+        // FINAL CAPTION
+        // =====================================================================
 
         const caption =
             [
                 header,
 
-                `<b>📖 Handlung:</b>`,
+                "",
 
-                this.escapeHtml(
-                    shortenedOverview
-                ),
+                storySection,
 
                 "",
 
@@ -353,46 +357,147 @@ export class MoviePostBuilder {
     }
 
     // =========================================================================
-    // CAPTION LIMIT
+    // COMPLETE SENTENCE SYNOPSIS
     // =========================================================================
 
-    private static ensureCaptionLimit(
-        caption: string,
-        maximumLength: number
+    private static buildCompleteSynopsis(
+        overview: string,
+        maxLength: number
     ): string {
 
-        const clean =
-            String(
-                caption ||
-                ""
-            ).trim();
+        const text =
+            this.cleanText(
+                overview
+            );
 
         if (
-            clean.length <=
-            maximumLength
+            text.length <=
+            maxLength
         ) {
 
-            return clean;
+            return this.ensureFinalPeriod(
+                text
+            );
         }
 
-        return (
-            clean
+        const shortened =
+            text.slice(
+                0,
+                maxLength
+            );
+
+        /*
+         * Find the last complete sentence.
+         *
+         * Supported endings:
+         * .
+         * !
+         * ?
+         */
+
+        const sentenceMatches =
+            shortened.match(
+                /.*?[.!?](?=\s|$)/g
+            );
+
+        if (
+            sentenceMatches &&
+            sentenceMatches.length > 0
+        ) {
+
+            const completeText =
+                sentenceMatches.join(
+                    " "
+                )
+                    .trim();
+
+            if (
+                completeText.length >= 120
+            ) {
+
+                return this.ensureFinalPeriod(
+                    completeText
+                );
+            }
+        }
+
+        /*
+         * If the available text does not contain a sufficiently long
+         * complete sentence, expand the search until the next sentence.
+         */
+
+        const nextSentenceEnd =
+            text.search(
+                /[.!?](?=\s|$)/
+            );
+
+        if (
+            nextSentenceEnd >=
+            0 &&
+            nextSentenceEnd <
+                text.length
+        ) {
+
+            const candidate =
+                text.slice(
+                    0,
+                    nextSentenceEnd + 1
+                )
+                    .trim();
+
+            if (
+                candidate.length <=
+                maxLength + 150
+            ) {
+
+                return this.ensureFinalPeriod(
+                    candidate
+                );
+            }
+        }
+
+        /*
+         * Absolute fallback:
+         * Cut at the last word and add a period.
+         *
+         * This fallback should rarely be needed for normal TMDB overviews.
+         */
+
+        const fallback =
+            shortened
                 .slice(
                     0,
-                    maximumLength - 1
+                    Math.max(
+                        1,
+                        shortened.length - 1
+                    )
                 )
-                .trim() +
-            "…"
+                .trim();
+
+        const lastSpace =
+            fallback.lastIndexOf(
+                " "
+            );
+
+        const cleanFallback =
+            lastSpace > 0
+                ? fallback.slice(
+                    0,
+                    lastSpace
+                ).trim()
+                : fallback;
+
+        return this.ensureFinalPeriod(
+            cleanFallback
         );
     }
 
     // =========================================================================
-    // TEXT LIMIT
+    // FINAL PERIOD
     // =========================================================================
 
-    private static limitText(
-        value: string,
-        maxLength: number
+    private static ensureFinalPeriod(
+        value: string
     ): string {
 
         const text =
@@ -400,60 +505,25 @@ export class MoviePostBuilder {
                 value ||
                 ""
             )
-                .replace(
-                    /\s+/g,
-                    " "
-                )
                 .trim();
 
         if (
-            text.length <=
-            maxLength
+            !text
+        ) {
+
+            return "Keine Beschreibung verfügbar.";
+        }
+
+        if (
+            /[.!?]$/.test(
+                text
+            )
         ) {
 
             return text;
         }
 
-        /*
-         * Prefer cutting at the last complete word.
-         */
-
-        const shortened =
-            text.slice(
-                0,
-                Math.max(
-                    1,
-                    maxLength - 1
-                )
-            );
-
-        const lastSpace =
-            shortened.lastIndexOf(
-                " "
-            );
-
-        if (
-            lastSpace >
-            Math.floor(
-                maxLength * 0.7
-            )
-        ) {
-
-            return (
-                shortened
-                    .slice(
-                        0,
-                        lastSpace
-                    )
-                    .trim() +
-                "…"
-            );
-        }
-
-        return (
-            shortened.trim() +
-            "…"
-        );
+        return `${text}.`;
     }
 
     // =========================================================================
@@ -481,14 +551,69 @@ export class MoviePostBuilder {
                 " "
             )
             .replace(
-                /\n{3,}/g,
-                "\n\n"
+                /\n+/g,
+                " "
+            )
+            .replace(
+                /\s+/g,
+                " "
             )
             .trim();
     }
 
     // =========================================================================
-    // FORMAT FILE SIZE
+    // TELEGRAM CAPTION LIMIT
+    // =========================================================================
+
+    private static ensureCaptionLimit(
+        caption: string,
+        maximumLength: number
+    ): string {
+
+        const clean =
+            String(
+                caption ||
+                ""
+            ).trim();
+
+        if (
+            clean.length <=
+            maximumLength
+        ) {
+
+            return clean;
+        }
+
+        const shortened =
+            clean.slice(
+                0,
+                maximumLength
+            );
+
+        const lastNewline =
+            shortened.lastIndexOf(
+                "\n"
+            );
+
+        if (
+            lastNewline >
+            maximumLength - 120
+        ) {
+
+            return shortened
+                .slice(
+                    0,
+                    lastNewline
+                )
+                .trim();
+        }
+
+        return shortened
+            .trim();
+    }
+
+    // =========================================================================
+    // FILE SIZE
     // =========================================================================
 
     private static formatFileSize(
@@ -503,7 +628,7 @@ export class MoviePostBuilder {
                 0
         ) {
 
-            return "unbekannt";
+            return "—";
         }
 
         const units = [
@@ -538,6 +663,16 @@ export class MoviePostBuilder {
                 ? 0
                 : 2
         )} ${units[index]}`;
+    }
+
+    // =========================================================================
+    // AUDIO PLACEHOLDER
+    // =========================================================================
+
+    private static getAudioPlaceholder():
+        string {
+
+        return "—";
     }
 
     // =========================================================================
