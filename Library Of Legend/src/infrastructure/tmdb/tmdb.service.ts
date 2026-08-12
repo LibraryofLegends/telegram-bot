@@ -5,22 +5,22 @@
 
 ===============================================================================
 
-Component...........: TmdbService
+Component...........: TMDBService
 
 Architecture Layer..: Infrastructure
 
-Module..............: External API
+Module..............: TMDB
 
-Module ID...........: LOL-MOD-INFRA-TMDB-0001
+Module ID...........: LOL-MOD-INF-TMDB-0001
 
-LOL-ID..............: LOL-TMDB-CORE-0001
+LOL-ID..............: LOL-TMDB-SERVICE-0001
 
 File................: tmdb.service.ts
 
 Location............
 Library Of Legend/src/infrastructure/tmdb/
 
-Version.............: 1.1.0
+Version.............: 3.0.0
 
 Status..............: Core
 
@@ -28,37 +28,27 @@ Lifecycle...........: Production
 
 Description.........
 
-Central TMDB integration service for Library Of Legends.
+Central TMDB integration service.
 
 Responsibilities:
 
-- Search movies
-- Match movie titles
-- Support release year matching
-- Support TMDB API v3 API keys
-- Support TMDB API Read Access Tokens
-- Retrieve detailed movie metadata
-- Retrieve ratings
-- Retrieve genres
-- Retrieve descriptions
-- Retrieve poster URLs
-- Retrieve backdrop URLs
-- Use German metadata where available
-- Retry a movie search without year
-- Never crash the Telegram application because TMDB is unavailable
+- Fetch movie data from TMDB
+- Normalize TMDB response
+- Provide clean TMDBMovie objects
+- Cache results to reduce API calls
+- Improve performance & response time
 
-Authentication:
+Caching:
 
-Supported environment variable:
+- In-memory cache (Map)
+- 24h TTL
+- Key based on title + year
 
-TMDB_KEY
+Important:
 
-TMDB_KEY may contain either:
-
-1. TMDB API v3 key
-2. TMDB API Read Access Token
-
-The service automatically selects the correct authentication method.
+- This service is the ONLY place where TMDB is accessed
+- All external API data must be normalized here
+- Application layer must NEVER access raw TMDB data
 
 ===============================================================================
 */
@@ -67,22 +57,13 @@ The service automatically selects the correct authentication method.
 // TYPES
 // =============================================================================
 
-export interface TmdbMovieResult {
-
-    id:
-        number;
+export interface TMDBMovie {
 
     title:
         string;
 
-    originalTitle:
-        string;
-
     year?:
         number;
-
-    overview?:
-        string;
 
     rating?:
         number;
@@ -90,813 +71,238 @@ export interface TmdbMovieResult {
     genres:
         string[];
 
+    overview?:
+        string;
+
     posterUrl?:
         string;
 
-    backdropUrl?:
-        string;
-}
-
-// =============================================================================
-// RAW TMDB TYPES
-// =============================================================================
-
-interface TmdbSearchResponse {
-
-    page?:
-        number;
-
-    results?:
-        TmdbSearchItem[];
-
-    total_pages?:
-        number;
-
-    total_results?:
-        number;
-}
-
-interface TmdbSearchItem {
-
-    id:
-        number;
-
-    title?:
-        string;
-
-    original_title?:
-        string;
-
-    release_date?:
-        string;
-
-    overview?:
-        string;
-
-    vote_average?:
-        number;
-
-    poster_path?:
-        string | null;
-
-    backdrop_path?:
-        string | null;
-}
-
-interface TmdbGenreItem {
-
-    id?:
-        number;
-
-    name?:
-        string;
-}
-
-interface TmdbMovieDetails {
-
-    id:
-        number;
-
-    title?:
-        string;
-
-    original_title?:
-        string;
-
-    release_date?:
-        string;
-
-    overview?:
-        string;
-
-    vote_average?:
-        number;
-
-    genres?:
-        TmdbGenreItem[];
-
-    poster_path?:
-        string | null;
-
-    backdrop_path?:
+    collection?:
         string | null;
 }
 
 // =============================================================================
-// TMDB SERVICE
+// CACHE SYSTEM
 // =============================================================================
 
-export class TmdbService {
+type CacheEntry<T> = {
+    data: T;
+    expires: number;
+};
+
+const CACHE_TTL =
+    1000 * 60 * 60 * 24; // 24 Stunden
+
+const movieCache =
+    new Map<string, CacheEntry<TMDBMovie | null>>();
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+function buildKey(
+    title: string,
+    year?: number
+): string {
+
+    return `${String(title).toLowerCase()}_${year || "any"}`;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
+export class TMDBService {
 
     // =========================================================================
-    // CONFIGURATION
+    // PUBLIC SEARCH
     // =========================================================================
 
-    private readonly apiKey:
-        string;
-
-    private readonly baseUrl =
-        "https://api.themoviedb.org/3";
-
-    private readonly imageBase =
-        "https://image.tmdb.org/t/p";
-
-    private readonly language =
-        "de-DE";
-
-    // =========================================================================
-    // CONSTRUCTOR
-    // =========================================================================
-
-    public constructor() {
+    public static async searchMovie(
+        title: string,
+        year?: number
+    ): Promise<TMDBMovie | null> {
 
         const key =
-            String(
-                process.env.TMDB_KEY ||
-                ""
-            )
-                .trim();
+            buildKey(title, year);
+
+        const cached =
+            movieCache.get(key);
 
         if (
-            !key
+            cached &&
+            cached.expires > Date.now()
         ) {
 
-            throw new Error(
-                "❌ TMDB_KEY fehlt in ENV!"
+            console.log(
+                "⚡ TMDB CACHE HIT:",
+                title
             );
+
+            return cached.data;
         }
 
-        this.apiKey =
-            key;
-
         console.log(
-            "🎬 TMDB Service initialisiert."
+            "🌐 TMDB API CALL:",
+            title
         );
 
-        console.log(
-            `🔐 TMDB Authentifizierung: ${
-                this.detectAuthType()
-            }`
+        const result =
+            await this.fetchFromTMDB(
+                title,
+                year
+            );
+
+        movieCache.set(
+            key,
+            {
+                data: result,
+                expires:
+                    Date.now() +
+                    CACHE_TTL
+            }
         );
+
+        return result;
     }
 
     // =========================================================================
-    // AUTH TYPE
+    // FETCH FROM TMDB
     // =========================================================================
 
-    private detectAuthType():
-        "API_KEY" |
-        "ACCESS_TOKEN" {
-
-        /*
-         * TMDB API v3 keys are commonly short alphanumeric values.
-         *
-         * Read Access Tokens are much longer and are sent as
-         * Authorization: Bearer <token>.
-         *
-         * We intentionally support both.
-         */
-
-        if (
-            this.apiKey.length >
-            80
-        ) {
-
-            return "ACCESS_TOKEN";
-        }
-
-        return "API_KEY";
-    }
-
-    // =========================================================================
-    // REQUEST
-    // =========================================================================
-
-    private async request<T>(
-        endpoint: string,
-        parameters:
-            Record<
-                string,
-                string |
-                number |
-                boolean |
-                undefined
-            > = {}
-    ): Promise<T | null> {
+    private static async fetchFromTMDB(
+        title: string,
+        year?: number
+    ): Promise<TMDBMovie | null> {
 
         try {
 
-            const url =
-                new URL(
-                    `${this.baseUrl}${endpoint}`
-                );
+            const apiKey =
+                process.env.TMDB_API_KEY;
 
-            url.searchParams.set(
-                "language",
-                this.language
-            );
-
-            for (
-                const [
-                    key,
-                    value
-                ] of Object.entries(
-                    parameters
-                )
-            ) {
-
-                if (
-                    value ===
-                    undefined
-                ) {
-
-                    continue;
-                }
-
-                url.searchParams.set(
-                    key,
-                    String(
-                        value
-                    )
-                );
-            }
-
-            const headers:
-                Record<
-                    string,
-                    string
-                > = {
-
-                Accept:
-                    "application/json"
-            };
-
-            // =================================================================
-            // ACCESS TOKEN
-            // =================================================================
-
-            if (
-                this.detectAuthType() ===
-                "ACCESS_TOKEN"
-            ) {
-
-                headers.Authorization =
-                    `Bearer ${this.apiKey}`;
-
-            } else {
-
-                // =============================================================
-                // V3 API KEY
-                // =============================================================
-
-                url.searchParams.set(
-                    "api_key",
-                    this.apiKey
-                );
-            }
-
-            const response =
-                await fetch(
-                    url.toString(),
-                    {
-                        method:
-                            "GET",
-
-                        headers
-                    }
-                );
-
-            if (
-                !response.ok
-            ) {
-
-                const body =
-                    await response
-                        .text();
+            if (!apiKey) {
 
                 console.error(
-                    `❌ TMDB HTTP ${response.status}`
-                );
-
-                console.error(
-                    `❌ TMDB Antwort: ${body.slice(
-                        0,
-                        500
-                    )}`
+                    "❌ TMDB API KEY fehlt."
                 );
 
                 return null;
             }
 
-            const data =
-                await response.json() as T;
+            const query =
+                encodeURIComponent(title);
 
-            return data;
+            const url =
+                `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${query}`;
+
+            const response =
+                await fetch(url);
+
+            const data =
+                await response.json();
+
+            if (
+                !data.results ||
+                !data.results.length
+            ) {
+
+                return null;
+            }
+
+            // =========================================================================
+            // BEST MATCH
+            // =========================================================================
+
+            const match =
+                data.results[0];
+
+            // =========================================================================
+            // COLLECTION (optional second call)
+            // =========================================================================
+
+            let collection:
+                string |
+                null =
+                    null;
+
+            if (
+                match.id
+            ) {
+
+                try {
+
+                    const detailUrl =
+                        `https://api.themoviedb.org/3/movie/${match.id}?api_key=${apiKey}`;
+
+                    const detailRes =
+                        await fetch(detailUrl);
+
+                    const detailData =
+                        await detailRes.json();
+
+                    collection =
+                        detailData
+                            ?.belongs_to_collection
+                            ?.name ||
+                        null;
+
+                } catch {
+                    // ignore collection errors
+                }
+            }
+
+            // =========================================================================
+            // NORMALIZED RESULT
+            // =========================================================================
+
+            const movie:
+                TMDBMovie = {
+
+                title:
+                    match.title,
+
+                year:
+                    match.release_date
+                        ? Number(
+                              match.release_date.substring(
+                                  0,
+                                  4
+                              )
+                          )
+                        : undefined,
+
+                rating:
+                    match.vote_average,
+
+                genres:
+                    (match.genre_ids || []).map(
+                        (id: number) =>
+                            String(id)
+                    ),
+
+                overview:
+                    match.overview,
+
+                posterUrl:
+                    match.poster_path
+                        ? `https://image.tmdb.org/t/p/w500${match.poster_path}`
+                        : undefined,
+
+                collection
+            };
+
+            return movie;
 
         } catch (
             error
         ) {
 
             console.error(
-                "❌ TMDB Request Fehler:",
+                "❌ TMDB Fehler:",
                 error
             );
 
             return null;
         }
-    }
-
-    // =========================================================================
-    // SEARCH MOVIE
-    // =========================================================================
-
-    public async searchMovie(
-        title: string,
-        year?: number
-    ): Promise<TmdbMovieResult | null> {
-
-        const cleanTitle =
-            this.cleanTitle(
-                title
-            );
-
-        if (
-            !cleanTitle
-        ) {
-
-            return null;
-        }
-
-        console.log(
-            `🔎 TMDB Suche: "${cleanTitle}"${
-                year
-                    ? ` (${year})`
-                    : ""
-            }`
-        );
-
-        // =====================================================================
-        // FIRST SEARCH
-        // =====================================================================
-
-        const firstResponse =
-            await this.request<TmdbSearchResponse>(
-                "/search/movie",
-                {
-                    query:
-                        cleanTitle,
-
-                    year,
-
-                    region:
-                        "DE",
-
-                    include_adult:
-                        false
-                }
-            );
-
-        const firstResults =
-            firstResponse?.results ||
-            [];
-
-        let bestMatch =
-            this.findBestMatch(
-                firstResults,
-                cleanTitle,
-                year
-            );
-
-        // =====================================================================
-        // FALLBACK WITHOUT YEAR
-        // =====================================================================
-
-        if (
-            !bestMatch &&
-            year !==
-                undefined
-        ) {
-
-            console.log(
-                "🔄 Kein exakter Treffer mit Jahr – zweite TMDB-Suche ohne Jahr."
-            );
-
-            const fallbackResponse =
-                await this.request<TmdbSearchResponse>(
-                    "/search/movie",
-                    {
-                        query:
-                            cleanTitle,
-
-                        region:
-                            "DE",
-
-                        include_adult:
-                            false
-                    }
-                );
-
-            const fallbackResults =
-                fallbackResponse?.results ||
-                [];
-
-            bestMatch =
-                this.findBestMatch(
-                    fallbackResults,
-                    cleanTitle,
-                    year
-                );
-        }
-
-        if (
-            !bestMatch
-        ) {
-
-            console.log(
-                `⚠️ Kein TMDB Treffer für: ${cleanTitle}`
-            );
-
-            return null;
-        }
-
-        console.log(
-            `✅ TMDB Treffer: ${
-                bestMatch.title ||
-                bestMatch.original_title ||
-                cleanTitle
-            } (#${bestMatch.id})`
-        );
-
-        return this.getMovieDetails(
-            bestMatch.id
-        );
-    }
-
-    // =========================================================================
-    // FIND BEST MATCH
-    // =========================================================================
-
-    private findBestMatch(
-        results: TmdbSearchItem[],
-        title: string,
-        year?: number
-    ): TmdbSearchItem | undefined {
-
-        if (
-            results.length ===
-            0
-        ) {
-
-            return undefined;
-        }
-
-        const normalizedTitle =
-            this.normalizeForComparison(
-                title
-            );
-
-        // =====================================================================
-        // EXACT TITLE + YEAR
-        // =====================================================================
-
-        if (
-            year !==
-            undefined
-        ) {
-
-            const exact =
-                results.find(
-                    item => {
-
-                        const itemTitle =
-                            this.normalizeForComparison(
-                                item.title ||
-                                item.original_title ||
-                                ""
-                            );
-
-                        const itemYear =
-                            this.extractYear(
-                                item.release_date
-                            );
-
-                        return (
-                            itemTitle ===
-                                normalizedTitle &&
-                            itemYear ===
-                                year
-                        );
-                    }
-                );
-
-            if (
-                exact
-            ) {
-
-                return exact;
-            }
-        }
-
-        // =====================================================================
-        // EXACT TITLE
-        // =====================================================================
-
-        const exactTitle =
-            results.find(
-                item => {
-
-                    const itemTitle =
-                        this.normalizeForComparison(
-                            item.title ||
-                            item.original_title ||
-                            ""
-                        );
-
-                    return (
-                        itemTitle ===
-                        normalizedTitle
-                    );
-                }
-            );
-
-        if (
-            exactTitle
-        ) {
-
-            return exactTitle;
-        }
-
-        // =====================================================================
-        // YEAR MATCH
-        // =====================================================================
-
-        if (
-            year !==
-            undefined
-        ) {
-
-            const yearMatch =
-                results.find(
-                    item =>
-                        this.extractYear(
-                            item.release_date
-                        ) ===
-                        year
-                );
-
-            if (
-                yearMatch
-            ) {
-
-                return yearMatch;
-            }
-        }
-
-        // =====================================================================
-        // FIRST RESULT
-        // =====================================================================
-
-        return results[0];
-    }
-
-    // =========================================================================
-    // GET MOVIE DETAILS
-    // =========================================================================
-
-    private async getMovieDetails(
-        id: number
-    ): Promise<TmdbMovieResult | null> {
-
-        const movie =
-            await this.request<TmdbMovieDetails>(
-                `/movie/${id}`,
-                {
-                    append_to_response:
-                        "credits",
-
-                    include_image_language:
-                        "de,en,null"
-                }
-            );
-
-        if (
-            !movie
-        ) {
-
-            return null;
-        }
-
-        return {
-
-            id:
-                Number(
-                    movie.id
-                ),
-
-            title:
-                String(
-                    movie.title ||
-                    "Unbekannter Titel"
-                ),
-
-            originalTitle:
-                String(
-                    movie.original_title ||
-                    movie.title ||
-                    "Unbekannter Titel"
-                ),
-
-            year:
-                this.extractYear(
-                    movie.release_date
-                ),
-
-            overview:
-                movie.overview ||
-                undefined,
-
-            rating:
-                this.toNumber(
-                    movie.vote_average
-                ),
-
-            genres:
-                Array.isArray(
-                    movie.genres
-                )
-                    ? movie.genres
-                        .map(
-                            genre =>
-                                String(
-                                    genre.name ||
-                                    ""
-                                )
-                        )
-                        .filter(
-                            Boolean
-                        )
-                    : [],
-
-            posterUrl:
-                movie.poster_path
-                    ? this.buildImageUrl(
-                        movie.poster_path,
-                        "w500"
-                    )
-                    : undefined,
-
-            backdropUrl:
-                movie.backdrop_path
-                    ? this.buildImageUrl(
-                        movie.backdrop_path,
-                        "w1280"
-                    )
-                    : undefined
-        };
-    }
-
-    // =========================================================================
-    // BUILD IMAGE URL
-    // =========================================================================
-
-    private buildImageUrl(
-        path: string,
-        size: string
-    ): string {
-
-        return `${this.imageBase}/${size}${path}`;
-    }
-
-    // =========================================================================
-    // CLEAN TITLE
-    // =========================================================================
-
-    private cleanTitle(
-        title: string
-    ): string {
-
-        return String(
-            title ||
-            ""
-        )
-            .replace(
-                /\s+/g,
-                " "
-            )
-            .trim();
-    }
-
-    // =========================================================================
-    // NORMALIZE TITLE FOR COMPARISON
-    // =========================================================================
-
-    private normalizeForComparison(
-        value: string
-    ): string {
-
-        return String(
-            value ||
-            ""
-        )
-            .normalize(
-                "NFD"
-            )
-            .replace(
-                /[\u0300-\u036f]/g,
-                ""
-            )
-            .toLowerCase()
-            .replace(
-                /[^a-z0-9]+/g,
-                ""
-            );
-    }
-
-    // =========================================================================
-    // EXTRACT YEAR
-    // =========================================================================
-
-    private extractYear(
-        date?: string
-    ): number | undefined {
-
-        if (
-            !date
-        ) {
-
-            return undefined;
-        }
-
-        const match =
-            String(
-                date
-            ).match(
-                /^(19|20)\d{2}/
-            );
-
-        if (
-            !match
-        ) {
-
-            return undefined;
-        }
-
-        return Number(
-            match[0]
-        );
-    }
-
-    // =========================================================================
-    // NUMBER
-    // =========================================================================
-
-    private toNumber(
-        value: unknown
-    ): number | undefined {
-
-        if (
-            value ===
-                undefined ||
-            value ===
-                null ||
-            value ===
-                ""
-        ) {
-
-            return undefined;
-        }
-
-        const number =
-            Number(
-                value
-            );
-
-        if (
-            !Number.isFinite(
-                number
-            )
-        ) {
-
-            return undefined;
-        }
-
-        return number;
-    }
-
-    // =========================================================================
-    // STATUS
-    // =========================================================================
-
-    public getStatus():
-        string {
-
-        return [
-            "TMDB Service",
-            `Auth: ${this.detectAuthType()}`,
-            `Language: ${this.language}`,
-            "API: v3"
-        ].join(
-            " | "
-        );
     }
 }
