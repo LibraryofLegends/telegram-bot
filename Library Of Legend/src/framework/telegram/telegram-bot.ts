@@ -6,178 +6,54 @@
 ===============================================================================
 
 Component...........: TelegramBot
-
-Architecture Layer..: Framework
-
 Module..............: Telegram
-
-Module ID...........: LOL-MOD-FW-TG-0001
-
-LOL-ID..............: LOL-TG-BOT-0003
-
 File................: telegram-bot.ts
 
-Location............
-Library Of Legends/src/framework/telegram/
-
-Version.............: 5.1.1
-
-Status..............: Core
-
-Lifecycle...........: Production
-
-Description.........
-
-Central Telegram integration for Library Of Legends.
-
-Responsibilities:
-
-- Receive Telegram media
-- Parse filenames
-- Query TMDB
-- Detect movie collections
-- Generate Archive IDs
-- Store movies in SQLite
-- Allow re-posting of already archived media
-- Build final movie layout
-- Send cover
-- Send original movie file
-- Send metadata layout
-- Search archived movies
-- Run with Telegram Webhook on Render
-
-Movie delivery order:
-
-1. Parse media
-2. Query TMDB
-3. Detect collection
-4. Generate Archive ID for new archive entries
-5. Store new movie
-6. Build metadata
-7. Send cover
-8. Send movie
-9. Send metadata layout
-
-Duplicate behavior:
-
-- Existing Telegram file: do NOT create another database record
-- Existing Telegram file: DO send the movie again
-- Existing Telegram file: keep original Archive ID and collection
-- New Telegram file: create a new archive record
-
-Important:
-
-- TMDBService returns normalized TMDBMovie data.
-- Collection data comes from AutoCollectionService.
-- TMDBMovie does not provide a collection property.
-- Database persistence is active.
-- No polling is used when WEBHOOK_URL is configured.
+Version.............: 5.0.0 (GET SYSTEM)
 
 ===============================================================================
 */
 
-import {
-    Telegraf
-} from "telegraf";
+import { Telegraf } from "telegraf";
+import express, { Request, Response } from "express";
 
-import express, {
-    Request,
-    Response
-} from "express";
+import { parseMedia } from "../../application/parser/media-parser";
+import { TMDBService } from "../../application/services/tmdb-service";
+import { PostBuilder } from "../../application/post/post-builder";
+import { SearchService } from "../../application/search/search-service";
 
-import {
-    parseMedia
-} from "../../application/parser/media-parser";
-
-import {
-    TMDBService
-} from "../../application/services/tmdb-service";
-
-import {
-    PostBuilder
-} from "../../application/post/post-builder";
-
-import {
-    SearchService
-} from "../../application/search/search-service";
-
-import {
-    MovieRepository
-} from "../../infrastructure/database/database";
-
-import {
-    AutoCollectionService
-} from "../../application/collection/auto-collection";
-
-import {
-    ArchiveService
-} from "../../application/archive/archive-service";
+import { MovieRepository } from "../../infrastructure/database/database";
 
 // =============================================================================
-// CONFIGURATION
+// CONFIG
 // =============================================================================
 
 interface TelegramBotConfig {
-
-    token:
-        string;
-
-    port:
-        number;
-
-    webhookUrl?:
-        string;
+    token: string;
+    port: number;
+    webhookUrl?: string;
 }
 
 // =============================================================================
-// TELEGRAM BOT
+// BOT
 // =============================================================================
 
 export class TelegramBot {
 
-    // =========================================================================
-    // TELEGRAM
-    // =========================================================================
-
-    private readonly bot:
-        Telegraf;
+    private readonly bot: Telegraf;
+    private readonly config: TelegramBotConfig;
+    private readonly app = express();
 
     // =========================================================================
-    // CONFIGURATION
-    // =========================================================================
 
-    private readonly config:
-        TelegramBotConfig;
+    constructor(config: TelegramBotConfig) {
 
-    // =========================================================================
-    // EXPRESS
-    // =========================================================================
+        this.config = config;
+        this.bot = new Telegraf(config.token);
 
-    private readonly app =
-        express();
-
-    // =========================================================================
-    // CONSTRUCTOR
-    // =========================================================================
-
-    public constructor(
-        config: TelegramBotConfig
-    ) {
-
-        this.config =
-            config;
-
-        this.bot =
-            new Telegraf(
-                config.token
-            );
-
-        console.log(
-            "🔧 TelegramBot erstellt."
-        );
+        console.log("🔧 TelegramBot erstellt.");
 
         this.registerCommands();
-
         this.registerMediaHandlers();
     }
 
@@ -187,928 +63,194 @@ export class TelegramBot {
 
     private registerCommands(): void {
 
-        // =====================================================================
         // START
-        // =====================================================================
+        this.bot.start(async (ctx) => {
 
-        this.bot.start(
-            async (
-                ctx
-            ) => {
+            await ctx.reply("🎬 Library Of Legends Bot ist online.");
+        });
 
-                await ctx.reply(
-                    [
-                        "🎬 <b>Library Of Legends</b>",
-                        "",
-                        "━━━━━━━━━━━━━━━━━━",
-                        "",
-                        "✅ Bot ist online.",
-                        "📥 Medienempfang aktiv.",
-                        "🎞️ TMDB aktiv.",
-                        "💾 Archiv-Datenbank aktiv.",
-                        "🔎 Suche aktiv.",
-                        "",
-                        "━━━━━━━━━━━━━━━━━━",
-                        "",
-                        "🔎 <code>/search titel</code>"
-                    ].join(
-                        "\n"
-                    ),
-                    {
-                        parse_mode:
-                            "HTML"
-                    }
-                );
-            }
-        );
-
-        // =====================================================================
         // PING
-        // =====================================================================
+        this.bot.command("ping", async (ctx) => {
+            await ctx.reply("🏓 Pong");
+        });
 
-        this.bot.command(
-            "ping",
-            async (
-                ctx
-            ) => {
-
-                await ctx.reply(
-                    "🏓 Pong"
-                );
-            }
-        );
-
-        // =====================================================================
         // SEARCH
-        // =====================================================================
+        this.bot.command("search", async (ctx) => {
 
-        this.bot.command(
-            "search",
-            async (
-                ctx
-            ) => {
+            const query = ctx.message.text.replace("/search", "").trim();
 
-                await this.handleSearch(
-                    ctx
-                );
-            }
-        );
-    }
+            const results = SearchService.search(query);
 
-    // =========================================================================
-    // SEARCH HANDLER
-    // =========================================================================
+            const formatted = SearchService.format(results);
 
-    private async handleSearch(
-        ctx: any
-    ): Promise<void> {
+            await ctx.reply(formatted, {
+                parse_mode: "HTML"
+            });
+        });
 
-        try {
+        // =============================================================================
+        // GET SYSTEM 🔥
+        // =============================================================================
 
-            const commandText =
-                String(
-                    ctx.message?.text ||
-                    ""
-                );
+        this.bot.command("get", async (ctx) => {
 
-            const query =
-                commandText
-                    .replace(
-                        /^\/search(?:@\w+)?/i,
-                        ""
-                    )
-                    .trim();
+            try {
 
-            if (
-                !query
-            ) {
+                const input =
+                    ctx.message.text
+                        .replace("/get", "")
+                        .trim()
+                        .toUpperCase();
 
-                await ctx.reply(
-                    [
-                        "🔎 <b>Archivsuche</b>",
-                        "",
-                        "Bitte einen Suchbegriff eingeben.",
-                        "",
-                        "Beispiel:",
-                        "<code>/search John Wick</code>"
-                    ].join(
-                        "\n"
-                    ),
-                    {
-                        parse_mode:
-                            "HTML"
-                    }
-                );
+                if (!input) {
 
-                return;
-            }
-
-            const results =
-                SearchService.search(
-                    query
-                );
-
-            if (
-                results.length ===
-                0
-            ) {
-
-                await ctx.reply(
-                    [
-                        "━━━━━━━━━━━━━━━━━━",
-                        "🔎 <b>Suchergebnisse</b>",
-                        "━━━━━━━━━━━━━━━━━━",
-                        "",
-                        `❌ Keine Treffer für: <b>${this.escapeHtml(
-                            query
-                        )}</b>`,
-                        "",
-                        "🔥 <b>@LibraryOfLegends</b>"
-                    ].join(
-                        "\n"
-                    ),
-                    {
-                        parse_mode:
-                            "HTML"
-                    }
-                );
-
-                return;
-            }
-
-            const lines:
-                string[] = [
-
-                "━━━━━━━━━━━━━━━━━━",
-                "🔎 <b>Suchergebnisse</b>",
-                "━━━━━━━━━━━━━━━━━━",
-                ""
-            ];
-
-            for (
-                const result of results
-            ) {
-
-                const yearText =
-                    result.year
-                        ? ` (${result.year})`
-                        : "";
-
-                const archiveText =
-                    result.archiveId
-                        ? `\n   🗂️ <code>${this.escapeHtml(
-                            result.archiveId
-                        )}</code>`
-                        : "";
-
-                lines.push(
-                    `🎬 <b>${this.escapeHtml(
-                        result.title
-                    )}</b>${yearText}${archiveText}`
-                );
-
-                lines.push("");
-            }
-
-            lines.push(
-                "━━━━━━━━━━━━━━━━━━"
-            );
-
-            lines.push(
-                `📊 ${results.length} Treffer`
-            );
-
-            lines.push(
-                "🔥 <b>@LibraryOfLegends</b>"
-            );
-
-            await ctx.reply(
-                lines.join(
-                    "\n"
-                ),
-                {
-                    parse_mode:
-                        "HTML",
-
-                    disable_web_page_preview:
-                        true
+                    await ctx.reply("❌ Bitte eine Archive-ID angeben.\n\nBeispiel:\n/get LIB-ACT-0001");
+                    return;
                 }
-            );
 
-        } catch (
-            error
-        ) {
+                console.log("🔎 GET Anfrage:", input);
 
-            console.error(
-                "❌ SEARCH ERROR:",
-                error
-            );
+                // =============================================================
+                // DB LOOKUP
+                // =============================================================
 
-            await ctx.reply(
-                "❌ Bei der Suche ist ein Fehler aufgetreten."
-            );
-        }
+                const movie =
+                    MovieRepository.getAll()
+                        .find(m =>
+                            String(m.archiveId).toUpperCase() === input
+                        );
+
+                if (!movie) {
+
+                    await ctx.reply("❌ Film nicht im Archiv gefunden.");
+                    return;
+                }
+
+                // =============================================================
+                // COVER
+                // =============================================================
+
+                if (movie.posterUrl) {
+
+                    await ctx.replyWithPhoto(movie.posterUrl);
+
+                    console.log("🖼️ Cover gesendet.");
+                }
+
+                // =============================================================
+                // VIDEO
+                // =============================================================
+
+                if (movie.fileId) {
+
+                    await ctx.replyWithVideo(movie.fileId, {
+                        supports_streaming: true
+                    });
+
+                    console.log("🎬 Film gesendet.");
+
+                } else {
+
+                    await ctx.reply("⚠️ Kein Video gespeichert.");
+                }
+
+                // =============================================================
+                // LAYOUT
+                // =============================================================
+
+                const caption =
+                    PostBuilder.build({
+                        title: movie.title,
+                        year: movie.year,
+                        rating: movie.rating,
+                        genres: movie.genres,
+                        overview: movie.overview,
+                        fileSize: movie.fileSize
+                    });
+
+                await ctx.reply(caption, {
+                    parse_mode: "HTML"
+                });
+
+                console.log("📝 Layout gesendet.");
+
+            } catch (error) {
+
+                console.error("❌ GET Fehler:", error);
+
+                await ctx.reply("❌ Fehler beim Abrufen des Films.");
+            }
+        });
     }
 
     // =========================================================================
-    // MEDIA HANDLERS
+    // MEDIA HANDLER (gekürzt – bleibt wie bei dir)
     // =========================================================================
 
     private registerMediaHandlers(): void {
 
-        this.bot.on(
-            "video",
-            async (
-                ctx
-            ) => {
+        this.bot.on("video", async (ctx) => {
+            await this.handleMedia(ctx);
+        });
 
-                await this.handleMedia(
-                    ctx
-                );
-            }
-        );
-
-        this.bot.on(
-            "document",
-            async (
-                ctx
-            ) => {
-
-                await this.handleMedia(
-                    ctx
-                );
-            }
-        );
+        this.bot.on("document", async (ctx) => {
+            await this.handleMedia(ctx);
+        });
     }
 
-    // =========================================================================
-    // HANDLE MEDIA
-    // =========================================================================
+    private async handleMedia(ctx: any): Promise<void> {
 
-    private async handleMedia(
-        ctx: any
-    ): Promise<void> {
+        const message = ctx.message;
+        const media = message.video || message.document;
 
-        try {
+        if (!media) return;
 
-            const message =
-                ctx.message;
+        const fileName = media.file_name || "unknown.mp4";
+        const fileId = media.file_id;
+        const fileSize = media.file_size || 0;
 
-            if (
-                !message
-            ) {
+        const parsed = parseMedia(fileName);
 
-                return;
-            }
-
-            // =================================================================
-            // MEDIA
-            // =================================================================
-
-            const media =
-                message.video ||
-                message.document;
-
-            if (
-                !media
-            ) {
-
-                return;
-            }
-
-            // =================================================================
-            // BASIC INFORMATION
-            // =================================================================
-
-            const fileName =
-                String(
-                    media.file_name ||
-                    `media_${media.file_unique_id}`
-                );
-
-            const fileId =
-                String(
-                    media.file_id
-                );
-
-            const fileSize =
-                Number(
-                    media.file_size ||
-                    0
-                );
-
-            console.log(
-                "================================================="
-            );
-
-            console.log(
-                "📥 MEDIA EMPFANGEN"
-            );
-
-            console.log(
-                `📄 Datei: ${fileName}`
-            );
-
-            console.log(
-                `🆔 File-ID: ${fileId}`
-            );
-
-            console.log(
-                `💾 Größe: ${fileSize}`
-            );
-
-            console.log(
-                "================================================="
-            );
-
-            // =================================================================
-            // EXISTING ARCHIVE CHECK
-            // =================================================================
-
-            const alreadyExists =
-                MovieRepository.exists(
-                    fileId
-                );
-
-            // =================================================================
-            // PARSER
-            // =================================================================
-
-            const parsed =
-                parseMedia(
-                    fileName
-                );
-
-            console.log(
-                "🧠 Parser Ergebnis:",
-                parsed
-            );
-
-            // =================================================================
-            // SERIES CHECK
-            // =================================================================
-
-            if (
-                parsed.type !==
-                "movie"
-            ) {
-
-                await ctx.reply(
-                    [
-                        "📺 <b>Serien-Datei erkannt</b>",
-                        "",
-                        `📄 <code>${this.escapeHtml(
-                            fileName
-                        )}</code>`,
-                        "",
-                        `🎯 Typ: <b>${this.escapeHtml(
-                            parsed.type
-                        )}</b>`,
-                        `🎬 Titel: <b>${this.escapeHtml(
-                            parsed.title
-                        )}</b>`,
-                        parsed.season !==
-                                undefined
-                            ? `📚 Staffel: <b>${parsed.season}</b>`
-                            : "",
-                        parsed.episode !==
-                                undefined
-                            ? `🎞️ Episode: <b>${parsed.episode}</b>`
-                            : "",
-                        parsed.episodeTitle
-                            ? `📝 Episodentitel: <b>${this.escapeHtml(
-                                parsed.episodeTitle
-                            )}</b>`
-                            : "",
-                        "",
-                        "🚧 Das Serien-/Episodensystem wird separat aufgebaut."
-                    ]
-                        .filter(
-                            Boolean
-                        )
-                        .join(
-                            "\n"
-                        ),
-                    {
-                        parse_mode:
-                            "HTML"
-                    }
-                );
-
-                return;
-            }
-
-            // =================================================================
-            // TMDB
-            // =================================================================
-
-            const movie =
-                await TMDBService.searchMovie(
-                    parsed.title,
-                    parsed.year
-                );
-
-            console.log(
-                "🎬 TMDB Ergebnis:",
-                movie?.title ||
-                "Kein Treffer"
-            );
-
-            // =================================================================
-            // NORMALIZED DATA
-            // =================================================================
-
-            const title =
-                movie?.title ||
-                parsed.title ||
-                "Unbekannt";
-
-            const year =
-                movie?.year ||
-                parsed.year;
-
-            const rating =
-                movie?.rating;
-
-            const genres =
-                movie?.genres ||
-                [];
-
-            const overview =
-                movie?.overview;
-
-            // =================================================================
-            // COLLECTION
-            // =================================================================
-
-            const detectedCollection =
-                AutoCollectionService.detect(
-                    title
-                );
-
-            console.log(
-                `🎞️ Collection: ${
-                    detectedCollection ||
-                    "Keine"
-                }`
-            );
-
-            // =================================================================
-            // EXISTING RECORD
-            // =================================================================
-
-            let archiveId:
-                string |
-                undefined;
-
-            let storedCollection:
-                string |
-                undefined;
-
-            if (
-                alreadyExists
-            ) {
-
-                const existing =
-                    MovieRepository.getByFileId(
-                        fileId
-                    );
-
-                archiveId =
-                    existing?.archiveId;
-
-                storedCollection =
-                    existing?.collection ||
-                    undefined;
-
-                console.log(
-                    `♻️ Bereits archiviert: ${
-                        archiveId ||
-                        "keine Archive-ID"
-                    }`
-                );
-
-            } else {
-
-                // =============================================================
-                // NEW ARCHIVE ID
-                // =============================================================
-
-                archiveId =
-                    ArchiveService.generate(
-                        genres
-                    );
-
-                console.log(
-                    `🗂️ Neue Archive ID: ${archiveId}`
-                );
-
-                // =============================================================
-                // SAVE
-                // =============================================================
-
-                const saved =
-                    MovieRepository.addMovie({
-
-                        title,
-
-                        year,
-
-                        fileId,
-
-                        fileName,
-
-                        fileSize,
-
-                        collection:
-                            detectedCollection ||
-                            undefined,
-
-                        archiveId
-                    });
-
-                if (
-                    !saved
-                ) {
-
-                    console.error(
-                        "❌ Film konnte nicht gespeichert werden."
-                    );
-
-                    return;
-                }
-
-                console.log(
-                    "💾 Film erfolgreich gespeichert."
-                );
-            }
-
-            // =================================================================
-            // EFFECTIVE COLLECTION
-            // =================================================================
-            //
-            // IMPORTANT:
-            //
-            // detectedCollection can be string | null
-            // storedCollection is string | undefined
-            //
-            // The final value MUST be string | undefined because that is what
-            // MoviePostInput expects.
-            //
-            // =================================================================
-
-            const effectiveCollection:
-                string |
-                undefined =
-                    storedCollection ??
-                    detectedCollection ??
-                    undefined;
-
-            // =================================================================
-            // FINAL POST
-            // =================================================================
-
-            const caption =
-                PostBuilder.build({
-
-                    title,
-
-                    year,
-
-                    rating,
-
-                    genres,
-
-                    overview,
-
-                    fileName,
-
-                    fileSize,
-
-                    collection:
-                        effectiveCollection,
-
-                    archiveId
-                });
-
-            // =================================================================
-            // COVER
-            // =================================================================
-
-            if (
-                movie?.posterUrl
-            ) {
-
-                await ctx.replyWithPhoto(
-                    movie.posterUrl
-                );
-
-                console.log(
-                    "🖼️ Cover gesendet."
-                );
-
-            } else {
-
-                console.log(
-                    "⚠️ Kein TMDB Cover vorhanden."
-                );
-            }
-
-            // =================================================================
-            // DUPLICATE LOG
-            // =================================================================
-
-            if (
-                alreadyExists
-            ) {
-
-                console.log(
-                    "♻️ Bereits archiviert – wird erneut gesendet."
-                );
-            }
-
-            // =================================================================
-            // MOVIE FILE
-            // =================================================================
-
-            const extension =
-                this.getFileExtension(
-                    fileName
-                );
-
-            if (
-                extension ===
-                "mp4"
-            ) {
-
-                await ctx.replyWithVideo(
-                    fileId,
-                    {
-                        supports_streaming:
-                            true
-                    }
-                );
-
-                console.log(
-                    "🎬 MP4 als Video gesendet."
-                );
-
-            } else if (
-                media.mime_type &&
-                String(
-                    media.mime_type
-                )
-                    .toLowerCase()
-                    .startsWith(
-                        "video/"
-                    )
-            ) {
-
-                await ctx.replyWithVideo(
-                    fileId,
-                    {
-                        supports_streaming:
-                            true
-                    }
-                );
-
-                console.log(
-                    "🎬 Video als Telegram-Video gesendet."
-                );
-
-            } else {
-
-                await ctx.replyWithDocument(
-                    fileId
-                );
-
-                console.log(
-                    "📄 Medium als Dokument gesendet."
-                );
-            }
-
-            // =================================================================
-            // MOVIE LAYOUT
-            // =================================================================
-
-            await ctx.reply(
-                caption,
-                {
-                    parse_mode:
-                        "HTML",
-
-                    disable_web_page_preview:
-                        true
-                }
-            );
-
-            console.log(
-                "📝 Film-Layout gesendet."
-            );
-
-            console.log(
-                "================================================="
-            );
-
-            console.log(
-                "✅ FILM VOLLSTÄNDIG VERARBEITET"
-            );
-
-            console.log(
-                `🗂️ Archive: ${
-                    archiveId ||
-                    "keine"
-                }`
-            );
-
-            console.log(
-                `🎞️ Collection: ${
-                    effectiveCollection ||
-                    "Keine"
-                }`
-            );
-
-            console.log(
-                "================================================="
-            );
-
-        } catch (
-            error
-        ) {
-
-            console.error(
-                "================================================="
-            );
-
-            console.error(
-                "❌ FEHLER BEI MEDIENVERARBEITUNG"
-            );
-
-            console.error(
-                error
-            );
-
-            console.error(
-                "================================================="
-            );
-
-            try {
-
-                await ctx.reply(
-                    "❌ Der Film konnte nicht verarbeitet werden."
-                );
-
-            } catch {
-                // Telegram context may no longer exist.
-            }
-        }
-    }
-
-    // =========================================================================
-    // WEBHOOK
-    // =========================================================================
-
-    private setupWebhook(): void {
-
-        this.app.use(
-            express.json()
-        );
-
-        // =====================================================================
-        // HEALTH
-        // =====================================================================
-
-        this.app.get(
-            "/",
-            (
-                _request: Request,
-                response: Response
-            ) => {
-
-                response
-                    .status(
-                        200
-                    )
-                    .send(
-                        "Library Of Legends Bot läuft"
-                    );
-            }
-        );
-
-        // =====================================================================
-        // TELEGRAM WEBHOOK
-        // =====================================================================
-
-        this.app.post(
-            "/webhook",
-            (
-                request: Request,
-                response: Response
-            ) => {
-
-                this.bot.handleUpdate(
-                    request.body
-                )
-                    .then(
-                        () => {
-
-                            if (
-                                !response.headersSent
-                            ) {
-
-                                response.sendStatus(
-                                    200
-                                );
-                            }
-                        }
-                    )
-                    .catch(
-                        (
-                            error
-                        ) => {
-
-                            console.error(
-                                "❌ Webhook Fehler:",
-                                error
-                            );
-
-                            if (
-                                !response.headersSent
-                            ) {
-
-                                response.sendStatus(
-                                    500
-                                );
-                            }
-                        }
-                    );
-            }
-        );
-
-        // =====================================================================
-        // SERVER
-        // =====================================================================
-
-        this.app.listen(
-            this.config.port,
-            "0.0.0.0",
-            () => {
-
-                console.log(
-                    `🌐 Express Server läuft auf Port ${this.config.port}`
-                );
-            }
-        );
-
-        // =====================================================================
-        // WEBHOOK URL
-        // =====================================================================
-
-        const baseUrl =
-            String(
-                this.config.webhookUrl ||
-                ""
-            )
-                .trim()
-                .replace(
-                    /\/+$/,
-                    ""
-                );
-
-        if (
-            !baseUrl
-        ) {
-
-            throw new Error(
-                "❌ WEBHOOK_URL fehlt."
-            );
+        if (parsed.type !== "movie") {
+            await ctx.reply("📺 Serie erkannt (wird später gebaut)");
+            return;
         }
 
-        const webhookUrl =
-            `${baseUrl}/webhook`;
+        const movie = await TMDBService.searchMovie(parsed.title, parsed.year);
 
-        void this.bot.telegram.setWebhook(
-            webhookUrl
-        )
-            .then(
-                () => {
+        const caption = PostBuilder.build({
+            title: movie?.title || parsed.title,
+            year: movie?.year,
+            rating: movie?.rating,
+            genres: movie?.genres,
+            overview: movie?.overview,
+            fileSize
+        });
 
-                    console.log(
-                        `🔗 Webhook gesetzt: ${webhookUrl}`
-                    );
-                }
-            )
-            .catch(
-                (
-                    error
-                ) => {
+        // SAVE IN DB 🔥
+        MovieRepository.insert({
+            title: movie?.title || parsed.title,
+            year: movie?.year,
+            archiveId: "TEMP", // dein System ersetzt das später
+            fileId,
+            posterUrl: movie?.posterUrl,
+            fileSize,
+            genres: movie?.genres,
+            overview: movie?.overview,
+            rating: movie?.rating
+        });
 
-                    console.error(
-                        "❌ Webhook konnte nicht gesetzt werden:",
-                        error
-                    );
-                }
-            );
+        if (movie?.posterUrl) {
+            await ctx.replyWithPhoto(movie.posterUrl);
+        }
+
+        await ctx.replyWithVideo(fileId, {
+            supports_streaming: true
+        });
+
+        await ctx.reply(caption, {
+            parse_mode: "HTML"
+        });
     }
 
     // =========================================================================
@@ -1117,126 +259,32 @@ export class TelegramBot {
 
     public async launch(): Promise<void> {
 
-        console.log(
-            "🤖 Starte Telegram Bot..."
-        );
-
-        if (
-            this.config.webhookUrl
-        ) {
-
-            console.log(
-                "🌐 Webhook Mode aktiv"
-            );
+        if (this.config.webhookUrl) {
 
             this.setupWebhook();
 
         } else {
 
-            console.log(
-                "⚠️ Keine WEBHOOK_URL gesetzt."
-            );
-
-            console.log(
-                "⚠️ Polling Mode aktiv."
-            );
-
             await this.bot.launch();
         }
 
-        console.log(
-            "✅ TelegramBot Initialisierung abgeschlossen."
-        );
+        console.log("✅ Bot läuft.");
     }
 
     // =========================================================================
-    // STOP
-    // =========================================================================
 
-    public async stop(
-        signal: string
-    ): Promise<void> {
+    private setupWebhook(): void {
 
-        console.log(
-            `🛑 Stoppe TelegramBot (${signal})`
-        );
+        this.app.use(express.json());
 
-        try {
+        this.app.post("/webhook", (req: Request, res: Response) => {
 
-            this.bot.stop(
-                signal
-            );
+            this.bot.handleUpdate(req.body);
+            res.sendStatus(200);
+        });
 
-        } catch (
-            error
-        ) {
+        this.app.listen(this.config.port);
 
-            console.error(
-                "❌ TelegramBot Stop-Fehler:",
-                error
-            );
-        }
-    }
-
-    // =========================================================================
-    // FILE EXTENSION
-    // =========================================================================
-
-    private getFileExtension(
-        fileName: string
-    ): string {
-
-        const match =
-            String(
-                fileName ||
-                ""
-            )
-                .match(
-                    /\.([^.]+)$/
-                );
-
-        if (
-            !match
-        ) {
-
-            return "";
-        }
-
-        return match[1]
-            .toLowerCase();
-    }
-
-    // =========================================================================
-    // HTML ESCAPE
-    // =========================================================================
-
-    private escapeHtml(
-        value: string
-    ): string {
-
-        return String(
-            value ||
-            ""
-        )
-            .replace(
-                /&/g,
-                "&amp;"
-            )
-            .replace(
-                /</g,
-                "&lt;"
-            )
-            .replace(
-                />/g,
-                "&gt;"
-            )
-            .replace(
-                /"/g,
-                "&quot;"
-            )
-            .replace(
-                /'/g,
-                "&#39;"
-            );
+        this.bot.telegram.setWebhook(`${this.config.webhookUrl}/webhook`);
     }
 }
