@@ -13,14 +13,14 @@ Module..............: Telegram
 
 Module ID...........: LOL-MOD-FW-TG-0001
 
-LOL-ID..............: LOL-TG-BOT-0004
+LOL-ID..............: LOL-TG-BOT-0005
 
 File................: telegram-bot.ts
 
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 5.2.0
+Version.............: 5.3.0
 
 Status..............: Core
 
@@ -38,15 +38,15 @@ Responsibilities:
 - Detect movie collections
 - Generate Archive IDs
 - Store movies in SQLite
-- Allow re-posting of already archived media
-- Build final movie layout
+- Allow re-posting of archived media
+- Build final movie metadata
 - Send cover
 - Send original movie file
 - Send metadata layout
 - Search archived movies
-- Display inline search buttons
-- Handle inline movie selection
-- Support /get Archive-ID retrieval
+- Provide inline movie buttons
+- Provide /get Archive-ID retrieval
+- Handle inline movie retrieval
 - Run with Telegram Webhook on Render
 
 Movie delivery order:
@@ -54,38 +54,46 @@ Movie delivery order:
 1. Parse media
 2. Query TMDB
 3. Detect collection
-4. Generate Archive ID for new archive entries
+4. Generate Archive ID for new entries
 5. Store new movie
 6. Build metadata
 7. Send cover
-8. Send movie
+8. Send original movie
 9. Send metadata layout
 
-Search:
+GET system:
 
-/search <query>
+/get LIB-ACT-0001
 
-Example:
+or:
 
-/search John Wick
+Inline button
+      ↓
+Archive ID
+      ↓
+SQLite lookup
+      ↓
+TMDB metadata refresh
+      ↓
+Cover
+      ↓
+Original Telegram video
+      ↓
+Final movie layout
 
-Result:
+Duplicate behavior:
 
-🎬 John Wick (2014)
-/> inline button
-
-Callback:
-
-get:<Archive-ID>
+- Existing Telegram file: do NOT create another database record
+- Existing Telegram file: DO allow re-posting
+- Existing record: preserve Archive ID
+- Existing record: preserve stored collection
 
 Important:
 
 - TMDBService returns normalized TMDBMovie data.
-- Collection data comes from AutoCollectionService.
-- Database persistence is active.
-- Existing media may be re-posted.
-- Existing database records are never duplicated.
-- Inline callback data contains only the Archive ID.
+- Collection detection is handled by AutoCollectionService.
+- Database is the source of truth for archived files.
+- fileId is used directly by Telegram for re-sending the media.
 - No polling is used when WEBHOOK_URL is configured.
 
 ===============================================================================
@@ -230,6 +238,7 @@ export class TelegramBot {
                         "💾 Archiv-Datenbank aktiv.",
                         "🔎 Suche aktiv.",
                         "🎛️ Inline-Buttons aktiv.",
+                        "📂 GET-System aktiv.",
                         "",
                         "━━━━━━━━━━━━━━━━━━",
                         "",
@@ -288,60 +297,89 @@ export class TelegramBot {
                 ctx
             ) => {
 
-                const commandText =
-                    String(
-                        ctx.message?.text ||
-                        ""
-                    );
-
-                const archiveId =
-                    commandText
-                        .replace(
-                            /^\/get(?:@\w+)?/i,
-                            ""
-                        )
-                        .trim();
-
-                if (
-                    !archiveId
-                ) {
-
-                    await ctx.reply(
-                        [
-                            "📂 <b>Film abrufen</b>",
-                            "",
-                            "Bitte eine Archive-ID angeben.",
-                            "",
-                            "Beispiel:",
-                            "<code>/get LIB-ACT-0001</code>"
-                        ].join(
-                            "\n"
-                        ),
-                        {
-                            parse_mode:
-                                "HTML"
-                        }
-                    );
-
-                    return;
-                }
-
-                await this.sendArchivedMovie(
-                    ctx,
-                    archiveId
+                await this.handleGetCommand(
+                    ctx
                 );
             }
         );
     }
 
     // =========================================================================
-    // INLINE CALLBACKS
+    // GET COMMAND
+    // =========================================================================
+
+    private async handleGetCommand(
+        ctx: any
+    ): Promise<void> {
+
+        try {
+
+            const commandText =
+                String(
+                    ctx.message?.text ||
+                    ""
+                );
+
+            const archiveId =
+                commandText
+                    .replace(
+                        /^\/get(?:@\w+)?/i,
+                        ""
+                    )
+                    .trim();
+
+            if (
+                !archiveId
+            ) {
+
+                await ctx.reply(
+                    [
+                        "📂 <b>Film abrufen</b>",
+                        "",
+                        "Bitte eine Archive-ID angeben.",
+                        "",
+                        "Beispiel:",
+                        "<code>/get LIB-ACT-0001</code>"
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML"
+                    }
+                );
+
+                return;
+            }
+
+            await this.sendArchivedMovie(
+                ctx,
+                archiveId
+            );
+
+        } catch (
+            error
+        ) {
+
+            console.error(
+                "❌ GET COMMAND FEHLER:",
+                error
+            );
+
+            await ctx.reply(
+                "❌ Der Film konnte nicht abgerufen werden."
+            );
+        }
+    }
+
+    // =========================================================================
+    // CALLBACKS
     // =========================================================================
 
     private registerCallbacks(): void {
 
         // =====================================================================
-        // GET MOVIE
+        // GET MOVIE FROM INLINE BUTTON
         // =====================================================================
 
         this.bot.action(
@@ -358,7 +396,10 @@ export class TelegramBot {
                             : "";
 
                     const archiveId =
-                        callbackData
+                        String(
+                            callbackData ||
+                            ""
+                        )
                             .replace(
                                 /^get:/i,
                                 ""
@@ -394,7 +435,7 @@ export class TelegramBot {
                 ) {
 
                     console.error(
-                        "❌ Inline Callback Fehler:",
+                        "❌ INLINE GET FEHLER:",
                         error
                     );
 
@@ -540,7 +581,7 @@ export class TelegramBot {
             ];
 
             // =================================================================
-            // INLINE BUTTONS
+            // BUTTONS
             // =================================================================
 
             const buttons:
@@ -557,7 +598,7 @@ export class TelegramBot {
                         ? ` (${result.year})`
                         : "";
 
-                const archiveText =
+                const archiveId =
                     result.archiveId ||
                     "UNKNOWN";
 
@@ -569,7 +610,7 @@ export class TelegramBot {
 
                 lines.push(
                     `🗂️ <code>${this.escapeHtml(
-                        archiveText
+                        archiveId
                     )}</code>`
                 );
 
@@ -586,11 +627,7 @@ export class TelegramBot {
 
                 lines.push("");
 
-                // =============================================================
-                // BUTTON
-                // =============================================================
-
-                const button =
+                buttons.push([
                     Markup.button.callback(
                         `🎬 ${this.truncateButtonText(
                             result.title
@@ -599,11 +636,8 @@ export class TelegramBot {
                                 ? ` (${result.year})`
                                 : ""
                         }`,
-                        `get:${archiveText}`
-                    );
-
-                buttons.push([
-                    button
+                        `get:${archiveId}`
+                    )
                 ]);
             }
 
@@ -619,16 +653,14 @@ export class TelegramBot {
                 `📊 ${results.length} Treffer`
             );
 
-            lines.push(
-                ""
-            );
+            lines.push("");
 
             lines.push(
                 "👇 Film auswählen:"
             );
 
             // =================================================================
-            // SEND SEARCH RESULTS
+            // SEND RESULTS
             // =================================================================
 
             await ctx.reply(
@@ -687,6 +719,21 @@ export class TelegramBot {
                     .toUpperCase();
 
             // =================================================================
+            // VALIDATION
+            // =================================================================
+
+            if (
+                !normalizedArchiveId
+            ) {
+
+                await ctx.reply(
+                    "❌ Keine gültige Archive-ID angegeben."
+                );
+
+                return;
+            }
+
+            // =================================================================
             // DATABASE LOOKUP
             // =================================================================
 
@@ -704,17 +751,25 @@ export class TelegramBot {
                             normalizedArchiveId
                     );
 
+            // =================================================================
+            // NOT FOUND
+            // =================================================================
+
             if (
                 !movie
             ) {
 
                 await ctx.reply(
                     [
+                        "━━━━━━━━━━━━━━━━━━",
                         "❌ <b>Film nicht gefunden</b>",
+                        "━━━━━━━━━━━━━━━━━━",
                         "",
                         `🗂️ Gesucht: <code>${this.escapeHtml(
                             normalizedArchiveId
-                        )}</code>`
+                        )}</code>`,
+                        "",
+                        "Bitte die Archive-ID überprüfen."
                     ].join(
                         "\n"
                     ),
@@ -726,6 +781,26 @@ export class TelegramBot {
 
                 return;
             }
+
+            console.log(
+                "================================================="
+            );
+
+            console.log(
+                "📂 ARCHIV GET"
+            );
+
+            console.log(
+                `🗂️ Archive-ID: ${normalizedArchiveId}`
+            );
+
+            console.log(
+                `🎬 Titel: ${movie.title}`
+            );
+
+            console.log(
+                "================================================="
+            );
 
             // =================================================================
             // TMDB REFRESH
@@ -749,29 +824,43 @@ export class TelegramBot {
                 undefined;
 
             // =================================================================
-            // BUILD POST
+            // METADATA
+            // =================================================================
+
+            const title =
+                tmdb?.title ||
+                movie.title;
+
+            const year =
+                tmdb?.year ||
+                movie.year;
+
+            const rating =
+                tmdb?.rating;
+
+            const genres =
+                tmdb?.genres ||
+                [];
+
+            const overview =
+                tmdb?.overview;
+
+            // =================================================================
+            // BUILD LAYOUT
             // =================================================================
 
             const caption =
                 PostBuilder.build({
 
-                    title:
-                        tmdb?.title ||
-                        movie.title,
+                    title,
 
-                    year:
-                        tmdb?.year ||
-                        movie.year,
+                    year,
 
-                    rating:
-                        tmdb?.rating,
+                    rating,
 
-                    genres:
-                        tmdb?.genres ||
-                        [],
+                    genres,
 
-                    overview:
-                        tmdb?.overview,
+                    overview,
 
                     fileName:
                         movie.fileName,
@@ -782,7 +871,8 @@ export class TelegramBot {
                     collection,
 
                     archiveId:
-                        movie.archiveId
+                        movie.archiveId ||
+                        normalizedArchiveId
                 });
 
             // =================================================================
@@ -800,45 +890,29 @@ export class TelegramBot {
                 console.log(
                     "🖼️ Archiv-Cover gesendet."
                 );
+
+            } else {
+
+                console.log(
+                    "⚠️ Kein TMDB-Cover verfügbar."
+                );
             }
 
             // =================================================================
-            // VIDEO
+            // FILE
             // =================================================================
 
             if (
                 movie.fileId
             ) {
 
-                const extension =
-                    this.getFileExtension(
-                        movie.fileName ||
-                        ""
-                    );
-
-                if (
-                    extension ===
-                    "mp4"
-                ) {
-
-                    await ctx.replyWithVideo(
-                        movie.fileId,
-                        {
-                            supports_streaming:
-                                true
-                        }
-                    );
-
-                } else {
-
-                    await ctx.replyWithVideo(
-                        movie.fileId,
-                        {
-                            supports_streaming:
-                                true
-                        }
-                    );
-                }
+                await ctx.replyWithVideo(
+                    movie.fileId,
+                    {
+                        supports_streaming:
+                            true
+                    }
+                );
 
                 console.log(
                     "🎬 Archiv-Film gesendet."
@@ -847,12 +921,26 @@ export class TelegramBot {
             } else {
 
                 await ctx.reply(
-                    "⚠️ Für diesen Archiveintrag ist keine Telegram-Datei gespeichert."
+                    [
+                        "⚠️ <b>Datei nicht verfügbar</b>",
+                        "",
+                        `🎬 ${this.escapeHtml(
+                            title
+                        )}`,
+                        "",
+                        "Für diesen Archiv-Eintrag wurde keine Telegram File-ID gespeichert."
+                    ].join(
+                        "\n"
+                    ),
+                    {
+                        parse_mode:
+                            "HTML"
+                    }
                 );
             }
 
             // =================================================================
-            // METADATA
+            // LAYOUT
             // =================================================================
 
             await ctx.reply(
@@ -867,7 +955,23 @@ export class TelegramBot {
             );
 
             console.log(
-                `✅ Archive ${normalizedArchiveId} vollständig abgerufen.`
+                "📝 Archiv-Layout gesendet."
+            );
+
+            console.log(
+                "================================================="
+            );
+
+            console.log(
+                "✅ ARCHIV GET VOLLSTÄNDIG"
+            );
+
+            console.log(
+                `🗂️ ${normalizedArchiveId}`
+            );
+
+            console.log(
+                "================================================="
             );
 
         } catch (
@@ -875,13 +979,30 @@ export class TelegramBot {
         ) {
 
             console.error(
-                "❌ Fehler beim Abrufen des Archivfilms:",
+                "================================================="
+            );
+
+            console.error(
+                "❌ ARCHIV GET FEHLER"
+            );
+
+            console.error(
                 error
             );
 
-            await ctx.reply(
-                "❌ Der Film konnte nicht abgerufen werden."
+            console.error(
+                "================================================="
             );
+
+            try {
+
+                await ctx.reply(
+                    "❌ Der Archivfilm konnte nicht abgerufen werden."
+                );
+
+            } catch {
+                // Telegram context may no longer exist.
+            }
         }
     }
 
@@ -1678,7 +1799,8 @@ export class TelegramBot {
             String(
                 value ||
                 "Unbekannt"
-            ).trim();
+            )
+                .trim();
 
         if (
             text.length <=
