@@ -20,7 +20,7 @@ File................: telegram-bot.ts
 Location............
 Library Of Legends/src/framework/telegram/
 
-Version.............: 5.1.0
+Version.............: 5.1.1
 
 Status..............: Core
 
@@ -641,14 +641,14 @@ export class TelegramBot {
             // COLLECTION
             // =================================================================
 
-            const collection =
+            const detectedCollection =
                 AutoCollectionService.detect(
                     title
                 );
 
             console.log(
                 `🎞️ Collection: ${
-                    collection ||
+                    detectedCollection ||
                     "Keine"
                 }`
             );
@@ -678,7 +678,8 @@ export class TelegramBot {
                     existing?.archiveId;
 
                 storedCollection =
-                    existing?.collection;
+                    existing?.collection ||
+                    undefined;
 
                 console.log(
                     `♻️ Bereits archiviert: ${
@@ -720,7 +721,7 @@ export class TelegramBot {
                         fileSize,
 
                         collection:
-                            collection ||
+                            detectedCollection ||
                             undefined,
 
                         archiveId
@@ -745,11 +746,23 @@ export class TelegramBot {
             // =================================================================
             // EFFECTIVE COLLECTION
             // =================================================================
+            //
+            // IMPORTANT:
+            //
+            // detectedCollection can be string | null
+            // storedCollection is string | undefined
+            //
+            // The final value MUST be string | undefined because that is what
+            // MoviePostInput expects.
+            //
+            // =================================================================
 
-            const effectiveCollection =
-                storedCollection ||
-                collection ||
-                undefined;
+            const effectiveCollection:
+                string |
+                undefined =
+                    storedCollection ??
+                    detectedCollection ??
+                    undefined;
 
             // =================================================================
             // FINAL POST
@@ -802,7 +815,7 @@ export class TelegramBot {
             }
 
             // =================================================================
-            // DUPLICATE NOTICE
+            // DUPLICATE LOG
             // =================================================================
 
             if (
