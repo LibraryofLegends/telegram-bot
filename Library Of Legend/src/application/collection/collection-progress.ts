@@ -13,14 +13,14 @@ Module..............: Collection
 
 Module ID...........: LOL-MOD-APP-COLL-0003
 
-LOL-ID..............: LOL-COLLECTION-PROGRESS-0001
+LOL-ID..............: LOL-COLLECTION-PROGRESS-0002
 
 File................: collection-progress.ts
 
 Location............
 Library Of Legends/src/application/collection/
 
-Version.............: 1.0.0
+Version.............: 1.1.0
 
 Status..............: Core
 
@@ -32,31 +32,21 @@ Calculates collection progress for the Library Of Legends archive.
 
 Responsibilities:
 
-- Resolve collection names
-- Count already archived movies
-- Provide known collection totals
-- Return progress in a Telegram-friendly format
-- Prevent incorrect collection progress
-- Keep progress calculation centralized
-
-Examples:
-
-The Equalizer
-→ 2 / 3
-
-John Wick
-→ 4 / 4
-
-Unknown collection
-→ 2 / ?
+- Resolve canonical collection names
+- Count archived movies belonging to a collection
+- Provide known total film counts
+- Calculate collection completion
+- Handle titles that were stored before collection metadata existed
+- Prevent false "0 / ?" results for known collections
+- Provide Telegram-ready progress information
 
 Important:
 
-- Progress is based on the SQLite movie archive.
-- The collection name must match the canonical name used by
-  AutoCollectionService.
-- No fake progress is generated.
-- Unknown collection totals remain unknown until explicitly defined.
+- Existing database records may not contain a collection value.
+- Therefore the service also performs automatic collection detection
+  against the stored movie title.
+- Known collection totals are defined centrally.
+- Unknown collection totals remain unknown and are never invented.
 
 ===============================================================================
 */
@@ -99,52 +89,73 @@ const COLLECTION_TOTALS:
     Record<string, number> = {
 
     // =========================================================================
-    // ACTION
+    // JOHN WICK
     // =========================================================================
 
     "John Wick":
         4,
 
+    // =========================================================================
+    // THE EQUALIZER
+    // =========================================================================
+
     "The Equalizer":
         3,
+
+    // =========================================================================
+    // FAST & FURIOUS
+    // =========================================================================
 
     "Fast & Furious":
         11,
 
-    "Transformers":
-        7,
-
     // =========================================================================
-    // FANTASY
+    // HARRY POTTER
     // =========================================================================
 
     "Harry Potter":
         8,
 
     // =========================================================================
-    // SUPERHERO
+    // TRANSFORMERS
+    // =========================================================================
+
+    "Transformers":
+        7,
+
+    // =========================================================================
+    // SPIDER-MAN
+    // =========================================================================
+
+    "Spider-Man":
+        8,
+
+    // =========================================================================
+    // SUPERMAN
+    // =========================================================================
+
+    "Superman":
+        6,
+
+    // =========================================================================
+    // BATMAN
     // =========================================================================
 
     "Batman":
         10,
 
-    "Superman":
-        6,
-
-    "Spider-Man":
-        8,
-
-    "Marvel Avengers":
-        4,
-
-    "Marvel Iron Man":
-        3,
-
     // =========================================================================
-    // SCI-FI / ADVENTURE
+    // JURASSIC PARK
     // =========================================================================
 
     "Jurassic Park":
+        6,
+
+    // =========================================================================
+    // SCREAM
+    // =========================================================================
+
+    "Scream":
         6
 };
 
@@ -155,7 +166,7 @@ const COLLECTION_TOTALS:
 export class CollectionProgressService {
 
     // =========================================================================
-    // GET PROGRESS BY TITLE
+    // GET BY TITLE
     // =========================================================================
 
     public static getByTitle(
@@ -180,7 +191,7 @@ export class CollectionProgressService {
     }
 
     // =========================================================================
-    // GET PROGRESS
+    // GET
     // =========================================================================
 
     public static get(
@@ -193,7 +204,7 @@ export class CollectionProgressService {
             );
 
         // =====================================================================
-        // GET ARCHIVED MOVIES
+        // LOAD DATABASE
         // =====================================================================
 
         const movies =
@@ -203,57 +214,75 @@ export class CollectionProgressService {
         // COUNT OWNED MOVIES
         // =====================================================================
 
-        const owned =
-            movies.filter(
-                movie => {
+        let owned =
+            0;
 
-                    if (
+        for (
+            const movie of movies
+        ) {
+
+            // -----------------------------------------------------------------
+            // FIRST: STORED COLLECTION
+            // -----------------------------------------------------------------
+
+            if (
+                movie.collection
+            ) {
+
+                const storedCollection =
+                    this.normalizeCollectionName(
                         movie.collection
-                    ) {
-
-                        return (
-                            this.normalizeCollectionName(
-                                movie.collection
-                            ) ===
-                            canonicalCollection
-                        );
-                    }
-
-                    /*
-                     * Fallback for older records that may not have the
-                     * collection field populated.
-                     */
-
-                    const detected =
-                        AutoCollectionService.detect(
-                            movie.title
-                        );
-
-                    if (
-                        !detected
-                    ) {
-
-                        return false;
-                    }
-
-                    return (
-                        this.normalizeCollectionName(
-                            detected
-                        ) ===
-                        canonicalCollection
                     );
+
+                if (
+                    storedCollection ===
+                    canonicalCollection
+                ) {
+
+                    owned++;
+
+                    continue;
                 }
-            ).length;
+            }
+
+            // -----------------------------------------------------------------
+            // SECOND: DETECT COLLECTION FROM TITLE
+            // -----------------------------------------------------------------
+
+            const detectedCollection =
+                AutoCollectionService.detect(
+                    movie.title
+                );
+
+            if (
+                !detectedCollection
+            ) {
+
+                continue;
+            }
+
+            const normalizedDetected =
+                this.normalizeCollectionName(
+                    detectedCollection
+                );
+
+            if (
+                normalizedDetected ===
+                canonicalCollection
+            ) {
+
+                owned++;
+            }
+        }
 
         // =====================================================================
         // TOTAL
         // =====================================================================
 
         const total =
-            COLLECTION_TOTALS[
+            this.getTotal(
                 canonicalCollection
-            ] ??
-            null;
+            );
 
         // =====================================================================
         // COMPLETE
@@ -264,7 +293,7 @@ export class CollectionProgressService {
             owned >= total;
 
         // =====================================================================
-        // FORMAT
+        // FORMATTED
         // =====================================================================
 
         const formatted =
@@ -288,7 +317,7 @@ export class CollectionProgressService {
     }
 
     // =========================================================================
-    // FORMAT TELEGRAM LINE
+    // FORMAT SINGLE LINE
     // =========================================================================
 
     public static formatLine(
@@ -304,24 +333,20 @@ export class CollectionProgressService {
             progress.complete
         ) {
 
-            return [
-                `🎞️ Reihe: ${progress.collection}`,
+            return (
+                `🎞️ Reihe: ${progress.collection} · ` +
                 `✅ vollständig ${progress.formatted}`
-            ].join(
-                " · "
             );
         }
 
-        return [
-            `🎞️ Reihe: ${progress.collection}`,
+        return (
+            `🎞️ Reihe: ${progress.collection} · ` +
             `⚠️ ${progress.formatted} vorhanden`
-        ].join(
-            " · "
         );
     }
 
     // =========================================================================
-    // FORMAT MULTI-LINE
+    // FORMAT BLOCK
     // =========================================================================
 
     public static formatBlock(
@@ -367,27 +392,6 @@ export class CollectionProgressService {
     }
 
     // =========================================================================
-    // GET TOTAL
-    // =========================================================================
-
-    public static getTotal(
-        collection: string
-    ): number | null {
-
-        const canonical =
-            this.normalizeCollectionName(
-                collection
-            );
-
-        return (
-            COLLECTION_TOTALS[
-                canonical
-            ] ??
-            null
-        );
-    }
-
-    // =========================================================================
     // GET OWNED
     // =========================================================================
 
@@ -401,22 +405,50 @@ export class CollectionProgressService {
     }
 
     // =========================================================================
-    // COLLECTION EXISTS
+    // GET TOTAL
+    // =========================================================================
+
+    public static getTotal(
+        collection: string
+    ): number | null {
+
+        const canonicalCollection =
+            this.normalizeCollectionName(
+                collection
+            );
+
+        return (
+            COLLECTION_TOTALS[
+                canonicalCollection
+            ] ??
+            null
+        );
+    }
+
+    // =========================================================================
+    // IS KNOWN COLLECTION
     // =========================================================================
 
     public static isKnownCollection(
         collection: string
     ): boolean {
 
-        const canonical =
-            this.normalizeCollectionName(
+        return (
+            this.getTotal(
                 collection
-            );
+            ) !== null
+        );
+    }
 
-        return Boolean(
-            COLLECTION_TOTALS[
-                canonical
-            ]
+    // =========================================================================
+    // GET ALL KNOWN COLLECTIONS
+    // =========================================================================
+
+    public static getAllKnownCollections():
+        string[] {
+
+        return Object.keys(
+            COLLECTION_TOTALS
         );
     }
 
@@ -428,10 +460,59 @@ export class CollectionProgressService {
         value: string
     ): string {
 
-        return String(
-            value ||
-            ""
-        )
-            .trim();
+        const normalized =
+            String(
+                value ||
+                ""
+            )
+                .trim();
+
+        /*
+         * Keep collection names canonical.
+         */
+
+        const aliases:
+            Record<string, string> = {
+
+            "John Wick Reihe":
+                "John Wick",
+
+            "The Equalizer Reihe":
+                "The Equalizer",
+
+            "The Equalizer Filmreihe":
+                "The Equalizer",
+
+            "Fast & Furious Reihe":
+                "Fast & Furious",
+
+            "Harry Potter Reihe":
+                "Harry Potter",
+
+            "Transformers Reihe":
+                "Transformers",
+
+            "Spider-Man Universe":
+                "Spider-Man",
+
+            "Spider-Man Reihe":
+                "Spider-Man",
+
+            "Batman Reihe":
+                "Batman",
+
+            "Superman Reihe":
+                "Superman",
+
+            "Scream Filmreihe":
+                "Scream"
+        };
+
+        return (
+            aliases[
+                normalized
+            ] ||
+            normalized
+        );
     }
 }
