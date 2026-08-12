@@ -11,16 +11,16 @@ Architecture Layer..: Application
 
 Module..............: Search
 
-Module ID...........: LOL-MOD-APP-SRC-0001
+Module ID...........: LOL-MOD-APP-SEARCH-0001
 
-LOL-ID..............: LOL-SRC-SERVICE-0001
+LOL-ID..............: LOL-SEARCH-SERVICE-0003
 
 File................: search-service.ts
 
 Location............
-Library Of Legend/src/application/search/
+Library Of Legends/src/application/search/
 
-Version.............: 1.0.0
+Version.............: 1.2.0
 
 Status..............: Core
 
@@ -28,131 +28,365 @@ Lifecycle...........: Production
 
 Description.........
 
-Search system for Library Of Legends.
+Central search service for Library Of Legends.
 
 Responsibilities:
 
-- Search movies from database
-- Return formatted search results
-- Ensure type safety (no undefined issues)
-- Prepare data for Telegram output
+- Search archived movies by title
+- Search archived movies by collection
+- Perform case-insensitive searches
+- Return normalized search results
+- Preserve Archive IDs
+- Format results for Telegram
+- Use the existing MovieRepository API
+
+Important:
+
+- MovieRepository.getAll() is the canonical database read method.
+- SearchService.search() is the canonical search method used by TelegramBot.
+- No duplicate database layer is created here.
+- No undefined archive ID is returned.
 
 ===============================================================================
 */
 
-import { MovieRepository } from "../../infrastructure/database/database";
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+import {
+    MovieRepository,
+    MovieRecord
+} from "../../infrastructure/database/database";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
 export interface SearchResult {
-    title: string;
-    year?: number;
-    archiveId: string;
+
+    title:
+        string;
+
+    year?:
+        number;
+
+    archiveId:
+        string;
+
+    collection?:
+        string;
 }
 
 // =============================================================================
-// SERVICE
+// SEARCH SERVICE
 // =============================================================================
 
 export class SearchService {
 
     // =========================================================================
-    // SEARCH MOVIES
+    // SEARCH
     // =========================================================================
 
-    public static searchMovies(query: string): SearchResult[] {
+    public static search(
+        query: string
+    ): SearchResult[] {
 
-        if (!query || query.trim().length === 0) {
+        const normalizedQuery =
+            String(
+                query ||
+                ""
+            )
+                .trim()
+                .toLowerCase();
+
+        // =====================================================================
+        // EMPTY QUERY
+        // =====================================================================
+
+        if (
+            !normalizedQuery
+        ) {
+
             return [];
         }
 
-        const normalizedQuery = query
-            .toLowerCase()
-            .trim();
+        // =====================================================================
+        // LOAD DATABASE
+        // =====================================================================
 
-        const movies = MovieRepository.getAllMovies();
+        const movies:
+            MovieRecord[] =
+                MovieRepository.getAll();
 
-        const results = movies
-            .filter((movie: any) => {
+        // =====================================================================
+        // FILTER
+        // =====================================================================
 
-                if (!movie.title) return false;
+        const filtered =
+            movies.filter(
+                movie => {
 
-                return movie.title
-                    .toLowerCase()
-                    .includes(normalizedQuery);
+                    const title =
+                        String(
+                            movie.title ||
+                            ""
+                        )
+                            .toLowerCase();
 
-            })
-            .map((movie: any): SearchResult => {
+                    const collection =
+                        String(
+                            movie.collection ||
+                            ""
+                        )
+                            .toLowerCase();
+
+                    return (
+                        title.includes(
+                            normalizedQuery
+                        ) ||
+                        collection.includes(
+                            normalizedQuery
+                        )
+                    );
+                }
+            );
+
+        // =====================================================================
+        // SORT
+        // =====================================================================
+
+        filtered.sort(
+            (
+                first,
+                second
+            ) => {
+
+                const firstTitle =
+                    String(
+                        first.title ||
+                        ""
+                    ).toLowerCase();
+
+                const secondTitle =
+                    String(
+                        second.title ||
+                        ""
+                    ).toLowerCase();
+
+                if (
+                    firstTitle <
+                    secondTitle
+                ) {
+
+                    return -1;
+                }
+
+                if (
+                    firstTitle >
+                    secondTitle
+                ) {
+
+                    return 1;
+                }
+
+                const firstYear =
+                    first.year ||
+                    0;
+
+                const secondYear =
+                    second.year ||
+                    0;
+
+                return (
+                    firstYear -
+                    secondYear
+                );
+            }
+        );
+
+        // =====================================================================
+        // NORMALIZE RESULTS
+        // =====================================================================
+
+        return filtered.map(
+            movie => {
 
                 return {
-                    title: movie.title || "Unbekannt",
-                    year: movie.year,
-                    archiveId: movie.archiveId ?? "UNKNOWN"
+
+                    title:
+                        movie.title ||
+                        "Unbekannt",
+
+                    year:
+                        movie.year,
+
+                    archiveId:
+                        movie.archiveId ||
+                        "UNKNOWN",
+
+                    collection:
+                        movie.collection ||
+                        undefined
                 };
-
-            })
-            .sort((a: SearchResult, b: SearchResult) => {
-
-                const titleA = a.title.toLowerCase();
-                const titleB = b.title.toLowerCase();
-
-                if (titleA < titleB) return -1;
-                if (titleA > titleB) return 1;
-
-                return 0;
-            });
-
-        return results;
+            }
+        );
     }
 
     // =========================================================================
-    // FORMAT FOR TELEGRAM
+    // FORMAT RESULTS
     // =========================================================================
 
-    public static formatResults(results: SearchResult[]): string {
+    public static format(
+        results: SearchResult[]
+    ): string {
 
-        if (!results || results.length === 0) {
-            return "❌ Keine Ergebnisse gefunden.";
+        if (
+            results.length ===
+            0
+        ) {
+
+            return [
+                "━━━━━━━━━━━━━━━━━━",
+                "🔎 <b>Suchergebnisse</b>",
+                "━━━━━━━━━━━━━━━━━━",
+                "",
+                "❌ Keine Ergebnisse gefunden.",
+                "",
+                "🔥 <b>@LibraryOfLegends</b>"
+            ].join(
+                "\n"
+            );
         }
 
-        const lines: string[] = [];
+        const lines:
+            string[] = [
 
-        lines.push("🔎 <b>Suchergebnisse</b>");
-        lines.push("");
-        lines.push("━━━━━━━━━━━━━━━━━━");
+            "━━━━━━━━━━━━━━━━━━",
 
-        for (const result of results) {
+            "🔎 <b>Suchergebnisse</b>",
+
+            "━━━━━━━━━━━━━━━━━━",
+
+            ""
+        ];
+
+        for (
+            const result of results
+        ) {
+
+            const yearText =
+                result.year
+                    ? ` (${result.year})`
+                    : "";
+
+            lines.push(
+                `🎬 <b>${this.escapeHtml(
+                    result.title
+                )}</b>${yearText}`
+            );
+
+            lines.push(
+                `🗂️ <code>${this.escapeHtml(
+                    result.archiveId
+                )}</code>`
+            );
+
+            if (
+                result.collection
+            ) {
+
+                lines.push(
+                    `🎞️ ${this.escapeHtml(
+                        result.collection
+                    )}`
+                );
+            }
 
             lines.push("");
-            lines.push(
-                `🎬 <b>${this.escapeHtml(result.title)}</b>` +
-                (result.year ? ` (${result.year})` : "")
-            );
-
-            lines.push(
-                `🗂 <code>${this.escapeHtml(result.archiveId)}</code>`
-            );
         }
 
-        lines.push("");
-        lines.push("━━━━━━━━━━━━━━━━━━");
+        lines.push(
+            "━━━━━━━━━━━━━━━━━━"
+        );
 
-        return lines.join("\n");
+        lines.push(
+            `📊 ${results.length} Treffer`
+        );
+
+        lines.push(
+            "🔥 <b>@LibraryOfLegends</b>"
+        );
+
+        return lines.join(
+            "\n"
+        );
+    }
+
+    // =========================================================================
+    // SEARCH MOVIES
+    // =========================================================================
+    //
+    // Compatibility alias.
+    //
+    // Existing code can use searchMovies(), while the Telegram bot uses the
+    // canonical search() method.
+    //
+    // =========================================================================
+
+    public static searchMovies(
+        query: string
+    ): SearchResult[] {
+
+        return this.search(
+            query
+        );
+    }
+
+    // =========================================================================
+    // FORMAT RESULTS ALIAS
+    // =========================================================================
+
+    public static formatResults(
+        results: SearchResult[]
+    ): string {
+
+        return this.format(
+            results
+        );
     }
 
     // =========================================================================
     // HTML ESCAPE
     // =========================================================================
 
-    private static escapeHtml(value: string): string {
+    private static escapeHtml(
+        value: string
+    ): string {
 
-        return String(value || "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
+        return String(
+            value ||
+            ""
+        )
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#39;"
+            );
     }
 }
